@@ -1,0 +1,110 @@
+#!/usr/bin/python
+#
+#  wfa-cgi - Workflow Allocator CGI service
+#
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-21. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer. 
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution. 
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+import os
+import re
+import sys
+import time
+import tempfile
+import json
+import MySQLdb
+
+# wfs_conf.py must define these variables:
+#
+# mysqlUser     = 'username'
+# mysqlPassword = 'PAsSWoRd'
+#
+import wfs_conf
+
+# Quickly reject random GETs etc (if not rejected by Apache already)
+if os.environ['REQUEST_METHOD'] != 'POST':
+    print 'Status: 405 Method not allowed'
+    print
+    print 'We only support POST'
+    sys.exit(0)
+
+# In future, authorization will be based on values in the database
+testDN = '/DC=org/DC=cilogon/C=US/O=Fermi National Accelerator Laboratory/OU=People/CN=Andrew McNab/CN=UID:amcnab'
+if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN'] or
+  (not os.environ['SSL_CLIENT_S_DN'] = testDN and 
+   not os.environ['SSL_CLIENT_S_DN'].startswith(testDN + '/CN=')):
+    # Unless we found a matching DN then refuse
+    print 'Status: 403 Forbidden'
+    print
+    print 'Forbidden - acceptable identity not provided'
+    sys.exit(0)
+
+# Get the JSON document POSTed to us
+try:
+  jsonDict = json.load(sys.stdin.read())
+except:
+  print 'Status: 400 Bad Request'
+  print
+  print 'Failed to parse JSON'
+  sys.exit(0)
+
+# Check jsonDict contains required values (eg DUNESite)
+if 'DUNSite' not in jsonDict:
+  print 'Status: 400 Bad Request'
+  print
+  print 'Missing values in JSON'
+  sys.exit(0)
+
+# Do as many checks as we can before connecting to the database here
+db  = MySQLdb.connect(host="localhost", user=wfs_conf.mysqlUser, passwd=wfs_conf.mysqlPassword, db='wfs')
+cur = db.cursor(MySQLdb.cursors.DictCursor)
+
+# get storages relative to this DUNESite
+# build query
+# get list of eligible files
+# try to reserve one or more, in order
+
+# get the bootstrap template for this stage
+script = 'echo 123'
+
+# Transform template to script by replacing patterns
+script = script.replace('##wfa_dunesite##', str(jsonDict('DUNESite')))
+
+# Remove any unused patterns from the template
+script = re.sub('##wfa_[a-z,0-9,_]*##', '', script)
+
+# Return the script to the client 
+print 'Status: 200 OK'
+print 'Content-Length: ' + len(script)
+print 'Content-Type: text/plain'
+print 'Last-Modified: ' + time.strftime("%a, %d %b %Y %T GMT", time.gmtime(stat.st_mtime))
+print
+print script
+
+sys.exit(0)
