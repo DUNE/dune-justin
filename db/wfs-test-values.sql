@@ -1,4 +1,4 @@
-USE wfd
+USE wfs
 
 DELETE FROM requests;
 DELETE FROM stages;

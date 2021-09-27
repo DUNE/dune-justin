@@ -1,7 +1,7 @@
 # Run with:
 # mysql --table --verbose < wfd-example-queries.sql
 
-USE wfd
+USE wfs
 describe requests;
 describe stages;
 describe bootstraps;
