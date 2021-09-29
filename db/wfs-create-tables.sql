@@ -1,5 +1,3 @@
-# mysqldump --no-data wfs > wfs-create-tables.sql 
-
 -- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
 --
 -- Host: localhost    Database: wfs
@@ -45,8 +43,27 @@ CREATE TABLE `files` (
   `stage_id` tinyint(3) unsigned NOT NULL,
   `did` varchar(255) NOT NULL,
   `state` enum('unallocated','allocated','processed') NOT NULL DEFAULT 'unallocated',
+  `allocator_id` varchar(255) NOT NULL,
+  `executor_id` varchar(255) NOT NULL,
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pre_allocations`
+--
+
+DROP TABLE IF EXISTS `pre_allocations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `pre_allocations` (
+  `request_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `file_id` int(10) unsigned NOT NULL,
+  `created` datetime NOT NULL,
+  `allocator_id` varchar(255) NOT NULL,
+  UNIQUE KEY `rsf` (`request_id`,`stage_id`,`file_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -92,7 +109,7 @@ DROP TABLE IF EXISTS `sites_storages`;
 CREATE TABLE `sites_storages` (
   `site_name` varchar(255) NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `location` enum('site','nearby','accessible') NOT NULL DEFAULT 'site',
+  `location` enum('samesite','nearby','accessible') NOT NULL DEFAULT 'samesite',
   UNIQUE KEY `rse_id` (`rse_id`,`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -139,4 +156,4 @@ CREATE TABLE `storages` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-08-18 12:04:10
+-- Dump completed on 2021-09-29 10:22:11

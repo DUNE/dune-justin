@@ -36,16 +36,406 @@ import os
 import re
 import sys
 import time
-import tempfile
 import json
+import string
 import MySQLdb
 
-# wfs_conf.py must define these variables:
+# wfs/conf.py must define these variables:
 #
 # mysqlUser     = 'username'
 # mysqlPassword = 'PAsSWoRd'
 #
 import wfs.conf
+
+# Global database connection and ID, usable anywhere
+db          = None
+allocatorID = None
+
+# Return various SQL terms where are used in subsequent queries
+# by allocateMethod()
+def makeStorageQueryTerms(jsonDict, duneSite):
+
+  cur = db.cursor(MySQLdb.cursors.DictCursor)
+
+  # duneSite is checked for bad characters earlier
+  # which prevents SQL injection attacks
+  cur.execute('SELECT rse_id,location FROM sites_storages '
+              'WHERE site_name="%s";' % duneSite)
+
+  storageRows = cur.fetchall()
+ 
+  samesiteList   = []
+  nearbyList     = []
+  accessibleList = []
+
+  for storageRow in storageRows:
+    if storageRow['location'] == 'accessible':
+      accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+    elif storageRow['location'] == 'nearby':
+      nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+    elif storageRow['location'] == 'samesite':
+      samesiteList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+
+  storageWhere = ' OR '.join(samesiteList + nearbyList)
+
+  if accessibleList:
+    if storageWhere:
+      storageWhere += ' OR '
+
+    storageWhere += ('(stages.any_location AND (' + 
+                     ' OR '.join(accessibleList) + '))')
+
+  if storageWhere:
+    storageWhere = ' AND ' + storageWhere
+ 
+  if samesiteList:
+    storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
+  else:
+    storageOrder = ''
+
+  if nearbyList:
+    if storageOrder:
+      storageOrder += ' OR '
+  
+    storageOrder += '2*(' + ' OR '.join(nearbyList) + ')'
+
+  if accessibleList:
+    if storageOrder:
+      storageOrder += ' OR '
+
+    storageOrder += '1*(' + ' OR '.join(accessibleList) + ')'
+
+  # If we got anything for the storage ordering then complete the
+  # expression including the comma; otherwise an empty string
+  if storageOrder:
+    storageOrder += ' DESC,'
+
+  return { "samesiteList"   : samesiteList,
+           "nearbyList"     : nearbyList,
+           "accessibleList" : accessibleList,
+           "storageWhere"   : storageWhere,
+           "storageOrder"   : storageOrder 
+         }
+
+# Full allocation mode: identify the best request/stage combinations
+def candidateStagesQuery(storageQueryTerms):
+
+  cur = db.cursor(MySQLdb.cursors.DictCursor)
+
+  print(
+ "SELECT stages.request_id,stages.stage_id,"
+ "stages.min_inputs,stages.max_inputs,stages.any_location FROM files "
+ "LEFT JOIN stages ON files.request_id=stages.request_id AND "
+ "files.stage_id=stages.stage_id "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+ "WHERE files.state='unallocated' " + 
+ storageQueryTerms["storageWhere"] + 
+ " ORDER BY " + 
+ storageQueryTerms["storageOrder"] + "files.request_id,files.file_id"
+ " LIMIT 100;", file=sys.stderr
+ )
+    
+
+  cur.execute(
+ "SELECT stages.request_id,stages.stage_id,"
+ "stages.min_inputs,stages.max_inputs,stages.any_location FROM files "
+ "LEFT JOIN stages ON files.request_id=stages.request_id AND "
+ "files.stage_id=stages.stage_id "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+ "WHERE files.state='unallocated' " + 
+ storageQueryTerms["storageWhere"] + 
+ " ORDER BY " + 
+ storageQueryTerms["storageOrder"] + "files.request_id,files.file_id"
+ " LIMIT 100;"
+ )
+    
+  requestStageRows = cur.fetchall()
+
+  requestsStagesList = []
+  requestsStagesDict = {}
+
+  for requestStageRow in requestStageRows:
+
+      print(requestStageRow, file=sys.stderr)
+   
+      requestID   = int(requestStageRow['request_id'])
+      stageID     = int(requestStageRow['stage_id'])
+      minInputs   = int(requestStageRow['min_inputs'])
+      maxInputs   = int(requestStageRow['max_inputs'])
+      anyLocation = requestStageRow['any_location']
+
+      # Only add combinations not already present
+      if (requestID,stageID) not in requestsStagesList:
+        requestsStagesList.append((requestID,stageID))
+        requestsStagesDict[(requestID, stageID)] = {
+                                                     "min_inputs"  : minInputs,
+                                                     "max_inputs"  : maxInputs,
+                                                     "any_location": anyLocation
+                                                   }
+        
+      # Stop after we have accumulated 10
+      if len(requestsStagesList) >= 10:
+        break
+
+  return { "list": requestsStagesList,
+           "dict": requestsStagesDict 
+         }
+
+# Traditional SAM mode: with fixed request/stage
+def candidateStagesGiven(jsonDict, requestID):
+  
+  try:
+    stageID = int(jsonDict[stage_id])
+  except:
+    stageID = 1
+      
+  try:
+    minInputs = int(jsonDict["min_inputs"])
+  except:
+    minInputs = 1
+      
+  try:
+    maxInputs = int(jsonDict["max_inputs"])
+  except:
+    maxInputs = 1
+            
+  try:
+    anyLocation = bool(jsonDict["any_location"])
+  except:
+    anyLocation = False
+            
+  requestsStagesList = [ (requestID, stageID) ]
+  requestsStagesDict = { (requestID, stageID): 
+                            { "min_inputs" : minInputs,
+                              "max_inputs" : maxInputs,
+                              "anyLocation": anyLocation
+                            }
+                       }
+                      
+  return { "list": requestStagesList,
+           "dict": requestStagesDict 
+         }
+
+# Try to get a long enough list of files from this request/stage
+# and then update their status to allocated in the files table
+def allocateFiles(storageQueryTerms, requestID, stageID,
+                     minInputs, maxInputs, anyLocation):
+ 
+  curSelect = db.cursor(MySQLdb.cursors.DictCursor)
+  curUpdate = db.cursor(MySQLdb.cursors.DictCursor)
+
+  if anyLocation:
+    # If this stage can access data on any accessible storage, then 
+    # use all three lists
+    storageWhere = ' OR '.join(storageQueryTerms["samesiteList"] + 
+                               storageQueryTerms["nearbyList"] + 
+                               storageQueryTerms["accessibleList"])
+  else:
+    # Otherwise just use samesite and nearby lists of storages
+    storageWhere = ' OR '.join(storageQueryTerms["samesiteList"] + 
+                               storageQueryTerms["nearbyList"])
+
+
+  # Get an ordered list of unallocated files in this stage with replicas
+  # on suitable storages. Use pre_allocations table to prevent races between
+  # allocator instances. Transactions should really be used for this instead, 
+  # but this is more portable for now
+  print(
+ "SELECT files.file_id,files.did,pre_allocations.file_id FROM files "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN pre_allocations ON files.file_id=pre_allocations.file_id "
+ "WHERE files.state='unallocated' AND files.request_id=" +
+ str(requestID) + " AND files.stage_id=" + str(stageID) + 
+ storageWhere + " AND pre_allocations.file_id IS NULL " + 
+ " ORDER BY " + 
+ storageQueryTerms["storageOrder"] + " DESC,files.file_id"
+ " LIMIT 100;", file=sys.stderr)
+    
+  curSelect.execute(
+ "SELECT files.file_id,files.did,pre_allocations.file_id FROM files "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN pre_allocations ON files.file_id=pre_allocations.file_id "
+ "WHERE files.state='unallocated' AND files.request_id=" +
+ str(requestID) + " AND files.stage_id=" + str(stageID) + 
+ storageWhere + " AND pre_allocations.file_id IS NULL " + 
+ " ORDER BY " + 
+ storageQueryTerms["storageOrder"] + "files.file_id"
+ " LIMIT 100;"
+ )
+    
+  filesList = []
+  fileRows = curSelect.fetchall()
+  
+  # Go through the candidate files for this stage trying to pre-allocate them
+  # This prevents them being returned in queries by other allocator instances
+  # and INSERT fails if they have been pre-allocated elsewhere
+  # Pre-allocations are timestamped and should only last while this query
+  # from the client is processed: can be cleaned up periodically where the
+  # allocator instance failed for some reason.
+  for fileRow in fileRows:
+
+    try:
+      curUpdate.execute(
+       "INSERT INTO pre_allocations SET request_id=%d,stage_id=%d,"
+       "file_id=%s,created=NOW(),allocator_id='%s'" % 
+       (requestID, stageID, fileRow['file_id'], allocatorID))
+       
+#      curUpdate.commit()
+    except MySQLdb.IntegrityError:
+      # This file is already allocated - try next one
+      continue
+
+    # Each file we successfully pre-allocate is added to the ordered list
+    filesList.append({"file_id": int(fileRow['file_id']),
+                      "did"    : fileRow['did']
+                     })
+
+    # Stop if we have already reached the maximum number of input files
+    # in this stage's definition
+    if len(filesList) >= maxInputs:
+      break
+    
+  # After the loop, how did we do?
+  if len(filesList) < minInputs:
+    # Oh dear. This means too few for this stage available so we cannot
+    # allocate any files from this request/stage to process
+
+    # Release our pre-allocations
+    try:
+      curUpdate.execute("DELETE FROM pre_allocations WHERE allocator_id='" + 
+                        allocatorID + "'")
+    except:
+      # Oh dear, oh dear. Cleanup agent will get them anyway.
+      pass
+
+    # Record that it didn't work out for this request/stage
+    filesList = []
+
+  # Update the file's status to allocated in files table if we got
+  # a list of files to process
+  for fileDict in filesList:
+    try:    
+      curUpdate.execute("UPDATE files SET state='allocated' WHERE file_id="
+                        + str(fileDict['file_id']))
+#      curUpdate.commit()
+    except:
+      # If anything goes wrong, we remove the file from the list
+      filesList.remove(fileDict)
+      
+  # Whatever happens, tidy up our pre-allocations
+  try:
+    curUpdate.execute("DELETE FROM pre_allocations WHERE allocator_id='" + 
+                      allocatorID + "'")
+#    curUpdate.commit()
+  except:
+    # No harm done. Cleanup agent will get them anyway.
+    pass
+
+  # Return the list of files for this request/stage or an empty list
+  return filesList      
+
+# Successfully identified the request/stage and files so get the 
+# bootstrap template for this stage and convert it
+def sendBootstrap(requestID, stageID, filesList):
+
+  cur = db.cursor(MySQLdb.cursors.DictCursor)
+
+  try:
+    cur.execute("SELECT bootstrap FROM bootstraps "
+                "WHERE request_id=%d AND stage_id=%s" % (requestID, stageID))
+
+    rows = cur.fetchall()
+    script = rows[0]['bootstrap']
+  except:
+    print('Status: 500 Internal Server Error')
+    print()
+    print('Failed to get bootstrap template')
+    sys.exit(0)
+
+  # Transform template to script by replacing patterns
+  script = script.replace('##wfa_request_id##', str(requestID))
+  script = script.replace('##wfa_stage_id##',   str(stageID))
+
+# CHANGE THIS TO A TEXT LIST? WITH NEWLINES?
+  script = script.replace('##wfa_files##', str(filesList))
+
+  # Remove any unused patterns from the template
+  script = re.sub('##wfa_[a-z,0-9,_]*##', '', script)
+
+  # Return the script to the client 
+  print('Status: 200 OK')
+  print('Content-Length: %d' % (len(script) + 1))
+  print('Content-Type: text/plain')
+  print()
+  print(script)
+
+# Try to get the bootstrap script for the highest priority 
+# files/stage/request combination
+def allocateMethod(jsonDict):
+
+  # Check jsonDict contains required values (eg dunesite)
+  for name in ['dunesite']:
+    if name not in jsonDict:
+      print('Status: 400 Bad Request')
+      print()
+      print('Missing value(s) in JSON')
+      sys.exit(0)
+
+  # Require that dunesite only contains A-Z a-z 0-9 - and _ 
+  if (set(string.ascii_lowercase + string.digits + '-' + '_') <= 
+       set(str(jsonDict['dunesite'].lower()))):
+    print('Status: 400 Bad Request')
+    print()
+    print('Invalid dunesite in JSON')
+    sys.exit(0)
+  else:
+    duneSite = str(jsonDict['dunesite'])
+
+  # Make strings used in SQL queries
+  storageQueryTerms = makeStorageQueryTerms(jsonDict, duneSite)
+
+  try:
+    requestID = int(jsonDict[request_id])
+  except:
+    # request_id not given so use full allocation query mode: identify the 
+    # best request/stage candidate combinations globally
+    candidateStages = candidateStagesQuery(storageQueryTerms)
+  else:
+    # Traditional SAM mode: put the fixed request_id/stage_id into the
+    # candidates list and dictionary
+    candidateStages = candidateStagesGiven(jsonDict, requestID)
+
+  # However we have arrived at the list of requests/stages, go 
+  # through them, looking for enough files
+  
+  for (requestID,stageID) in candidateStages['list']:
+    
+    filesList = allocateFiles(storageQueryTerms, 
+                              requestID, stageID,
+               candidateStages['dict'][(requestID,stageID)]['min_inputs'],
+               candidateStages['dict'][(requestID,stageID)]['max_inputs'],
+               candidateStages['dict'][(requestID,stageID)]['any_location'])
+                       
+    if filesList:      
+      sendBootstrap(requestID, stageID, filesList)
+      sys.exit(0)
+      
+  # Failed to get enough files for any matching or given request/stage
+  # so give the client the bad news: we have nothing for them to do!
+    
+def resultsMethod(jsonDict):
+  
+  # Return OK to the client
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print()
+  sys.exit(0)
+
+#
+# PROGRAM MAIN
+#
 
 # Quickly reject random GETs etc (if not rejected by Apache already)
 if os.environ['REQUEST_METHOD'] != 'POST':
@@ -54,8 +444,12 @@ if os.environ['REQUEST_METHOD'] != 'POST':
     print('We only support POST')
     sys.exit(0)
 
-# In future, authorization will be based on values in the database
+# Create a unique ID string for this instance that may also help in debugging
+allocatorID = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
+
+# In future, this will be the DN of the Generic Job Factory
 testDN = 'CN=UID:amcnab,CN=Andrew McNab,OU=People,O=Fermi National Accelerator Laboratory,C=US,DC=cilogon,DC=org'
+#WE NEED TO TRANSFORM THIS TO ../CN=.. OR OTHERWISE HANDLE PROXY MATCHING
 if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN'] or \
   (os.environ['SSL_CLIENT_S_DN'] != testDN and \
    not os.environ['SSL_CLIENT_S_DN'].startswith(testDN + '/CN=')):
@@ -74,43 +468,32 @@ except:
   print('Failed to parse JSON')
   sys.exit(0)
 
-# Check jsonDict contains required values (eg dunesite)
-if 'dunesite' not in jsonDict:
+# Check jsonDict specifies a method
+if 'method' not in jsonDict:
   print('Status: 400 Bad Request')
   print()
-  print('Missing values in JSON')
+  print('Missing method in JSON')
   sys.exit(0)
 
 # Do as many checks as we can before connecting to the database here
 try:
-  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, passwd=wfs.conf.mysqlPassword, db='wfs')
-  cur = db.cursor(MySQLdb.cursors.DictCursor)
+  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
+                        passwd=wfs.conf.mysqlPassword, db='wfs')
 except:
   print('Status: 500 Internal Server Error')
   print()
   print('Problem with database connection')
   sys.exit(0)
-    
-# get storages relative to this DUNESite
-# build query
-# get list of eligible files
-# try to reserve one or more, in order
 
-# get the bootstrap template for this stage
-script = 'echo 123'
+if jsonDict['method'] == 'allocate':
+  allocateMethod(jsonDict)
+  
+elif jsonDict['method'] == 'results':
+  resultsMethod(jsonDict)
 
-# Transform template to script by replacing patterns
-script = script.replace('##wfa_dunesite##', str(jsonDict('DUNESite')))
+else:
+  print('Status: 400 Bad Request')
+  print()
+  print('Method in JSON not recognised')
+  sys.exit(0)
 
-# Remove any unused patterns from the template
-script = re.sub('##wfa_[a-z,0-9,_]*##', '', script)
-
-# Return the script to the client 
-print('Status: 200 OK')
-print('Content-Length: ' + len(script))
-print('Content-Type: text/plain')
-print('Last-Modified: ' + time.strftime("%a, %d %b %Y %T GMT", time.gmtime(stat.st_mtime)))
-print()
-print(script)
-
-sys.exit(0)

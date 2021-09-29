@@ -18,14 +18,14 @@ INSERT INTO storages SET rse_name='FNAL_DCACHE';
 INSERT INTO storages SET rse_name='MANCHESTER';
 INSERT INTO storages SET rse_name='RAL_ECHO';
 
-INSERT INTO sites_storages SET rse_id=1,site_name='US_FNAL',location='site';
+INSERT INTO sites_storages SET rse_id=1,site_name='US_FNAL',location='samesite';
 INSERT INTO sites_storages SET rse_id=1,site_name='UK_RAL-Tier1',location='accessible';
 INSERT INTO sites_storages SET rse_id=1,site_name='UK_Manchester',location='accessible';
 
 INSERT INTO sites_storages SET rse_id=2,site_name='UK_RAL-Tier1',location='nearby';
-INSERT INTO sites_storages SET rse_id=2,site_name='UK_Manchester',location='site';
+INSERT INTO sites_storages SET rse_id=2,site_name='UK_Manchester',location='samesite';
 
-INSERT INTO sites_storages SET rse_id=3,site_name='UK_RAL-Tier1',location='site';
+INSERT INTO sites_storages SET rse_id=3,site_name='UK_RAL-Tier1',location='samesite';
 INSERT INTO sites_storages SET rse_id=3,site_name='UK_Manchester',location='nearby';
 
 # Create one request where files can only be processed from nearby sites
