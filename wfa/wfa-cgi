@@ -52,7 +52,7 @@ import wfs.conf
 db          = None
 allocatorID = None
 
-# Return various SQL terms where are used in subsequent queries
+# Return various SQL terms which are used in subsequent queries
 # by allocateMethod()
 def makeStorageQueryTerms(jsonDict, duneSite):
 
@@ -450,7 +450,7 @@ def resultsMethod(jsonDict):
   # Make a sanitised string which identifies the executor
   executorID = re.sub('["\']', '_', str(jsonDict['executor_id']).lower())
 
-  # Make a sanitised string which identifies the executor
+  # Check the DID
   fileDID = str(jsonDict['file_did'])
   if '"' in fileDID or "'" in fileDID:
     print('Status: 400 Bad Request')
