@@ -31,7 +31,7 @@ INSERT INTO sites_storages SET rse_id=3,site_name='UK_Manchester',location='near
 # Create one request where files can only be processed from nearby sites
 INSERT INTO requests SET state='running',name='test request 1',created=NOW(),submitted=NOW(),approved=NOW();
 INSERT INTO stages SET request_id=1,stage_id=1,min_inputs=1,max_inputs=1,max_wall_seconds=86400,max_rss_bytes=8123123,any_location=FALSE;
-INSERT INTO bootstraps SET request_id=1,stage_id=1,bootstrap='echo hello 1,1';
+INSERT INTO bootstraps SET request_id=1,stage_id=1,bootstrap='##wfa_files_json##\n##wfa_files_did_rse##';
 
 INSERT INTO files SET request_id=1,stage_id=1,did='file.01.01';
 INSERT INTO files SET request_id=1,stage_id=1,did='file.01.02';
@@ -49,7 +49,7 @@ INSERT INTO replicas SET file_id=3,rse_id=3;
 # Create another request where files can be processed from any site
 INSERT INTO requests SET state='running',name='test request 2',created=NOW(),submitted=NOW(),approved=NOW();
 INSERT INTO stages SET request_id=2,stage_id=1,min_inputs=1,max_inputs=1,max_wall_seconds=86400,max_rss_bytes=8123123,any_location=TRUE;
-INSERT INTO bootstraps SET request_id=2,stage_id=1,bootstrap='echo hello 2,1';
+INSERT INTO bootstraps SET request_id=2,stage_id=1,bootstrap='##wfa_files_json##\n##wfa_files_did_rse##';
 
 INSERT INTO files SET request_id=2,stage_id=1,did='file.02.01';
 INSERT INTO files SET request_id=2,stage_id=1,did='file.02.02';

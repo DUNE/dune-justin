@@ -117,25 +117,11 @@ def makeStorageQueryTerms(jsonDict, duneSite):
            "storageOrder"   : storageOrder 
          }
 
-# Full allocation mode: identify the best request/stage combinations
+# Just In Time decision maming: identify the best request/stage combinations
+# based on the immediate situation rather than trying to plan ahead
 def candidateStagesQuery(storageQueryTerms):
 
   cur = db.cursor(MySQLdb.cursors.DictCursor)
-
-  print(
- "SELECT stages.request_id,stages.stage_id,"
- "stages.min_inputs,stages.max_inputs,stages.any_location FROM files "
- "LEFT JOIN stages ON files.request_id=stages.request_id AND "
- "files.stage_id=stages.stage_id "
- "LEFT JOIN replicas ON files.file_id=replicas.file_id "
- "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
- "WHERE files.state='unallocated' " + 
- storageQueryTerms["storageWhere"] + 
- " ORDER BY " + 
- storageQueryTerms["storageOrder"] + "files.request_id,files.file_id"
- " LIMIT 100;", file=sys.stderr
- )
-    
 
   cur.execute(
  "SELECT stages.request_id,stages.stage_id,"
@@ -152,6 +138,8 @@ def candidateStagesQuery(storageQueryTerms):
  )
     
   requestStageRows = cur.fetchall()
+
+  print(requestStageRows,file=sys.stderr)
 
   requestsStagesList = []
   requestsStagesDict = {}
@@ -183,7 +171,7 @@ def candidateStagesQuery(storageQueryTerms):
            "dict": requestsStagesDict 
          }
 
-# Traditional SAM mode: with fixed request/stage
+# Traditional SAM mode: with a hardcoded request/stage in the job
 def candidateStagesGiven(jsonDict, requestID):
   
   try:
@@ -218,10 +206,10 @@ def candidateStagesGiven(jsonDict, requestID):
            "dict": requestStagesDict 
          }
 
-# Try to get a long enough list of files from this request/stage
+# Try to make a long enough list of files from this request/stage
 # and then update their status to allocated in the files table
-def allocateFiles(storageQueryTerms, requestID, stageID,
-                     minInputs, maxInputs, anyLocation):
+def makeAllocatedFiles(storageQueryTerms, requestID, stageID,
+                       minInputs, maxInputs, anyLocation):
  
   curSelect = db.cursor(MySQLdb.cursors.DictCursor)
   curUpdate = db.cursor(MySQLdb.cursors.DictCursor)
@@ -240,23 +228,15 @@ def allocateFiles(storageQueryTerms, requestID, stageID,
 
   # Get an ordered list of unallocated files in this stage with replicas
   # on suitable storages. Use pre_allocations table to prevent races between
-  # allocator instances. Transactions should really be used for this instead, 
-  # but this is more portable for now
-  print(
- "SELECT files.file_id,files.did,pre_allocations.file_id FROM files "
- "LEFT JOIN replicas ON files.file_id=replicas.file_id "
- "LEFT JOIN pre_allocations ON files.file_id=pre_allocations.file_id "
- "WHERE files.state='unallocated' AND files.request_id=" +
- str(requestID) + " AND files.stage_id=" + str(stageID) + 
- storageWhere + " AND pre_allocations.file_id IS NULL " + 
- " ORDER BY " + 
- storageQueryTerms["storageOrder"] + " DESC,files.file_id"
- " LIMIT 100;", file=sys.stderr)
-    
+  # allocator instances. Transactions might be better for this instead, 
+  # but this is more portable for now and will probably deal with high load
+  # better since it can tolerate similar queries without blocking
   curSelect.execute(
- "SELECT files.file_id,files.did,pre_allocations.file_id FROM files "
+ "SELECT files.file_id,files.did,pre_allocations.file_id,storages.rse_name "
+ "FROM files "
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN pre_allocations ON files.file_id=pre_allocations.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "WHERE files.state='unallocated' AND files.request_id=" +
  str(requestID) + " AND files.stage_id=" + str(stageID) + 
  storageWhere + " AND pre_allocations.file_id IS NULL " + 
@@ -265,14 +245,14 @@ def allocateFiles(storageQueryTerms, requestID, stageID,
  " LIMIT 100;"
  )
     
-  filesList = []
+  preAllocatedFiles = []
   fileRows = curSelect.fetchall()
   
   # Go through the candidate files for this stage trying to pre-allocate them
   # This prevents them being returned in queries by other allocator instances
   # and INSERT fails if they have been pre-allocated elsewhere
   # Pre-allocations are timestamped and should only last while this query
-  # from the client is processed: can be cleaned up periodically where the
+  # from the executor is processed: can be cleaned up periodically where the
   # allocator instance failed for some reason.
   for fileRow in fileRows:
 
@@ -282,63 +262,66 @@ def allocateFiles(storageQueryTerms, requestID, stageID,
        "file_id=%s,created=NOW(),allocator_id='%s'" % 
        (requestID, stageID, fileRow['file_id'], allocatorID))
        
-#      curUpdate.commit()
+      db.commit()
     except MySQLdb.IntegrityError:
-      # This file is already allocated - try next one
+      # This file is already pre-allocated - try next one
       continue
 
     # Each file we successfully pre-allocate is added to the ordered list
-    filesList.append({"file_id": int(fileRow['file_id']),
-                      "did"    : fileRow['did']
-                     })
+    preAllocatedFiles.append({"file_id" : int(fileRow['file_id']),
+                              "did"     : fileRow['did'],
+                              "rse_name": fileRow['rse_name']
+                             })
 
     # Stop if we have already reached the maximum number of input files
     # in this stage's definition
-    if len(filesList) >= maxInputs:
+    if len(preAllocatedFiles) >= maxInputs:
       break
     
   # After the loop, how did we do?
-  if len(filesList) < minInputs:
-    # Oh dear. This means too few for this stage available so we cannot
+  if len(preAllocatedFiles) < minInputs:
+    # Oh dear. This means too few files for this stage available so we cannot
     # allocate any files from this request/stage to process
 
-    # Release our pre-allocations
-    try:
-      curUpdate.execute("DELETE FROM pre_allocations WHERE allocator_id='" + 
-                        allocatorID + "'")
-    except:
-      # Oh dear, oh dear. Cleanup agent will get them anyway.
-      pass
-
     # Record that it didn't work out for this request/stage
-    filesList = []
+    preAllocatedFiles = []
 
-  # Update the file's status to allocated in files table if we got
-  # a list of files to process
-  for fileDict in filesList:
+  # Update the pre-allocated files' statuses to allocated in files table 
+  # and record them 
+  allocatedFiles = []
+
+  for fileDict in preAllocatedFiles:
     try:    
       curUpdate.execute("UPDATE files SET state='allocated' WHERE file_id="
                         + str(fileDict['file_id']))
-#      curUpdate.commit()
+      db.commit()
     except:
-      # If anything goes wrong, we remove the file from the list
-      filesList.remove(fileDict)
+      # If anything goes wrong, we don't add the file to the final list
+      pass
+    else:
+      # We only include values we will return to the executor
+      # So that means we miss out file_id in particular
+      # rse_name is a just hint and the executor should use RUCIO to get the
+      # best replica and its transfer URL etc to use
+      allocatedFiles.append({"did"     : fileDict['did'],
+                             "rse_name": fileDict['rse_name']
+                            })
       
   # Whatever happens, tidy up our pre-allocations
   try:
     curUpdate.execute("DELETE FROM pre_allocations WHERE allocator_id='" + 
                       allocatorID + "'")
-#    curUpdate.commit()
+    db.commit()
   except:
     # No harm done. Cleanup agent will get them anyway.
     pass
 
   # Return the list of files for this request/stage or an empty list
-  return filesList      
+  return allocatedFiles
 
 # Successfully identified the request/stage and files so get the 
 # bootstrap template for this stage and convert it
-def sendBootstrap(requestID, stageID, filesList):
+def sendBootstrap(requestID, stageID, allocatedFiles):
 
   cur = db.cursor(MySQLdb.cursors.DictCursor)
 
@@ -355,16 +338,22 @@ def sendBootstrap(requestID, stageID, filesList):
     sys.exit(0)
 
   # Transform template to script by replacing patterns
-  script = script.replace('##wfa_request_id##', str(requestID))
-  script = script.replace('##wfa_stage_id##',   str(stageID))
-
-# CHANGE THIS TO A TEXT LIST? WITH NEWLINES?
-  script = script.replace('##wfa_files##', str(filesList))
+  didStr = ''
+  didRseStr = ''
+  for fileDict in allocatedFiles:
+    didStr    += fileDict['did'] + '\n'
+    didRseStr += fileDict['did'] + ' ' + fileDict['rse_name'] + '\n'
+    
+  script = script.replace('##wfa_files_did##',      didStr)
+  script = script.replace('##wfa_files_did_rse##',  didRseStr)
+  script = script.replace('##wfa_files_json##',     json.dumps(allocatedFiles))
+  script = script.replace('##wfa_request_id##',     str(requestID))
+  script = script.replace('##wfa_stage_id##',       str(stageID))
 
   # Remove any unused patterns from the template
   script = re.sub('##wfa_[a-z,0-9,_]*##', '', script)
 
-  # Return the script to the client 
+  # Return the script to the workflow executor 
   print('Status: 200 OK')
   print('Content-Length: %d' % (len(script) + 1))
   print('Content-Type: text/plain')
@@ -396,38 +385,36 @@ def allocateMethod(jsonDict):
   # Make strings used in SQL queries
   storageQueryTerms = makeStorageQueryTerms(jsonDict, duneSite)
 
+  print(storageQueryTerms, file=sys.stderr)
+
   try:
     requestID = int(jsonDict[request_id])
   except:
-    # request_id not given so use full allocation query mode: identify the 
-    # best request/stage candidate combinations globally
+    # request_id not given so use Just In Time decision making: identify the 
+    # best request/stage candidate combinations at this moment
     candidateStages = candidateStagesQuery(storageQueryTerms)
   else:
-    # Traditional SAM mode: put the fixed request_id/stage_id into the
-    # candidates list and dictionary
+    # Traditional SAM mode: put the hardcoded request_id/stage_id from the
+    # job into the candidates list and dictionary
     candidateStages = candidateStagesGiven(jsonDict, requestID)
 
   # However we have arrived at the list of requests/stages, go 
   # through them, looking for enough files
-  
   for (requestID,stageID) in candidateStages['list']:
     
-    filesList = allocateFiles(storageQueryTerms, 
+    allocatedFiles = makeAllocatedFiles(storageQueryTerms, 
                               requestID, stageID,
                candidateStages['dict'][(requestID,stageID)]['min_inputs'],
                candidateStages['dict'][(requestID,stageID)]['max_inputs'],
                candidateStages['dict'][(requestID,stageID)]['any_location'])
                        
-    if filesList:      
-      sendBootstrap(requestID, stageID, filesList)
+    if allocatedFiles:
+      sendBootstrap(requestID, stageID, allocatedFiles)
       sys.exit(0)
-      
-  # Failed to get enough files for any matching or given request/stage
-  # so give the client the bad news: we have nothing for them to do!
     
 def resultsMethod(jsonDict):
   
-  # Return OK to the client
+  # Return OK to the workflow executor
   print('Status: 200 OK')
   print('Content-Type: text/plain')
   print()
@@ -437,7 +424,7 @@ def resultsMethod(jsonDict):
 # PROGRAM MAIN
 #
 
-# Quickly reject random GETs etc (if not rejected by Apache already)
+# Quickly reject random GETs etc (if not hanlded by Apache already)
 if os.environ['REQUEST_METHOD'] != 'POST':
     print('Status: 405 Method not allowed')
     print()
