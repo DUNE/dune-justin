@@ -41,12 +41,32 @@ CREATE TABLE `files` (
   `file_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `did` varchar(255) NOT NULL,
+  `file_did` varchar(255) NOT NULL,
   `state` enum('unallocated','allocated','processed') NOT NULL DEFAULT 'unallocated',
   `allocator_id` varchar(255) NOT NULL,
   `executor_id` varchar(255) NOT NULL,
+  `cookie` varchar(255) NOT NULL,
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `metadata_queue`
+--
+
+DROP TABLE IF EXISTS `metadata_queue`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `metadata_queue` (
+  `file_did` varchar(255) NOT NULL,
+  `queue_time` datetime NOT NULL,
+  `request_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `metadata` text NOT NULL,
+  `executor_id` varchar(255) NOT NULL,
+  `metadata_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`metadata_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -156,4 +176,4 @@ CREATE TABLE `storages` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-09-29 10:22:11
+-- Dump completed on 2021-09-29 22:04:19

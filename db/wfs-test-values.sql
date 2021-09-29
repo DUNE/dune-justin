@@ -33,9 +33,9 @@ INSERT INTO requests SET state='running',name='test request 1',created=NOW(),sub
 INSERT INTO stages SET request_id=1,stage_id=1,min_inputs=1,max_inputs=1,max_wall_seconds=86400,max_rss_bytes=8123123,any_location=FALSE;
 INSERT INTO bootstraps SET request_id=1,stage_id=1,bootstrap='##wfa_files_json##\n##wfa_files_did_rse##';
 
-INSERT INTO files SET request_id=1,stage_id=1,did='file.01.01';
-INSERT INTO files SET request_id=1,stage_id=1,did='file.01.02';
-INSERT INTO files SET request_id=1,stage_id=1,did='file.01.03';
+INSERT INTO files SET request_id=1,stage_id=1,file_did='file.01.01';
+INSERT INTO files SET request_id=1,stage_id=1,file_did='file.01.02';
+INSERT INTO files SET request_id=1,stage_id=1,file_did='file.01.03';
 
 INSERT INTO replicas SET file_id=1,rse_id=1;
 INSERT INTO replicas SET file_id=1,rse_id=2;
@@ -51,9 +51,9 @@ INSERT INTO requests SET state='running',name='test request 2',created=NOW(),sub
 INSERT INTO stages SET request_id=2,stage_id=1,min_inputs=1,max_inputs=1,max_wall_seconds=86400,max_rss_bytes=8123123,any_location=TRUE;
 INSERT INTO bootstraps SET request_id=2,stage_id=1,bootstrap='##wfa_files_json##\n##wfa_files_did_rse##';
 
-INSERT INTO files SET request_id=2,stage_id=1,did='file.02.01';
-INSERT INTO files SET request_id=2,stage_id=1,did='file.02.02';
-INSERT INTO files SET request_id=2,stage_id=1,did='file.02.03';
+INSERT INTO files SET request_id=2,stage_id=1,file_did='file.02.01';
+INSERT INTO files SET request_id=2,stage_id=1,file_did='file.02.02';
+INSERT INTO files SET request_id=2,stage_id=1,file_did='file.02.03';
 
 INSERT INTO replicas SET file_id=4,rse_id=1;
 INSERT INTO replicas SET file_id=4,rse_id=2;
