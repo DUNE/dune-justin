@@ -568,7 +568,7 @@ if 'method' not in jsonDict:
 # Do as many checks as we can before connecting to the database here
 try:
   db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
-                        passwd=wfs.conf.mysqlPassword, db='wfs')
+                        passwd=wfs.conf.mysqlPassword, db='wfdb')
 except:
   print('Status: 500 Internal Server Error')
   print()
