@@ -64,6 +64,7 @@ def makeStorageQueryTerms(jsonDict, duneSite):
               'WHERE site_name="%s";' % duneSite)
 
   storageRows = cur.fetchall()
+  print(storageRows,file=sys.stderr)
  
   samesiteList   = []
   nearbyList     = []
@@ -87,7 +88,7 @@ def makeStorageQueryTerms(jsonDict, duneSite):
                      ' OR '.join(accessibleList) + '))')
 
   if storageWhere:
-    storageWhere = ' AND ' + storageWhere
+    storageWhere = ' AND (' + storageWhere + ') '
  
   if samesiteList:
     storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
@@ -96,13 +97,13 @@ def makeStorageQueryTerms(jsonDict, duneSite):
 
   if nearbyList:
     if storageOrder:
-      storageOrder += ' OR '
+      storageOrder += ' + '
   
     storageOrder += '2*(' + ' OR '.join(nearbyList) + ')'
 
   if accessibleList:
     if storageOrder:
-      storageOrder += ' OR '
+      storageOrder += ' + '
 
     storageOrder += '1*(' + ' OR '.join(accessibleList) + ')'
 
@@ -124,6 +125,21 @@ def candidateStagesQuery(storageQueryTerms):
 
   cur = db.cursor(MySQLdb.cursors.DictCursor)
 
+  print(
+ "SELECT stages.request_id,stages.stage_id,"
+ "stages.min_inputs,stages.max_inputs,stages.any_location FROM files "
+ "LEFT JOIN stages ON files.request_id=stages.request_id AND "
+ "files.stage_id=stages.stage_id "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+ "WHERE files.state='unallocated' " + 
+ storageQueryTerms["storageWhere"] + 
+ " ORDER BY " + 
+ storageQueryTerms["storageOrder"] + "files.request_id,files.file_id"
+ " LIMIT 100;",
+ file=sys.stderr
+ )
+    
   cur.execute(
  "SELECT stages.request_id,stages.stage_id,"
  "stages.min_inputs,stages.max_inputs,stages.any_location FROM files "
@@ -227,12 +243,30 @@ def makeAllocatedFiles(cookie, storageQueryTerms, requestID, stageID,
     storageWhere = ' OR '.join(storageQueryTerms["samesiteList"] + 
                                storageQueryTerms["nearbyList"])
 
+  if storageWhere:
+    storageWhere = ' AND (' + storageWhere + ') '
 
   # Get an ordered list of unallocated files in this stage with replicas
   # on suitable storages. Use pre_allocations table to prevent races between
   # allocator instances. Transactions might be better for this instead, 
   # but this is more portable for now and will probably deal with high load
   # better since it can tolerate similar queries without blocking
+  print(storageQueryTerms,file=sys.stderr)
+  print(
+ "SELECT files.file_id,files.file_did,pre_allocations.file_id,storages.rse_name "
+ "FROM files "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN pre_allocations ON files.file_id=pre_allocations.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+ "WHERE files.state='unallocated' AND files.request_id=" +
+ str(requestID) + " AND files.stage_id=" + str(stageID) + 
+ storageWhere + " AND pre_allocations.file_id IS NULL " + 
+ " ORDER BY " + 
+ storageQueryTerms["storageOrder"] + "files.file_id"
+ " LIMIT 100;",
+ file=sys.stderr
+ )
+    
   curSelect.execute(
  "SELECT files.file_id,files.file_did,pre_allocations.file_id,storages.rse_name "
  "FROM files "

@@ -18,13 +18,18 @@ INSERT INTO storages SET rse_name='FNAL_DCACHE';
 INSERT INTO storages SET rse_name='MANCHESTER';
 INSERT INTO storages SET rse_name='RAL_ECHO';
 
+# FNAL_DCACHE
 INSERT INTO sites_storages SET rse_id=1,site_name='US_FNAL',location='samesite';
 INSERT INTO sites_storages SET rse_id=1,site_name='UK_RAL-Tier1',location='accessible';
 INSERT INTO sites_storages SET rse_id=1,site_name='UK_Manchester',location='accessible';
 
+# MANCHESTER
+INSERT INTO sites_storages SET rse_id=2,site_name='US_FNAL',location='accessible';
 INSERT INTO sites_storages SET rse_id=2,site_name='UK_RAL-Tier1',location='nearby';
 INSERT INTO sites_storages SET rse_id=2,site_name='UK_Manchester',location='samesite';
 
+# RAL_ECHO
+INSERT INTO sites_storages SET rse_id=3,site_name='US_FNAL',location='accessible';
 INSERT INTO sites_storages SET rse_id=3,site_name='UK_RAL-Tier1',location='samesite';
 INSERT INTO sites_storages SET rse_id=3,site_name='UK_Manchester',location='nearby';
 
@@ -37,14 +42,15 @@ INSERT INTO files SET request_id=1,stage_id=1,file_did='file.01.01';
 INSERT INTO files SET request_id=1,stage_id=1,file_did='file.01.02';
 INSERT INTO files SET request_id=1,stage_id=1,file_did='file.01.03';
 
+# First file is everywhere; second file is at FNAL and RAL; third file is only at FNAL
 INSERT INTO replicas SET file_id=1,rse_id=1;
 INSERT INTO replicas SET file_id=1,rse_id=2;
 INSERT INTO replicas SET file_id=1,rse_id=3;
 
-INSERT INTO replicas SET file_id=2,rse_id=2;
-
-INSERT INTO replicas SET file_id=3,rse_id=2;
+INSERT INTO replicas SET file_id=2,rse_id=1;
 INSERT INTO replicas SET file_id=3,rse_id=3;
+
+INSERT INTO replicas SET file_id=3,rse_id=1;
 
 # Create another request where files can be processed from any site
 INSERT INTO requests SET state='running',name='test request 2',created=NOW(),submitted=NOW(),approved=NOW();
@@ -55,12 +61,13 @@ INSERT INTO files SET request_id=2,stage_id=1,file_did='file.02.01';
 INSERT INTO files SET request_id=2,stage_id=1,file_did='file.02.02';
 INSERT INTO files SET request_id=2,stage_id=1,file_did='file.02.03';
 
+# First file is everywhere; second file is at FNAL and RAL; third file is only at FNAL
 INSERT INTO replicas SET file_id=4,rse_id=1;
 INSERT INTO replicas SET file_id=4,rse_id=2;
 INSERT INTO replicas SET file_id=4,rse_id=3;
 
-INSERT INTO replicas SET file_id=5,rse_id=2;
+INSERT INTO replicas SET file_id=5,rse_id=1;
+INSERT INTO replicas SET file_id=5,rse_id=3;
 
-INSERT INTO replicas SET file_id=6,rse_id=2;
-INSERT INTO replicas SET file_id=6,rse_id=3;
+INSERT INTO replicas SET file_id=6,rse_id=1;
 
