@@ -1,6 +1,6 @@
 -- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
 --
--- Host: localhost    Database: wfs
+-- Host: localhost    Database: wfdb
 -- ------------------------------------------------------
 -- Server version	5.5.68-MariaDB
 
