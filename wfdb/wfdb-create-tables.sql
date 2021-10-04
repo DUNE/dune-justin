@@ -43,6 +43,7 @@ CREATE TABLE `files` (
   `stage_id` tinyint(3) unsigned NOT NULL,
   `file_did` varchar(255) NOT NULL,
   `state` enum('unallocated','allocated','processed') NOT NULL DEFAULT 'unallocated',
+  `allocated_time` datetime NOT NULL,
   `allocator_id` varchar(255) NOT NULL,
   `executor_id` varchar(255) NOT NULL,
   `cookie` varchar(255) NOT NULL,
@@ -144,8 +145,9 @@ DROP TABLE IF EXISTS `stages`;
 CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `min_inputs` tinyint(3) unsigned NOT NULL,
   `max_inputs` tinyint(3) unsigned NOT NULL,
+  `min_processors` tinyint(3) unsigned NOT NULL,
+  `max_processors` tinyint(3) unsigned NOT NULL,
   `max_wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `max_rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `any_location` tinyint(1) NOT NULL DEFAULT '0',
