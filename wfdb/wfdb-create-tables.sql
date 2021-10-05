@@ -71,23 +71,6 @@ CREATE TABLE `metadata_queue` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `pre_allocations`
---
-
-DROP TABLE IF EXISTS `pre_allocations`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `pre_allocations` (
-  `request_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
-  `file_id` int(10) unsigned NOT NULL,
-  `created` datetime NOT NULL,
-  `allocator_id` varchar(255) NOT NULL,
-  UNIQUE KEY `rsf` (`request_id`,`stage_id`,`file_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `replicas`
 --
 
