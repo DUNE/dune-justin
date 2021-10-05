@@ -57,7 +57,7 @@ allocatorID = None
 # used in subsequent queries
 def makeQueryTerms(jsonDict):
 
-  duneSite = re.sub('["\']', '_', str(jsonDict['duneSite']))
+  duneSite = re.sub('["\']', '_', str(jsonDict['dunesite']))
   query = ('SELECT rse_id,location FROM sites_storages '
            'WHERE site_name="%s";' % duneSite)
 
@@ -117,7 +117,7 @@ def makeQueryTerms(jsonDict):
            "storageOrder"   : storageOrder,
            "cookie"         : str(uuid.uuid4()),
            "dunesite"       : re.sub('["\']', '_',
-                                     str(jsonDict['duneSite'])),
+                                     str(jsonDict['dunesite'])),
            "executor_id"    : re.sub('["\']', '_', 
                                      str(jsonDict['executor_id']))
          }
@@ -129,7 +129,7 @@ def chooseStageJustInTime(queryTerms):
   query = (
  "SELECT stages.request_id,stages.stage_id,"
  "stages.max_inputs,stages.any_location,"
- "files.did,files.file_id,storages.rse_name "
+ "files.file_did,files.file_id,storages.rse_name "
  "FROM files "
  "LEFT JOIN stages ON files.request_id=stages.request_id AND "
  "files.stage_id=stages.stage_id "
@@ -144,6 +144,9 @@ def chooseStageJustInTime(queryTerms):
 
   cur.execute(query)
   fileRows = cur.fetchall()
+  
+  if len(fileRows) == 0:
+    return None
 
   # Take the values from the highest priority result
   requestID   = int(fileRows[0]['request_id'])
@@ -187,8 +190,8 @@ def chooseStageJustInTime(queryTerms):
 
   return stage
 
-# Make a stage dictionary containing stage and next file information
-def makeStageNextFile(jsonDict, queryTerms, anyLocation):
+# Make a stage dictionary containing stage and one file's information
+def makeStageOneFile(jsonDict, queryTerms):
 
   # Take the values from the highest priority result
   requestID = int(jsonDict['request_id'])
@@ -229,14 +232,14 @@ def makeStageNextFile(jsonDict, queryTerms, anyLocation):
 str(requestID) + " AND files.stage_id=" + str(stageID) + 
 storageWhere + 
 " ORDER BY " + 
-storageQueryTerms["storageOrder"] + "files.file_id"
+queryTerms["storageOrder"] + "files.file_id"
 " LIMIT 1 FOR UPDATE"
 ) 
    
   cur.execute(query)
   fileRows = cur.fetchall()
   
-  if fileRows == 0:
+  if len(fileRows) == 0:
     return None
 
   # Start the dictionary to return
@@ -307,14 +310,18 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
   # Transform template to script by replacing patterns
 
   if allocatedFiles:
-    fileDid    = ''
-    fileDidRse = ''
+    fileDidStr    = ''
+    fileDidRseStr = ''
     for fileDict in allocatedFiles:
-      fileDid    += fileDict['file_did'] + '\n'
-      fileDidRse += fileDict['file_did'] + ' ' + fileDict['rse_name'] + '\n'
+      if fileDidStr:
+        fileDidStr    += '\n'
+        fileDidRseStr += '\n'
     
-    script = script.replace('##wfa_files_did##',     fileDid)
-    script = script.replace('##wfa_files_did_rse##', fileDidRse)
+      fileDidStr    += fileDict['file_did']
+      fileDidRseStr += fileDict['file_did'] + ' ' + fileDict['rse_name']
+    
+    script = script.replace('##wfa_files_did##',     fileDidStr)
+    script = script.replace('##wfa_files_did_rse##', fileDidRseStr)
     script = script.replace('##wfa_files_json##',    json.dumps(allocatedFiles))
 
   script = script.replace('##wfa_cookie##',         queryTerms['cookie'])
@@ -345,28 +352,29 @@ def getStageMethod(jsonDict):
   # candidate combination at this moment
   stage = chooseStageJustInTime(queryTerms)
 
-  # Make a set of allocated files for this request+stage
-  allocatedFiles = makeAllocatedFiles(queryTerms, stage)
+  if stage:
+    # Make a set of allocated files for this request+stage
+    allocatedFiles = allocateFiles(queryTerms, stage)
   
-  if allocatedFiles:
-    # Send the bootstrap to the executor
-    script = makeBootstrap(queryTerms,
-                           stage,
-                           allocatedFiles)
+    if allocatedFiles:
+      # Send the bootstrap to the executor
+      script = makeBootstrap(queryTerms,
+                             stage,
+                             allocatedFiles)
 
-    if script:
-      # All done so commit the allocations
-      # We do this before the HTTP response in case
-      # it is received ok by the executor and run 
-      # but times out and fails here on the server side
-      db.commit()
+      if script:
+        # All done so commit the allocations
+        # We do this before the HTTP response in case
+        # it is received ok by the executor and run 
+        # but times out and fails here on the server side
+        db.commit()
 
-      # Return the script to the workflow executor 
-      print('Status: 200 OK')
-      print('Content-Type: text/plain')
-      print()
-      print(script)
-      sys.exit(0)
+        # Return the script to the workflow executor 
+        print('Status: 200 OK')
+        print('Content-Type: text/plain')
+        print()
+        print(script)
+        sys.exit(0)
 
   # No files eligible to be processed by this executor
   print('Status: 404 Not Found')
@@ -376,7 +384,7 @@ def getStageMethod(jsonDict):
   sys.exit(0)
    
 # Get an unallocated file from the given request+stage
-def getNextFileMethod(jsonDict):
+def getFileMethod(jsonDict):
 
   # Check jsonDict contains required values (eg dunesite)
   for name in ['dunesite', 'executor_id', 'request_id', 'stage_id']:
@@ -390,10 +398,10 @@ def getNextFileMethod(jsonDict):
   queryTerms = makeQueryTerms(jsonDict)
 
   # Create a stage dictionary with the next file in this stage  
-  stage = makeStageNextFile(jsonDict, queryTerms)
+  stage = makeStageOneFile(jsonDict, queryTerms)
   
   if stage:
-    allocatedFiles = makeAllocatedFiles(queryTerms, stage)
+    allocatedFiles = allocateFiles(queryTerms, stage)
 
     if allocatedFiles:
       # All done so commit the allocations
@@ -517,7 +525,7 @@ def resultsMethod(jsonDict):
   # Make a sanitised string which identifies the executor
   executorID = re.sub('["\']', '_', str(jsonDict['executor_id']).lower())
 
-  updateFileProcessing(jsonDict, cookie, executorID)
+  updateFileProcessing(jsonDict, requestID, stageID, cookie, executorID)
 
   processOutputs(jsonDict, requestID, stageID, executorID)
 
@@ -597,8 +605,8 @@ if jsonDict['method'] == 'get_stage':
   getStageMethod(jsonDict)
 
 # Get one or more files to process  
-elif jsonDict['method'] == 'get_next_file':
-  getNextFileMethod(jsonDict)
+elif jsonDict['method'] == 'get_file':
+  getFileMethod(jsonDict)
   
 # Return results of processing files
 elif jsonDict['method'] == 'return_results':
