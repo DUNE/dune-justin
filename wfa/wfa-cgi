@@ -32,6 +32,14 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+#  This CGI script must be run from an Apache httpd server with
+#  X.509 proxy certificates enabled. On a systemd system (like 
+#  CentOS 7) you need to enable this in OpenSSL inside mod_ssl
+#  by adding this line to /usr/lib/systemd/system/httpd.service
+#  in the [Service] section:
+#
+#  Environment=OPENSSL_ALLOW_PROXY_CERTS=1
+
 import os
 import re
 import sys
@@ -414,7 +422,7 @@ def getFileMethod(jsonDict):
       print('Status: 200 OK')
       print('Content-Type: text/plain')
       print()
-      print(allocatedFiles[0]['file_did'])
+      print(queryTerms['cookie'] + ' ' + allocatedFiles[0]['file_did'])
 
       sys.exit(0)
 
