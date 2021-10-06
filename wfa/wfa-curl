@@ -5,7 +5,8 @@ if [ "$1" = "" ] ; then
  exit 1
 fi
 
-X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u$ID}
+export USERID=`id -u`
+export X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u$USERID}
 
 curl \
 --key $X509_USER_PROXY \
