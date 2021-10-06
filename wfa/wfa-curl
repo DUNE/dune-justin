@@ -1,0 +1,19 @@
+#!/bin/sh
+
+if [ "$1" = "" ] ; then
+ echo 'Must give the JSON file!'
+ exit 1
+fi
+
+X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u$ID}
+
+curl \
+--key $X509_USER_PROXY \
+--cert $X509_USER_PROXY \
+--cacert $X509_USER_PROXY \
+--capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--data @$1 \
+--output ${2:--} \
+--write-out "%{http_code}\n" \
+https://vm20.blackett.manchester.ac.uk/
+
