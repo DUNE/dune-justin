@@ -23,7 +23,7 @@ cat <<EOF >get_stage.json
   "rss_bytes"   : $rss_bytes,
   "processors"  : $processors,
   "wall_seconds": $wall_seconds,
-  "executor_id" : $executor_id
+  "executor_id" : "$executor_id"
 }
 EOF
 
@@ -32,6 +32,10 @@ if [ "$?" != "0" ] ; then
  echo Failed running curl
  exit
 fi
+
+echo '====start get_stage.json===='
+cat get_stage.json
+echo '====end get_stage.json===='
 
 # Make the call to the Workflow Allocator
 http_code=`curl \
@@ -46,8 +50,13 @@ https://vm20.blackett.manchester.ac.uk/`
 
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
+  cat bootstrap.sh
   exit
 fi
+
+echo '====Start bootstrap.sh===='
+cat bootstrap.sh
+echo '====End bootstrap.sh===='
 
 # Source the bootstrap script
 if [ -r bootstrap.sh ] ; then
