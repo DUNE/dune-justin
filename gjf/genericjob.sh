@@ -4,7 +4,7 @@
 # Workflow Allocator
 #
 
-echo 'Start of genericjob.sh'
+echo '====Start of genericjob.sh===='
 
 # Assemble values we will need 
 export executor_id=`hostname`.`date +'%s'`
@@ -12,8 +12,11 @@ export dunesite=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export rss_bytes=`expr ${GLIDEIN_MaxMemMBs:-4096} \* 1024 \* 1024`
 export processors=${GLIDEIN_CPUs:-1}
 export wall_seconds=${GLIDEIN_Max_Walltime:-86400}
-export userid=`id -u`
-export X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u$userid}
+
+if [ ! -r "$X509_USER_PROXY" ] ; then
+ echo "Cannot read X509_USER_PROXY file = $X509_USER_PROXY"
+ exit
+fi
 
 # Create the JSON to send to the allocator
 cat <<EOF >get_stage.json
@@ -66,4 +69,4 @@ else
   echo No bootstrap.sh found
 fi
 
-echo 'End of genericjob.sh'
+echo '====End of genericjob.sh===='
