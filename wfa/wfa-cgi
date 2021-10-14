@@ -126,6 +126,9 @@ def makeQueryTerms(jsonDict):
            "cookie"         : str(uuid.uuid4()),
            "dunesite"       : re.sub('["\']', '_',
                                      str(jsonDict['dunesite'])),
+           "rss_bytes"      : int(jsonDict['rss_bytes']),
+           "processors"     : int(jsonDict['processors']),
+           "wall_seconds"   : int(jsonDict['wall_seconds']),
            "executor_id"    : re.sub('["\']', '_', 
                                      str(jsonDict['executor_id']))
          }
@@ -143,7 +146,11 @@ def chooseStageJustInTime(queryTerms):
  "files.stage_id=stages.stage_id "
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
- "WHERE files.state='unallocated' " + 
+ "WHERE files.state='unallocated' AND " +
+ str(queryTerms["processors"]   + " <= stages.max_processors AND " +
+ str(queryTerms["processors"]   + " >= stages.min_processors AND " +
+ str(queryTerms["rss_bytes"]    + " >= stages.max_rss_bytes AND " +
+ str(queryTerms["wall_seconds"] + " >= stages.max_wall_seconds AND " +
  queryTerms["storageWhere"] + 
  " ORDER BY " + 
  queryTerms["storageOrder"] + "files.request_id,files.file_id"
@@ -345,12 +352,22 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
 # files still unallocated
 def getStageMethod(jsonDict):
 
-  # Check jsonDict contains required values (eg dunesite)
+  # Check jsonDict contains required string values (eg dunesite)
   for name in ['dunesite', 'executor_id']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
       print('Missing value(s) in JSON')
+      sys.exit(0)
+
+  # Check jsonDict contains required integer values (eg rss_bytes)
+  for name in ['rss_bytes', 'processors', 'wall_seconds']:
+    try:
+      i = int(jsonDict[name])
+    except:
+      print('Status: 400 Bad Request')
+      print()
+      print('Missing integer value(s) in JSON')
       sys.exit(0)
 
   # Make strings used in SQL queries
