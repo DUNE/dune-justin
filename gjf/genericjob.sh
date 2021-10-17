@@ -31,7 +31,7 @@ cat <<EOF >get_stage.json
 EOF
 
 curl --version
-if [ "$?" != "0" ] ; then
+if [ $? -ne 0 ] ; then
  echo Failed running curl
  exit
 fi
@@ -42,6 +42,7 @@ echo '====end get_stage.json===='
 
 # Make the call to the Workflow Allocator
 http_code=`curl \
+--header "X-Jobid: $JOBSUBJOBID" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \

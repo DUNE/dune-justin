@@ -147,12 +147,12 @@ def chooseStageJustInTime(queryTerms):
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "WHERE files.state='unallocated' AND " +
- str(queryTerms["processors"]   + " <= stages.max_processors AND " +
- str(queryTerms["processors"]   + " >= stages.min_processors AND " +
- str(queryTerms["rss_bytes"]    + " >= stages.max_rss_bytes AND " +
- str(queryTerms["wall_seconds"] + " >= stages.max_wall_seconds AND " +
- queryTerms["storageWhere"] + 
- " ORDER BY " + 
+ str(queryTerms["processors"])   + " <= stages.max_processors AND " +
+ str(queryTerms["processors"])   + " >= stages.min_processors AND " +
+ str(queryTerms["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
+ str(queryTerms["wall_seconds"]) + " >= stages.max_wall_seconds " +
+ queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL "
+ "ORDER BY " + 
  queryTerms["storageOrder"] + "files.request_id,files.file_id"
  " LIMIT 100 FOR UPDATE"
  )
@@ -245,8 +245,8 @@ def makeStageOneFile(jsonDict, queryTerms):
 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
 "WHERE files.state='unallocated' AND files.request_id=" +
 str(requestID) + " AND files.stage_id=" + str(stageID) + 
-storageWhere + 
-" ORDER BY " + 
+storageWhere + " AND storages.rse_NAME IS NOT NULL "
+"ORDER BY " + 
 queryTerms["storageOrder"] + "files.file_id"
 " LIMIT 1 FOR UPDATE"
 ) 

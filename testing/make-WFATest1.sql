@@ -45,7 +45,7 @@ INSERT INTO sites_storages SET rse_id=4,site_name='CERN',location='samesite';
 
 # One request with one stage
 INSERT INTO requests SET state='running',name='WFATest1',created=NOW(),submitted=NOW(),approved=NOW();
-INSERT INTO stages SET request_id=1,stage_id=1,max_inputs=1,max_wall_seconds=86400,max_rss_bytes=8123123,min_processors=1,max_processors=1,any_location=FALSE;
+INSERT INTO stages SET request_id=1,stage_id=1,max_inputs=1,max_wall_seconds=10000,max_rss_bytes=8123123,min_processors=1,max_processors=1,any_location=FALSE;
 INSERT INTO bootstraps SET request_id=1,stage_id=1,bootstrap="
 EOF
 

@@ -88,9 +88,9 @@ EOF
 comma=''
 for i in np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root
 do
-  echo "Would would upload $i to storage and register it in RUCIO with that file name"
-  echo ${comma}'{"file_did": "$i", "metadata": ' >>return_results.json
-  cat $i.json
+  echo "Would upload $i to storage and register it in RUCIO with that file name"
+  echo ${comma}'{"file_did": "'$i'", "metadata": ' >>return_results.json
+  cat $i.json >>return_results.json
   echo "}" >>return_results.json
   comma=','
 done
