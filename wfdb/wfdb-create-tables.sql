@@ -48,7 +48,7 @@ CREATE TABLE `files` (
   `executor_id` varchar(255) NOT NULL,
   `cookie` varchar(255) NOT NULL,
   PRIMARY KEY (`file_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,7 +67,7 @@ CREATE TABLE `metadata_queue` (
   `executor_id` varchar(255) NOT NULL,
   `metadata_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`metadata_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -100,7 +100,7 @@ CREATE TABLE `requests` (
   `checking` datetime DEFAULT NULL,
   `completed` datetime DEFAULT NULL,
   PRIMARY KEY (`request_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -148,8 +148,9 @@ DROP TABLE IF EXISTS `storages`;
 CREATE TABLE `storages` (
   `rse_name` varchar(255) NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `occupancy` float NOT NULL DEFAULT '0',
   PRIMARY KEY (`rse_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -161,4 +162,4 @@ CREATE TABLE `storages` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-09-29 22:04:19
+-- Dump completed on 2021-10-19 16:03:10

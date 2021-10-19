@@ -66,17 +66,25 @@ allocatorID = None
 def makeQueryTerms(jsonDict):
 
   duneSite = re.sub('["\']', '_', str(jsonDict['dunesite']))
-  query = ('SELECT rse_id,location FROM sites_storages '
-           'WHERE site_name="%s";' % duneSite)
+  query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
+           'FROM sites_storages '
+           'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
+           'WHERE sites_storages.site_name="%s" '
+           'ORDER BY location,occupancy,RAND();' 
+           % duneSite)
 
   cur.execute(query)
   storageRows = cur.fetchall()
- 
+
+  outputRseList   = [] 
   samesiteList   = []
   nearbyList     = []
   accessibleList = []
 
   for storageRow in storageRows:
+    # In future, will put a test for < 1.0 occupancy here
+    outputRseList.append(storageRow['rse_name'])
+  
     if storageRow['location'] == 'accessible':
       accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
     elif storageRow['location'] == 'nearby':
@@ -118,7 +126,8 @@ def makeQueryTerms(jsonDict):
   if storageOrder:
     storageOrder += ' DESC,'
 
-  return { "samesiteList"   : samesiteList,
+  return { "outputRseList"  : outputRseList,
+           "samesiteList"   : samesiteList,
            "nearbyList"     : nearbyList,
            "accessibleList" : accessibleList,
            "storageWhere"   : storageWhere,
@@ -339,9 +348,11 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
     script = script.replace('##wfa_files_did_rse##', fileDidRseStr)
     script = script.replace('##wfa_files_json##',    json.dumps(allocatedFiles))
 
-  script = script.replace('##wfa_cookie##',         queryTerms['cookie'])
-  script = script.replace('##wfa_request_id##',     str(stage['request_id']))
-  script = script.replace('##wfa_stage_id##',       str(stage['stage_id']))
+  script = script.replace('##wfa_cookie##',    queryTerms['cookie'])
+  script = script.replace('##wfa_request_id##',str(stage['request_id']))
+  script = script.replace('##wfa_stage_id##',  str(stage['stage_id']))
+  script = script.replace('##wfa_rse_list##',
+                                 ' '.join(queryTerms['outputRseList']))
 
   # Remove any unused patterns from the template
   script = re.sub('##wfa_[a-z,0-9,_]*##', '', script)
