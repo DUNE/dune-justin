@@ -52,25 +52,6 @@ CREATE TABLE `files` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `metadata_queue`
---
-
-DROP TABLE IF EXISTS `metadata_queue`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `metadata_queue` (
-  `file_did` varchar(255) NOT NULL,
-  `queue_time` datetime NOT NULL,
-  `request_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
-  `metadata` text NOT NULL,
-  `executor_id` varchar(255) NOT NULL,
-  `metadata_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`metadata_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `replicas`
 --
 

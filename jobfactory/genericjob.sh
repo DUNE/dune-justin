@@ -48,26 +48,41 @@ http_code=`curl \
 --cacert $X509_USER_PROXY \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
 --data @get_stage.json \
---output bootstrap.sh \
+--output allocated.tar \
 --write-out "%{http_code}\n" \
 https://vm20.blackett.manchester.ac.uk/`
 
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
-  cat bootstrap.sh
+  cat allocated.tar
   exit
 fi
 
-echo '====Start bootstrap.sh===='
-cat bootstrap.sh
-echo '====End bootstrap.sh===='
+tar xvf allocated.tar
 
-# Source the bootstrap script
+# Run the bootstrap script
 if [ -r bootstrap.sh ] ; then
-  . bootstrap.sh
+  chmod +x bootstrap.sh
+
+  echo '====Start bootstrap.sh===='
+  cat bootstrap.sh
+  echo '====End bootstrap.sh===='
+
+  ./bootstrap.sh
+  retval=$?
 else
   # How can this happen???
   echo No bootstrap.sh found
+  retval=1
+fi
+
+if [ $retval -eq 0 ] ; then
+
+  cat output_patterns.txt
+  cat rse_list.txt 
+# Use output patterns and RSE list to upload output files
+# Insert metadata .json file for each output file
+
 fi
 
 echo '====End of genericjob.sh===='

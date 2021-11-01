@@ -353,8 +353,6 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
   bootstrap = bootstrap.replace('##wfa_cookie##',    queryTerms['cookie'])
   bootstrap = bootstrap.replace('##wfa_request_id##',str(stage['request_id']))
   bootstrap = bootstrap.replace('##wfa_stage_id##',  str(stage['stage_id']))
-#  bootstrap = bootstrap.replace('##wfa_rse_list##',
-#                                 ' '.join(queryTerms['outputRseList']))
 
   # Remove any unused patterns from the template
   bootstrap = re.sub('##wfa_[a-z,0-9,_]*##', '', bootstrap)
@@ -563,8 +561,7 @@ def updateFileProcessing(jsonDict, requestID, stageID, cookie, executorID):
     except:
       return
     
-# Deal with the output file and metadata if given
-# Try to recover from problems and struggle on to record as much as we can
+# Deal with the output files needed by the next stage
 def processOutputs(jsonDict, requestID, stageID, executorID):
 
   try:
@@ -575,20 +572,21 @@ def processOutputs(jsonDict, requestID, stageID, executorID):
         continue
       
 # NEED TO ADD FILE FOR NEXT STAGE IF THERE IS ONE
-  
-      if 'metadata' in output:
-        try:
-          # Just put the whole metadata into the queue as raw JSON for now
-          query = ("INSERT INTO metadata_queue SET queue_time=NOW(),"
-                   "file_did='" + outputDid + "',"
-                   "request_id=" + str(requestID) + ","
-                   "stage_id=" + str(stageID) + ","
-                   "metadata='" + json.dumps(output['metadata']) + "',"
-                   "executor_id='" + executorID + "'")
 
-          cur.execute(query)
-        except:
-          continue
+# THE metadata_queue WILL BE REMOVED RSN  
+#      if 'metadata' in output:
+#        try:
+#          # Just put the whole metadata into the queue as raw JSON for now
+#          query = ("INSERT INTO metadata_queue SET queue_time=NOW(),"
+#                   "file_did='" + outputDid + "',"
+#                   "request_id=" + str(requestID) + ","
+#                   "stage_id=" + str(stageID) + ","
+#                   "metadata='" + json.dumps(output['metadata']) + "',"
+#                   "executor_id='" + executorID + "'")
+#
+#          cur.execute(query)
+#        except:
+#          continue
         
   except:
     return
