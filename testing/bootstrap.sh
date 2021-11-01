@@ -1,5 +1,6 @@
 date
 input_file_did='##wfa_files_did##'
+output_rse=`echo ##wfa_rse_list##|cut -f1 -d' '`
 wfa_cookie='##wfa_cookie##'
 request_id='##wfa_request_id##'
 stage_id='##wfa_stage_id##'
@@ -88,7 +89,9 @@ EOF
 comma=''
 for i in np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root
 do
-  echo "Would upload $i to storage and register it in RUCIO with that file name"
+  echo "Order of RSEs from WFA: ##wfa_rse_list##"
+  echo "Would use rucio to upload $i to RSE $output_rse and register it"
+
   echo ${comma}'{"file_did": "'$i'", "metadata": ' >>return_results.json
   cat $i.json >>return_results.json
   echo "}" >>return_results.json
