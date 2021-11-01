@@ -41,12 +41,14 @@
 #  Environment=OPENSSL_ALLOW_PROXY_CERTS=1
 
 import os
+import io
 import re
 import sys
 import time
 import json
 import uuid
 import string
+import tarfile
 import MySQLdb
 
 # wfs/conf.py must define these variables:
@@ -327,11 +329,11 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
 
     cur.execute(query)
     rows = cur.fetchall()
-    script = rows[0]['bootstrap']
+    bootstrap = rows[0]['bootstrap']
   except:
     return None
 
-  # Transform template to script by replacing patterns
+  # Transform template to bootstrap by replacing patterns
 
   if allocatedFiles:
     fileDidStr    = ''
@@ -344,23 +346,77 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
       fileDidStr    += fileDict['file_did']
       fileDidRseStr += fileDict['file_did'] + ' ' + fileDict['rse_name']
     
-    script = script.replace('##wfa_files_did##',     fileDidStr)
-    script = script.replace('##wfa_files_did_rse##', fileDidRseStr)
-    script = script.replace('##wfa_files_json##',    json.dumps(allocatedFiles))
+    bootstrap = bootstrap.replace('##wfa_files_did##',     fileDidStr)
+    bootstrap = bootstrap.replace('##wfa_files_did_rse##', fileDidRseStr)
+    bootstrap = bootstrap.replace('##wfa_files_json##',    json.dumps(allocatedFiles))
 
-  script = script.replace('##wfa_cookie##',    queryTerms['cookie'])
-  script = script.replace('##wfa_request_id##',str(stage['request_id']))
-  script = script.replace('##wfa_stage_id##',  str(stage['stage_id']))
-  script = script.replace('##wfa_rse_list##',
-                                 ' '.join(queryTerms['outputRseList']))
+  bootstrap = bootstrap.replace('##wfa_cookie##',    queryTerms['cookie'])
+  bootstrap = bootstrap.replace('##wfa_request_id##',str(stage['request_id']))
+  bootstrap = bootstrap.replace('##wfa_stage_id##',  str(stage['stage_id']))
+#  bootstrap = bootstrap.replace('##wfa_rse_list##',
+#                                 ' '.join(queryTerms['outputRseList']))
 
   # Remove any unused patterns from the template
-  script = re.sub('##wfa_[a-z,0-9,_]*##', '', script)
+  bootstrap = re.sub('##wfa_[a-z,0-9,_]*##', '', bootstrap)
   
-  return script
+  return bootstrap
 
-# Try to get the bootstrap script for the stage with the highest priority 
-# files still unallocated
+def addFileToTarFile(tar, name, value):
+
+  buffer = io.BytesIO()
+  buffer.write(value.encode())
+
+  info       = tarfile.TarInfo(name = name)
+  info.size  = bio.tell()
+  info.mtime = time.time()
+
+  buffer.seek(0)
+  tar.addfile(tarinfo = info, fileobj = buffer)
+
+# Make an uncompressed tar file to return to the executor in the generic
+# job. The generic job 'owns' the files in the tar file, one of which is the
+# boostrap.sh script which 'owned' by the user. The generic job has the 
+# responsibility to upload the output files matching the patterns defined as
+# part of the stage 
+def makeTarFile(queryTerms, stage, allocatedFiles):
+
+  bout = io.BytesIO()
+  tar = tarfile.TarFile(fileobj = bout, mode = "w")
+
+  # Make and add the bootstrap script
+  bootstrap = makeBootstrap(queryTerms,
+                            stage,
+                            allocatedFiles)
+  if not bootstrap:
+    return None
+
+  addFileToTarFile(tar, "bootstrap.sh", bootstrap)
+
+  # Create a file containing the output file patterns
+  try:
+    query = ("SELECT pattern,for_next_stage FROM stages_outputs "
+             "WHERE request_id=%d AND stage_id=%d" 
+             % (stage['request_id'], stage['stage_id']))
+
+    cur.execute(query)
+    rows = cur.fetchall()
+  except:
+    return None
+
+  patternsFile = ''
+
+  for row in rows:
+    patternsFile += str(row['for_next_stage']) + ' ' + row['pattern'] + '\n'
+    
+  addFileToTarFile(tar, 'output_patterns.txt', patternsFile)
+
+  # Create a file containing the ordered RSE list from the JIT algorithm
+  addFileToTarFile(tar, 'rse_list.txt', '\n'.join(queryTerms['outputRseList']))
+
+  tar.close()  
+  return bout.getvalue()
+
+# Try to get the stage with the highest priority files still unallocated
 def getStageMethod(jsonDict):
 
   # Check jsonDict contains required string values (eg dunesite)
@@ -394,11 +450,11 @@ def getStageMethod(jsonDict):
   
     if allocatedFiles:
       # Send the bootstrap to the executor
-      script = makeBootstrap(queryTerms,
-                             stage,
-                             allocatedFiles)
+      tarFile = makeBootstrap(queryTerms,
+                                stage,
+                                allocatedFiles)
 
-      if script:
+      if tarFile:
         # All done so commit the allocations
         # We do this before the HTTP response in case
         # it is received ok by the executor and run 
@@ -407,9 +463,9 @@ def getStageMethod(jsonDict):
 
         # Return the script to the workflow executor 
         print('Status: 200 OK')
-        print('Content-Type: text/plain')
+        print('Content-Type: application/x-tar')
         print()
-        print(script)
+        sys.stdout.buffer.write(tarFile)
         sys.exit(0)
 
   # No files eligible to be processed by this executor
