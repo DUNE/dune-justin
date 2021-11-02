@@ -73,50 +73,14 @@ pandora_metadata.py \
 
 sed -i -e "/file_name/ a     \"parents\": [\"$(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root)\"]," $(ls *_michelremoving.root).json
 
-# Upload outputs
+# Record that we processed the input file ok (did we???)
+echo "$input_file_did" >> wfa-processed-inputs.txt
+touch wfa-unprocessed-inputs.txt
 
-cat <<EOF >return_results.json
-{ 
-  "method": "return_results", 
-  "cookie": "$wfa_cookie", 
-  "executor_id": "$executor_id", 
-  "inputs": [{"file_did": "$input_file_did", "state": "processed"}],
-  "request_id": $request_id,
-  "stage_id": $stage_id,
-  "outputs": [
-EOF
+# Patterns to put in stage outputs definition:
+# np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root
 
-comma=''
-for i in np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root
-do
-  echo "Order of RSEs from WFA: ##wfa_rse_list##"
-  echo "Would use rucio to upload $i to RSE $output_rse and register it"
-
-  echo ${comma}'{"file_did": "'$i'", "metadata": ' >>return_results.json
-  cat $i.json >>return_results.json
-  echo "}" >>return_results.json
-  comma=','
-done
-
-cat <<EOF >> return_results.json
-             ]
-}
-EOF
-
-http_code=`curl \
---key $X509_USER_PROXY \
---cert $X509_USER_PROXY \
---cacert $X509_USER_PROXY \
---capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
---data @return_results.json \
---output return_results.txt \
---write-out "%{http_code}\n" \
-https://vm20.blackett.manchester.ac.uk/`
-
-echo "curl call to WFA returns code $http_code"
-cat return_results.txt
-
-#
+# For debugging
 for i in *.json
 do
   echo "==== Start $i ===="

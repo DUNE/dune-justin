@@ -48,41 +48,89 @@ http_code=`curl \
 --cacert $X509_USER_PROXY \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
 --data @get_stage.json \
---output allocated.tar \
+--output wfa-files.tar \
 --write-out "%{http_code}\n" \
 https://vm20.blackett.manchester.ac.uk/`
 
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
-  cat allocated.tar
+  cat wfa-files.tar
   exit
 fi
 
-tar xvf allocated.tar
+tar xvf wfa-files.tar
+
+export wfa_rse_list=`cat wfa-rse-list.txt`
+export wfa_cookie=`cat wfa-cookie.txt`
 
 # Run the bootstrap script
-if [ -r bootstrap.sh ] ; then
-  chmod +x bootstrap.sh
+if [ -r wfa-bootstrap.sh ] ; then
+  chmod +x wfa-bootstrap.sh
 
-  echo '====Start bootstrap.sh===='
-  cat bootstrap.sh
-  echo '====End bootstrap.sh===='
+  echo '====Start wfa-bootstrap.sh===='
+  cat wfa-bootstrap.sh
+  echo '====End wfa-bootstrap.sh===='
 
-  ./bootstrap.sh
+  ./wfa-bootstrap.sh
   retval=$?
 else
   # How can this happen???
-  echo No bootstrap.sh found
+  echo No wfa-bootstrap.sh found
   retval=1
 fi
 
-if [ $retval -eq 0 ] ; then
+# Make the lists of output files and files for the next stage
+cat wfa-output-patterns.txt | (
+while read for_next_stage pattern
+do  
+  # $pattern is wildcard-expanded here - so a list of files
+  for fn in $pattern
+  do
+    if [ -r "$fn" ] ; then
+      echo "$fn" >> wfa-outputs.txt
+      if [ "$for_next_stage" = "True" ] ; then
+        echo "$fn" >> wfa-next-stage-outputs.txt    
+      fi
+    fi
+  done
+done
+)
 
-  cat output_patterns.txt
-  cat rse_list.txt 
-# Use output patterns and RSE list to upload output files
-# Insert metadata .json file for each output file
+# This is based on wildcard expansion of the patterns in the stage definition
+next_stage_outputs=`echo \`sed 's/.*/"&"/' wfa-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
-fi
+for fn in `cat wfa-outputs.txt`
+do
+  echo "Would do rucio upload of $fn to $wfa_rse_list"
+  echo "Metadata too? $fn.json"
+done
+
+# wfa-bootstrap.sh should produce a list of successfully processed input files
+# and a list of files which still need to be processed by another job
+processed_inputs=`echo \`sed 's/.*/"&"/' wfa-processed-inputs.txt\`|sed 's/ /,/g'`
+unprocessed_inputs=`echo \`sed 's/.*/"&"/' wfa-unprocessed-inputs.txt\`|sed 's/ /,/g'`
+
+cat <<EOF >wfa-return-results.json
+{
+  "method": "return_results",
+  "request_id": $request_id,
+  "stage_id": $stage_id,
+  "cookie": "$wfa_cookie",
+  "executor_id": "$executor_id",
+  "processed_inputs": [$processed_inputs],
+  "unprocessed_inputs": [$unprocessed_inputs],
+  "next_stage_outputs": [$next_stage_outputs]
+}
+EOF
+
+http_code=`curl \
+--key $X509_USER_PROXY \
+--cert $X509_USER_PROXY \
+--cacert $X509_USER_PROXY \
+--capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--data @wfa-return-results.json \
+--output return-results.txt \
+--write-out "%{http_code}\n" \
+https://vm20.blackett.manchester.ac.uk/`
 
 echo '====End of genericjob.sh===='
