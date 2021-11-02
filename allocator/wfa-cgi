@@ -518,45 +518,24 @@ def getFileMethod(jsonDict):
   print('No eligible file found')
   sys.exit(0)   
 
-# Update the unallocated/processed state of each file the executor
-# included in the JSON file. We try to update as much as possible,
-# struggling on if things fail. This should be changed if the executors
-# become smart enough to retry on errors.
-def updateFileProcessing(jsonDict, requestID, stageID, cookie, executorID):
-
+def updateFileProcessing(fileList, state, requestID, stageID, 
+                         cookie, executorID):
   processedList   = []
-  unprocessedList = []
 
   try:
-    for input in jsonDict['inputs']:
-      fileDid = str(input['file_did'])
+    for fileDid in fileList:
       if '"' in fileDid or "'" in fileDid:
         continue
 
-      if input['state'] == 'processed':
-        processedList.append('files.file_did="' + fileDid + '"')
-      elif input['state'] == 'unprocessed':
-        unprocessedList.append('files.file_did="' + fileDid + '"')
+      processedList.append('file_did="' + str(fileDid) + '"')
   except:
     return
 
-  # Update the files the executor managed to process
+  # Update the files the executor did or did not manage to process
   if processedList:
     try:
-      query = ('UPDATE files SET state="processed" '
+      query = ('UPDATE files SET state="' + state + '" '
                'WHERE (' + ' OR '.join(processedList) + ') '
-               'AND request_id=' + str(requestID) + ' ' 
-               'AND stage_id=' + str(stageID) + ' ' 
-               'AND cookie="' + cookie + '" AND state="allocated"')
-      cur.execute(query)
-    except:
-      return
-
-  # Reset the files the executor failed to process back to unallocated
-  if unprocessedList:
-    try:
-      query = ('UPDATE files SET state="unallocated" '
-               'WHERE (' + ' OR '.join(unprocessedList) + ') '
                'AND request_id=' + str(requestID) + ' ' 
                'AND stage_id=' + str(stageID) + ' ' 
                'AND cookie="' + cookie + '" AND state="allocated"')
@@ -565,35 +544,34 @@ def updateFileProcessing(jsonDict, requestID, stageID, cookie, executorID):
       return
     
 # Deal with the output files needed by the next stage
-def processOutputs(jsonDict, requestID, stageID, executorID):
+def processNextStageOutputs(jsonDict, requestID, stageID, executorID):
+
+  outputsList = []
 
   try:
-    for output in jsonDict['outputs']:
+    for outputDid in jsonDict['next_stage_outputs']:
       
-      outputDid = output['file_did']
       if '"' in outputDid or "'" in outputDid:
         continue
-      
-# NEED TO ADD FILE FOR NEXT STAGE IF THERE IS ONE
 
-# THE metadata_queue WILL BE REMOVED RSN  
-#      if 'metadata' in output:
-#        try:
-#          # Just put the whole metadata into the queue as raw JSON for now
-#          query = ("INSERT INTO metadata_queue SET queue_time=NOW(),"
-#                   "file_did='" + outputDid + "',"
-#                   "request_id=" + str(requestID) + ","
-#                   "stage_id=" + str(stageID) + ","
-#                   "metadata='" + json.dumps(output['metadata']) + "',"
-#                   "executor_id='" + executorID + "'")
-#
-#          cur.execute(query)
-#        except:
-#          continue
-        
+      outputsList.append('file_did="' + str(outputDid) + '"')
   except:
     return
   
+# NEED TO INSERT FILES FOR NEXT STAGE IF THERE ARE ANY
+# THIS NEXT BIT IS STILL TO BE WRITTEN AS MULTIPLE SEPARATE INSERTS
+  if outputsList:
+    try:
+      query = ('INSERT INTO files SET state="building" '
+               'WHERE (' + ' OR '.join(processedList) + ') '
+               'AND request_id=' + str(requestID) + ' ' 
+               'AND stage_id=' + str(stageID) + ' ' 
+               'AND cookie="' + cookie + '" AND state="allocated"')
+      cur.execute(query)
+    except:
+      return
+    
+        
 def resultsMethod(jsonDict):
 
   # Check jsonDict contains required values (eg executor_id)
@@ -618,9 +596,13 @@ def resultsMethod(jsonDict):
   # Make a sanitised string which identifies the executor
   executorID = re.sub('["\']', '_', str(jsonDict['executor_id']).lower())
 
-  updateFileProcessing(jsonDict, requestID, stageID, cookie, executorID)
+  updateFileProcessing(jsonDict['processed_inputs'], 'processed',
+                       requestID, stageID, cookie, executorID)
 
-  processOutputs(jsonDict, requestID, stageID, executorID)
+  updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed',
+                       requestID, stageID, cookie, executorID)
+
+  processNextStageOutputs(jsonDict, requestID, stageID, executorID)
 
   # Commit everything, before we return OK to the executor
   db.commit()
