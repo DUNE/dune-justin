@@ -1,3 +1,5 @@
+#!/bin/sh
+
 date
 input_file_did='##wfa_files_did##'
 output_rse=`echo ##wfa_rse_list##|cut -f1 -d' '`
@@ -89,3 +91,5 @@ do
 done
 
 ls -ltR
+
+exit 0

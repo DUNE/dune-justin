@@ -365,7 +365,7 @@ def addFileToTarFile(tar, name, value):
   buffer.write(value.encode())
 
   info       = tarfile.TarInfo(name = name)
-  info.size  = bio.tell()
+  info.size  = buffer.tell()
   info.mtime = time.time()
 
   buffer.seek(0)
@@ -378,8 +378,8 @@ def addFileToTarFile(tar, name, value):
 # part of the stage 
 def makeTarFile(queryTerms, stage, allocatedFiles):
 
-  bout = io.BytesIO()
-  tar = tarfile.TarFile(fileobj = bout, mode = "w")
+  buffer = io.BytesIO()
+  tar = tarfile.TarFile(fileobj = buffer, mode = "w")
 
   # Make and add the bootstrap script
   bootstrap = makeBootstrap(queryTerms,
@@ -415,7 +415,7 @@ def makeTarFile(queryTerms, stage, allocatedFiles):
   addFileToTarFile(tar, 'wfa-cookie.txt', queryTerms['cookie'])
 
   tar.close()  
-  return bout.getvalue()
+  return buffer.getvalue()
 
 # Try to get the stage with the highest priority files still unallocated
 def getStageMethod(jsonDict):
@@ -451,9 +451,7 @@ def getStageMethod(jsonDict):
   
     if allocatedFiles:
       # Send the bootstrap to the executor
-      tarFile = makeBootstrap(queryTerms,
-                                stage,
-                                allocatedFiles)
+      tarFile = makeTarFile(queryTerms, stage, allocatedFiles)
 
       if tarFile:
         # All done so commit the allocations
@@ -466,6 +464,7 @@ def getStageMethod(jsonDict):
         print('Status: 200 OK')
         print('Content-Type: application/x-tar')
         print()
+        sys.stdout.flush()
         sys.stdout.buffer.write(tarFile)
         sys.exit(0)
 

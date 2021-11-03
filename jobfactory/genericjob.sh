@@ -19,7 +19,7 @@ if [ ! -r "$X509_USER_PROXY" ] ; then
 fi
 
 # Create the JSON to send to the allocator
-cat <<EOF >get_stage.json
+cat <<EOF >wfa-get-stage.json
 {
   "method"      : "get_stage",
   "dunesite"    : "$dunesite",
@@ -36,9 +36,9 @@ if [ $? -ne 0 ] ; then
  exit
 fi
 
-echo '====start get_stage.json===='
-cat get_stage.json
-echo '====end get_stage.json===='
+echo '====start wfa-get-stage.json===='
+cat wfa-get-stage.json
+echo '====end wfa-get-stage.json===='
 
 # Make the call to the Workflow Allocator
 http_code=`curl \
@@ -47,7 +47,7 @@ http_code=`curl \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
---data @get_stage.json \
+--data @wfa-get-stage.json \
 --output wfa-files.tar \
 --write-out "%{http_code}\n" \
 https://vm20.blackett.manchester.ac.uk/`
