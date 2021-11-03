@@ -78,7 +78,7 @@ def makeQueryTerms(jsonDict):
   cur.execute(query)
   storageRows = cur.fetchall()
 
-  outputRseList   = [] 
+  outputRseList  = [] 
   samesiteList   = []
   nearbyList     = []
   accessibleList = []
@@ -408,11 +408,14 @@ def makeTarFile(queryTerms, stage, allocatedFiles):
     
   addFileToTarFile(tar, 'wfa-output-patterns.txt', patternsFile)
 
-  # Create a file containing the ordered RSE list from the JIT algorithm
-  addFileToTarFile(tar, 'wfa-rse-list.txt', '\n'.join(queryTerms['outputRseList']))
-
-  # Create a file containing the cookie needed to return results to WFA
-  addFileToTarFile(tar, 'wfa-cookie.txt', queryTerms['cookie'])
+  addFileToTarFile(tar, 'wfa-env.sh', 
+       (
+         'request_id=' + str(stage['request_id']) + '\n' +
+         'stage_id=' + str(stage['stage_id']) + '\n' +
+         'cookie="' + queryTerms['cookie'] + '"\n' +
+         'rse_list="' + ' '.join(queryTerms['outputRseList']) + '"\n'
+       )
+                  )
 
   tar.close()  
   return buffer.getvalue()

@@ -3,6 +3,7 @@
 cat <<EOF
 DELETE FROM requests;
 DELETE FROM stages;
+DELETE FROM stages_outputs;
 DELETE FROM bootstraps;
 DELETE FROM files;
 DELETE FROM replicas;

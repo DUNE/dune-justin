@@ -15,8 +15,8 @@ printenv
 ls -ltR
 
 # Record that we processed the input file ok 
-echo "$input_file_did" >> wfa-processed-inputs.txt
-touch wfa-unprocessed-inputs.txt
+echo "$input_file_did" > wfa-processed-inputs.txt
+echo -n > wfa-unprocessed-inputs.txt
 
 # Fake output files
 echo 123 > np04${FILETIMESTAMP}_reco_Z.root 

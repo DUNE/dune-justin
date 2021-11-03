@@ -60,8 +60,9 @@ fi
 
 tar xvf wfa-files.tar
 
-export wfa_rse_list=`cat wfa-rse-list.txt`
-export wfa_cookie=`cat wfa-cookie.txt`
+if [ -r wfa-env.sh ] ; then
+  . ./wfa-env.sh
+fi
 
 # Run the bootstrap script
 if [ -r wfa-bootstrap.sh ] ; then
@@ -80,6 +81,9 @@ else
 fi
 
 # Make the lists of output files and files for the next stage
+echo -n > wfa-outputs.txt
+echo -n > wfa-next-stage-outputs.txt
+
 cat wfa-output-patterns.txt | (
 while read for_next_stage pattern
 do  
@@ -99,9 +103,12 @@ done
 # This is based on wildcard expansion of the patterns in the stage definition
 next_stage_outputs=`echo \`sed 's/.*/"&"/' wfa-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
+# Just try the first one for now
+rse=`echo $rse_list | cut -f1 -d' '`
+
 for fn in `cat wfa-outputs.txt`
 do
-  echo "Would do rucio upload of $fn to $wfa_rse_list"
+  echo "Would do rucio upload of $fn to $rse"
   echo "Metadata too? $fn.json"
 done
 
@@ -115,7 +122,7 @@ cat <<EOF >wfa-return-results.json
   "method": "return_results",
   "request_id": $request_id,
   "stage_id": $stage_id,
-  "cookie": "$wfa_cookie",
+  "cookie": "$cookie",
   "executor_id": "$executor_id",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
