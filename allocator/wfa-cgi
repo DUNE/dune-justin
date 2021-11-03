@@ -546,40 +546,36 @@ def updateFileProcessing(fileList, state, requestID, stageID,
 # Deal with the output files needed by the next stage
 def processNextStageOutputs(jsonDict, requestID, stageID, executorID):
 
-  outputsList = []
-
   try:
     for outputDid in jsonDict['next_stage_outputs']:
       
       if '"' in outputDid or "'" in outputDid:
         continue
 
-      outputsList.append('file_did="' + str(outputDid) + '"')
+      try:
+        query = ('INSERT INTO files SET state="find_replicas",'
+                 'file_did="'  + str(outputDid) + '",'
+                 'request_id=' + str(requestID) + ','
+                 'stage_id='   + str(stageID + 1)
+                )
+        cur.execute(query)
+      except:
+        # Just do our best if anything goes wrong for now
+        # Should decide what to do in these partial failure cases
+        pass
+
   except:
     return
-  
-# NEED TO INSERT FILES FOR NEXT STAGE IF THERE ARE ANY
-# THIS NEXT BIT IS STILL TO BE WRITTEN AS MULTIPLE SEPARATE INSERTS
-  if outputsList:
-    try:
-      query = ('INSERT INTO files SET state="building" '
-               'WHERE (' + ' OR '.join(processedList) + ') '
-               'AND request_id=' + str(requestID) + ' ' 
-               'AND stage_id=' + str(stageID) + ' ' 
-               'AND cookie="' + cookie + '" AND state="allocated"')
-      cur.execute(query)
-    except:
-      return
-    
-        
+                
 def resultsMethod(jsonDict):
 
   # Check jsonDict contains required values (eg executor_id)
-  for name in ['cookie', 'executor_id', 'request_id', 'stage_id', 'inputs']:
+  for name in ['cookie', 'executor_id', 'request_id', 'stage_id', 
+               'processed_inputs', 'unprocessed_inputs', 'next_stage_outputs']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
-      print('Missing value(s) in JSON')
+      print('Missing value (%s) in JSON' % name)
       sys.exit(0)
 
   try:
@@ -588,7 +584,7 @@ def resultsMethod(jsonDict):
   except:
     print('Status: 400 Bad Request')
     print()
-    print('Missing value(s) in JSON')
+    print('Missing value (%s) in JSON')
     sys.exit(0)
 
   cookie = re.sub('[^a-z,A-Z,0-9,.,_,-]', '', str(jsonDict['cookie']))
