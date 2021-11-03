@@ -110,6 +110,7 @@ for fn in `cat wfa-outputs.txt`
 do
   echo "Would do rucio upload of $fn to $rse"
   echo "Metadata too? $fn.json"
+  echo
 done
 
 # wfa-bootstrap.sh should produce a list of successfully processed input files
