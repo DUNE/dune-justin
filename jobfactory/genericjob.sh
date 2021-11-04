@@ -50,7 +50,7 @@ http_code=`curl \
 --data @wfa-get-stage.json \
 --output wfa-files.tar \
 --write-out "%{http_code}\n" \
-https://vm20.blackett.manchester.ac.uk/`
+https://vm20.blackett.manchester.ac.uk/wfa-cgi`
 
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
@@ -100,10 +100,9 @@ do
 done
 )
 
-# This is based on wildcard expansion of the patterns in the stage definition
 next_stage_outputs=`echo \`sed 's/.*/"&"/' wfa-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
-# Just try the first one for now
+# Just try the first RSE for now
 rse=`echo $rse_list | cut -f1 -d' '`
 
 for fn in `cat wfa-outputs.txt`
@@ -139,6 +138,6 @@ http_code=`curl \
 --data @wfa-return-results.json \
 --output return-results.txt \
 --write-out "%{http_code}\n" \
-https://vm20.blackett.manchester.ac.uk/`
+https://vm20.blackett.manchester.ac.uk/wfa-cgi`
 
 echo '====End of genericjob.sh===='

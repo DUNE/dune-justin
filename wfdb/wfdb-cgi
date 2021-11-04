@@ -1,0 +1,155 @@
+#!/usr/bin/python3
+#
+#  wfdb-cgi - Workflow Database CGI service
+#
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-21. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer. 
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution. 
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+#  This CGI script must be run from an Apache httpd server with
+#  X.509 proxy certificates enabled. On a systemd system (like 
+#  CentOS 7) you need to enable this in OpenSSL inside mod_ssl
+#  by adding this line to /usr/lib/systemd/system/httpd.service
+#  in the [Service] section:
+#
+#  Environment=OPENSSL_ALLOW_PROXY_CERTS=1
+
+import os
+import io
+import re
+import sys
+import time
+import json
+import string
+import MySQLdb
+
+# wfs/conf.py must define these variables:
+#
+# mysqlUser     = 'username'
+# mysqlPassword = 'PAsSWoRd'
+#
+import wfs.conf
+
+# Global database connection and ID, usable anywhere
+db          = None
+cur         = None
+                
+def listRequestsCmd(jsonDict):
+
+  try:
+    query = "SELECT * FROM requests ORDER BY created"
+
+    cur.execute(query)
+    rows=cur.fetchall()
+  except:
+    print('Status: 500 Internal Server Error')
+    print('Content-Type: text/plain')
+    print()
+    print('Error reading workflow database)
+    sys.exit(0)
+
+
+ print('Status: 200 OK')
+ print('Content-Type: text/plain')
+ print() 
+
+ for row in rows
+   print(row)
+   
+ sys.exit(0)
+
+#
+# PROGRAM MAIN
+#
+
+# Quickly reject random GETs etc (if not hanlded by Apache already)
+if os.environ['REQUEST_METHOD'] != 'POST':
+    print('Status: 405 Method not allowed')
+    print()
+    print('We only support POST')
+    sys.exit(0)
+
+# Use certificates and proxies for now; will transition to tokens in future
+if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
+    print('Status: 403 Forbidden')
+    print()
+    print('Forbidden - identity not provided')
+    sys.exit(0)
+
+# Convert to the older format with slashes 
+clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
+
+# In production this will be the DN of the Generic Job Factory
+factoryDN = '/DC=org/DC=cilogon/C=US/O=Fermi National Accelerator Laboratory/OU=People/CN=Andrew McNab/CN=UID:amcnab'
+if (clientDN != factoryDN and 
+    not clientDN.startswith(factoryDN + '/CN=')):
+    # Unless we found a matching DN then refuse
+    print('Status: 403 Forbidden')
+    print()
+    print('Forbidden - acceptable identity not provided')
+    sys.exit(0)
+
+# Get the JSON document POSTed to us
+try:
+  jsonDict = json.load(sys.stdin)
+except:
+  print('Status: 400 Bad Request')
+  print()
+  print('Failed to parse JSON')
+  sys.exit(0)
+
+# Check jsonDict specifies a method
+if 'method' not in jsonDict:
+  print('Status: 400 Bad Request')
+  print()
+  print('Missing method in JSON')
+  sys.exit(0)
+
+# Do as many checks as we can before connecting to the database here
+try:
+  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
+                        passwd=wfs.conf.mysqlPassword, db='wfdb')
+  db.autocommit(False)
+  cur = db.cursor(MySQLdb.cursors.DictCursor) 
+except:
+  print('Status: 500 Internal Server Error')
+  print()
+  print('Problem with database connection')
+  sys.exit(0)
+
+# Get the stage and files to process
+if jsonDict['method'] == 'list_requests_cmd':
+  listRequestsCmd(jsonDict)
+
+else:
+  print('Status: 400 Bad Request')
+  print()
+  print('Method in JSON not recognised')
+  sys.exit(0)
+
