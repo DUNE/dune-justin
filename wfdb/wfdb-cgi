@@ -71,18 +71,18 @@ def listRequestsCmd(jsonDict):
     print('Status: 500 Internal Server Error')
     print('Content-Type: text/plain')
     print()
-    print('Error reading workflow database)
+    print('Error reading workflow database')
     sys.exit(0)
 
 
- print('Status: 200 OK')
- print('Content-Type: text/plain')
- print() 
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print() 
 
- for row in rows
-   print(row)
+  for row in rows:
+    print(row)
    
- sys.exit(0)
+  sys.exit(0)
 
 #
 # PROGRAM MAIN
