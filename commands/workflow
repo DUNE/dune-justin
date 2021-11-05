@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+#
+#  workflow - DUNE WFS command line utility
+#
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-21. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer. 
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution. 
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+
+import os
+import sys
+import json
+import pycurl
+import optparse
+
+versionString = 'Workflow 0.1 (pyCurl)'
+
+def body(buf): 
+  sys.stdout.write(str(buf) + '\n') 
+
+def sendJson(jsonDict):
+
+  c = pycurl.Curl()
+  c.setopt(c.URL, 'https://vm20.blackett.manchester.ac.uk/wfdb-cgi')
+  c.setopt(c.POSTFIELDS, json.dumps(jsonDict))
+  c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
+  c.setopt(c.WRITEFUNCTION, body)
+  c.setopt(c.USERAGENT, versionString)
+  c.setopt(c.TIMEOUT, 30)
+#  c.setopt(c.VERBOSE, 1)
+  c.setopt(c.FOLLOWLOCATION, False)
+  c.setopt(c.SSLCERT, '/tmp/x509up_u54145')
+  c.setopt(c.SSLKEY, '/tmp/x509up_u54145')
+  c.setopt(c.CAINFO, '/tmp/x509up_u54145')
+  c.setopt(c.SSL_VERIFYPEER, 1)
+  c.setopt(c.SSL_VERIFYHOST, 2)
+
+  if os.path.isdir('/etc/grid-security/certificates'):
+    c.setopt(c.CAPATH, '/etc/grid-security/certificates')
+  
+  try:
+    c.perform()
+  except Exception as e:
+    print(str(e))
+
+  sys.exit(0)
+
+def listRequests(options, args):
+
+  jsonDict = { "method": "list_requests_cmd" }
+  
+  sendJson(jsonDict)  
+
+#
+# PROGRAM MAIN !!!
+# 
+
+parser = optparse.OptionParser(usage = 
+  "usage: %prog [options] command [target]\n\n"
+  "Commands:\n  list-requests")
+
+(options, args) = parser.parse_args()
+
+if len(args) > 0 and args[0]:
+
+  if args[0] == 'list-requests':
+    listRequests(options, args)
+    sys.exit(0)
+
+print("Subcommand not recognised")
+sys.exit(0)
