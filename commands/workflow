@@ -35,61 +35,84 @@ import os
 import sys
 import json
 import pycurl
-import optparse
+import argparse
 
 versionString = 'Workflow 0.1 (pyCurl)'
 
 def body(buf): 
-  sys.stdout.write(str(buf) + '\n') 
 
-def sendJson(jsonDict):
-
-  c = pycurl.Curl()
-  c.setopt(c.URL, 'https://vm20.blackett.manchester.ac.uk/wfdb-cgi')
-  c.setopt(c.POSTFIELDS, json.dumps(jsonDict))
-  c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
-  c.setopt(c.WRITEFUNCTION, body)
-  c.setopt(c.USERAGENT, versionString)
-  c.setopt(c.TIMEOUT, 30)
-#  c.setopt(c.VERBOSE, 1)
-  c.setopt(c.FOLLOWLOCATION, False)
-  c.setopt(c.SSLCERT, '/tmp/x509up_u54145')
-  c.setopt(c.SSLKEY, '/tmp/x509up_u54145')
-  c.setopt(c.CAINFO, '/tmp/x509up_u54145')
-  c.setopt(c.SSL_VERIFYPEER, 1)
-  c.setopt(c.SSL_VERIFYHOST, 2)
-
-  if os.path.isdir('/etc/grid-security/certificates'):
-    c.setopt(c.CAPATH, '/etc/grid-security/certificates')
-  
-  try:
-    c.perform()
-  except Exception as e:
-    print(str(e))
-
-  sys.exit(0)
-
-def listRequests(options, args):
-
-  jsonDict = { "method": "list_requests_cmd" }
-  
-  sendJson(jsonDict)  
+  sys.stdout.write(buf.decode('UTF-8'))
 
 #
 # PROGRAM MAIN !!!
 # 
 
-parser = optparse.OptionParser(usage = 
-  "usage: %prog [options] command [target]\n\n"
-  "Commands:\n  list-requests")
+parser = argparse.ArgumentParser()
 
-(options, args) = parser.parse_args()
+commands = [ "show-requests", "show-stages", "show-bootstrap",
+             "show-files", "show-replicas", "show-storages",
+             "show-sites" ]
 
-if len(args) > 0 and args[0]:
+parser.add_argument("command",
+                    type = str,
+                    help = "Workflow command to execute: " +
+                           ' '.join(commands) )
+ 
+parser.add_argument("-v", 
+                    "--verbose",
+                    action = "store_true",
+                    help = "Verbose logging")
+ 
+parser.add_argument("-l", 
+                    "--long",
+                    action = "store_true",
+                    help = "Long output")
+ 
+parser.add_argument("-r", 
+                    "--request-id",
+                    type = int,
+                    help = "Specify the request ID number")
 
-  if args[0] == 'list-requests':
-    listRequests(options, args)
-    sys.exit(0)
+parser.add_argument("-s", 
+                    "--stage-id",
+                    type = int,
+                    help = "Specify the stage ID number")
 
-print("Subcommand not recognised")
+parser.add_argument("-f", 
+                    "--file-id",
+                    type = int,
+                    help = "Specify the file ID number")
+   
+args = parser.parse_args()
+jsonDict = vars(args)
+
+c = pycurl.Curl()
+c.setopt(c.URL, 'https://wfs-dev.dune.hep.ac.uk/wfdb-cgi')
+c.setopt(c.POSTFIELDS, json.dumps(jsonDict))
+c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
+c.setopt(c.WRITEFUNCTION, body)
+c.setopt(c.USERAGENT, versionString)
+c.setopt(c.TIMEOUT, 30)
+c.setopt(c.FOLLOWLOCATION, False)
+c.setopt(c.SSLCERT, '/tmp/x509up_u54145')
+c.setopt(c.SSLKEY, '/tmp/x509up_u54145')
+c.setopt(c.CAINFO, '/tmp/x509up_u54145')
+c.setopt(c.SSL_VERIFYPEER, 1)
+c.setopt(c.SSL_VERIFYHOST, 2)
+
+if jsonDict['verbose']:
+  c.setopt(c.VERBOSE, 1)
+
+if os.path.isdir('/etc/grid-security/certificates'):
+  c.setopt(c.CAPATH, '/etc/grid-security/certificates')
+  
+try:
+  c.perform()
+except Exception as e:
+  print(str(e))
+  sys.exit(1)
+
+if c.getinfo(c.RESPONSE_CODE) != 200:
+  sys.exit(2)
+  
 sys.exit(0)
