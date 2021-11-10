@@ -79,11 +79,11 @@ def showRequestsCmd(jsonDict):
     requestID = int(jsonDict['request_id'])
   except:
     requestID    = None
-    requestQuery = ""
+    requestFilter = ""
   else:
-    requestQuery = "WHERE request_id=" + str(requestID)
+    requestFilter = "WHERE request_id=" + str(requestID)
 
-  rows = doQuery("SELECT * FROM requests %s ORDER BY created" % requestQuery)
+  rows = doQuery("SELECT * FROM requests %s ORDER BY created" % requestFilter)
 
   print('Status: 200 OK')
   print('Content-Type: text/plain')
@@ -110,13 +110,13 @@ def showStagesCmd(jsonDict):
     stageID = int(jsonDict['stage_id'])
   except:
     stageID    = None
-    stageQuery = ""
+    stageFilter = ""
   else:
-    stageQuery = "AND stage_id=" + str(stageID)
+    stageFilter = "AND stage_id=" + str(stageID)
 
   rows = doQuery("SELECT * FROM stages WHERE request_id=%d %s "
                  "ORDER BY request_id,stage_id" 
-                 % (requestID, stageQuery))
+                 % (requestID, stageFilter))
 
   print('Status: 200 OK')
   print('Content-Type: text/plain')
@@ -158,8 +158,7 @@ def showBootstrapCmd(jsonDict):
     sys.exit(0)
 
   rows = doQuery("SELECT * FROM bootstraps "
-                 "WHERE request_id=%d AND stage_id=%d "
-                 "ORDER BY request_id,stage_id" 
+                 "WHERE request_id=%d AND stage_id=%d"
                  % (requestID, stageID))
 
   print('Status: 200 OK')
@@ -167,6 +166,40 @@ def showBootstrapCmd(jsonDict):
   print() 
 
   print(rows[0]['bootstrap'])
+   
+  sys.exit(0)
+
+def showStageOutputsCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    print('Status: 400 Bad Request')
+    print('Content-Type: text/plain')
+    print()
+    print('Request ID not given')
+    sys.exit(0)
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    print('Status: 400 Bad Request')
+    print('Content-Type: text/plain')
+    print()
+    print('Stage ID not given')
+    sys.exit(0)
+
+  rows = doQuery("SELECT * FROM stages_outputs "
+                 "WHERE request_id=%d AND stage_id=%d "
+                 "ORDER BY pattern" 
+                 % (requestID, stageID))
+
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print() 
+
+  for row in rows:
+    print("%s %s" % (str(row['for_next_stage']), row['pattern']))
    
   sys.exit(0)
 
@@ -195,17 +228,17 @@ def showFilesCmd(jsonDict):
     sys.exit(0)
 
   if fileDID and not requestID:
-    query = "file_did='%s'" % fileDID
+    filter = "file_did='%s'" % fileDID
   elif requestID:
-    query = "request_id=%d" % requestID
+    filter = "request_id=%d" % requestID
     
     if stageID:
-      query += " AND stage_id=%d" % stageID
+      filter += " AND stage_id=%d" % stageID
     
     if fileDID:
-      query += " AND file_did='%s'" % fileDID
+      filter += " AND file_did='%s'" % fileDID
 
-  rows = doQuery("SELECT * FROM files WHERE " + query +
+  rows = doQuery("SELECT * FROM files WHERE " + filter +
                  " ORDER BY request_id,stage_id,file_did")
 
   print('Status: 200 OK')
@@ -235,11 +268,16 @@ def showReplicasCmd(jsonDict):
   except:
     stageID = None
 
-  try:
+  if 'file_did' in jsonDict and jsonDict['file_did']:
     fileDID = jsonDict['file_did']
-  except:
+  else:
     fileDID = None
 
+  if 'rse_name' in jsonDict and jsonDict['rse_name']:
+    rseName = jsonDict['rse_name']
+  else:
+    rseName = None
+    
   if fileDID is None and requestID is None:
     print('Status: 400 Bad Request')
     print('Content-Type: text/plain')
@@ -248,20 +286,23 @@ def showReplicasCmd(jsonDict):
     sys.exit(0)
 
   if fileDID and not requestID:
-    query = "files.file_did='%s'" % fileDID
+    filter = "files.file_did='%s'" % fileDID
   elif requestID:
-    query = "files.request_id=%d" % requestID
+    filter = "files.request_id=%d" % requestID
     
     if stageID:
-      query += " AND files.stage_id=%d" % stageID
+      filter += " AND files.stage_id=%d" % stageID
     
     if fileDID:
-      query += " AND files.file_did='%s'" % fileDID
+      filter += " AND files.file_did='%s'" % fileDID
+
+  if rseName:
+    filter += " AND storages.rse_name='%s'" % rseName
 
   rows = doQuery("SELECT * FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
                  "LEFT JOIN files ON replicas.file_id=files.file_id "
-                 "WHERE " + query + " ORDER BY "
+                 "WHERE " + filter + " ORDER BY "
                  "files.request_id,files.stage_id,files.file_did")
 
   print('Status: 200 OK')
@@ -283,11 +324,11 @@ def showReplicasCmd(jsonDict):
 def showStoragesCmd(jsonDict):
 
   if 'rse_name' in jsonDict and jsonDict['rse_name']:
-    query = "WHERE rse_name='%s'" % jsonDict['rse_name']
+    filter = "WHERE rse_name='%s'" % jsonDict['rse_name']
   else:
-    query = ""
+    filter = ""
 
-  rows = doQuery("SELECT * FROM storages " + query + 
+  rows = doQuery("SELECT * FROM storages " + filter + 
                  " ORDER BY rse_name,occupancy")
 
   print('Status: 200 OK')
@@ -297,6 +338,42 @@ def showStoragesCmd(jsonDict):
   for row in rows:
     print("%-15s %.2f" % 
           (row['rse_name'], row['occupancy']))
+   
+  sys.exit(0)
+
+def showSitesStoragesCmd(jsonDict):
+
+  if 'site_name' in jsonDict and jsonDict['site_name']:
+    siteName = jsonDict['site_name']
+  else:
+    siteName = None
+
+  if 'rse_name' in jsonDict and jsonDict['rse_name']:
+    rseName = jsonDict['rse_name']
+  else:
+    rseName = None
+    
+  if siteName and rseName:
+    filter = "WHERE site_name='%s' AND rse_name='%s'" % (siteName, rseName)
+  elif siteName:
+    filter = "WHERE site_name='%s'" % siteName
+  elif rseName:
+    filter = "WHERE rse_name='%s'" % rseName
+  else:
+    filter = ""
+
+  rows = doQuery("SELECT * FROM sites_storages " 
+                 "LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id "
+                 + filter +          
+                 " ORDER BY site_name,rse_name")
+
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print() 
+
+  for row in rows:
+    print("%-20s %-15s %s" % 
+          (row['site_name'], row['rse_name'], row['location']))
    
   sys.exit(0)
 
@@ -368,6 +445,9 @@ if jsonDict['command'] == 'show-stages':
 if jsonDict['command'] == 'show-bootstrap':
   showBootstrapCmd(jsonDict)
 
+if jsonDict['command'] == 'show-stage-outputs':
+  showStageOutputsCmd(jsonDict)
+
 if jsonDict['command'] == 'show-files':
   showFilesCmd(jsonDict)
 
@@ -376,6 +456,9 @@ if jsonDict['command'] == 'show-replicas':
 
 if jsonDict['command'] == 'show-storages':
   showStoragesCmd(jsonDict)
+
+if jsonDict['command'] == 'show-sites-storages':
+  showSitesStoragesCmd(jsonDict)
 
 print('Status: 400 Bad Request')
 print()

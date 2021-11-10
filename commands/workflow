@@ -50,6 +50,7 @@ def body(buf):
 parser = argparse.ArgumentParser()
 
 commands = [ "show-requests", "show-stages", "show-bootstrap",
+             "show-stage-outputs",
              "show-files", "show-replicas", "show-storages",
              "show-sites-storages" ]
 
@@ -83,7 +84,12 @@ parser.add_argument("-f",
                     type = str,
                     help = "Specify the file DID")
    
-parser.add_argument("-n", 
+parser.add_argument("-i", 
+                    "--site-name",
+                    type = str,
+                    help = "Specify the site name")
+   
+parser.add_argument("-e", 
                     "--rse-name",
                     type = str,
                     help = "Specify the RSE name")
