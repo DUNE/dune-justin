@@ -61,7 +61,7 @@ db          = None
 cur         = None
 
 def doQuery(query):
-                
+
   try:
     cur.execute(query)
     return cur.fetchall()
@@ -90,7 +90,7 @@ def showRequestsCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%5d %9s %s %s\n" % 
+    print("%5d %-9s %s %s" % 
           (row['request_id'], row['state'], row['created'], row['name']))
    
   sys.exit(0)
@@ -123,7 +123,7 @@ def showStagesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%5d %2d %2d %d-%d %d %d %s\n" % 
+    print("%5d %2d %2d %d-%d %d %d %s" % 
           (row['request_id'], 
            row['stage_id'], 
            row['max_inputs'], 
@@ -157,7 +157,8 @@ def showBootstrapCmd(jsonDict):
     print('Stage ID not given')
     sys.exit(0)
 
-  rows = doQuery("SELECT * FROM bootstraps WHERE request_id=%d AND stage_id=%d "
+  rows = doQuery("SELECT * FROM bootstraps "
+                 "WHERE request_id=%d AND stage_id=%d "
                  "ORDER BY request_id,stage_id" 
                  % (requestID, stageID))
 
@@ -174,35 +175,128 @@ def showFilesCmd(jsonDict):
   try:
     requestID = int(jsonDict['request_id'])
   except:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Request ID not given')
-    sys.exit(0)
+    requestID = None
 
   try:
     stageID = int(jsonDict['stage_id'])
   except:
-    stageID    = None
-    stageQuery = ""
-  else:
-    stageQuery = "AND stage_id=" + str(stageID)
+    stageID = None
 
-  rows = doQuery("SELECT * FROM files WHERE request_id=%d %s "
-                 "ORDER BY request_id,stage_id,file_id" 
-                 % (requestID, stageQuery))
+  try:
+    fileDID = jsonDict['file_did']
+  except:
+    fileDID = None
+
+  if fileDID is None and requestID is None:
+    print('Status: 400 Bad Request')
+    print('Content-Type: text/plain')
+    print()
+    print('Either file DID or request ID must be given')
+    sys.exit(0)
+
+  if fileDID and not requestID:
+    query = "file_did='%s'" % fileDID
+  elif requestID:
+    query = "request_id=%d" % requestID
+    
+    if stageID:
+      query += " AND stage_id=%d" % stageID
+    
+    if fileDID:
+      query += " AND file_did='%s'" % fileDID
+
+  rows = doQuery("SELECT * FROM files WHERE " + query +
+                 " ORDER BY request_id,stage_id,file_did")
 
   print('Status: 200 OK')
   print('Content-Type: text/plain')
   print() 
 
   for row in rows:
-    print("%2d %11s %s" % 
-          (row['stage_id'],
+    print("%5d %2d %-11s %s" % 
+          (row['request_id'],
+           row['stage_id'],
            row['state'],
            row['file_did'],
           )
          )
+   
+  sys.exit(0)
+
+def showReplicasCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID = None
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    stageID = None
+
+  try:
+    fileDID = jsonDict['file_did']
+  except:
+    fileDID = None
+
+  if fileDID is None and requestID is None:
+    print('Status: 400 Bad Request')
+    print('Content-Type: text/plain')
+    print()
+    print('Either file DID or request ID must be given')
+    sys.exit(0)
+
+  if fileDID and not requestID:
+    query = "files.file_did='%s'" % fileDID
+  elif requestID:
+    query = "files.request_id=%d" % requestID
+    
+    if stageID:
+      query += " AND files.stage_id=%d" % stageID
+    
+    if fileDID:
+      query += " AND files.file_did='%s'" % fileDID
+
+  rows = doQuery("SELECT * FROM replicas "
+                 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+                 "LEFT JOIN files ON replicas.file_id=files.file_id "
+                 "WHERE " + query + " ORDER BY "
+                 "files.request_id,files.stage_id,files.file_did")
+
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print() 
+
+  for row in rows:
+    print("%5d %2d %-11s %-15s %s" % 
+          (row['request_id'],
+           row['stage_id'],
+           row['state'],
+           row['rse_name'],           
+           row['file_did']
+          )
+         )
+   
+  sys.exit(0)
+
+def showStoragesCmd(jsonDict):
+
+  if 'rse_name' in jsonDict and jsonDict['rse_name']:
+    query = "WHERE rse_name='%s'" % jsonDict['rse_name']
+  else:
+    query = ""
+
+  rows = doQuery("SELECT * FROM storages " + query + 
+                 " ORDER BY rse_name,occupancy")
+
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print() 
+
+  for row in rows:
+    print("%-15s %.2f" % 
+          (row['rse_name'], row['occupancy']))
    
   sys.exit(0)
 
@@ -276,6 +370,12 @@ if jsonDict['command'] == 'show-bootstrap':
 
 if jsonDict['command'] == 'show-files':
   showFilesCmd(jsonDict)
+
+if jsonDict['command'] == 'show-replicas':
+  showReplicasCmd(jsonDict)
+
+if jsonDict['command'] == 'show-storages':
+  showStoragesCmd(jsonDict)
 
 print('Status: 400 Bad Request')
 print()

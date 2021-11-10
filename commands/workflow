@@ -51,7 +51,7 @@ parser = argparse.ArgumentParser()
 
 commands = [ "show-requests", "show-stages", "show-bootstrap",
              "show-files", "show-replicas", "show-storages",
-             "show-sites" ]
+             "show-sites-storages" ]
 
 parser.add_argument("command",
                     type = str,
@@ -79,12 +79,21 @@ parser.add_argument("-s",
                     help = "Specify the stage ID number")
 
 parser.add_argument("-f", 
-                    "--file-id",
-                    type = int,
-                    help = "Specify the file ID number")
+                    "--file-did",
+                    type = str,
+                    help = "Specify the file DID")
+   
+parser.add_argument("-n", 
+                    "--rse-name",
+                    type = str,
+                    help = "Specify the RSE name")
    
 args = parser.parse_args()
 jsonDict = vars(args)
+
+if args.command not in commands:
+  print("%s not recognised as a workflow command" % args.command)
+  sys.exit(1)
 
 c = pycurl.Curl()
 c.setopt(c.URL, 'https://wfs-dev.dune.hep.ac.uk/wfdb-cgi')
@@ -110,9 +119,9 @@ try:
   c.perform()
 except Exception as e:
   print(str(e))
-  sys.exit(1)
+  sys.exit(10)
 
 if c.getinfo(c.RESPONSE_CODE) != 200:
-  sys.exit(2)
+  sys.exit(20)
   
 sys.exit(0)
