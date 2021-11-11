@@ -49,7 +49,12 @@ def body(buf):
 
 parser = argparse.ArgumentParser()
 
-commands = [ "show-requests", "show-stages", "show-bootstrap",
+commands = [ "create-request", 
+             "submit-request", "approve-request",
+             "run-request", "pause-request",
+             "create-stage", "create-storage",
+             "create-site-storage",
+             "show-requests", "show-stages", "show-bootstrap",
              "show-stage-outputs",
              "show-files", "show-replicas", "show-storages",
              "show-sites-storages" ]
@@ -58,48 +63,82 @@ parser.add_argument("command",
                     type = str,
                     help = "Workflow command to execute: " +
                            ' '.join(commands) )
- 
+
 parser.add_argument("-v", 
                     "--verbose",
                     action = "store_true",
                     help = "Verbose logging")
- 
-parser.add_argument("-l", 
-                    "--long",
-                    action = "store_true",
-                    help = "Long output")
- 
-parser.add_argument("-r", 
-                    "--request-id",
-                    type = int,
-                    help = "Specify the request ID number")
 
-parser.add_argument("-s", 
-                    "--stage-id",
-                    type = int,
-                    help = "Specify the stage ID number")
+#parser.add_argument("-l",
+#                    "--long",
+#                    action = "store_true",
+#                    help = "Long output")
 
-parser.add_argument("-f", 
-                    "--file-did",
+parser.add_argument("--request-id",
+                    type = int,
+                    help = "Request ID number")
+
+parser.add_argument("--stage-id",
+                    type = int,
+                    help = "Stage ID number")
+
+parser.add_argument("--file-did",
                     type = str,
-                    help = "Specify the file DID")
-   
-parser.add_argument("-i", 
-                    "--site-name",
+                    help = "File DID")
+
+parser.add_argument("--site-name",
                     type = str,
-                    help = "Specify the site name")
-   
-parser.add_argument("-e", 
-                    "--rse-name",
+                    help = "Site name")
+
+parser.add_argument("--rse-name",
                     type = str,
-                    help = "Specify the RSE name")
-   
+                    help = "RSE name")
+
+parser.add_argument("--name",
+                    type = str,
+                    help = "Name to assign")
+
+parser.add_argument("--upload-file",
+                    type = str,
+                    help = "Specify a local file")
+
+parser.add_argument("--max-inputs",
+                    type = int,
+                    help = "Maximum number of inputs")
+
+parser.add_argument("--min-processors",
+                    type = int,
+                    help = "Minimum processors required")
+
+parser.add_argument("--max-processors",
+                    type = int,
+                    help = "Maximum processors stage can use")
+
+parser.add_argument("--max-wall-seconds",
+                    type = int,
+                    help = "Maximum wall seconds")
+
+parser.add_argument("--max-rss-mb",
+                    type = float,
+                    help = "Maximum RSS megabytes")
+
+parser.add_argument("--any-location",
+                    type = bool,
+                    help = "Input files from any location")
+
 args = parser.parse_args()
 jsonDict = vars(args)
+
+if jsonDict['upload_file']:
+  with open(jsonDict['upload_file']) as f:
+    jsonDict['file'] = f.read()
 
 if args.command not in commands:
   print("%s not recognised as a workflow command" % args.command)
   sys.exit(1)
+
+if jsonDict['verbose']:
+  print(jsonDict)
 
 c = pycurl.Curl()
 c.setopt(c.URL, 'https://wfs-dev.dune.hep.ac.uk/wfdb-cgi')

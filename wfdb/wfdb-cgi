@@ -60,18 +60,21 @@ import wfs.conf
 db          = None
 cur         = None
 
+def httpError(code, message):
+  print('Status: ' + code)
+  print('Content-Type: text/plain')
+  print()
+  if message:
+    print(message)
+  sys.exit(0)
+  
 def doQuery(query):
 
   try:
     cur.execute(query)
     return cur.fetchall()
   except:
-    print('Status: 500 Internal Server Error')
-    print('Content-Type: text/plain')
-    print()
-    print('Error reading workflow database')
-    print(query)
-    sys.exit(0)
+    httpError('500 Internal Server Error', 'Error reading workflow database')
 
 def showRequestsCmd(jsonDict):
 
@@ -100,11 +103,7 @@ def showStagesCmd(jsonDict):
   try:
     requestID = int(jsonDict['request_id'])
   except:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Request ID not given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Request ID not given')
 
   try:
     stageID = int(jsonDict['stage_id'])
@@ -142,20 +141,12 @@ def showBootstrapCmd(jsonDict):
   try:
     requestID = int(jsonDict['request_id'])
   except:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Request ID not given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Request ID not given')
 
   try:
     stageID = int(jsonDict['stage_id'])
   except:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Stage ID not given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Stage ID not given')
 
   rows = doQuery("SELECT * FROM bootstraps "
                  "WHERE request_id=%d AND stage_id=%d"
@@ -174,20 +165,12 @@ def showStageOutputsCmd(jsonDict):
   try:
     requestID = int(jsonDict['request_id'])
   except:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Request ID not given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Request ID not given')
 
   try:
     stageID = int(jsonDict['stage_id'])
   except:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Stage ID not given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Stage ID not given')
 
   rows = doQuery("SELECT * FROM stages_outputs "
                  "WHERE request_id=%d AND stage_id=%d "
@@ -221,11 +204,7 @@ def showFilesCmd(jsonDict):
     fileDID = None
 
   if fileDID is None and requestID is None:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Either file DID or request ID must be given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Either file DID or request ID must be given')
 
   if fileDID and not requestID:
     filter = "file_did='%s'" % fileDID
@@ -279,11 +258,7 @@ def showReplicasCmd(jsonDict):
     rseName = None
     
   if fileDID is None and requestID is None:
-    print('Status: 400 Bad Request')
-    print('Content-Type: text/plain')
-    print()
-    print('Either file DID or request ID must be given')
-    sys.exit(0)
+    httpError('400 Bad Request', 'Either file DID or request ID must be given')
 
   if fileDID and not requestID:
     filter = "files.file_did='%s'" % fileDID
@@ -377,23 +352,159 @@ def showSitesStoragesCmd(jsonDict):
    
   sys.exit(0)
 
+def createRequestCmd(jsonDict):
+
+  if 'name' in jsonDict and jsonDict['name']:
+    name = jsonDict['name']
+  else:
+    name = str(int(time.time()))
+
+  doQuery("INSERT INTO requests SET created=NOW(),name='%s'" % name)
+  db.commit()
+
+  httpError('200 OK', str(cur.lastrowid))
+
+def submitRequestCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+# change to handle errors properly eg no such request
+  doQuery("UPDATE requests SET state='submitted',submitted=NOW() "
+          "WHERE request_id=%d" % requestID)
+
+  db.commit()
+
+  httpError('200 OK', None)
+
+def approveRequestCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+# change to handle errors properly eg no such request
+  doQuery("UPDATE requests SET state='approved',approved=NOW() "
+          "WHERE request_id=%d" % requestID)
+
+  db.commit()
+
+  httpError('200 OK', None)
+
+def runRequestCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+# change to handle errors properly eg no such request
+  doQuery("UPDATE requests SET state='running' WHERE request_id=%d" %
+          requestID)
+
+  db.commit()
+
+  httpError('200 OK', None)
+
+def pauseRequestCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+# change to handle errors properly eg no such request
+  doQuery("UPDATE requests SET state='paused' WHERE request_id=%d" %
+          requestID)
+
+  db.commit()
+
+  httpError('200 OK', None)
+
+def createStageCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    httpError('400 Bad Request', 'Stage ID must be given')
+
+  try:
+    maxInputs = int(jsonDict['max_inputs'])
+  except:
+    maxInputs = 1
+
+  try:
+    minProcessors = int(jsonDict['min_processors'])
+  except:
+    minProcessors = 1
+
+  try:
+    maxProcessors = int(jsonDict['max_processors'])
+  except:
+    maxProcessors = minProcessors
+
+  try:
+    maxWallSeconds = int(jsonDict['max_wall_seconds'])
+  except:
+    httpError('400 Bad Request', 'Max wall seconds must be given')
+
+  try:
+    maxRssBytes = int(jsonDict['max_rss_mb']) * 1024 * 1024
+  except:
+    httpError('400 Bad Request', 'Max RSS MB must be given')
+
+  try:
+    anyLocation = bool(jsonDict['any_location'])
+  except:
+    anyLocation = False
+
+  if 'file' in jsonDict and jsonDict['file']:
+    bootstrap = jsonDict['file']
+  else:
+    httpError('400 Bad Request', 'Upload file is required')
+
+  doQuery("INSERT INTO stages SET "
+          "request_id=%d,"
+          "stage_id=%d,"
+          "max_inputs=%d,"
+          "min_processors=%d,"
+          "max_processors=%d,"
+          "max_wall_seconds=%d,"
+          "max_rss_bytes=%d,"
+          "any_location=%s" % 
+          (requestID, stageID, maxInputs, minProcessors, maxProcessors,
+           maxWallSeconds, maxRssBytes, str(anyLocation)))
+          
+  doQuery("INSERT INTO bootstraps SET "
+          "request_id=%d,"
+          "stage_id=%d,"
+          "bootstrap='%s'" % 
+          (requestID, stageID, 
+           bootstrap.replace('\\','\\\\').replace('"','\\"')))
+          
+  db.commit()
+
+  httpError('200 OK', None)
+
 #
 # PROGRAM MAIN
 #
 
 # Quickly reject random GETs etc (if not hanlded by Apache already)
 if os.environ['REQUEST_METHOD'] != 'POST':
-    print('Status: 405 Method not allowed')
-    print()
-    print('We only support POST')
-    sys.exit(0)
+  httpError('405 Method not allowed', 'We only support POST')
 
 # Use certificates and proxies for now; will transition to tokens in future
 if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
-    print('Status: 403 Forbidden')
-    print()
-    print('Forbidden - identity not provided')
-    sys.exit(0)
+  httpError('403 Forbidden', 'Forbidden - identity not provided')
 
 # Convert to the older format with slashes 
 clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
@@ -402,27 +513,18 @@ clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 testDN = '/DC=org/DC=cilogon/C=US/O=Fermi National Accelerator Laboratory/OU=People/CN=Andrew McNab/CN=UID:amcnab'
 if (clientDN != testDN and 
     not clientDN.startswith(testDN + '/CN=')):
-    # Unless we found a matching DN then refuse
-    print('Status: 403 Forbidden')
-    print()
-    print('Forbidden - acceptable identity not provided')
-    sys.exit(0)
+  # Unless we found a matching DN then refuse
+  httpError('403 Forbidden', 'Forbidden - acceptable identity not provided')
 
 # Get the JSON document POSTed to us
 try:
   jsonDict = json.load(sys.stdin)
 except:
-  print('Status: 400 Bad Request')
-  print()
-  print('Failed to parse JSON')
-  sys.exit(0)
+  httpError('400 Bad Request', 'Failed to parse JSON')
 
 # Check jsonDict specifies a method
 if 'command' not in jsonDict:
-  print('Status: 400 Bad Request')
-  print()
-  print('Missing command in JSON')
-  sys.exit(0)
+  httpError('400 Bad Request', 'Missing command in JSON')
 
 # Do as many checks as we can before connecting to the database here
 try:
@@ -431,10 +533,7 @@ try:
   db.autocommit(False)
   cur = db.cursor(MySQLdb.cursors.DictCursor) 
 except:
-  print('Status: 500 Internal Server Error')
-  print()
-  print('Problem with database connection')
-  sys.exit(0)
+  httpError('500 Internal Server Error', 'Problem with database connection')
 
 if jsonDict['command'] == 'show-requests':
   showRequestsCmd(jsonDict)
@@ -460,8 +559,22 @@ if jsonDict['command'] == 'show-storages':
 if jsonDict['command'] == 'show-sites-storages':
   showSitesStoragesCmd(jsonDict)
 
-print('Status: 400 Bad Request')
-print()
-print('command in JSON not recognised')
-sys.exit(0)
+if jsonDict['command'] == 'create-request':
+  createRequestCmd(jsonDict)
 
+if jsonDict['command'] == 'submit-request':
+  submitRequestCmd(jsonDict)
+
+if jsonDict['command'] == 'approve-request':
+  approveRequestCmd(jsonDict)
+
+if jsonDict['command'] == 'run-request':
+  runRequestCmd(jsonDict)
+
+if jsonDict['command'] == 'pause-request':
+  pauseRequestCmd(jsonDict)
+
+if jsonDict['command'] == 'create-stage':
+  createStageCmd(jsonDict)
+
+httpError('400 Bad Request', 'command in JSON not recognised')
