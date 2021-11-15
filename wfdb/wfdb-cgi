@@ -182,7 +182,8 @@ def showStageOutputsCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%s %s" % (str(row['for_next_stage']), row['pattern']))
+    nextStage = '(next)' if row['for_next_stage'] else '(    )'
+    print("%s %s" % (nextStage, row['pattern']))
    
   sys.exit(0)
 
@@ -352,14 +353,15 @@ def showSitesStoragesCmd(jsonDict):
    
   sys.exit(0)
 
-def createRequestCmd(jsonDict):
+def createRequestCmd(jsonDict, userID):
 
   if 'name' in jsonDict and jsonDict['name']:
     name = jsonDict['name']
   else:
     name = str(int(time.time()))
 
-  doQuery("INSERT INTO requests SET created=NOW(),name='%s'" % name)
+  doQuery("INSERT INTO requests SET created=NOW(),name='%s',submitter_id=%d" % 
+          (name, userID))
   db.commit()
 
   httpError('200 OK', str(cur.lastrowid))
@@ -483,16 +485,54 @@ def createStageCmd(jsonDict):
           (requestID, stageID, maxInputs, minProcessors, maxProcessors,
            maxWallSeconds, maxRssBytes, str(anyLocation)))
           
-  doQuery("INSERT INTO bootstraps SET "
-          "request_id=%d,"
-          "stage_id=%d,"
-          "bootstrap='%s'" % 
+  doQuery('INSERT INTO bootstraps SET '
+          'request_id=%d,'
+          'stage_id=%d,'
+          'bootstrap="%s"' % 
           (requestID, stageID, 
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
+
+  for pattern in jsonDict['output_pattern']:
+    doQuery('INSERT INTO stages_outputs SET '
+            'request_id=%d,'
+            'stage_id=%d,'
+            'pattern="%s",'
+            'for_next_stage=FALSE' % 
+            (requestID, stageID,
+             pattern.replace('\\','\\\\').replace('"','\\"')))
+          
+  for pattern in jsonDict['output_pattern_next_stage']:
+    doQuery('INSERT INTO stages_outputs SET '
+            'request_id=%d,'
+            'stage_id=%d,'
+            'pattern="%s",'
+            'for_next_stage=TRUE' % 
+            (requestID, stageID,
+             pattern.replace('\\','\\\\').replace('"','\\"')))
           
   db.commit()
 
   httpError('200 OK', None)
+
+def getUserID():
+
+  # Use certificates and proxies for now; will transition to tokens in future
+  if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
+    httpError('403 Forbidden', 'Forbidden - identity not provided')
+
+  # Convert to the older format with slashes 
+  clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
+
+  rows = doQuery('SELECT user_id FROM users '
+                 'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
+                 clientDN.replace('\\','\\\\').replace('"','\\"'))
+  
+  try:
+    userID = int(rows[0]['user_id'])
+  except:
+    httpError('403 Forbidden', 'Forbidden - acceptable identity not provided')
+
+  return userID
 
 #
 # PROGRAM MAIN
@@ -502,30 +542,6 @@ def createStageCmd(jsonDict):
 if os.environ['REQUEST_METHOD'] != 'POST':
   httpError('405 Method not allowed', 'We only support POST')
 
-# Use certificates and proxies for now; will transition to tokens in future
-if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
-  httpError('403 Forbidden', 'Forbidden - identity not provided')
-
-# Convert to the older format with slashes 
-clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
-
-# In production this will be the DN of the Generic Job Factory
-testDN = '/DC=org/DC=cilogon/C=US/O=Fermi National Accelerator Laboratory/OU=People/CN=Andrew McNab/CN=UID:amcnab'
-if (clientDN != testDN and 
-    not clientDN.startswith(testDN + '/CN=')):
-  # Unless we found a matching DN then refuse
-  httpError('403 Forbidden', 'Forbidden - acceptable identity not provided')
-
-# Get the JSON document POSTed to us
-try:
-  jsonDict = json.load(sys.stdin)
-except:
-  httpError('400 Bad Request', 'Failed to parse JSON')
-
-# Check jsonDict specifies a method
-if 'command' not in jsonDict:
-  httpError('400 Bad Request', 'Missing command in JSON')
-
 # Do as many checks as we can before connecting to the database here
 try:
   db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
@@ -534,6 +550,19 @@ try:
   cur = db.cursor(MySQLdb.cursors.DictCursor) 
 except:
   httpError('500 Internal Server Error', 'Problem with database connection')
+
+# This produces an error and stops if authorized DN is not found
+userID = getUserID()
+
+# Get the JSON document POSTed to us
+try:
+  jsonDict = json.load(sys.stdin)
+except Exception as e:
+  httpError('400 Bad Request', 'Failed to parse JSONx')
+
+# Check jsonDict specifies a method
+if 'command' not in jsonDict:
+  httpError('400 Bad Request', 'Missing command in JSON')
 
 if jsonDict['command'] == 'show-requests':
   showRequestsCmd(jsonDict)
@@ -560,7 +589,7 @@ if jsonDict['command'] == 'show-sites-storages':
   showSitesStoragesCmd(jsonDict)
 
 if jsonDict['command'] == 'create-request':
-  createRequestCmd(jsonDict)
+  createRequestCmd(jsonDict, userID)
 
 if jsonDict['command'] == 'submit-request':
   submitRequestCmd(jsonDict)

@@ -126,6 +126,16 @@ parser.add_argument("--any-location",
                     type = bool,
                     help = "Input files from any location")
 
+parser.add_argument("--output-pattern",
+                    type   = str,
+                    action = "append",
+                    help   = "Output files pattern")
+
+parser.add_argument("--output-pattern-next-stage",
+                    type   = str,
+                    action = "append",
+                    help   = "Output files for next stage pattern")
+
 args = parser.parse_args()
 jsonDict = vars(args)
 

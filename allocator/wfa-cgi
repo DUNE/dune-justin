@@ -611,6 +611,35 @@ def resultsMethod(jsonDict):
   print()
   sys.exit(0)
 
+def getUserID():
+
+  # Use certificates and proxies for now; will transition to tokens in future
+  if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
+    print('Status: 403 Forbidden')
+    print('Content-Type: text/plain')
+    print()
+    print('Forbidden - identity not provided')
+
+  # Convert to the older format with slashes 
+  clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
+
+  query = ('SELECT user_id FROM users '
+           'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
+           clientDN.replace('\\','\\\\').replace('"','\\"'))
+
+  cur.execute(query)
+  rows = cur.fetchall()
+
+  try:
+    userID = int(rows[0]['user_id'])
+  except:
+    print('Status: 403 Forbidden')
+    print('Content-Type: text/plain')
+    print()
+    print('Forbidden - authorized identity not provided')
+
+  return userID
+
 #
 # PROGRAM MAIN
 #
@@ -624,26 +653,6 @@ if os.environ['REQUEST_METHOD'] != 'POST':
 
 # Create a unique ID string for this instance that may also help in debugging
 allocatorID = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
-
-# Use certificates and proxies for now; will transition to tokens in future
-if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
-    print('Status: 403 Forbidden')
-    print()
-    print('Forbidden - identity not provided')
-    sys.exit(0)
-
-# Convert to the older format with slashes 
-clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
-
-# In production this will be the DN of the Generic Job Factory
-factoryDN = '/DC=org/DC=cilogon/C=US/O=Fermi National Accelerator Laboratory/OU=People/CN=Andrew McNab/CN=UID:amcnab'
-if (clientDN != factoryDN and 
-    not clientDN.startswith(factoryDN + '/CN=')):
-    # Unless we found a matching DN then refuse
-    print('Status: 403 Forbidden')
-    print()
-    print('Forbidden - acceptable identity not provided')
-    sys.exit(0)
 
 # Get the JSON document POSTed to us
 try:
@@ -672,6 +681,9 @@ except:
   print()
   print('Problem with database connection')
   sys.exit(0)
+
+# Fails with an HTTP error and exit if authorized ID not given
+userID = getUserID()
 
 # Get the stage and files to process
 if jsonDict['method'] == 'get_stage':
