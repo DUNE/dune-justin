@@ -51,6 +51,7 @@ parser = argparse.ArgumentParser()
 
 commands = [ "create-request", 
              "submit-request", "approve-request",
+             "add-file",
              "run-request", "pause-request",
              "create-stage", "create-storage",
              "create-site-storage",
@@ -91,8 +92,9 @@ parser.add_argument("--site-name",
                     help = "Site name")
 
 parser.add_argument("--rse-name",
-                    type = str,
-                    help = "RSE name")
+                    type   = str,
+                    action = "append",
+                    help   = "RSE name")
 
 parser.add_argument("--name",
                     type = str,

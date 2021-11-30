@@ -253,9 +253,9 @@ def showReplicasCmd(jsonDict):
   else:
     fileDID = None
 
-  if 'rse_name' in jsonDict and jsonDict['rse_name']:
-    rseName = jsonDict['rse_name']
-  else:
+  try:
+    rseName = re.sub('[^A-Za-z0-9._-]+', '', str(jsonDict['rse_name'][0]))
+  except:
     rseName = None
     
   if fileDID is None and requestID is None:
@@ -299,9 +299,9 @@ def showReplicasCmd(jsonDict):
 
 def showStoragesCmd(jsonDict):
 
-  if 'rse_name' in jsonDict and jsonDict['rse_name']:
+  try:
     filter = "WHERE rse_name='%s'" % jsonDict['rse_name']
-  else:
+  except:
     filter = ""
 
   rows = doQuery("SELECT * FROM storages " + filter + 
@@ -324,9 +324,9 @@ def showSitesStoragesCmd(jsonDict):
   else:
     siteName = None
 
-  if 'rse_name' in jsonDict and jsonDict['rse_name']:
-    rseName = jsonDict['rse_name']
-  else:
+  try:
+    rseName = re.sub('[^A-Za-z0-9._-]+', '', str(jsonDict['rse_name'][0]))
+  except:
     rseName = None
     
   if siteName and rseName:
@@ -492,24 +492,76 @@ def createStageCmd(jsonDict):
           (requestID, stageID, 
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
 
-  for pattern in jsonDict['output_pattern']:
-    doQuery('INSERT INTO stages_outputs SET '
-            'request_id=%d,'
-            'stage_id=%d,'
-            'pattern="%s",'
-            'for_next_stage=FALSE' % 
-            (requestID, stageID,
-             pattern.replace('\\','\\\\').replace('"','\\"')))
+  if jsonDict['output_pattern']:
+    for pattern in jsonDict['output_pattern']:
+      doQuery('INSERT INTO stages_outputs SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'pattern="%s",'
+              'for_next_stage=FALSE' % 
+              (requestID, stageID,
+               pattern.replace('\\','\\\\').replace('"','\\"')))
+
+  if jsonDict['output_pattern_next_stage']:
+    for pattern in jsonDict['output_pattern_next_stage']:
+      doQuery('INSERT INTO stages_outputs SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'pattern="%s",'
+              'for_next_stage=TRUE' % 
+              (requestID, stageID,
+               pattern.replace('\\','\\\\').replace('"','\\"')))
           
-  for pattern in jsonDict['output_pattern_next_stage']:
-    doQuery('INSERT INTO stages_outputs SET '
-            'request_id=%d,'
-            'stage_id=%d,'
-            'pattern="%s",'
-            'for_next_stage=TRUE' % 
-            (requestID, stageID,
-             pattern.replace('\\','\\\\').replace('"','\\"')))
-          
+  db.commit()
+
+  httpError('200 OK', None)
+
+def addFileCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    stageID = 1
+
+  try:
+    fileDID = str(jsonDict['file_did'])
+  except:
+    fileDID = None
+
+  if fileDID is None:
+    httpError('400 Bad Request', 'File DID must be given')
+
+  rseList = []
+
+  try:
+    for rseName in jsonDict['rse_name']:
+      rseList.append(re.sub('[^A-Za-z0-9._-]+', '', str(rseName)))
+  except:
+    rseList = []
+    
+  if len(rseList) == 0:
+    httpError('400 Bad Request', 'At least one RSE name must be given')
+  
+  doQuery("INSERT INTO files SET "
+          "request_id=%d,"
+          "stage_id=%d,"
+          "file_did='%s',"
+          "state='unallocated'" % 
+          (requestID, stageID, fileDID))
+
+  fileID = cur.lastrowid
+
+  for rseName in rseList:
+    doQuery("INSERT INTO replicas SET "
+            "rse_id=(SELECT rse_id FROM storages WHERE rse_name='%s'),"
+            "file_id=%d" % 
+            (rseName, fileID))
+              
   db.commit()
 
   httpError('200 OK', None)
@@ -605,5 +657,8 @@ if jsonDict['command'] == 'pause-request':
 
 if jsonDict['command'] == 'create-stage':
   createStageCmd(jsonDict)
+
+if jsonDict['command'] == 'add-file':
+  addFileCmd(jsonDict)
 
 httpError('400 Bad Request', 'command in JSON not recognised')

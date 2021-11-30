@@ -627,8 +627,14 @@ def getUserID():
            'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
            clientDN.replace('\\','\\\\').replace('"','\\"'))
 
-  cur.execute(query)
-  rows = cur.fetchall()
+  try:
+    cur.execute(query)
+    rows = cur.fetchall()
+  except:
+    print('Status: 500 Internal Server Error')
+    print('Content-Type: text/plain')
+    print()
+    print('Error reading database')
 
   try:
     userID = int(rows[0]['user_id'])
