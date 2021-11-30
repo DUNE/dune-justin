@@ -45,8 +45,7 @@ CREATE TABLE `files` (
   `state` enum('building','unallocated','allocated','processed') NOT NULL DEFAULT 'building',
   `allocated_time` datetime NOT NULL,
   `allocator_id` varchar(255) NOT NULL,
-  `executor_id` varchar(255) NOT NULL,
-  `cookie` varchar(255) NOT NULL,
+  `executor_id` varchar(255) NOT NULL
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -81,6 +80,7 @@ CREATE TABLE `requests` (
   `checking` datetime DEFAULT NULL,
   `completed` datetime DEFAULT NULL,
   `submitter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `cookie` varchar(255) NOT NULL,
   PRIMARY KEY (`request_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

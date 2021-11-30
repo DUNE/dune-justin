@@ -65,7 +65,7 @@ allocatorID = None
 
 # Return various strings and SQL expressions which are 
 # used in subsequent queries
-def makeQueryTerms(jsonDict):
+def makeQueryTerms(jsonDict, userID):
 
   duneSite = re.sub('["\']', '_', str(jsonDict['dunesite']))
   query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
@@ -134,14 +134,14 @@ def makeQueryTerms(jsonDict):
            "accessibleList" : accessibleList,
            "storageWhere"   : storageWhere,
            "storageOrder"   : storageOrder,
-           "cookie"         : str(uuid.uuid4()),
            "dunesite"       : re.sub('["\']', '_',
                                      str(jsonDict['dunesite'])),
            "rss_bytes"      : int(jsonDict['rss_bytes']),
            "processors"     : int(jsonDict['processors']),
            "wall_seconds"   : int(jsonDict['wall_seconds']),
            "executor_id"    : re.sub('["\']', '_', 
-                                     str(jsonDict['executor_id']))
+                                     str(jsonDict['executor_id'])),
+           "user_id"        : userID
          }
 
 # Just In Time decision making: identify the best request+stage combination
@@ -151,10 +151,12 @@ def chooseStageJustInTime(queryTerms):
   query = (
  "SELECT stages.request_id,stages.stage_id,"
  "stages.max_inputs,stages.any_location,"
- "files.file_did,files.file_id,storages.rse_name "
+ "files.file_did,files.file_id,storages.rse_name,"
+ "requests.cookie "
  "FROM files "
  "LEFT JOIN stages ON files.request_id=stages.request_id AND "
  "files.stage_id=stages.stage_id "
+ "LEFT JOIN requests ON requests.request_id=files.request_id "
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "WHERE files.state='unallocated' AND " +
@@ -162,8 +164,9 @@ def chooseStageJustInTime(queryTerms):
  str(queryTerms["processors"])   + " >= stages.min_processors AND " +
  str(queryTerms["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
  str(queryTerms["wall_seconds"]) + " >= stages.max_wall_seconds " +
- queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL "
- "ORDER BY " + 
+ queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL " +
+ " AND submitter_id=" + str(queryTerms["user_id"]) +
+ " ORDER BY " + 
  queryTerms["storageOrder"] + "files.request_id,files.file_id"
  " LIMIT 100 FOR UPDATE"
  )
@@ -179,12 +182,14 @@ def chooseStageJustInTime(queryTerms):
   stageID     = int(fileRows[0]['stage_id'])
   maxInputs   = int(fileRows[0]['max_inputs'])
   anyLocation = bool(fileRows[0]['any_location'])
+  cookie      = str(fileRows[0]['cookie'])
   
   # Start the dictionary to return
   stage = { 'request_id'  : requestID,
             'stage_id'    : stageID,
             'max_inputs'  : maxInputs,
-            'any_location': anyLocation }
+            'any_location': anyLocation,
+            'cookie'      : cookie }
 
   # Stage definition does not ask for any input files in the bootstrap
   if maxInputs == 0:
@@ -222,6 +227,8 @@ def makeStageOneFile(jsonDict, queryTerms):
   # Take the values from the highest priority result
   requestID = int(jsonDict['request_id'])
   stageID   = int(jsonDict['stage_id'])
+# Still need to sanitise
+  cookie    = str(jsonDict['cookie'])
 
   # Find the any_location flag for this stage from the database
   try:
@@ -252,11 +259,13 @@ def makeStageOneFile(jsonDict, queryTerms):
   query = (
 "SELECT files.file_id,files.file_did,storages.rse_name "
 "FROM files "
+"LEFT JOIN requests ON requests.request_id=files.request_id "
 "LEFT JOIN replicas ON files.file_id=replicas.file_id "
 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
 "WHERE files.state='unallocated' AND files.request_id=" +
 str(requestID) + " AND files.stage_id=" + str(stageID) + 
 storageWhere + " AND storages.rse_NAME IS NOT NULL "
+"AND requests.cookie='" + cookie + "' " +
 "ORDER BY " + 
 queryTerms["storageOrder"] + "files.file_id"
 " LIMIT 1 FOR UPDATE"
@@ -273,6 +282,7 @@ queryTerms["storageOrder"] + "files.file_id"
             'stage_id'    : stageID,
             'max_inputs'  : 1,
             'any_location': anyLocation,
+            'cookie'      : cookie,
             'files'       : [ { 'file_did': fileRows[0]['file_did'],
                                 'rse_name': fileRows[0]['rse_name'],
                                 'file_id' : int(fileRows[0]['file_id'])
@@ -304,7 +314,6 @@ def allocateFiles(queryTerms, stage):
     
   try: 
     query = ("UPDATE files SET state='allocated',"
-             "cookie='" + queryTerms['cookie'] + "',"  
              "allocator_id='" + allocatorID + "',"
              "allocated_time=NOW(),"
              "executor_id='" + queryTerms['executor_id'] + "' "
@@ -350,7 +359,6 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
     bootstrap = bootstrap.replace('##wfa_files_did_rse##', fileDidRseStr)
     bootstrap = bootstrap.replace('##wfa_files_json##',    json.dumps(allocatedFiles))
 
-#  bootstrap = bootstrap.replace('##wfa_cookie##',    queryTerms['cookie'])
   bootstrap = bootstrap.replace('##wfa_request_id##',str(stage['request_id']))
   bootstrap = bootstrap.replace('##wfa_stage_id##',  str(stage['stage_id']))
 
@@ -412,7 +420,7 @@ def makeTarFile(queryTerms, stage, allocatedFiles):
        (
          'request_id=' + str(stage['request_id']) + '\n' +
          'stage_id=' + str(stage['stage_id']) + '\n' +
-         'cookie="' + queryTerms['cookie'] + '"\n' +
+         'cookie="' + stage['cookie'] + '"\n' +
          'rse_list="' + ' '.join(queryTerms['outputRseList']) + '"\n'
        )
                   )
@@ -421,7 +429,7 @@ def makeTarFile(queryTerms, stage, allocatedFiles):
   return buffer.getvalue()
 
 # Try to get the stage with the highest priority files still unallocated
-def getStageMethod(jsonDict):
+def getStageMethod(jsonDict, userID):
 
   # Check jsonDict contains required string values (eg dunesite)
   for name in ['dunesite', 'executor_id']:
@@ -442,7 +450,7 @@ def getStageMethod(jsonDict):
       sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict)
+  queryTerms = makeQueryTerms(jsonDict, userID)
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
@@ -479,10 +487,10 @@ def getStageMethod(jsonDict):
   sys.exit(0)
    
 # Get an unallocated file from the given request+stage
-def getFileMethod(jsonDict):
+def getFileMethod(jsonDict, userID):
 
   # Check jsonDict contains required values (eg dunesite)
-  for name in ['dunesite', 'executor_id', 'request_id', 'stage_id']:
+  for name in ['dunesite', 'executor_id', 'request_id', 'stage_id', 'cookie']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
@@ -490,7 +498,7 @@ def getFileMethod(jsonDict):
       sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict)
+  queryTerms = makeQueryTerms(jsonDict, userID)
 
   # Create a stage dictionary with the next file in this stage  
   stage = makeStageOneFile(jsonDict, queryTerms)
@@ -509,7 +517,7 @@ def getFileMethod(jsonDict):
       print('Status: 200 OK')
       print('Content-Type: text/plain')
       print()
-      print(queryTerms['cookie'] + ' ' + allocatedFiles[0]['file_did'])
+      print(allocatedFiles[0]['file_did'])
 
       sys.exit(0)
 
@@ -521,7 +529,7 @@ def getFileMethod(jsonDict):
   sys.exit(0)   
 
 def updateFileProcessing(fileList, state, requestID, stageID, 
-                         cookie, executorID):
+                         executorID):
   processedList   = []
 
   try:
@@ -540,7 +548,7 @@ def updateFileProcessing(fileList, state, requestID, stageID,
                'WHERE (' + ' OR '.join(processedList) + ') '
                'AND request_id=' + str(requestID) + ' ' 
                'AND stage_id=' + str(stageID) + ' ' 
-               'AND cookie="' + cookie + '" AND state="allocated"')
+               'AND state="allocated"')
       cur.execute(query)
     except:
       return
@@ -569,7 +577,7 @@ def processNextStageOutputs(jsonDict, requestID, stageID, executorID):
   except:
     return
                 
-def resultsMethod(jsonDict):
+def resultsMethod(jsonDict, userID):
 
   # Check jsonDict contains required values (eg executor_id)
   for name in ['cookie', 'executor_id', 'request_id', 'stage_id', 
@@ -590,15 +598,18 @@ def resultsMethod(jsonDict):
     sys.exit(0)
 
   cookie = re.sub('[^a-z,A-Z,0-9,.,_,-]', '', str(jsonDict['cookie']))
-  
+#####
+# Still need to check this cookie matches the request!!!!!!
+#####
+
   # Make a sanitised string which identifies the executor
   executorID = re.sub('["\']', '_', str(jsonDict['executor_id']).lower())
 
   updateFileProcessing(jsonDict['processed_inputs'], 'processed',
-                       requestID, stageID, cookie, executorID)
+                       requestID, stageID, executorID)
 
   updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed',
-                       requestID, stageID, cookie, executorID)
+                       requestID, stageID, executorID)
 
   processNextStageOutputs(jsonDict, requestID, stageID, executorID)
 
@@ -693,15 +704,15 @@ userID = getUserID()
 
 # Get the stage and files to process
 if jsonDict['method'] == 'get_stage':
-  getStageMethod(jsonDict)
+  getStageMethod(jsonDict, userID)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':
-  getFileMethod(jsonDict)
+  getFileMethod(jsonDict, userID)
   
 # Return results of processing files
 elif jsonDict['method'] == 'return_results':
-  resultsMethod(jsonDict)
+  resultsMethod(jsonDict, userID)
 
 else:
   print('Status: 400 Bad Request')

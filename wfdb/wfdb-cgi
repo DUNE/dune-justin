@@ -360,8 +360,11 @@ def createRequestCmd(jsonDict, userID):
   else:
     name = str(int(time.time()))
 
-  doQuery("INSERT INTO requests SET created=NOW(),name='%s',submitter_id=%d" % 
-          (name, userID))
+  doQuery("INSERT INTO requests SET created=NOW(),"
+          "name='%s',"
+          "submitter_id=%d,"
+          "cookie='%s'" % 
+          (name, userID, str(uuid.uuid4())))
   db.commit()
 
   httpError('200 OK', str(cur.lastrowid))
