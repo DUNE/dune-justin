@@ -50,7 +50,7 @@ http_code=`curl \
 --data @wfa-get-stage.json \
 --output wfa-files.tar \
 --write-out "%{http_code}\n" \
-https://vm20.blackett.manchester.ac.uk/wfa-cgi`
+https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
 
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
@@ -138,6 +138,6 @@ http_code=`curl \
 --data @wfa-return-results.json \
 --output return-results.txt \
 --write-out "%{http_code}\n" \
-https://vm20.blackett.manchester.ac.uk/wfa-cgi`
+https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
 
 echo '====End of genericjob.sh===='
