@@ -45,7 +45,7 @@ CREATE TABLE `files` (
   `state` enum('building','unallocated','allocated','processed') NOT NULL DEFAULT 'building',
   `allocated_time` datetime NOT NULL,
   `allocator_id` varchar(255) NOT NULL,
-  `executor_id` varchar(255) NOT NULL
+  `executor_id` varchar(255) NOT NULL,
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
