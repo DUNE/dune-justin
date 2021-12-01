@@ -301,7 +301,8 @@ def showReplicasCmd(jsonDict):
 def showStoragesCmd(jsonDict):
 
   try:
-    filter = "WHERE rse_name='%s'" % jsonDict['rse_name']
+    rseName = re.sub('[^A-Za-z0-9._-]+', '', str(jsonDict['rse_name'][0]))
+    filter  = "WHERE rse_name='%s'" % rseName
   except:
     filter = ""
 
