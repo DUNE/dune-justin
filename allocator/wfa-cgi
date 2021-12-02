@@ -332,7 +332,7 @@ def allocateFiles(queryTerms, stage):
 def makeBootstrap(queryTerms, stage, allocatedFiles):
 
   try:
-    query = ("SELECT bootstrap FROM bootstraps "
+    query = ("SELECT bootstrap,cookie FROM bootstraps "
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
@@ -361,6 +361,7 @@ def makeBootstrap(queryTerms, stage, allocatedFiles):
 
   bootstrap = bootstrap.replace('##wfa_request_id##',str(stage['request_id']))
   bootstrap = bootstrap.replace('##wfa_stage_id##',  str(stage['stage_id']))
+  bootstrap = bootstrap.replace('##wfa_cookie##',    stage['cookie'])
 
   # Remove any unused patterns from the template
   bootstrap = re.sub('##wfa_[a-z,0-9,_]*##', '', bootstrap)
