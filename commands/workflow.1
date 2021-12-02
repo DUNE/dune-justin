@@ -188,6 +188,78 @@ Shows file and replica information in the Workflow Database, either limited by
 request ID and stage ID or by file DID. For each replica of each file, the 
 request ID, stage ID, file state, RSE name, and file DID are shown. 
 
+.SH BOOTSTRAP SCRIPTS
+
+This section describes how bootstrap scripts receive information from the rest
+of the workflow system and communicate their results. The files uploaded to
+the system by the
+.BR create-stage
+subcommand are in fact templates containing patterns which are replaced on
+the fly by the Workflow Allocator. These patterns are of the form
+##wfa_xxx## and all strings of this form are either replaced or removed
+before the script is delivered by the allocator and executed.
+
+.BR ##wfa_files_did##
+is replaced by a list of input file DIDs which have been allocated to this
+script instance for processing - one file per line. These can conveniently
+be included in shell here documents, assigned to shell variables etc:
+
+cat <<EOF > input_files.txt
+.br
+##wfa_files_did##
+.br
+EOF
+
+.br
+input_file=##wfa_files_did## 
+
+.br
+(
+.br
+cat <<EOF 
+.br
+##wfa_files_did##
+.br
+EOF
+.br
+) | (
+.br
+while read did
+.br
+do
+.br
+ echo $did
+.br
+done
+.br
+)
+
+.BR ##wfa_request_id##
+and
+.BR ##wfa_stage_id##
+are replaced by the numeric IDs of the request and stage, which may be 
+useful for debugging.
+
+.BR ##wfa_cookie##
+is replaced by a cookie specific to this request which allows the script
+to request another unallocated file in the current stage from the Workflow
+Allocator using the get_file method. This is not otherwise needed by the
+script.
+
+Once the script is completed, it must create files 
+.BR wfa-processed-inputs.txt
+and/or
+.BR wfa-unprocessed-inputs.txt
+listing the DIDs of the files which have been allocated to the script and
+either successfully processed or not processed respectively. It acceptable
+for either list file to be absent if it would have no contents.
+
+As described above for the 
+.BR create-stage
+subcommand, the stage definition includes patterns used by the generic job
+to identify output files produced by the script and left in place after it
+finishes.
+
 .SH AUTHOR
 Andrew McNab <Andrew.McNab@cern.ch>
 
