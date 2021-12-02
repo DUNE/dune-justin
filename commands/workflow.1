@@ -1,0 +1,195 @@
+.TH WORKFLOW  "2021" "workflow" "Vac Manual"
+.SH NAME
+.B workflow
+\- Workflow System utility command
+.SH SYNOPSIS
+.B workflow subcommand [options]
+.SH DESCRIPTION
+.B workflow
+is a command-line utility for managing requests, stages, files, and replicas
+in the Workflow System Database (WFDB).
+
+.SH GENERAL OPTIONS
+
+.HP 
+.B "-h, --help"
+.br
+Show help message and exit
+
+.HP 
+.B "-v, --verbose"
+.br
+Turn on verbose logging of the communication with the WFDB service.
+
+.SH SUBCOMMANDS
+
+.HP
+.B "create-request [--name NAME]"
+.br
+Create a new, empty request in the database, optionally with the given 
+human-readable name. If a name is not given, a name based on a timestamp
+is created. Requests are created in the state "draft" and the command
+returns the new request's ID number.
+
+.HP
+.B "submit-request --request-id ID"
+.br
+.B Currently not used. 
+Changes the state of the given request to "submitted". In the future, this
+will allow automated sanity checking and prioritisation of requests. For 
+very large requests it may give an opportunity for manual approval by the 
+operations team.
+
+.HP
+.B "show-requests [--request-id ID]"
+.br
+Show details of all requests or optionally of a single request. Each line
+of the output gives the request ID, state, creation time, and name of one
+request.
+
+.HP
+.B "approve-request --request-id ID"
+.br
+.B Currently not used.
+Changes the state of the given request to "approved".
+
+.HP
+.B "run-request --request-id ID"
+.br
+Changes the state of the given request to "running". Once requests are in this
+state they are included in the workflow allocation process.
+
+.HP
+.B "pause-request --request-id ID"
+.br
+Changes the state of the given request to "paused". This state temporarily
+excludes a request from the workflow allocation process.
+
+.HP
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --max-wall-seconds N --max-rss-bytes N [--max-inputs N] [--min-processors N] [--max-processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
+.br
+Creates a new stage for the given request ID with the given stage ID. Stages
+must be numbered consecutively from 1, and each request must have at least
+one stage. Each stage must have a boostrap shell script associated with it,
+given by the
+.B --upload-file
+option which will be executed on worker nodes to process its files. 
+
+The maximum wallclock time and the maximum amount of resident memory that
+may be needed
+by the script  must be given. The resident memory corresponds to the physical
+memory managed by HTCondor's ResidentSetSize value.
+
+If the script can process a list of multiple input files, then the maximum 
+it may be allocated can be given - otherwise the default is 1. The Workflow
+Allocator will always try to allocate the maximum number of files to a
+running script. If the maximum is set to zero then no input files will be
+allocated to the script when it starts and the allocator will wait for the
+script to request input files to process one by one using the allocator's 
+get_file method.
+
+If the script can make use of multiple processors then 
+.B --min-processors
+and
+.B --max-processors
+can be used to give the minimum it needs and the maximum it can use. The 
+minimum defaults to 1 and the maximum defaults to be the same as the minimum 
+value.
+
+By default, input files will only be allocated to a script which are on 
+storages at the same site or nearby sites. This can be changed by setting
+.B --any-location TRUE
+to allow input files to be allocated from any accessible storage.
+
+If 
+.B --output-pattern
+is given then the generic job will look for files created by the script
+which match this pattern. The pattern is a Bash shell pattern using *, ? and
+[...] expressions. See the bash(1) Pattern Matching section for details. Any
+output files found by this matching will be uploaded and registered by the
+generic job. Furthermore, if the found files have a corresponding JSON metadata
+file with the same name but with ".json" appended, that will be recorded for
+that file in MetaCat.
+
+Alternatively
+.B --output-pattern-next-stage
+can be given in which the output file will also be registered in the
+Workflow Database as an unprocessed input file for the next stage and
+available for allocation to instances of that stage's script.
+
+.HP
+.B "show-stages --request-id ID [--stage-id ID]"
+.br
+Shows details of all stages of the given request or optionally of a single 
+stage of that request. Each line
+of the output gives the request ID, stage ID, max inputs, min processors,
+max processors, max wallclock seconds, max RSS bytes, and the any location 
+switch.
+
+.HP
+.B "show-bootstrap --request-id ID --stage-id ID"
+.br
+Show the bootstrap script of the given stage within the given request.
+
+.HP
+.B "show-stage-outputs --request-id ID --stage-id ID"
+.br
+Shows the patterns used to find output files of the given stage within the 
+given request. Each line of the response consists of "(next)" or "(  )" 
+depending on whether the files are passed to the next stage within the
+request, and then the pattern itself.
+
+.HP
+.B "show-storages [--rse-name NAME]"
+.br
+Shows information about RUCIO storage elements cached in the Workflow
+Database, optionally limiting output to a single RSE using its name. Each
+line of the output consists of the RSE name followed by the occupancy
+fraction obtained from RUCIO in the range 0.0 to 1.0.
+
+.HP
+.B "show-sites-storages [--site-name NAME] [--rse-name NAME]"
+.br
+Shows information about the locations of RUCIO storage elements relative to
+sites, optionally limited to the given site and/or RSE. Each line of the
+output gives the site name, RSE name, and then their relative locaton:
+"samesite", "nearby" or "accessible". 
+
+.HP
+.B "add-file --request-id ID [--stage-id ID] --file-did DID --rse-name NAME"
+.br
+Adds one file to the list of files to be processed in a stage, with the
+given RUCIO file Data Identifier (DID). 
+.B Normally this should only be done for the first stage, 
+which is the default. Files are created in the "unallocated" state, ready
+for processing. At least one RSE which has a replica of the file must be
+given, but multiple RSEs can be specified by using multiple
+.B --rse-name
+options. This subcommand is only intended for testing, as in the future an
+agent will build the lists of files and replicas for the first stage of a 
+request using the metadata catalogue and RUCIO.
+
+.HP
+.B "show-files [--request-id ID] [--stage-id ID] [--file-did DID]"
+.br
+Shows files information cached in the Workflow Database, either limited by 
+request ID and stage ID or by file DID. For each file, the request ID, stage
+ID, file state, and file DID are shown. The file state is one of "building",
+"unallocated", "allocated", or "processed". Files wait in the "unallocated"
+state, are then allocated to an instance of the stage's script by the 
+Workflow Allocator, and then either return to "unallocated" or move to
+"processed" depending on whether the script is able to process them
+correctly.
+
+.HP
+.B "show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]"
+.br
+Shows file and replica information in the Workflow Database, either limited by 
+request ID and stage ID or by file DID. For each replica of each file, the 
+request ID, stage ID, file state, RSE name, and file DID are shown. 
+
+.SH AUTHOR
+Andrew McNab <Andrew.McNab@cern.ch>
+
+.SH "SEE ALSO"
+bash(1)
