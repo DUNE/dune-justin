@@ -2,6 +2,9 @@
 #
 #  workflow - DUNE WFS command line utility
 #
+#  See the workflow(1) man page for full usage. 
+#  For example with the command  man ./workflow.1 
+#
 #  Andrew McNab, University of Manchester.
 #  Copyright (c) 2013-21. All rights reserved.
 #
