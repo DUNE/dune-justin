@@ -70,11 +70,6 @@ parser.add_argument("-v",
                     action = "store_true",
                     help = "Verbose logging")
 
-#parser.add_argument("-l",
-#                    "--long",
-#                    action = "store_true",
-#                    help = "Long output")
-
 parser.add_argument("--request-id",
                     type = int,
                     help = "Request ID number")

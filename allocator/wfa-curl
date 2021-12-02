@@ -1,4 +1,8 @@
 #!/bin/sh
+#
+# Workflow Allocator testing script
+# The real client for the WFA is in genericjob.sh
+#
 
 if [ "$1" = "" ] ; then
  echo 'Must give the JSON file!'
