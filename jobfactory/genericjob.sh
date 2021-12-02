@@ -9,6 +9,8 @@ echo '====Start of genericjob.sh===='
 # Assemble values we will need 
 export executor_id=`hostname`.`date +'%s'`
 export dunesite=${GLIDEIN_DUNESite:-XX_UNKNOWN}
+
+# These are probably wrong: we should get them from the HTCondor job ad?
 export rss_bytes=`expr ${GLIDEIN_MaxMemMBs:-4096} \* 1024 \* 1024`
 export processors=${GLIDEIN_CPUs:-1}
 export wall_seconds=${GLIDEIN_Max_Walltime:-86400}
