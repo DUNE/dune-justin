@@ -1,13 +1,4 @@
 #!/bin/bash
-#
-# This script can be run as a job with jobsub to test connections from random
-# worker nodes on the grid to the DUNE RUCIO service at FNAL
-#
-# It can also be run from the command line if you set X509_USER_PROXY to
-# to the full path of your valid X.509 user proxy.
-#
-# andrew.mcnab@cern.ch Dec 2021
-#
 
 whoami
 uname -a
@@ -17,6 +8,7 @@ printenv
 export RUCIO_LOCAL=$PWD/rucio-local
 export PATH="$PATH:$RUCIO_LOCAL/bin"
 export PYTHONPATH="$RUCIO_LOCAL/lib/python3.8/site-packages"
+export X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u`id -u`}
 
 mkdir -p $RUCIO_LOCAL/bin
 # Have to create symbolic link since cvmfs path 
@@ -27,7 +19,8 @@ ln -sf /cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-
 curl --insecure https://bootstrap.pypa.io/get-pip.py > get-pip.py
 $RUCIO_LOCAL/bin/python38 get-pip.py --prefix $PWD/rucio-local --ignore-installed
 
-pip3 install --prefix $RUCIO_LOCAL --ignore-installed rucio-clients
+# DOES NOT WORK WITH RUCIO 1.27 !!!
+pip3.8 install --prefix $RUCIO_LOCAL --ignore-installed rucio-clients==1.26
 
 cat <<EOF > $RUCIO_LOCAL/etc/rucio.cfg
 [client]
