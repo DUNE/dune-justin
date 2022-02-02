@@ -42,7 +42,7 @@ CREATE TABLE `files` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `file_did` varchar(255) NOT NULL,
-  `state` enum('building','unallocated','allocated','processed') NOT NULL DEFAULT 'building',
+  `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
   `allocated_time` datetime NOT NULL,
   `allocator_id` varchar(255) NOT NULL,
   `executor_id` varchar(255) NOT NULL,
@@ -72,7 +72,7 @@ DROP TABLE IF EXISTS `requests`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-  `state` enum('draft','submitted','approved','building','running','paused','checking','completed','deleted') NOT NULL,
+  `state` enum('draft','submitted','approved','finding','running','paused','checking','completed','deleted') NOT NULL,
   `name` varchar(255) NOT NULL,
   `created` datetime NOT NULL,
   `submitted` datetime DEFAULT NULL,
