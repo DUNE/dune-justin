@@ -24,12 +24,14 @@ Turn on verbose logging of the communication with the WFDB service.
 .SH SUBCOMMANDS
 
 .HP
-.B "create-request [--name NAME]"
+.B "create-request [--name NAME] [--mql QUERY]"
 .br
 Create a new, empty request in the database, optionally with the given 
-human-readable name. If a name is not given, a name based on a timestamp
-is created. Requests are created in the state "draft" and the command
-returns the new request's ID number.
+human-readable name and MetaCat Query Language expression. If a name is not 
+given, a name based on a timestamp is created. If present, the query will be
+used by the Workflow System to build the list of input files from MetaCat.
+Requests are created in the state "draft" and the command returns the new 
+request's ID number.
 
 .HP
 .B "submit-request --request-id ID"
@@ -44,8 +46,8 @@ operations team.
 .B "show-requests [--request-id ID]"
 .br
 Show details of all requests or optionally of a single request. Each line
-of the output gives the request ID, state, creation time, and name of one
-request.
+of the output gives the request ID, state, creation time, name, and MetaCat
+query of one request.
 
 .HP
 .B "approve-request --request-id ID"

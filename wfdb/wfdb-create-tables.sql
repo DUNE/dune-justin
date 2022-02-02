@@ -81,6 +81,7 @@ CREATE TABLE `requests` (
   `completed` datetime DEFAULT NULL,
   `submitter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `cookie` varchar(255) NOT NULL,
+  `mql` text notnull
   PRIMARY KEY (`request_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

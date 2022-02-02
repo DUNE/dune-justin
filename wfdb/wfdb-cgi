@@ -94,8 +94,9 @@ def showRequestsCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%5d %-9s %s %s" % 
-          (row['request_id'], row['state'], row['created'], row['name']))
+    print("%5d %-9s %s %s %s" % 
+          (row['request_id'], row['state'], row['created'], row['name'],
+           row['mql']))
    
   sys.exit(0)
 
@@ -362,11 +363,19 @@ def createRequestCmd(jsonDict, userID):
   else:
     name = str(int(time.time()))
 
-  doQuery("INSERT INTO requests SET created=NOW(),"
-          "name='%s',"
-          "submitter_id=%d,"
-          "cookie='%s'" % 
-          (name, userID, str(uuid.uuid4())))
+  if 'mql' in jsonDict and jsonDict['mql']:
+    mql = jsonDict['mql']
+  else:
+    mql = ''
+
+  doQuery('INSERT INTO requests SET created=NOW(),'
+          'name="%s",'
+          'mql="%s",'
+          'submitter_id=%d,'
+          'cookie="%s"' % 
+          (name.replace('\\','_').replace('"','_'))),
+           mql.replace('\\','\\\\').replace('"','\\"'))),
+           userID, str(uuid.uuid4())))
   db.commit()
 
   httpError('200 OK', str(cur.lastrowid))
