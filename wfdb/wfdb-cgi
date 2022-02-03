@@ -50,10 +50,11 @@ import json
 import string
 import MySQLdb
 
-# wfs/conf.py must define these variables:
+# wfs/conf.py must define these variables in a way that is both
+# valid Python and valid Bash!
 #
-# mysqlUser     = 'username'
-# mysqlPassword = 'PAsSWoRd'
+# mysqlUser='username'
+# mysqlPassword='PAsSWoRd'
 #
 import wfs.conf
 
@@ -373,8 +374,10 @@ def createRequestCmd(jsonDict, userID):
           'mql="%s",'
           'submitter_id=%d,'
           'cookie="%s"' % 
-          (name.replace('\\','_').replace('"','_'))),
-           mql.replace('\\','\\\\').replace('"','\\"'))),
+#          (name.replace('\\','_').replace('"','_'),
+#           mql.replace('\\','\\\\').replace('"','\\"'),
+          (name,
+           mql,
            userID, str(uuid.uuid4())))
   db.commit()
 
