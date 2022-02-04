@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Collect information to put in the Workflow Database
+#
+# This will be rewritten in Python with better error recoverye etc
+#
+
+. /usr/lib/python3.6/site-packages/wfs/conf.py
+
+rucio list-rses | (
+
+while read rse
+do
+  # Do an INSERT in case this is a new RSE; fails silently if not new
+  mysql -u $mysqlUser -p$mysqlPassword \
+        -e "INSERT IGNORE INTO storages SET rse_name='$rse'" wfdb
+done
+
+)
