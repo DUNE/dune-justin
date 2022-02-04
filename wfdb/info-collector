@@ -17,3 +17,6 @@ do
 done
 
 )
+
+mysql -u $mysqlUser -p$mysqlPassword \
+      -e "INSERT IGNORE INTO storages SET rse_name='MONTECARLO',occupancy=1" wfdb
