@@ -72,7 +72,7 @@ DROP TABLE IF EXISTS `requests`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-  `state` enum('draft','submitted','approved','finding','running','paused','checking','completed','deleted') NOT NULL,
+  `state` enum('draft','submitted','finding','running','paused','checking','completed','deleted') NOT NULL,
   `name` varchar(255) NOT NULL,
   `created` datetime NOT NULL,
   `submitted` datetime DEFAULT NULL,

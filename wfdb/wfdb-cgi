@@ -391,8 +391,9 @@ def submitRequestCmd(jsonDict):
     httpError('400 Bad Request', 'Request ID must be given')
 
 # change to handle errors properly eg no such request
+# and state not draft
   doQuery("UPDATE requests SET state='submitted',submitted=NOW() "
-          "WHERE request_id=%d" % requestID)
+          "WHERE request_id=%d AND state='draft'" % requestID)
 
   db.commit()
 
@@ -406,8 +407,10 @@ def approveRequestCmd(jsonDict):
     httpError('400 Bad Request', 'Request ID must be given')
 
 # change to handle errors properly eg no such request
-  doQuery("UPDATE requests SET state='approved',approved=NOW() "
-          "WHERE request_id=%d" % requestID)
+# or not in draft or submitted states
+  doQuery("UPDATE requests SET state='finding',approved=NOW() "
+          "WHERE request_id=%d AND (state='draft' OR state='submitted')"
+          % requestID)
 
   db.commit()
 

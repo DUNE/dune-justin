@@ -37,7 +37,8 @@ request's ID number.
 .B "submit-request --request-id ID"
 .br
 .B Currently not used. 
-Changes the state of the given request to "submitted". In the future, this
+Changes the state of the given request from "draft" to "submitted". In the 
+future, this
 will allow automated sanity checking and prioritisation of requests. For 
 very large requests it may give an opportunity for manual approval by the 
 operations team.
@@ -52,20 +53,20 @@ query of one request.
 .HP
 .B "approve-request --request-id ID"
 .br
-.B Currently not used.
-Changes the state of the given request to "approved".
-
-.HP
-.B "run-request --request-id ID"
-.br
-Changes the state of the given request to "running". Once requests are in this
-state they are included in the workflow allocation process.
+Approves the a request in the "draft" or "submitted" state and changes its 
+state to "finding".
 
 .HP
 .B "pause-request --request-id ID"
 .br
 Changes the state of the given request to "paused". This state temporarily
 excludes a request from the workflow allocation process.
+
+.HP
+.B "run-request --request-id ID"
+.br
+Changes the state of the given request back to "running". Requests in this
+state are included in the workflow allocation process.
 
 .HP
 .B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --max-wall-seconds N --max-rss-bytes N [--max-inputs N] [--min-processors N] [--max-processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
