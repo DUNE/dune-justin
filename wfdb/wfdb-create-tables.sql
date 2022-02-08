@@ -44,6 +44,7 @@ CREATE TABLE `files` (
   `file_did` varchar(255) NOT NULL,
   `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
   `allocated_time` datetime NOT NULL,
+  `allocated_rse_id` smallint(5) unsigned NOT NULL,
   `allocator_id` varchar(255) NOT NULL,
   `executor_id` varchar(255) NOT NULL,
   PRIMARY KEY (`file_id`)
@@ -60,7 +61,9 @@ DROP TABLE IF EXISTS `replicas`;
 CREATE TABLE `replicas` (
   `rse_id` smallint(5) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL,
-  `pfn` varchar(255) NOT NULL
+  `pfn` varchar(255) NOT NULL,
+  UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
+  UNIQUE KEY `pfn` (`pfn`,`file_id`),
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -112,7 +115,6 @@ DROP TABLE IF EXISTS `stages`;
 CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `max_inputs` tinyint(3) unsigned NOT NULL,
   `min_processors` tinyint(3) unsigned NOT NULL,
   `max_processors` tinyint(3) unsigned NOT NULL,
   `max_wall_seconds` mediumint(8) unsigned DEFAULT NULL,

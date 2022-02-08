@@ -69,7 +69,7 @@ Changes the state of the given request back to "running". Requests in this
 state are included in the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --max-wall-seconds N --max-rss-bytes N [--max-inputs N] [--min-processors N] [--max-processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --max-wall-seconds N --max-rss-bytes N [--min-processors N] [--max-processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -82,14 +82,6 @@ The maximum wallclock time and the maximum amount of resident memory that
 may be needed
 by the script  must be given. The resident memory corresponds to the physical
 memory managed by HTCondor's ResidentSetSize value.
-
-If the script can process a list of multiple input files, then the maximum 
-it may be allocated can be given - otherwise the default is 1. The Workflow
-Allocator will always try to allocate the maximum number of files to a
-running script. If the maximum is set to zero then no input files will be
-allocated to the script when it starts and the allocator will wait for the
-script to request input files to process one by one using the allocator's 
-get_file method.
 
 If the script can make use of multiple processors then 
 .B --min-processors
@@ -125,7 +117,7 @@ available for allocation to instances of that stage's script.
 .br
 Shows details of all stages of the given request or optionally of a single 
 stage of that request. Each line
-of the output gives the request ID, stage ID, max inputs, min processors,
+of the output gives the request ID, stage ID,, min processors,
 max processors, max wallclock seconds, max RSS bytes, and the any location 
 switch.
 

@@ -151,7 +151,7 @@ def chooseStageJustInTime(queryTerms):
 
   query = (
  "SELECT stages.request_id,stages.stage_id,"
- "stages.max_inputs,stages.any_location,"
+ "stages.any_location,"
  "files.file_did,files.file_id,storages.rse_name,"
  "requests.cookie "
  "FROM files "
@@ -169,7 +169,7 @@ def chooseStageJustInTime(queryTerms):
  " AND submitter_id=" + str(queryTerms["user_id"]) +
  " ORDER BY " + 
  queryTerms["storageOrder"] + "files.request_id,files.file_id"
- " LIMIT 100 FOR UPDATE"
+ " LIMIT 1 FOR UPDATE"
  )
 
   cur.execute(query)
@@ -181,44 +181,14 @@ def chooseStageJustInTime(queryTerms):
   # Take the values from the highest priority result
   requestID   = int(fileRows[0]['request_id'])
   stageID     = int(fileRows[0]['stage_id'])
-  maxInputs   = int(fileRows[0]['max_inputs'])
   anyLocation = bool(fileRows[0]['any_location'])
   cookie      = str(fileRows[0]['cookie'])
   
-  # Start the dictionary to return
+  # The dictionary to return
   stage = { 'request_id'  : requestID,
             'stage_id'    : stageID,
-            'max_inputs'  : maxInputs,
             'any_location': anyLocation,
             'cookie'      : cookie }
-
-  # Stage definition does not ask for any input files in the bootstrap
-  if maxInputs == 0:
-    stage['files'] = None
-    return stage
-      
-  # Need to return input file(s), so gather them from the results
-  stage['files'] = []
-
-  # Keep track of DIDs we've added already
-  # The same file/DID can appear in multiple rows due to replicas
-  addedDids = []
-  
-  for fileRow in fileRows:
-    if (requestID == int(fileRow['request_id']) and
-        stageID   == int(fileRow['stage_id']) and
-        fileRow['file_did'] not in addedDids):
-        
-      addedDids.append(fileRow['file_did'])          
-      stage['files'].append( { 'file_did': fileRow['file_did'],
-                               'rse_name': fileRow['rse_name'],
-                               'file_id' : int(fileRow['file_id'])
-                             } 
-                           )
-
-      # Stop once we have enough inputs
-      if len(addedDids) >= maxInputs:
-        break
 
   return stage
 
@@ -258,7 +228,8 @@ def makeStageOneFile(jsonDict, queryTerms):
     storageWhere = ' AND (' + storageWhere + ') '
 
   query = (
-"SELECT files.file_id,files.file_did,storages.rse_name "
+"SELECT files.file_id,files.file_did,storages.rse_name,"
+"replicas.rse_id,replicas.pfn "
 "FROM files "
 "LEFT JOIN requests ON requests.request_id=files.request_id "
 "LEFT JOIN replicas ON files.file_id=replicas.file_id "
@@ -278,59 +249,35 @@ queryTerms["storageOrder"] + "files.file_id"
   if len(fileRows) == 0:
     return None
 
-  # Start the dictionary to return
-  stage = { 'request_id'  : requestID,
-            'stage_id'    : stageID,
-            'max_inputs'  : 1,
-            'any_location': anyLocation,
-            'cookie'      : cookie,
-            'files'       : [ { 'file_did': fileRows[0]['file_did'],
-                                'rse_name': fileRows[0]['rse_name'],
-                                'file_id' : int(fileRows[0]['file_id'])
-                              }
-                            ]
-          }
-                      
-  return stage
-
-# Set the files listed in the stage dictionary to allocated and record
-# executor ID etc
-def allocateFiles(queryTerms, stage):
-
-  # List to return to executor
-  allocatedFiles = []
-  fileIdList = []
-
-  for fileDict in stage['files']: 
-    # We only include values we will return to the executor
-    # So that means we miss out file_id in particular
-    # rse_name is a just hint and the executor should use RUCIO to get the
-    # best replica and its transfer URL etc to use
-    allocatedFiles.append({"file_did": fileDict['file_did'],
-                           "rse_name": fileDict['rse_name']
-                          }
-                         )
-
-    fileIdList.append('file_id=' + str(fileDict['file_id']))
-    
   try: 
     query = ("UPDATE files SET state='allocated',"
              "allocator_id='" + allocatorID + "',"
              "allocated_time=NOW(),"
+             "allocated_rse_id=" + fileRows[0]['rse_id'] + ","
              "executor_id='" + queryTerms['executor_id'] + "' "
-             "WHERE " + " OR ".join(fileIdList)
+             "WHERE file_id=" + fileRows[0]['file_id']
             )
     cur.execute(query)
   except:
     # If anything goes wrong, we stop straightaway
     return None
 
-  # Return the list of files for this request+stage or an empty list
-  return allocatedFiles
+  # The dictionary to return
+  stage = { 'request_id'  : requestID,
+            'stage_id'    : stageID,
+            'any_location': anyLocation,
+            'cookie'      : cookie,
+            'file_did'    : fileRows[0]['file_did'],
+            'pfn'         : fileRows[0]['pfn'],
+            'rse_name'    : fileRows[0]['rse_name'],
+            'file_id'     : int(fileRows[0]['file_id'])
+          }
+                      
+  return stage
 
 # Successfully identified the request+stage and files so get the 
 # bootstrap for this stage and return it
-def makeBootstrap(queryTerms, stage, allocatedFiles):
+def getBootstrap(queryTerms, stage):
 
   try:
     query = ("SELECT bootstrap,cookie FROM bootstraps "
@@ -362,15 +309,13 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(queryTerms, stage, allocatedFiles):
+def makeTarFile(queryTerms, stage):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
 
-  # Make and add the bootstrap script
-  bootstrap = makeBootstrap(queryTerms,
-                            stage,
-                            allocatedFiles)
+  # Get and add the bootstrap script
+  bootstrap = getBootstrap(queryTerms, stage)
   if not bootstrap:
     return None
 
@@ -435,27 +380,23 @@ def getStageMethod(jsonDict, userID):
   stage = chooseStageJustInTime(queryTerms)
 
   if stage:
-    # Make a set of allocated files for this request+stage
-    allocatedFiles = allocateFiles(queryTerms, stage)
-  
-    if allocatedFiles:
-      # Send the bootstrap to the executor
-      tarFile = makeTarFile(queryTerms, stage, allocatedFiles)
+    # Send the bootstrap to the executor
+    tarFile = makeTarFile(queryTerms, stage)
 
-      if tarFile:
-        # All done so commit the allocations
-        # We do this before the HTTP response in case
-        # it is received ok by the executor and run 
-        # but times out and fails here on the server side
-        db.commit()
+    if tarFile:
+      # All done so commit the allocations
+      # We do this before the HTTP response in case
+      # it is received ok by the executor and run 
+      # but times out and fails here on the server side
+      db.commit()
 
-        # Return the script to the workflow executor 
-        print('Status: 200 OK')
-        print('Content-Type: application/x-tar')
-        print()
-        sys.stdout.flush()
-        sys.stdout.buffer.write(tarFile)
-        sys.exit(0)
+      # Return the script to the workflow executor 
+      print('Status: 200 OK')
+      print('Content-Type: application/x-tar')
+      print()
+      sys.stdout.flush()
+      sys.stdout.buffer.write(tarFile)
+      sys.exit(0)
 
   # No files eligible to be processed by this executor
   print('Status: 404 Not Found')
@@ -482,22 +423,19 @@ def getFileMethod(jsonDict, userID):
   stage = makeStageOneFile(jsonDict, queryTerms)
   
   if stage:
-    allocatedFiles = allocateFiles(queryTerms, stage)
+    # All done so commit the allocations
+    # We do this before the HTTP response in case
+    # it is received ok by the executor and processed
+    # but times out and fails here on the server side
+    db.commit()
 
-    if allocatedFiles:
-      # All done so commit the allocations
-      # We do this before the HTTP response in case
-      # it is received ok by the executor and processed
-      # but times out and fails here on the server side
-      db.commit()
+    # Now tell the executor what file to process and where it is
+    print('Status: 200 OK')
+    print('Content-Type: text/plain')
+    print()
+    print(stage['file_did'] +  ' ' + stage['pfn'] + ' ' + stage['rse_name'])
 
-      # Now tell the executor what file to process
-      print('Status: 200 OK')
-      print('Content-Type: text/plain')
-      print()
-      print(allocatedFiles[0]['file_did'])
-
-      sys.exit(0)
+    sys.exit(0)
 
   # No file eligible to be processed by this executor
   print('Status: 404 Not Found')

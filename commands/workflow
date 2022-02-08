@@ -106,10 +106,6 @@ parser.add_argument("--upload-file",
                     type = str,
                     help = "Specify a local file")
 
-parser.add_argument("--max-inputs",
-                    type = int,
-                    help = "Maximum number of inputs")
-
 parser.add_argument("--min-processors",
                     type = int,
                     help = "Minimum processors required")

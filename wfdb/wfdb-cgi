@@ -3,7 +3,7 @@
 #  wfdb-cgi - Workflow Database CGI service
 #
 #  Andrew McNab, University of Manchester.
-#  Copyright (c) 2013-21. All rights reserved.
+#  Copyright (c) 2013-22. All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or
 #  without modification, are permitted provided that the following
@@ -128,7 +128,6 @@ def showStagesCmd(jsonDict):
     print("%5d %2d %2d %d-%d %d %d %s" % 
           (row['request_id'], 
            row['stage_id'], 
-           row['max_inputs'], 
            row['min_processors'],
            row['max_processors'],
            row['max_wall_seconds'],
@@ -459,11 +458,6 @@ def createStageCmd(jsonDict):
     httpError('400 Bad Request', 'Stage ID must be given')
 
   try:
-    maxInputs = int(jsonDict['max_inputs'])
-  except:
-    maxInputs = 1
-
-  try:
     minProcessors = int(jsonDict['min_processors'])
   except:
     minProcessors = 1
@@ -496,13 +490,12 @@ def createStageCmd(jsonDict):
   doQuery("INSERT INTO stages SET "
           "request_id=%d,"
           "stage_id=%d,"
-          "max_inputs=%d,"
           "min_processors=%d,"
           "max_processors=%d,"
           "max_wall_seconds=%d,"
           "max_rss_bytes=%d,"
           "any_location=%s" % 
-          (requestID, stageID, maxInputs, minProcessors, maxProcessors,
+          (requestID, stageID, minProcessors, maxProcessors,
            maxWallSeconds, maxRssBytes, str(anyLocation)))
           
   doQuery('INSERT INTO bootstraps SET '
