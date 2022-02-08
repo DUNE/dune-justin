@@ -140,6 +140,11 @@ parser.add_argument("--output-pattern-next-stage",
                     action = "append",
                     help   = "Output files for next stage pattern")
 
+parser.add_argument("--pfn",
+                    type   = str,
+                    action = "append",
+                    help   = "PFN of a replica")
+
 args = parser.parse_args()
 jsonDict = vars(args)
 

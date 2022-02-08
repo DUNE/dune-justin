@@ -59,7 +59,8 @@ DROP TABLE IF EXISTS `replicas`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `replicas` (
   `rse_id` smallint(5) unsigned NOT NULL,
-  `file_id` int(10) unsigned NOT NULL
+  `file_id` int(10) unsigned NOT NULL,
+  `pfn` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

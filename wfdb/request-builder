@@ -75,12 +75,12 @@ mysql -u $mysqlUser -p$mysqlPassword -N -B \
      mysql -u $mysqlUser -p$mysqlPassword \
            -e "INSERT INTO replicas SET file_id=$file_id,rse_id=(SELECT rse_id FROM storages WHERE rse_name='MONTECARLO')" wfdb
    else
-     rucio list-file-replicas "$file_did" | tail -n +4 | grep '^|' | cut -d'|' -f6 | cut -d: -f1 | (
+     rucio list-file-replicas "$file_did" | tail -n +4 | grep '^|' | cut -d'|' -f6 | sed 's/:/ /' | (
 
-     while read rse
+     while read rse pfn
      do
        mysql -u $mysqlUser -p$mysqlPassword \
-             -e "INSERT INTO replicas SET file_id=$file_id,rse_id=(SELECT rse_id FROM storages WHERE rse_name='$rse')" wfdb
+             -e "INSERT INTO replicas SET file_id=$file_id,pfn='$pfn',rse_id=(SELECT rse_id FROM storages WHERE rse_name='$rse')" wfdb
      done   
    
      )
