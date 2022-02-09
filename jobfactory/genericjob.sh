@@ -74,7 +74,8 @@ if [ -r wfa-bootstrap.sh ] ; then
   cat wfa-bootstrap.sh
   echo '====End wfa-bootstrap.sh===='
 
-  ./wfa-bootstrap.sh
+  mkdir workspace
+  ( cd workspace ; ../wfa-bootstrap.sh )
   retval=$?
 else
   # How can this happen???

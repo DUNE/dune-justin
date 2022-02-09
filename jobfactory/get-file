@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# Script for use within bootstrap script to get the DID, PFN, and RSE
+# of a file to process within the stage assigned to the job.
+#
+# Error messages to stderr
+# DID PFN RSE to stdout on one line if a file is available
+#
+
+if [ ! -r "$WFS_PATH/wfa-get-file.json" ] ; then
+  echo "$WFS_PATH/wfa-get-file.json not found!" >&2
+  exit 2
+fi
+
+GET_FILE_TMP=`mktemp /tmp/wfs_get_file_XXXXXX`
+
+http_code=`curl \
+--header "X-Jobid: $JOBSUBJOBID" \
+--header "Accept: text/plain" \
+--capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--data @$WFS_PATH/wfa-get-file.json \
+--output $GET_FILE_TMP \
+--write-out "%{http_code}\n" \
+https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
+
+if [ "$http_code" = 200 ] ; then
+ cat $GET_FILE_TMP
+ retcode=0
+elif [ "$http_code" = 404 ] ; then 
+ echo "No files available from this stage" >&2
+ retcode=1
+else
+ echo "get-file fails with HTTP code $http_code from allocator!" >&2
+ retcode=3
+fi
+
+rm -f $GET_FILE_TMP
+exit $retcode
