@@ -6,6 +6,9 @@
 
 echo '====Start of genericjob.sh===='
 
+# Used by bootstrap script to find files from this generic job
+export WFS_PATH=`pwd`
+
 # Assemble values we will need 
 export executor_id=`hostname`.`date +'%s'`
 export dunesite=${GLIDEIN_DUNESite:-XX_UNKNOWN}
@@ -20,6 +23,17 @@ if [ ! -r "$X509_USER_PROXY" ] ; then
  exit
 fi
 
+curl --version
+if [ $? -ne 0 ] ; then
+ echo Failed running curl
+ exit
+fi
+
+if [ ! -f $WFS_PATH/get-file -o -x $WFS_PATH/get-file ] ; then
+ echo "$WFS_PATH/get-file missing or not executabke"
+ exit
+fi
+
 # Create the JSON to send to the allocator
 cat <<EOF >wfa-get-stage.json
 {
@@ -31,12 +45,6 @@ cat <<EOF >wfa-get-stage.json
   "executor_id" : "$executor_id"
 }
 EOF
-
-curl --version
-if [ $? -ne 0 ] ; then
- echo Failed running curl
- exit
-fi
 
 echo '====start wfa-get-stage.json===='
 cat wfa-get-stage.json
@@ -67,7 +75,7 @@ if [ -r wfa-env.sh ] ; then
 fi
 
 # Run the bootstrap script
-if [ -r wfa-bootstrap.sh ] ; then
+if [ -f wfa-bootstrap.sh ] ; then
   chmod +x wfa-bootstrap.sh
 
   echo '====Start wfa-bootstrap.sh===='
@@ -75,7 +83,7 @@ if [ -r wfa-bootstrap.sh ] ; then
   echo '====End wfa-bootstrap.sh===='
 
   mkdir workspace
-  ( cd workspace ; ../wfa-bootstrap.sh )
+  ( cd workspace ; $WFA_PATH/wfa-bootstrap.sh )
   retval=$?
 else
   # How can this happen???
@@ -90,16 +98,19 @@ echo -n > wfa-next-stage-outputs.txt
 cat wfa-output-patterns.txt | (
 while read for_next_stage pattern
 do  
-  # $pattern is wildcard-expanded here - so a list of files
-  for fn in $pattern
-  do
-    if [ -r "$fn" ] ; then
-      echo "$fn" >> wfa-outputs.txt
-      if [ "$for_next_stage" = "True" ] ; then
-        echo "$fn" >> wfa-next-stage-outputs.txt    
+  (
+    cd workspace
+    # $pattern is wildcard-expanded here - so a list of files
+    for fn in $pattern
+    do
+      if [ -r "$fn" ] ; then
+        echo "$fn" >> $WFA_PATH/wfa-outputs.txt
+        if [ "$for_next_stage" = "True" ] ; then
+          echo "$fn" >> $WFA_PATH/wfa-next-stage-outputs.txt    
+        fi
       fi
-    fi
-  done
+    done
+  )
 done
 )
 
@@ -117,8 +128,8 @@ done
 
 # wfa-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
-processed_inputs=`echo \`sed 's/.*/"&"/' wfa-processed-inputs.txt\`|sed 's/ /,/g'`
-unprocessed_inputs=`echo \`sed 's/.*/"&"/' wfa-unprocessed-inputs.txt\`|sed 's/ /,/g'`
+processed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfa-processed-inputs.txt\`|sed 's/ /,/g'`
+unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfa-unprocessed-inputs.txt\`|sed 's/ /,/g'`
 
 cat <<EOF >wfa-return-results.json
 {

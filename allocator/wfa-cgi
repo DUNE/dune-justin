@@ -85,8 +85,9 @@ def makeQueryTerms(jsonDict, userID):
   accessibleList = []
 
   for storageRow in storageRows:
-    # In future, will put a test for < 1.0 occupancy here
-    outputRseList.append(storageRow['rse_name'])
+
+    if storageRow['occupancy'] < 1.0:
+      outputRseList.append(storageRow['rse_name'])
   
     if storageRow['location'] == 'accessible':
       accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
@@ -106,6 +107,10 @@ def makeQueryTerms(jsonDict, userID):
 
   if storageWhere:
     storageWhere = ' AND (' + storageWhere + ') '
+
+  # All storages in the same class (samesite, nearby, accessible) get the
+  # same ranking score (3,2,1). In the future, we can apply individual
+  # scores here to each storage relative to where the job is running.
  
   if samesiteList:
     storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
@@ -145,9 +150,9 @@ def makeQueryTerms(jsonDict, userID):
            "user_id"        : userID
          }
 
-# Just In Time decision making: identify the best request+stage combination
+# Just in time decision making: identify the best request+stage combination
 # based on the immediate situation rather than trying to plan ahead
-def chooseStageJustInTime(queryTerms):
+def findStage(queryTerms):
 
   query = (
  "SELECT stages.request_id,stages.stage_id,"
@@ -193,7 +198,7 @@ def chooseStageJustInTime(queryTerms):
   return stage
 
 # Make a stage dictionary containing stage and one file's information
-def makeStageOneFile(jsonDict, queryTerms):
+def findOneFile(jsonDict, queryTerms):
 
   # Take the values from the highest priority result
   requestID = int(jsonDict['request_id'])
@@ -263,17 +268,12 @@ queryTerms["storageOrder"] + "files.file_id"
     return None
 
   # The dictionary to return
-  stage = { 'request_id'  : requestID,
-            'stage_id'    : stageID,
-            'any_location': anyLocation,
-            'cookie'      : cookie,
-            'file_did'    : fileRows[0]['file_did'],
-            'pfn'         : fileRows[0]['pfn'],
-            'rse_name'    : fileRows[0]['rse_name'],
-            'file_id'     : int(fileRows[0]['file_id'])
-          }
+  oneFile = { 'file_did'    : fileRows[0]['file_did'],
+              'pfn'         : fileRows[0]['pfn'],
+              'rse_name'    : fileRows[0]['rse_name']
+            }
                       
-  return stage
+  return oneFile
 
 # Successfully identified the request+stage and files so get the 
 # bootstrap for this stage and return it
@@ -348,6 +348,17 @@ def makeTarFile(queryTerms, stage):
        )
                   )
 
+  addFileToTarFile(tar, 'wfa-get-file.json', 
+       (
+         '{\n' +
+         '"method" : "get_file",\n' +
+         '"request_id" : ' + str(stage['request_id']) + ',\n' +
+         '"stage_id" : ' + str(stage['stage_id']) + ',\n' +
+         '"cookie" : "' + stage['cookie'] + '"\n' +
+         '}\n'
+       )
+                  )
+
   tar.close()  
   return buffer.getvalue()
 
@@ -377,7 +388,7 @@ def getStageMethod(jsonDict, userID):
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
-  stage = chooseStageJustInTime(queryTerms)
+  stage = findStage(queryTerms)
 
   if stage:
     # Send the bootstrap to the executor
@@ -420,9 +431,9 @@ def getFileMethod(jsonDict, userID):
   queryTerms = makeQueryTerms(jsonDict, userID)
 
   # Create a stage dictionary with the next file in this stage  
-  stage = makeStageOneFile(jsonDict, queryTerms)
+  oneFile = findOneFile(jsonDict, queryTerms)
   
-  if stage:
+  if oneFile:
     # All done so commit the allocations
     # We do this before the HTTP response in case
     # it is received ok by the executor and processed
@@ -433,7 +444,9 @@ def getFileMethod(jsonDict, userID):
     print('Status: 200 OK')
     print('Content-Type: text/plain')
     print()
-    print(stage['file_did'] +  ' ' + stage['pfn'] + ' ' + stage['rse_name'])
+    print(oneFile['file_did'] +  ' ' + 
+          oneFile['pfn'] + ' ' + 
+          oneFile['rse_name'])
 
     sys.exit(0)
 
