@@ -454,6 +454,12 @@ def getFileMethod(jsonDict):
   # Find details of this job
   job = findJob(jsonDict)
 
+  if not job:
+    print('Status: 400 Bad Request')
+    print()
+    print('No matching job found')
+    sys.exit(0)
+
   # Make strings used in SQL queries
   queryTerms = makeQueryTerms(jsonDict, job['dune_site'])
 
@@ -479,14 +485,13 @@ def getFileMethod(jsonDict):
 
   # No file eligible to be processed by this job
   print('Status: 404 Not Found')
-  print('Content-Type: text/plain')
   print()
   print('No eligible file found')
   sys.exit(0)   
 
-def updateFileProcessing(fileList, state, requestID, stageID):
+def updateFileProcessing(fileList, state, job):
 
-  processedList   = []
+  processedList = []
 
   try:
     for fileDid in fileList:
@@ -502,15 +507,15 @@ def updateFileProcessing(fileList, state, requestID, stageID):
     try:
       query = ('UPDATE files SET state="' + state + '" '
                'WHERE (' + ' OR '.join(processedList) + ') '
-               'AND request_id=' + str(requestID) + ' ' 
-               'AND stage_id=' + str(stageID) + ' ' 
+               'AND request_id=' + str(job['request_id']) + ' ' 
+               'AND stage_id=' + str(job['stage_id']) + ' ' 
                'AND state="allocated"')
       cur.execute(query)
     except:
       return
     
 # Deal with the output files needed by the next stage
-def processNextStageOutputs(jsonDict, requestID, stageID):
+def processNextStageOutputs(jsonDict, job):
 
   try:
     for outputDid in jsonDict['next_stage_outputs']:
@@ -521,8 +526,8 @@ def processNextStageOutputs(jsonDict, requestID, stageID):
       try:
         query = ('INSERT INTO files SET state="find_replicas",'
                  'file_did="'  + str(outputDid) + '",'
-                 'request_id=' + str(requestID) + ','
-                 'stage_id='   + str(stageID + 1)
+                 'request_id=' + str(job['request_id']) + ','
+                 'stage_id='   + str(job['stage_id'] + 1)
                 )
         cur.execute(query)
       except:
@@ -533,10 +538,10 @@ def processNextStageOutputs(jsonDict, requestID, stageID):
   except:
     return
                 
-def resultsMethod(jsonDict, userID):
+def resultsMethod(jsonDict):
 
   # Check jsonDict contains required values (eg job_name)
-  for name in ['cookie', 'job_name', 'request_id', 'stage_id', 
+  for name in ['cookie', 'job_name', 
                'processed_inputs', 'unprocessed_inputs', 'next_stage_outputs']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
@@ -544,27 +549,19 @@ def resultsMethod(jsonDict, userID):
       print('Missing value (%s) in JSON' % name)
       sys.exit(0)
 
-  try:
-    requestID = int(jsonDict['request_id'])
-    stageID   = int(jsonDict['stage_id'])
-  except:
+  job = findJob(jsonDict)
+  
+  if not job:
     print('Status: 400 Bad Request')
     print()
-    print('Missing value (%s) in JSON')
+    print('No matching job')
     sys.exit(0)
 
-  cookie = re.sub('[^a-z,A-Z,0-9,.,_,-]', '', str(jsonDict['cookie']))
-#####
-# Still need to check this cookie matches the request!!!!!!
-#####
+  updateFileProcessing(jsonDict['processed_inputs'], 'processed', job)
 
-  updateFileProcessing(jsonDict['processed_inputs'], 'processed',
-                       requestID, stageID)
+  updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed', job)
 
-  updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed',
-                       requestID, stageID)
-
-  processNextStageOutputs(jsonDict, requestID, stageID)
+  processNextStageOutputs(jsonDict, job)
 
   # Commit everything, before we return OK to the job
   db.commit()
