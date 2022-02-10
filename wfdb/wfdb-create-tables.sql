@@ -40,6 +40,8 @@ DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE `jobs` (
   `job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `created_time` datetime NOT NULL,
+  `request_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
   `job_name` varchar(255) NOT NULL,
   `dune_site` varchar(255) NOT NULL,
   `hostname` varchar(255) NOT NULL,

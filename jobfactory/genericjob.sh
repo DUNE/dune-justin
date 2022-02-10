@@ -10,6 +10,7 @@ echo '====Start of genericjob.sh===='
 export WFS_PATH=`pwd`
 
 # Assemble values we will need 
+export job_name="$JOBSUBJOBID"
 export dune_site=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
@@ -42,6 +43,7 @@ fi
 cat <<EOF >wfs-get-stage.json
 {
   "method"      : "get_stage",
+  "job_name"    : "$job_name",
   "dune_site"   : "$dune_site",
   "cpuinfo"     : "$cpuinfo",
   "os_release"  : "$os_release",
@@ -58,7 +60,7 @@ echo '====end wfs-get-stage.json===='
 
 # Make the call to the Workflow Allocator
 http_code=`curl \
---header "X-Jobid: $JOBSUBJOBID" \
+--header "X-Jobid: $jobname" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
@@ -140,8 +142,8 @@ unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\
 cat <<EOF >wfs-return-results.json
 {
   "method": "return_results",
-  "cookie": "$cookie",
-  "job_name": "$job_name",
+  "wfs_job_id": "$WFS_JOB_ID",
+  "cookie": "$WFS_COOKIE",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
   "next_stage_outputs": [$next_stage_outputs]

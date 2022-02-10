@@ -189,31 +189,27 @@ def findStage(queryTerms):
   return stage
 
 # Make a dictionary containing one job's information
-def findJob(jsonDict):
-
-  jobName = str(jsonDict['job_name']))
-  cookie  = str(jsonDict['cookie']))
+def findJob(jobID, cookie):
 
   # Find the any_location flag for this stage from the database
   try:
-    query = ('SELECT jobs.job_id,file.request_id,files.stage_id,'
+    query = ('SELECT file.request_id,files.stage_id,'
              'jobs.dune_site,stages.any_location '
              'FROM jobs '
              'LEFT JOIN files ON jobs.job_id=file.job_id '
              'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
-             'WHERE jobs.job_name="' + jobName + '" AND ' +
+             'WHERE jobs.job_id=' + jobID + ' AND ' +
              'jobs.cookie="' + cookie + '"')
 
     cur.execute(query)
     rows=cur.fetchall()
     
-    job = { 'job_name'     : jobName,
+    job = { 'job_id'   : jobID,
             'cookie'       : cookie,
-            'job_id'       : int(rows[0]['job_id']),
             'request_id'   : int(rows[0]['request_id']),
             'stage_id'     : int(rows[0]['stage_id']),
             'dune_site'    : rows[0]['dune_site'],
-            'any_location' : bool(rows[0]['any_location']) 
+            'any_location' : bool(rows[0]['any_location'])
           }
           
     return job
@@ -313,7 +309,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(queryTerms, stage, cookie):
+def makeTarFile(queryTerms, stage, jobID, cookie):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -345,11 +341,11 @@ def makeTarFile(queryTerms, stage, cookie):
 
   addFileToTarFile(tar, 'wfs-env.sh', 
        (
-         'export job_name="' + queryTerms['job_name'] + '"\n' +
-         'export request_id=' + str(stage['request_id']) + '\n' +
-         'export stage_id=' + str(stage['stage_id']) + '\n' +
-         'export cookie="' + cookie + '"\n' +
-         'export rse_list="' + ' '.join(queryTerms['outputRseList']) + '"\n'
+         'export WFS_JOB_ID=' + str(jobID) + '\n' +
+         'export WFS_REQUEST_ID=' + str(stage['request_id']) + '\n' +
+         'export WFS_STAGE_ID=' + str(stage['stage_id']) + '\n' +
+         'export WFS_COOKIE="' + cookie + '"\n' +
+         'export WFS_RSE_LIST="' + ' '.join(queryTerms['outputRseList']) + '"\n'
        )
                   )
 
@@ -357,7 +353,7 @@ def makeTarFile(queryTerms, stage, cookie):
        (
          '{\n' +
          '"method" : "get_file",\n' +
-         '"job_name" : "' + queryTerms['job_name'] + '",\n' +
+         '"job_id" : ' + str(jobID) + ',\n' +
          '"cookie" : "' + cookie + '"\n' 
          '}\n'
        )
@@ -369,8 +365,8 @@ def makeTarFile(queryTerms, stage, cookie):
 # Try to get the stage with the highest priority files still unallocated
 def getStageMethod(jsonDict, userID):
 
-  # Check jsonDict contains required string values (eg dunesite)
-  for name in ['dunesite', 'cpuinfo', 'os_release', 'hostname', 'job_name']:
+  # Check jsonDict contains required string values (eg dune_site)
+  for name in ['job_name', 'dune_site', 'cpuinfo', 'os_release', 'hostname']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
@@ -402,20 +398,16 @@ def getStageMethod(jsonDict, userID):
     print('No eligible files found')
     sys.exit(0)
 
-  jobName = (str(jsonDict['dune_site']) + ':' + 
-             str(jsonDict['hostname']) + ':' + 
-             str(time.time()))
   cookie  = str(uuid.uuid4())
-  tarFile = makeTarFile(queryTerms, stage, cookie)
-        
+
   try:
     query = ('INSERT INTO jobs SET '
              'created_time=NOW(),' +
+             'job_name="' + str(jsonDict['job_name']) + '",' +
              'dune_site="' + str(jsonDict['dune_site']) + '",' +
              'cpuinfo="' + str(jsonDict['cpuinfo']) + '",' +
              'os_release="' + str(jsonDict['os_release']) + '",' +
              'hostname="' + str(jsonDict['hostname']) + '",' + 
-             'job_name="' + jobName + '",' +
              'cookie="' + cookie + '"'
             )
     cur.execute(query)
@@ -426,6 +418,10 @@ def getStageMethod(jsonDict, userID):
     print('Workflow allocator failed')
     sys.exit(0)
 
+  jobID = cur.lastrowid
+
+  tarFile = makeTarFile(queryTerms, stage, jobID, cookie)
+        
   # All done so commit the job details.
   # We do this before the HTTP response in case
   # it is received ok by the job and run 
@@ -443,16 +439,17 @@ def getStageMethod(jsonDict, userID):
 # Get an unallocated file from the given request+stage
 def getFileMethod(jsonDict):
 
-  # Check jsonDict contains required values (eg job_name)
-  for name in ['job_name', 'cookie']:
-    if name not in jsonDict:
-      print('Status: 400 Bad Request')
-      print()
-      print('Missing value(s) in JSON')
-      sys.exit(0)
+  try:
+    jobID  = int(jsonDict['job_id'])
+    cookie = str(jsonDict['cookie'])
+  except:
+    print('Status: 400 Bad Request')
+    print()
+    print('Missing value(s) in JSON')
+    sys.exit(0)
 
   # Find details of this job
-  job = findJob(jsonDict)
+  job = findJob(jobID, cookie)
 
   if not job:
     print('Status: 400 Bad Request')
