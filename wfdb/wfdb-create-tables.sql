@@ -31,6 +31,26 @@ CREATE TABLE `bootstraps` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `jobs`
+--
+
+DROP TABLE IF EXISTS `jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `jobs` (
+  `job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `created_time` datetime NOT NULL,
+  `job_name` varchar(255) NOT NULL,
+  `dune_site` varchar(255) NOT NULL,
+  `hostname` varchar(255) NOT NULL,
+  `cpuinfo` varchar(255) NOT NULL,
+  `os_release` varchar(255) NOT NULL,
+  `cookie` varchar(255) NOT NULL,
+  PRIMARY KEY (`job_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `files`
 --
 
@@ -46,7 +66,7 @@ CREATE TABLE `files` (
   `allocated_time` datetime NOT NULL,
   `allocated_rse_id` smallint(5) unsigned NOT NULL,
   `allocator_id` varchar(255) NOT NULL,
-  `executor_id` varchar(255) NOT NULL,
+  `job_id` int(10) unsigned NOT NULL
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -63,7 +83,7 @@ CREATE TABLE `replicas` (
   `file_id` int(10) unsigned NOT NULL,
   `pfn` varchar(255) NOT NULL,
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
-  UNIQUE KEY `pfn` (`pfn`,`file_id`),
+  UNIQUE KEY `pfn` (`pfn`,`file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -84,7 +104,6 @@ CREATE TABLE `requests` (
   `checking` datetime DEFAULT NULL,
   `completed` datetime DEFAULT NULL,
   `submitter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
-  `cookie` varchar(255) NOT NULL,
   `mql` text NOT NULL,
   PRIMARY KEY (`request_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
@@ -179,4 +198,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-15 13:41:40
+-- Dump completed on 2022-02-09 20:26:10

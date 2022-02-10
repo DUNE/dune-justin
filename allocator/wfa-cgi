@@ -66,9 +66,8 @@ allocatorID = None
 
 # Return various strings and SQL expressions which are 
 # used in subsequent queries
-def makeQueryTerms(jsonDict, userID):
+def makeQueryTerms(jsonDict, duneSite):
 
-  duneSite = re.sub('["\']', '_', str(jsonDict['dunesite']))
   query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
            'FROM sites_storages '
            'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
@@ -140,14 +139,9 @@ def makeQueryTerms(jsonDict, userID):
            "accessibleList" : accessibleList,
            "storageWhere"   : storageWhere,
            "storageOrder"   : storageOrder,
-           "dunesite"       : re.sub('["\']', '_',
-                                     str(jsonDict['dunesite'])),
            "rss_bytes"      : int(jsonDict['rss_bytes']),
            "processors"     : int(jsonDict['processors']),
-           "wall_seconds"   : int(jsonDict['wall_seconds']),
-           "executor_id"    : re.sub('["\']', '_', 
-                                     str(jsonDict['executor_id'])),
-           "user_id"        : userID
+           "wall_seconds"   : int(jsonDict['wall_seconds'])
          }
 
 # Just in time decision making: identify the best request+stage combination
@@ -157,8 +151,7 @@ def findStage(queryTerms):
   query = (
  "SELECT stages.request_id,stages.stage_id,"
  "stages.any_location,"
- "files.file_did,files.file_id,storages.rse_name,"
- "requests.cookie "
+ "files.file_did,files.file_id,storages.rse_name"
  "FROM files "
  "LEFT JOIN stages ON files.request_id=stages.request_id AND "
  "files.stage_id=stages.stage_id "
@@ -183,42 +176,55 @@ def findStage(queryTerms):
   if len(fileRows) == 0:
     return None
 
-  # Take the values from the highest priority result
+  # Take the values of the highest priority result
   requestID   = int(fileRows[0]['request_id'])
   stageID     = int(fileRows[0]['stage_id'])
   anyLocation = bool(fileRows[0]['any_location'])
-  cookie      = str(fileRows[0]['cookie'])
   
   # The dictionary to return
   stage = { 'request_id'  : requestID,
             'stage_id'    : stageID,
-            'any_location': anyLocation,
-            'cookie'      : cookie }
+            'any_location': anyLocation }
 
   return stage
 
-# Make a stage dictionary containing stage and one file's information
-def findOneFile(jsonDict, queryTerms):
+# Make a dictionary containing one job's information
+def findJob(jsonDict):
 
-  # Take the values from the highest priority result
-  requestID = int(jsonDict['request_id'])
-  stageID   = int(jsonDict['stage_id'])
-# Still need to sanitise
-  cookie    = str(jsonDict['cookie'])
+  jobName = str(jsonDict['job_name']))
+  cookie  = str(jsonDict['cookie']))
 
   # Find the any_location flag for this stage from the database
   try:
-    query = ("SELECT any_location FROM stages "
-             "WHERE request_id=" + str(requestID) + " AND " +
-             "stage_id=" + str(stageID))
+    query = ('SELECT jobs.job_id,file.request_id,files.stage_id,'
+             'jobs.dune_site,stages.any_location '
+             'FROM jobs '
+             'LEFT JOIN files ON jobs.job_id=file.job_id '
+             'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
+             'WHERE jobs.job_name="' + jobName + '" AND ' +
+             'jobs.cookie="' + cookie + '"')
 
     cur.execute(query)
     rows=cur.fetchall()
-    anyLocation = bool(rows[0]['any_location'])
+    
+    job = { 'job_name'     : jobName,
+            'cookie'       : cookie,
+            'job_id'       : int(rows[0]['job_id']),
+            'request_id'   : int(rows[0]['request_id']),
+            'stage_id'     : int(rows[0]['stage_id']),
+            'dune_site'    : rows[0]['dune_site'],
+            'any_location' : bool(rows[0]['any_location']) 
+          }
+          
+    return job
+    
   except:
     return None
 
-  if anyLocation:
+# Make a dictionary containing one file's information
+def findOneFile(jsonDict, queryTerms, job):
+
+  if job['any_location']:
     # If this stage can access data on any accessible storage, then 
     # use all three lists
     storageWhere = ' OR '.join(queryTerms["samesiteList"] + 
@@ -236,13 +242,11 @@ def findOneFile(jsonDict, queryTerms):
 "SELECT files.file_id,files.file_did,storages.rse_name,"
 "replicas.rse_id,replicas.pfn "
 "FROM files "
-"LEFT JOIN requests ON requests.request_id=files.request_id "
 "LEFT JOIN replicas ON files.file_id=replicas.file_id "
 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
 "WHERE files.state='unallocated' AND files.request_id=" +
-str(requestID) + " AND files.stage_id=" + str(stageID) + 
+str(job['request_id']) + " AND files.stage_id=" + str(job['stage_id']) + 
 storageWhere + " AND storages.rse_NAME IS NOT NULL "
-"AND requests.cookie='" + cookie + "' " +
 "ORDER BY " + 
 queryTerms["storageOrder"] + "files.file_id"
 " LIMIT 1 FOR UPDATE"
@@ -259,7 +263,7 @@ queryTerms["storageOrder"] + "files.file_id"
              "allocator_id='" + allocatorID + "',"
              "allocated_time=NOW(),"
              "allocated_rse_id=" + fileRows[0]['rse_id'] + ","
-             "executor_id='" + queryTerms['executor_id'] + "' "
+             "job_id=" + str(job['job_id']) + " "
              "WHERE file_id=" + fileRows[0]['file_id']
             )
     cur.execute(query)
@@ -280,7 +284,7 @@ queryTerms["storageOrder"] + "files.file_id"
 def getBootstrap(queryTerms, stage):
 
   try:
-    query = ("SELECT bootstrap,cookie FROM bootstraps "
+    query = ("SELECT bootstrap FROM bootstraps "
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
@@ -304,12 +308,12 @@ def addFileToTarFile(tar, name, value):
   buffer.seek(0)
   tar.addfile(tarinfo = info, fileobj = buffer)
 
-# Make an uncompressed tar file to return to the executor in the generic
-# job. The generic job 'owns' the files in the tar file, one of which is the
+# Make an uncompressed tar file to return to the generic job. 
+# The generic job 'owns' the files in the tar file, one of which is the
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(queryTerms, stage):
+def makeTarFile(queryTerms, stage, cookie):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -319,7 +323,7 @@ def makeTarFile(queryTerms, stage):
   if not bootstrap:
     return None
 
-  addFileToTarFile(tar, "wfa-bootstrap.sh", bootstrap)
+  addFileToTarFile(tar, "wfs-bootstrap.sh", bootstrap)
 
   # Create a file containing the output file patterns
   try:
@@ -337,24 +341,24 @@ def makeTarFile(queryTerms, stage):
   for row in rows:
     patternsFile += str(row['for_next_stage']) + ' ' + row['pattern'] + '\n'
     
-  addFileToTarFile(tar, 'wfa-output-patterns.txt', patternsFile)
+  addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
-  addFileToTarFile(tar, 'wfa-env.sh', 
+  addFileToTarFile(tar, 'wfs-env.sh', 
        (
-         'request_id=' + str(stage['request_id']) + '\n' +
-         'stage_id=' + str(stage['stage_id']) + '\n' +
-         'cookie="' + stage['cookie'] + '"\n' +
-         'rse_list="' + ' '.join(queryTerms['outputRseList']) + '"\n'
+         'export job_name="' + queryTerms['job_name'] + '"\n' +
+         'export request_id=' + str(stage['request_id']) + '\n' +
+         'export stage_id=' + str(stage['stage_id']) + '\n' +
+         'export cookie="' + cookie + '"\n' +
+         'export rse_list="' + ' '.join(queryTerms['outputRseList']) + '"\n'
        )
                   )
 
-  addFileToTarFile(tar, 'wfa-get-file.json', 
+  addFileToTarFile(tar, 'wfs-get-file.json', 
        (
          '{\n' +
          '"method" : "get_file",\n' +
-         '"request_id" : ' + str(stage['request_id']) + ',\n' +
-         '"stage_id" : ' + str(stage['stage_id']) + ',\n' +
-         '"cookie" : "' + stage['cookie'] + '"\n' +
+         '"job_name" : "' + queryTerms['job_name'] + '",\n' +
+         '"cookie" : "' + cookie + '"\n' 
          '}\n'
        )
                   )
@@ -366,7 +370,7 @@ def makeTarFile(queryTerms, stage):
 def getStageMethod(jsonDict, userID):
 
   # Check jsonDict contains required string values (eg dunesite)
-  for name in ['dunesite', 'executor_id']:
+  for name in ['dunesite', 'cpuinfo', 'os_release', 'hostname', 'job_name']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
@@ -384,51 +388,74 @@ def getStageMethod(jsonDict, userID):
       sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict, userID)
+  queryTerms = makeQueryTerms(jsonDict, str(jsonDict['dune_site']))
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
   stage = findStage(queryTerms)
 
-  if stage:
-    # Send the bootstrap to the executor
-    tarFile = makeTarFile(queryTerms, stage)
+  if not stage:
+    # No files eligible to be processed by this job
+    print('Status: 404 Not Found')
+    print('Content-Type: text/plain')
+    print()
+    print('No eligible files found')
+    sys.exit(0)
 
-    if tarFile:
-      # All done so commit the allocations
-      # We do this before the HTTP response in case
-      # it is received ok by the executor and run 
-      # but times out and fails here on the server side
-      db.commit()
+  jobName = (str(jsonDict['dune_site']) + ':' + 
+             str(jsonDict['hostname']) + ':' + 
+             str(time.time()))
+  cookie  = str(uuid.uuid4())
+  tarFile = makeTarFile(queryTerms, stage, cookie)
+        
+  try:
+    query = ('INSERT INTO jobs SET '
+             'created_time=NOW(),' +
+             'dune_site="' + str(jsonDict['dune_site']) + '",' +
+             'cpuinfo="' + str(jsonDict['cpuinfo']) + '",' +
+             'os_release="' + str(jsonDict['os_release']) + '",' +
+             'hostname="' + str(jsonDict['hostname']) + '",' + 
+             'job_name="' + jobName + '",' +
+             'cookie="' + cookie + '"'
+            )
+    cur.execute(query)
+  except:
+    print('Status: 500 Internal Server Error')
+    print('Content-Type: text/plain')
+    print()
+    print('Workflow allocator failed')
+    sys.exit(0)
 
-      # Return the script to the workflow executor 
-      print('Status: 200 OK')
-      print('Content-Type: application/x-tar')
-      print()
-      sys.stdout.flush()
-      sys.stdout.buffer.write(tarFile)
-      sys.exit(0)
+  # All done so commit the job details.
+  # We do this before the HTTP response in case
+  # it is received ok by the job and run 
+  # but times out and fails here on the server side
+  db.commit()
 
-  # No files eligible to be processed by this executor
-  print('Status: 404 Not Found')
-  print('Content-Type: text/plain')
+  # Return the script to the workflow job 
+  print('Status: 200 OK')
+  print('Content-Type: application/x-tar')
   print()
-  print('No eligible files found')
+  sys.stdout.flush()
+  sys.stdout.buffer.write(tarFile)
   sys.exit(0)
    
 # Get an unallocated file from the given request+stage
-def getFileMethod(jsonDict, userID):
+def getFileMethod(jsonDict):
 
-  # Check jsonDict contains required values (eg dunesite)
-  for name in ['dunesite', 'executor_id', 'request_id', 'stage_id', 'cookie']:
+  # Check jsonDict contains required values (eg job_name)
+  for name in ['job_name', 'cookie']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
       print('Missing value(s) in JSON')
       sys.exit(0)
 
+  # Find details of this job
+  job = findJob(jsonDict)
+
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict, userID)
+  queryTerms = makeQueryTerms(jsonDict, job['dune_site'])
 
   # Create a stage dictionary with the next file in this stage  
   oneFile = findOneFile(jsonDict, queryTerms)
@@ -436,11 +463,11 @@ def getFileMethod(jsonDict, userID):
   if oneFile:
     # All done so commit the allocations
     # We do this before the HTTP response in case
-    # it is received ok by the executor and processed
+    # it is received ok by the job and processed
     # but times out and fails here on the server side
     db.commit()
 
-    # Now tell the executor what file to process and where it is
+    # Now tell the job what file to process and where it is
     print('Status: 200 OK')
     print('Content-Type: text/plain')
     print()
@@ -450,15 +477,15 @@ def getFileMethod(jsonDict, userID):
 
     sys.exit(0)
 
-  # No file eligible to be processed by this executor
+  # No file eligible to be processed by this job
   print('Status: 404 Not Found')
   print('Content-Type: text/plain')
   print()
   print('No eligible file found')
   sys.exit(0)   
 
-def updateFileProcessing(fileList, state, requestID, stageID, 
-                         executorID):
+def updateFileProcessing(fileList, state, requestID, stageID):
+
   processedList   = []
 
   try:
@@ -470,7 +497,7 @@ def updateFileProcessing(fileList, state, requestID, stageID,
   except:
     return
 
-  # Update the files the executor did or did not manage to process
+  # Update the files the job did or did not manage to process
   if processedList:
     try:
       query = ('UPDATE files SET state="' + state + '" '
@@ -483,7 +510,7 @@ def updateFileProcessing(fileList, state, requestID, stageID,
       return
     
 # Deal with the output files needed by the next stage
-def processNextStageOutputs(jsonDict, requestID, stageID, executorID):
+def processNextStageOutputs(jsonDict, requestID, stageID):
 
   try:
     for outputDid in jsonDict['next_stage_outputs']:
@@ -508,8 +535,8 @@ def processNextStageOutputs(jsonDict, requestID, stageID, executorID):
                 
 def resultsMethod(jsonDict, userID):
 
-  # Check jsonDict contains required values (eg executor_id)
-  for name in ['cookie', 'executor_id', 'request_id', 'stage_id', 
+  # Check jsonDict contains required values (eg job_name)
+  for name in ['cookie', 'job_name', 'request_id', 'stage_id', 
                'processed_inputs', 'unprocessed_inputs', 'next_stage_outputs']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
@@ -531,23 +558,19 @@ def resultsMethod(jsonDict, userID):
 # Still need to check this cookie matches the request!!!!!!
 #####
 
-  # Make a sanitised string which identifies the executor
-  executorID = re.sub('["\']', '_', str(jsonDict['executor_id']).lower())
-
   updateFileProcessing(jsonDict['processed_inputs'], 'processed',
-                       requestID, stageID, executorID)
+                       requestID, stageID)
 
   updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed',
-                       requestID, stageID, executorID)
+                       requestID, stageID)
 
-  processNextStageOutputs(jsonDict, requestID, stageID, executorID)
+  processNextStageOutputs(jsonDict, requestID, stageID)
 
-  # Commit everything, before we return OK to the executor
+  # Commit everything, before we return OK to the job
   db.commit()
 
-  # Return OK to the workflow executor
+  # Return OK to the workflow job
   print('Status: 200 OK')
-  print('Content-Type: text/plain')
   print()
   sys.exit(0)
 
@@ -556,9 +579,9 @@ def getUserID():
   # Use certificates and proxies for now; will transition to tokens in future
   if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
     print('Status: 403 Forbidden')
-    print('Content-Type: text/plain')
     print()
     print('Forbidden - identity not provided')
+    sys.exit(0)
 
   # Convert to the older format with slashes 
   clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
@@ -572,17 +595,17 @@ def getUserID():
     rows = cur.fetchall()
   except:
     print('Status: 500 Internal Server Error')
-    print('Content-Type: text/plain')
     print()
     print('Error reading database')
+    sys.exit(0)
 
   try:
     userID = int(rows[0]['user_id'])
   except:
     print('Status: 403 Forbidden')
-    print('Content-Type: text/plain')
     print()
     print('Forbidden - authorized identity not provided')
+    sys.exit(0)
 
   return userID
 
@@ -590,7 +613,7 @@ def getUserID():
 # PROGRAM MAIN
 #
 
-# Quickly reject random GETs etc (if not hanlded by Apache already)
+# Quickly reject random GETs etc (if not handled by Apache already)
 if os.environ['REQUEST_METHOD'] != 'POST':
     print('Status: 405 Method not allowed')
     print()
@@ -628,20 +651,19 @@ except:
   print('Problem with database connection')
   sys.exit(0)
 
-# Fails with an HTTP error and exit if authorized ID not given
-userID = getUserID()
-
-# Get the stage and files to process
+# Get the stage for the job to work on
 if jsonDict['method'] == 'get_stage':
+  # Fails with an HTTP error and exit if authorized ID not given
+  userID = getUserID()
   getStageMethod(jsonDict, userID)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':
-  getFileMethod(jsonDict, userID)
+  getFileMethod(jsonDict)
   
 # Return results of processing files
 elif jsonDict['method'] == 'return_results':
-  resultsMethod(jsonDict, userID)
+  resultsMethod(jsonDict)
 
 else:
   print('Status: 400 Bad Request')

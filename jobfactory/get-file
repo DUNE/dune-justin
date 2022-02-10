@@ -9,8 +9,8 @@
 # DID PFN RSE to stdout on one line if a file is available
 #
 
-if [ ! -r "$WFS_PATH/wfa-get-file.json" ] ; then
-  echo "$WFS_PATH/wfa-get-file.json not found!" >&2
+if [ ! -r "$WFS_PATH/wfs-get-file.json" ] ; then
+  echo "$WFS_PATH/wfs-get-file.json not found!" >&2
   exit 2
 fi
 
@@ -20,7 +20,7 @@ http_code=`curl \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Accept: text/plain" \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
---data @$WFS_PATH/wfa-get-file.json \
+--data @$WFS_PATH/wfs-get-file.json \
 --output $GET_FILE_TMP \
 --write-out "%{http_code}\n" \
 https://wfs-dev.dune.hep.ac.uk/wfa-cgi`

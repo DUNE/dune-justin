@@ -371,13 +371,12 @@ def createRequestCmd(jsonDict, userID):
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'
-          'submitter_id=%d,'
-          'cookie="%s"' % 
+          'submitter_id=%d' %
 #          (name.replace('\\','_').replace('"','_'),
 #           mql.replace('\\','\\\\').replace('"','\\"'),
           (name,
            mql,
-           userID, str(uuid.uuid4())))
+           userID))
   db.commit()
 
   httpError('200 OK', str(cur.lastrowid))
