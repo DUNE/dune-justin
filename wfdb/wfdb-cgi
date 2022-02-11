@@ -125,7 +125,7 @@ def showStagesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%5d %2d %2d %d-%d %d %d %s" % 
+    print("%5d %2d %d-%d %d %d %s" % 
           (row['request_id'], 
            row['stage_id'], 
            row['min_processors'],

@@ -6,6 +6,11 @@
 
 echo '====Start of genericjob.sh===='
 
+date
+printenv
+pwd
+ls -lR
+
 # Used by bootstrap script to find files from this generic job
 export WFS_PATH=`pwd`
 
@@ -34,7 +39,9 @@ if [ $? -ne 0 ] ; then
  exit
 fi
 
-if [ ! -f $WFS_PATH/get-file -o -x $WFS_PATH/get-file ] ; then
+cp -f $CONDOR_DIR_INPUT/get-file $WFS_PATH
+
+if [ ! -f $WFS_PATH/get-file -o ! -x $WFS_PATH/get-file ] ; then
  echo "$WFS_PATH/get-file missing or not executable"
  exit
 fi

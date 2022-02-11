@@ -65,3 +65,9 @@ do
   
 done
 )
+
+# CERN_PDUNE_CASTOR is not even accessible from any site
+mysql -u $mysqlUser -p$mysqlPassword -N -B \
+      -e 'DELETE FROM sites_storages WHERE rse_id=(SELECT rse_id FROM storages WHERE rse_name="CERN_PDUNE_CASTOR")' \
+      wfdb
+

@@ -1,22 +1,27 @@
 #!/bin/sh
 
 date
-input_file_did='##wfa_files_did##'
-output_rse=`echo ##wfa_rse_list##|cut -f1 -d' '`
-wfa_cookie='##wfa_cookie##'
-request_id='##wfa_request_id##'
-stage_id='##wfa_stage_id##'
-echo 'Request = $request_id and Stage = $stage_id'
-echo "Input file $input_file_did and cookie $wfa_cookie"
+echo "Request: $WFS_REQUEST_ID  Stage: $WFS_STAGE_ID"
+echo "Job ID: $WFS_JOB_ID  Cookie: $WFS_COOKIE"
+
+input_file=`$WFS_PATH/get-file`
+if [ $? != 0 ] ; then
+  echo 'get-file did not return an input file!'
+  exit 0
+fi
+
+echo "Input file $input_file_did"
+input_file_did=`echo "$input_file" | cut -f1 -d' '`
+input_file_pfn=`echo "$input_file" | cut -f2 -d' '`
+input_file_rse=`echo "$input_file" | cut -f3 -d' '`
 
 export FILETIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
-
 printenv
 ls -ltR
 
 # Record that we processed the input file ok 
-echo "$input_file_did" > wfa-processed-inputs.txt
-echo -n > wfa-unprocessed-inputs.txt
+echo "$input_file_did" > wfs-processed-inputs.txt
+echo -n > wfs-unprocessed-inputs.txt
 
 # Fake output files
 echo 123 > np04${FILETIMESTAMP}_reco_Z.root 

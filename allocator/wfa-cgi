@@ -164,7 +164,6 @@ def findStage(queryTerms):
  str(queryTerms["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
  str(queryTerms["wall_seconds"]) + " >= stages.max_wall_seconds " +
  queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL " +
- " AND submitter_id=" + str(queryTerms["user_id"]) +
  " ORDER BY " + 
  queryTerms["storageOrder"] + "files.request_id,files.file_id"
  " LIMIT 1 FOR UPDATE"
@@ -363,7 +362,7 @@ def makeTarFile(queryTerms, stage, jobID, cookie):
   return buffer.getvalue()
 
 # Try to get the stage with the highest priority files still unallocated
-def getStageMethod(jsonDict, userID):
+def getStageMethod(jsonDict):
 
   # Check jsonDict contains required string values (eg dune_site)
   for name in ['job_name', 'dune_site', 'cpuinfo', 'os_release', 'hostname']:
@@ -649,7 +648,7 @@ except:
 if jsonDict['method'] == 'get_stage':
   # Fails with an HTTP error and exit if authorized ID not given
   userID = getUserID()
-  getStageMethod(jsonDict, userID)
+  getStageMethod(jsonDict)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':
