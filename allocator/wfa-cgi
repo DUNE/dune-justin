@@ -427,7 +427,7 @@ def getStageMethod(jsonDict, jobUserID):
 
   try:
     query = ('INSERT INTO jobs SET '
-             'created_time=NOW(),' +
+             'started_time=NOW(),' +
              'allocator_name="' + allocatorName + '",' +
              'job_name="' + job['job_name'] + '",' +
              'request_id=' + str(stage['request_id']) + ','
@@ -490,7 +490,7 @@ def getFileMethod(jsonDict):
     if job['state'] == 'started':
       try:
         query = ('UPDATE jobs SET state="processing" ' +
-                 'WHERE job_id=' + str(job['job_id']))
+                 'WHERE job_id=' + str(job['job_id'])
                 )
         cur.execute(query)
       except:
@@ -597,8 +597,8 @@ def resultsMethod(jsonDict):
   processNextStageOutputs(jsonDict, job)
 
   try:
-    query = ('UPDATE jobs SET state="finished" ' +
-             'WHERE job_id=' + str(job['job_id']))
+    query = ('UPDATE jobs SET state="finished",finished_time=NOW() ' +
+             'WHERE job_id=' + str(job['job_id'])
             )
     cur.execute(query)
   except:

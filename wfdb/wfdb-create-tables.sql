@@ -40,7 +40,8 @@ DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE `jobs` (
   `job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `allocator_name` varchar(255) NOT NULL,
-  `created_time` datetime NOT NULL,
+  `started_time` datetime NOT NULL,
+  `finished_time` datetime NOT NULL,
   `state` enum('started','processing','finished') NOT NULL DEFAULT 'started',
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,

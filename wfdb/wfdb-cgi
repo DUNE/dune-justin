@@ -611,7 +611,7 @@ def showJobsCmd(jsonDict):
     except:
       pass
 
-  rows = doQuery("SELECT job_id,request_id,stage_id,state,created_time "
+  rows = doQuery("SELECT job_id,request_id,stage_id,state,started_time "
                  "FROM jobs "
                  + filter +
                  " ORDER BY job_id")
@@ -623,7 +623,7 @@ def showJobsCmd(jsonDict):
   for row in rows:
     print("%6s %5s %2s %10s  %s" % 
           (row['job_id'], row['request_id'], row['stage_id'], 
-           row['state'], row['created_time']))
+           row['state'], row['started_time']))
    
   sys.exit(0)
 
