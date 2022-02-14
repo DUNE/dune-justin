@@ -60,20 +60,20 @@ import MySQLdb
 import wfs.conf
 
 # Global database connection and ID, usable anywhere
-db          = None
-cur         = None
-allocatorID = None
+db            = None
+cur           = None
+allocatorName = None
 
 # Return various strings and SQL expressions which are 
 # used in subsequent queries
-def makeQueryTerms(jsonDict, duneSite):
+def makeQueryTerms(jsonDict, job):
 
   query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
            'FROM sites_storages '
            'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
            'WHERE sites_storages.site_name="%s" '
            'ORDER BY location,occupancy,RAND();' 
-           % duneSite)
+           % job['dune_site'])
 
   cur.execute(query)
   storageRows = cur.fetchall()
@@ -138,15 +138,12 @@ def makeQueryTerms(jsonDict, duneSite):
            "nearbyList"     : nearbyList,
            "accessibleList" : accessibleList,
            "storageWhere"   : storageWhere,
-           "storageOrder"   : storageOrder,
-           "rss_bytes"      : int(jsonDict['rss_bytes']),
-           "processors"     : int(jsonDict['processors']),
-           "wall_seconds"   : int(jsonDict['wall_seconds'])
+           "storageOrder"   : storageOrder
          }
 
 # Just in time decision making: identify the best request+stage combination
 # based on the immediate situation rather than trying to plan ahead
-def findStage(queryTerms):
+def findStage(queryTerms, job):
 
   query = (
  "SELECT stages.request_id,stages.stage_id,"
@@ -159,10 +156,10 @@ def findStage(queryTerms):
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "WHERE files.state='unallocated' AND " +
- str(queryTerms["processors"])   + " <= stages.max_processors AND " +
- str(queryTerms["processors"])   + " >= stages.min_processors AND " +
- str(queryTerms["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
- str(queryTerms["wall_seconds"]) + " >= stages.max_wall_seconds " +
+ str(job["processors"])   + " <= stages.max_processors AND " +
+ str(job["processors"])   + " >= stages.min_processors AND " +
+ str(job["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
+ str(job["wall_seconds"]) + " >= stages.max_wall_seconds " +
  queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL " +
  " ORDER BY " + 
  queryTerms["storageOrder"] + "files.request_id,files.file_id"
@@ -196,12 +193,20 @@ def findJob(jsonDict):
   except:
     return None
 
-  # Find the any_location flag for this stage from the database
+  # Find the job info and the stage's any_location flag
   try:
-    query = ('SELECT file.request_id,files.stage_id,'
-             'jobs.dune_site,stages.any_location '
+    query = ('SELECT jobs.request_id,'
+             'jobs.stage_id,'
+             'jobs.state,'
+             'jobs.dune_site,'
+             'jobs.hostname,'
+             'jobs.cpuinfo,'
+             'jobs.os_release,'
+             'jobs.rss_bytes,'
+             'jobs.processors,'
+             'jobs.wall_seconds,'
+             'stages.any_location '
              'FROM jobs '
-             'LEFT JOIN files ON jobs.job_id=file.job_id '
              'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
              'WHERE jobs.job_id=' + str(jobID) + ' AND ' +
              'jobs.cookie="' + cookie + '"')
@@ -213,7 +218,14 @@ def findJob(jsonDict):
             'cookie'       : cookie,
             'request_id'   : int(rows[0]['request_id']),
             'stage_id'     : int(rows[0]['stage_id']),
+            'state'        : rows[0]['state'],
             'dune_site'    : rows[0]['dune_site'],
+            'hostname'     : rows[0]['hostname'],
+            'cpuinfo'      : rows[0]['cpuinfo'],
+            'os_release'   : rows[0]['os_release'],
+            'rss_bytes'    : int(rows[0]['rss_bytes']),
+            'processors'   : int(rows[0]['processors']),
+            'wall_seconds' : int(rows[0]['wall_seconds']),
             'any_location' : bool(rows[0]['any_location'])
           }
           
@@ -266,11 +278,10 @@ queryTerms["storageOrder"] + "files.file_id"
 
   try: 
     query = ("UPDATE files SET state='allocated',"
-             "allocator_id='" + allocatorID + "',"
              "allocated_time=NOW(),"
-             "allocated_rse_id=" + fileRows[0]['rse_id'] + ","
+             "allocated_rse_id=" + str(fileRows[0]['rse_id']) + ","
              "job_id=" + str(job['job_id']) + " "
-             "WHERE file_id=" + fileRows[0]['file_id']
+             "WHERE file_id=" + str(fileRows[0]['file_id'])
             )
     cur.execute(query)
   except:
@@ -375,6 +386,8 @@ def makeTarFile(queryTerms, stage, jobID, cookie):
 # Try to get the stage with the highest priority files still unallocated
 def getStageMethod(jsonDict, jobUserID):
 
+  job = {}
+
   # Check jsonDict contains required string values (eg dune_site)
   for name in ['job_name', 'dune_site', 'cpuinfo', 'os_release', 'hostname']:
     if name not in jsonDict:
@@ -382,11 +395,13 @@ def getStageMethod(jsonDict, jobUserID):
       print()
       print('Missing value(s) in JSON')
       sys.exit(0)
+    else:
+      job[name] = str(jsonDict[name])
 
   # Check jsonDict contains required integer values (eg rss_bytes)
   for name in ['rss_bytes', 'processors', 'wall_seconds']:
     try:
-      i = int(jsonDict[name])
+      job[name] = int(jsonDict[name])
     except:
       print('Status: 400 Bad Request')
       print()
@@ -394,11 +409,11 @@ def getStageMethod(jsonDict, jobUserID):
       sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict, str(jsonDict['dune_site']))
+  queryTerms = makeQueryTerms(jsonDict, job)
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
-  stage = findStage(queryTerms)
+  stage = findStage(queryTerms, job)
 
   if not stage:
     # No stages/files eligible to be processed by this job
@@ -413,13 +428,17 @@ def getStageMethod(jsonDict, jobUserID):
   try:
     query = ('INSERT INTO jobs SET '
              'created_time=NOW(),' +
-             'job_name="' + str(jsonDict['job_name']) + '",' +
+             'allocator_name="' + allocatorName + '",' +
+             'job_name="' + job['job_name'] + '",' +
              'request_id=' + str(stage['request_id']) + ','
              'stage_id=' + str(stage['stage_id']) + ','
-             'dune_site="' + str(jsonDict['dune_site']) + '",' +
-             'cpuinfo="' + str(jsonDict['cpuinfo']) + '",' +
-             'os_release="' + str(jsonDict['os_release']) + '",' +
-             'hostname="' + str(jsonDict['hostname']) + '",' + 
+             'dune_site="' + job['dune_site'] + '",' +
+             'cpuinfo="' + job['cpuinfo'] + '",' +
+             'os_release="' + job['os_release'] + '",' +
+             'hostname="' + job['hostname'] + '",' + 
+             'rss_bytes=' + str(job['rss_bytes']) + ',' +
+             'processors=' + str(job['processors']) + ',' +
+             'wall_seconds=' + str(job['wall_seconds']) + ',' +
              'job_user_id=' + str(jobUserID) + ',' +
              'cookie="' + cookie + '"'
             )
@@ -462,13 +481,26 @@ def getFileMethod(jsonDict):
     sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict, job['dune_site'])
+  queryTerms = makeQueryTerms(jsonDict, job)
 
   # Create a stage dictionary with the next file in this stage  
-  oneFile = findOneFile(jsonDict, queryTerms)
+  oneFile = findOneFile(jsonDict, queryTerms, job)
   
   if oneFile:
-    # All done so commit the allocations
+    if job['state'] == 'started':
+      try:
+        query = ('UPDATE jobs SET state="processing" ' +
+                 'WHERE job_id=' + str(job['job_id']))
+                )
+        cur.execute(query)
+      except:
+        print('Status: 500 Internal Server Error')
+        print('Content-Type: text/plain')
+        print()
+        print('Unable to update job to processing')
+        sys.exit(0)
+
+    # All done so commit the allocation and updates
     # We do this before the HTTP response in case
     # it is received ok by the job and processed
     # but times out and fails here on the server side
@@ -542,8 +574,8 @@ def processNextStageOutputs(jsonDict, job):
 def resultsMethod(jsonDict):
 
   # Check jsonDict contains required values (eg job_name)
-  for name in ['cookie', 'job_name', 
-               'processed_inputs', 'unprocessed_inputs', 'next_stage_outputs']:
+  for name in ['cookie', 'processed_inputs', 
+               'unprocessed_inputs', 'next_stage_outputs']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
@@ -563,6 +595,15 @@ def resultsMethod(jsonDict):
   updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed', job)
 
   processNextStageOutputs(jsonDict, job)
+
+  try:
+    query = ('UPDATE jobs SET state="finished" ' +
+             'WHERE job_id=' + str(job['job_id']))
+            )
+    cur.execute(query)
+  except:
+    # Don't give up! Record what we can!
+    pass
 
   # Commit everything, before we return OK to the job
   db.commit()
@@ -619,7 +660,7 @@ if os.environ['REQUEST_METHOD'] != 'POST':
     sys.exit(0)
 
 # Create a unique ID string for this instance that may also help in debugging
-allocatorID = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
+allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
 
 # Get the JSON document POSTed to us
 try:

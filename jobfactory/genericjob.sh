@@ -151,7 +151,7 @@ unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\
 cat <<EOF >wfs-return-results.json
 {
   "method": "return_results",
-  "wfs_job_id": "$WFS_JOB_ID",
+  "job_id": $WFS_JOB_ID,
   "cookie": "$WFS_COOKIE",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
@@ -159,14 +159,18 @@ cat <<EOF >wfs-return-results.json
 }
 EOF
 
+echo "=====Start wfs-return-results.json=="
+cat wfs-return-results.json
+echo "=====End wfs-return-results.json=="
+
 http_code=`curl \
---key $X509_USER_PROXY \
---cert $X509_USER_PROXY \
---cacert $X509_USER_PROXY \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
 --data @wfs-return-results.json \
 --output return-results.txt \
 --write-out "%{http_code}\n" \
 https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
+
+echo "return_results returns HTTP code $http_code"
+cat return-results.txt
 
 echo '====End of genericjob.sh===='

@@ -39,7 +39,9 @@ DROP TABLE IF EXISTS `jobs`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `jobs` (
   `job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `allocator_name` varchar(255) NOT NULL,
   `created_time` datetime NOT NULL,
+  `state` enum('started','processing','finished') NOT NULL DEFAULT 'started',
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `job_name` varchar(255) NOT NULL,
@@ -47,6 +49,9 @@ CREATE TABLE `jobs` (
   `hostname` varchar(255) NOT NULL,
   `cpuinfo` varchar(255) NOT NULL,
   `os_release` varchar(255) NOT NULL,
+  `rss_bytes` bigint unsigned NOT NULL,
+  `processors` tinyint unsigned NOT NULL,
+  `wall_seconds` mediumint unsigned NOT NULL,
   `cookie` varchar(255) NOT NULL,
   `job_user_id` smallint(5) unsigned,
   PRIMARY KEY (`job_id`)
@@ -68,7 +73,6 @@ CREATE TABLE `files` (
   `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
   `allocated_time` datetime NOT NULL,
   `allocated_rse_id` smallint(5) unsigned NOT NULL,
-  `allocator_id` varchar(255) NOT NULL,
   `job_id` int(10) unsigned NOT NULL,
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;

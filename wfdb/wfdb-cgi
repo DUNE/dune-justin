@@ -578,6 +578,55 @@ def addFileCmd(jsonDict):
 
   httpError('200 OK', None)
 
+def showJobsCmd(jsonDict):
+
+  try:
+    jobID = int(jsonDict['job_id'])
+  except:
+    jobID = None
+  
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID = None
+  
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    stageID = 1
+  
+  if jobID:
+    filter = "WHERE job_id=%d" % jobID 
+  elif requestID:
+    filter = "WHERE request_id=%d AND stage_id=%d" % (requestID, stageID)
+  else:
+    httpError('400 Bad Request', 'Either Job ID or Request ID must be given')
+
+  if jsonDict['state']:
+    try:  
+      filter += (' AND state="' +
+                 re.sub('[^a-z]+', '', str(jsonDict['state'])) +
+                 '"'
+                )
+    except:
+      pass
+
+  rows = doQuery("SELECT job_id,request_id,stage_id,state,created_time "
+                 "FROM jobs "
+                 + filter +
+                 " ORDER BY job_id")
+
+  print('Status: 200 OK')
+  print('Content-Type: text/plain')
+  print() 
+
+  for row in rows:
+    print("%6s %5s %2s %10s  %s" % 
+          (row['job_id'], row['request_id'], row['stage_id'], 
+           row['state'], row['created_time']))
+   
+  sys.exit(0)
+
 def getUserID():
 
   # Use certificates and proxies for now; will transition to tokens in future
@@ -672,5 +721,8 @@ if jsonDict['command'] == 'create-stage':
 
 if jsonDict['command'] == 'add-file':
   addFileCmd(jsonDict)
+
+if jsonDict['command'] == 'show-jobs':
+  showJobsCmd(jsonDict)
 
 httpError('400 Bad Request', 'command in JSON not recognised')

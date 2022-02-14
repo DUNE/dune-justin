@@ -181,6 +181,13 @@ Shows file and replica information in the Workflow Database, either limited by
 request ID and stage ID or by file DID. For each replica of each file, the 
 request ID, stage ID, file state, RSE name, and file DID are shown. 
 
+.HP
+.B "show-jobs --job-id ID | --request-id ID [--stage-id ID] [--state STATE]"
+.br
+Show jobs identified by Job ID or Request ID (and optionally Stage ID). Job 
+state can also be given to further filter the jobs listed. For each job,
+the Job ID, Request ID, Stage ID, State, and creation time are shown.
+
 .SH AUTHOR
 Andrew McNab <Andrew.McNab@cern.ch>
 

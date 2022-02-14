@@ -32,6 +32,8 @@ elif [ "$http_code" = 404 ] ; then
  echo "No files available from this stage" >&2
  retcode=1
 else
+ echo "get_file receives:" >&2
+ cat $GET_FILE_TMP >&2
  echo "get-file fails with HTTP code $http_code from allocator!" >&2
  retcode=3
 fi

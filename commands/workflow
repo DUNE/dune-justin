@@ -61,7 +61,7 @@ commands = [ "create-request",
              "show-requests", "show-stages", "show-bootstrap",
              "show-stage-outputs",
              "show-files", "show-replicas", "show-storages",
-             "show-sites-storages" ]
+             "show-sites-storages", "show-jobs" ]
 
 parser.add_argument("command",
                     type = str,
@@ -140,6 +140,14 @@ parser.add_argument("--pfn",
                     type   = str,
                     action = "append",
                     help   = "PFN of a replica")
+
+parser.add_argument("--job-id",
+                    type = int,
+                    help = "Job ID number")
+
+parser.add_argument("--state",
+                    type = str,
+                    help = "Restrict output by state")
 
 args = parser.parse_args()
 jsonDict = vars(args)
