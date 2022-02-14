@@ -48,6 +48,7 @@ CREATE TABLE `jobs` (
   `cpuinfo` varchar(255) NOT NULL,
   `os_release` varchar(255) NOT NULL,
   `cookie` varchar(255) NOT NULL,
+  `job_user_id` smallint(5) unsigned,
   PRIMARY KEY (`job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

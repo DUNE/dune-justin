@@ -98,8 +98,10 @@ if [ -f wfs-bootstrap.sh ] ; then
   echo '====End wfs-bootstrap.sh===='
 
   mkdir workspace
-  ( cd workspace ; $WFA_PATH/wfs-bootstrap.sh )
+  echo '====Run wfs-bootstrap.sh===='
+  ( cd workspace ; $WFS_PATH/wfs-bootstrap.sh )
   retval=$?
+  echo '====After wfs-bootstrap.sh===='
 else
   # How can this happen???
   echo No wfs-bootstrap.sh found

@@ -151,7 +151,7 @@ def findStage(queryTerms):
   query = (
  "SELECT stages.request_id,stages.stage_id,"
  "stages.any_location,"
- "files.file_did,files.file_id,storages.rse_name"
+ "files.file_did,files.file_id,storages.rse_name "
  "FROM files "
  "LEFT JOIN stages ON files.request_id=stages.request_id AND "
  "files.stage_id=stages.stage_id "
@@ -188,7 +188,13 @@ def findStage(queryTerms):
   return stage
 
 # Make a dictionary containing one job's information
-def findJob(jobID, cookie):
+def findJob(jsonDict):
+
+  try:
+    jobID  = int(jsonDict['job_id'])
+    cookie = str(jsonDict['cookie'])
+  except:
+    return None
 
   # Find the any_location flag for this stage from the database
   try:
@@ -197,13 +203,13 @@ def findJob(jobID, cookie):
              'FROM jobs '
              'LEFT JOIN files ON jobs.job_id=file.job_id '
              'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
-             'WHERE jobs.job_id=' + jobID + ' AND ' +
+             'WHERE jobs.job_id=' + str(jobID) + ' AND ' +
              'jobs.cookie="' + cookie + '"')
 
     cur.execute(query)
     rows=cur.fetchall()
     
-    job = { 'job_id'   : jobID,
+    job = { 'job_id'       : jobID,
             'cookie'       : cookie,
             'request_id'   : int(rows[0]['request_id']),
             'stage_id'     : int(rows[0]['stage_id']),
@@ -214,6 +220,7 @@ def findJob(jobID, cookie):
     return job
     
   except:
+    # WE SHOULD PROVIDE SOME KIND OF DEBUGGING FOR ALL THIS!!
     return None
 
 # Make a dictionary containing one file's information
@@ -247,8 +254,12 @@ queryTerms["storageOrder"] + "files.file_id"
 " LIMIT 1 FOR UPDATE"
 ) 
    
+  print('DEBUG: ' + query, file=sys.stderr)
+   
   cur.execute(query)
   fileRows = cur.fetchall()
+  
+  print('DEBUG: ' + str(fileRows), file=sys.stderr)
   
   if len(fileRows) == 0:
     return None
@@ -362,7 +373,7 @@ def makeTarFile(queryTerms, stage, jobID, cookie):
   return buffer.getvalue()
 
 # Try to get the stage with the highest priority files still unallocated
-def getStageMethod(jsonDict):
+def getStageMethod(jsonDict, jobUserID):
 
   # Check jsonDict contains required string values (eg dune_site)
   for name in ['job_name', 'dune_site', 'cpuinfo', 'os_release', 'hostname']:
@@ -390,11 +401,11 @@ def getStageMethod(jsonDict):
   stage = findStage(queryTerms)
 
   if not stage:
-    # No files eligible to be processed by this job
+    # No stages/files eligible to be processed by this job
     print('Status: 404 Not Found')
     print('Content-Type: text/plain')
     print()
-    print('No eligible files found')
+    print('No eligible stages found')
     sys.exit(0)
 
   cookie  = str(uuid.uuid4())
@@ -403,10 +414,13 @@ def getStageMethod(jsonDict):
     query = ('INSERT INTO jobs SET '
              'created_time=NOW(),' +
              'job_name="' + str(jsonDict['job_name']) + '",' +
+             'request_id=' + str(stage['request_id']) + ','
+             'stage_id=' + str(stage['stage_id']) + ','
              'dune_site="' + str(jsonDict['dune_site']) + '",' +
              'cpuinfo="' + str(jsonDict['cpuinfo']) + '",' +
              'os_release="' + str(jsonDict['os_release']) + '",' +
              'hostname="' + str(jsonDict['hostname']) + '",' + 
+             'job_user_id=' + str(jobUserID) + ',' +
              'cookie="' + cookie + '"'
             )
     cur.execute(query)
@@ -438,17 +452,8 @@ def getStageMethod(jsonDict):
 # Get an unallocated file from the given request+stage
 def getFileMethod(jsonDict):
 
-  try:
-    jobID  = int(jsonDict['job_id'])
-    cookie = str(jsonDict['cookie'])
-  except:
-    print('Status: 400 Bad Request')
-    print()
-    print('Missing value(s) in JSON')
-    sys.exit(0)
-
   # Find details of this job
-  job = findJob(jobID, cookie)
+  job = findJob(jsonDict)
 
   if not job:
     print('Status: 400 Bad Request')
@@ -567,7 +572,7 @@ def resultsMethod(jsonDict):
   print()
   sys.exit(0)
 
-def getUserID():
+def getJobUserID():
 
   # Use certificates and proxies for now; will transition to tokens in future
   if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
@@ -593,14 +598,14 @@ def getUserID():
     sys.exit(0)
 
   try:
-    userID = int(rows[0]['user_id'])
+    jobUserID = int(rows[0]['user_id'])
   except:
     print('Status: 403 Forbidden')
     print()
     print('Forbidden - authorized identity not provided')
     sys.exit(0)
 
-  return userID
+  return jobUserID
 
 #
 # PROGRAM MAIN
@@ -646,9 +651,10 @@ except:
 
 # Get the stage for the job to work on
 if jsonDict['method'] == 'get_stage':
-  # Fails with an HTTP error and exit if authorized ID not given
-  userID = getUserID()
-  getStageMethod(jsonDict)
+  # getJobUserID() fails with an HTTP error and exit if authorized ID not given
+  jobUserID = getJobUserID()
+
+  getStageMethod(jsonDict, jobUserID)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':

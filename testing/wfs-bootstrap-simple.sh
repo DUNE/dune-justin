@@ -10,7 +10,7 @@ if [ $? != 0 ] ; then
   exit 0
 fi
 
-echo "Input file $input_file_did"
+echo "Input file $input_file"
 input_file_did=`echo "$input_file" | cut -f1 -d' '`
 input_file_pfn=`echo "$input_file" | cut -f2 -d' '`
 input_file_rse=`echo "$input_file" | cut -f3 -d' '`
