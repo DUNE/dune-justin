@@ -1,0 +1,186 @@
+#!/usr/bin/python3
+#
+#  dashboard-cgi - Workflow System dashboard
+#
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-22. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer. 
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution. 
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+import os
+import io
+import re
+import sys
+import cgi
+import time
+import json
+import uuid
+import string
+import MySQLdb
+
+# wfs/conf.py must define these variables in a way that is both
+# valid Python and valid Bash!
+#
+# mysqlUser='username'
+# mysqlPassword='PAsSWoRd'
+#
+import wfs.conf
+
+# Global database connection and ID, usable anywhere
+db            = None
+cur           = None
+
+allocatorName = None
+
+# Return various strings and SQL expressions which are 
+# used in subsequent queries
+def makeQueryTerms(jsonDict, job):
+
+  query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
+           'FROM sites_storages '
+           'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
+           'WHERE sites_storages.site_name="%s" '
+           'ORDER BY location,occupancy,RAND();' 
+           % job['dune_site'])
+
+  cur.execute(query)
+  storageRows = cur.fetchall()
+
+  outputRseList  = [] 
+  samesiteList   = []
+  nearbyList     = []
+  accessibleList = []
+
+  for storageRow in storageRows:
+
+    if storageRow['occupancy'] < 1.0:
+      outputRseList.append(storageRow['rse_name'])
+  
+    if storageRow['location'] == 'accessible':
+      accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+    elif storageRow['location'] == 'nearby':
+      nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+    elif storageRow['location'] == 'samesite':
+      samesiteList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+
+  storageWhere = ' OR '.join(samesiteList + nearbyList)
+
+  if accessibleList:
+    if storageWhere:
+      storageWhere += ' OR '
+
+    storageWhere += ('(stages.any_location AND (' + 
+                     ' OR '.join(accessibleList) + '))')
+
+  if storageWhere:
+    storageWhere = ' AND (' + storageWhere + ') '
+
+  # All storages in the same class (samesite, nearby, accessible) get the
+  # same ranking score (3,2,1). In the future, we can apply individual
+  # scores here to each storage relative to where the job is running.
+ 
+  if samesiteList:
+    storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
+  else:
+    storageOrder = ''
+
+  if nearbyList:
+    if storageOrder:
+      storageOrder += ' + '
+  
+    storageOrder += '2*(' + ' OR '.join(nearbyList) + ')'
+
+  if accessibleList:
+    if storageOrder:
+      storageOrder += ' + '
+
+    storageOrder += '1*(' + ' OR '.join(accessibleList) + ')'
+
+  # If we got anything for the storage ordering then complete the
+  # expression including the comma; otherwise an empty string
+  if storageOrder:
+    storageOrder += ' DESC,'
+
+  return { "outputRseList"  : outputRseList,
+           "samesiteList"   : samesiteList,
+           "nearbyList"     : nearbyList,
+           "accessibleList" : accessibleList,
+           "storageWhere"   : storageWhere,
+           "storageOrder"   : storageOrder
+         }
+
+
+def header(title):
+  print("Status: 200 OK")
+  print("Content-Type: text/html")
+  print()
+  print("<html><head><title>%s</title><head><body>" % title)
+
+def footer(title):
+  print("</body></html>")
+  sys.exit()
+
+def mainPage():
+  header("WFS Dashboard")
+
+  print("<h1>Dashboard</h1>")
+  
+  print("<ul>")
+  print("<li>Requests</li>")
+  print("</ul>")
+  
+  footer()
+#
+# PROGRAM MAIN
+#
+
+try:
+  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
+                        passwd=wfs.conf.mysqlPassword, db='wfdb')
+  db.autocommit(False)
+  cur = db.cursor(MySQLdb.cursors.DictCursor) 
+except:
+  print('Status: 500 Internal Server Error')
+  print()
+  print('Problem with database connection')
+  sys.exit(0)
+
+cgiOptions = cgi.FieldStorage()
+
+method = cgiOptions.getfirst("section")
+
+if method is None:
+  mainPage()
+  
+if method == "requests":
+  
+
+print('Status: 400 Bad Request')
+print()
+print('Method not recognised')
+sys.exit(0)
