@@ -141,12 +141,16 @@ DROP TABLE IF EXISTS `stages`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `min_processors` tinyint(3) unsigned NOT NULL,
   `max_processors` tinyint(3) unsigned NOT NULL,
   `max_wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `max_rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `any_location` tinyint(1) NOT NULL DEFAULT '0',
+  `num_finding` mediumint(8) unsigned NOT NULL,
+  `num_unallocated` mediumint(8) unsigned NOT NULL,
+  `num_allocated` mediumint(8) unsigned NOT NULL,
+  `num_processed` mediumint(8) unsigned NOT NULL,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -571,6 +571,32 @@ def processNextStageOutputs(jsonDict, job):
   except:
     return
                 
+# Update the counters used for quick listing of stages
+def updateStageCounts(job):
+
+  try:
+    # Use a brute force recount of everything for this 
+    # stage rather than try to use increments
+    query = ('UPDATE stages SET '
+             'num_finding=(SELECT COUNT(*) FROM files'
+             ' WHERE state="finding" AND request_id=%d AND stage_id=%d),'
+             'num_unallocated=(SELECT COUNT(*) FROM files'
+             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
+             'num_allocated=(SELECT COUNT(*) FROM files'
+             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
+             'num_processed=(SELECT COUNT(*) FROM files'
+             ' WHERE state="processed" AND request_id=%d AND stage_id=%d) '
+             'WHERE request_id=%d AND stage_id=%d' % 
+             (job['request_id'], job['stage_id'],
+              job['request_id'], job['stage_id'],
+              job['request_id'], job['stage_id'],
+              job['request_id'], job['stage_id'],
+              job['request_id'], job['stage_id']))
+            )
+    cur.execute(query)
+  except:
+    pass
+                
 def resultsMethod(jsonDict):
 
   # Check jsonDict contains required values (eg job_name)
@@ -595,6 +621,8 @@ def resultsMethod(jsonDict):
   updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed', job)
 
   processNextStageOutputs(jsonDict, job)
+  
+  updateStageCounts(job)
 
   try:
     query = ('UPDATE jobs SET state="finished",finished_time=NOW() ' +

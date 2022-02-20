@@ -40,6 +40,8 @@ import cgi
 import time
 import json
 import uuid
+import html
+import urllib
 import string
 import MySQLdb
 
@@ -55,106 +57,466 @@ import wfs.conf
 db            = None
 cur           = None
 
-allocatorName = None
-
-# Return various strings and SQL expressions which are 
-# used in subsequent queries
-def makeQueryTerms(jsonDict, job):
-
-  query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
-           'FROM sites_storages '
-           'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
-           'WHERE sites_storages.site_name="%s" '
-           'ORDER BY location,occupancy,RAND();' 
-           % job['dune_site'])
-
-  cur.execute(query)
-  storageRows = cur.fetchall()
-
-  outputRseList  = [] 
-  samesiteList   = []
-  nearbyList     = []
-  accessibleList = []
-
-  for storageRow in storageRows:
-
-    if storageRow['occupancy'] < 1.0:
-      outputRseList.append(storageRow['rse_name'])
-  
-    if storageRow['location'] == 'accessible':
-      accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-    elif storageRow['location'] == 'nearby':
-      nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-    elif storageRow['location'] == 'samesite':
-      samesiteList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-
-  storageWhere = ' OR '.join(samesiteList + nearbyList)
-
-  if accessibleList:
-    if storageWhere:
-      storageWhere += ' OR '
-
-    storageWhere += ('(stages.any_location AND (' + 
-                     ' OR '.join(accessibleList) + '))')
-
-  if storageWhere:
-    storageWhere = ' AND (' + storageWhere + ') '
-
-  # All storages in the same class (samesite, nearby, accessible) get the
-  # same ranking score (3,2,1). In the future, we can apply individual
-  # scores here to each storage relative to where the job is running.
- 
-  if samesiteList:
-    storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
-  else:
-    storageOrder = ''
-
-  if nearbyList:
-    if storageOrder:
-      storageOrder += ' + '
-  
-    storageOrder += '2*(' + ' OR '.join(nearbyList) + ')'
-
-  if accessibleList:
-    if storageOrder:
-      storageOrder += ' + '
-
-    storageOrder += '1*(' + ' OR '.join(accessibleList) + ')'
-
-  # If we got anything for the storage ordering then complete the
-  # expression including the comma; otherwise an empty string
-  if storageOrder:
-    storageOrder += ' DESC,'
-
-  return { "outputRseList"  : outputRseList,
-           "samesiteList"   : samesiteList,
-           "nearbyList"     : nearbyList,
-           "accessibleList" : accessibleList,
-           "storageWhere"   : storageWhere,
-           "storageOrder"   : storageOrder
-         }
-
-
 def header(title):
   print("Status: 200 OK")
   print("Content-Type: text/html")
   print()
-  print("<html><head><title>%s</title><head><body>" % title)
+  print("<html><head><title>%s</title>" % title)
+  print(
+"""<style>
+table { border-collapse: collapse; border: medium solid black;}
+tr { text-align: left }
+td,th { border: thin solid black; padding: 0.75ex }
+</style>
+</head><body>""")
 
-def footer(title):
+def footer():
   print("</body></html>")
   sys.exit()
 
+def errorPage(message):
+  header("Error")
+  print("<h1>Error</h1>")
+  print("<p>%s</p>" % message)
+  footer()
+  
 def mainPage():
-  header("WFS Dashboard")
+  header("WFS: Dashboard")
 
   print("<h1>Dashboard</h1>")
   
-  print("<ul>")
-  print("<li>Requests</li>")
-  print("</ul>")
+  print('<ul>')
+  print('<li><a href="/dashboard/?method=list-requests">Requests</a></li>')
+  print('</ul>')
   
   footer()
+
+def listRequests(cgiValues):
+  header("WFS: Requests")
+
+  print("<h1>Requests</h1>")
+  
+  query = ("SELECT * FROM requests "
+           "ORDER BY request_id")
+
+  cur.execute(query)
+  rows = cur.fetchall()
+
+  print('<table')
+  print("<tr><th>Request ID</th><th>Name</th><th>State</th><th>MQL</th><tr>")
+
+  for row in rows:
+    print('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
+          '%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
+          (row["request_id"], row["request_id"],
+           html.escape(row["name"], quote=True),
+           row["state"],
+           html.escape(row["mql"], quote=True)
+          )
+         )
+
+  print("</table>")
+  
+  footer()
+
+def showRequest(cgiValues):
+  try:
+    requestID = int(cgiValues.getfirst("request_id"))
+  except:
+    errorPage("request_id must be given")
+  
+  header("WFS: Request %d" % requestID)
+
+  query = ("SELECT requests.name AS requestname,requests.state,users.name AS username,"
+           "x509dn,"
+           "requests.created,requests.submitted,requests.approved,"
+           "requests.checking,requests.completed,mql "
+           "FROM requests "
+           "LEFT JOIN users ON users.user_id=requests.submitter_id "
+           "WHERE request_id=%d "
+           "ORDER BY request_id" % requestID)
+
+  cur.execute(query)
+  requestRows = cur.fetchall()
+  
+  state = requestRows[0]['state']
+
+  print("<h1>Request %d</h1>" % requestID)
+  
+  print('<table')
+
+  print('<tr><td>Name</td><td>%s</td></tr>' % 
+        html.escape(requestRows[0]['requestname'], quote=True))
+  print('<tr><td>State</td><td>%s</td></tr>' % state)
+  print('<tr><td>Submitter</td><td>%s<br><small>%s</small></td></tr>' % 
+        (html.escape(requestRows[0]['username']), html.escape(requestRows[0]['x509dn'])))
+
+  print('<tr><td>MQL</td><td>%s</td></tr>' % 
+        html.escape(requestRows[0]['mql'], quote=True))
+
+  print('<tr><td>Created</td><td>%s</td></tr>' % requestRows[0]['created'])
+
+  print('<tr><td>Submitted</td>')
+  if requestRows[0]['submitted']:
+    print('<td>%s</td></tr>' % str(requestRows[0]['submitted']))
+  else:
+    print('<td>-</td></tr>')
+
+  print('<tr><td>Approved</td>')
+  if requestRows[0]['approved']:
+    print('<td>%s</td></tr>' % str(requestRows[0]['approved']))
+  else:
+    print('<td>-</td></tr>')
+    
+  print('<tr><td>Checking</td>')
+  if requestRows[0]['checking']:
+    print('<td>%s</td></tr>' % str(requestRows[0]['checking']))
+  else:
+    print('<td>-</td></tr>')
+
+  print('<tr><td>Completed</td>') 
+  if requestRows[0]['completed']:
+    print('<td>%s</td></tr>' % str(requestRows[0]['completed']))
+  else:
+    print('<td>-</td></tr>')
+  
+  print("</table>")
+  
+  query = ("SELECT * "
+           "FROM stages "
+           "WHERE request_id=%d "
+           "ORDER BY stage_id" % requestID)
+
+  cur.execute(query)
+  stagesRows = cur.fetchall()
+  
+  print('<h2>Stages</h2>')
+  print('<table')
+  print("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
+        "<th>Unallocated</th><th>Allocated</th><th>Processed</th><tr>")
+
+  for stageRow in stagesRows:
+    numFinding     = int(stageRow["num_finding"])
+    numUnallocated = int(stageRow["num_unallocated"])
+    numAllocated   = int(stageRow["num_allocated"])
+    numProcessed   = int(stageRow["num_processed"])
+    numFiles       = numFinding + numUnallocated + numAllocated + numProcessed
+    
+    
+
+    print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
+          '%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
+          '</tr>' % 
+          (stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
+           stageRow["request_id"], stageRow["stage_id"], numFiles, 
+           stageRow["request_id"], stageRow["stage_id"], numFinding, 
+           stageRow["request_id"], stageRow["stage_id"], numUnallocated, 
+           stageRow["request_id"], stageRow["stage_id"], numAllocated, 
+           stageRow["request_id"], stageRow["stage_id"], numProcessed))
+
+  print("</table>")
+
+  footer()
+
+def showStage(cgiValues):
+  try:
+    requestID = int(cgiValues.getfirst("request_id"))
+  except:
+    errorPage("request_id must be given")
+  
+  try:
+    stageID = int(cgiValues.getfirst("stage_id"))
+  except:
+    errorPage("stage_id must be given")
+  
+  header("WFS: Request %d, Stage %d" % (requestID, stageID))
+
+  query = ("SELECT stages.min_processors,"
+           "stages.max_processors,"
+           "stages.max_wall_seconds,"
+           "stages.max_rss_bytes,"
+           "stages.any_location,"
+           "stages.num_finding,"
+           "stages.num_unallocated,"
+           "stages.num_allocated,"
+           "stages.num_processed,"
+           "bootstraps.bootstrap "
+           "FROM stages "
+           "LEFT JOIN bootstraps ON bootstraps.request_id=stages.request_id"
+           " AND bootstraps.stage_id=stages.stage_id "
+           "WHERE stages.request_id=%d AND stages.stage_id=%d" %
+           (requestID, stageID))
+
+  cur.execute(query)
+  stageRows = cur.fetchall()
+  
+  print("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
+  
+  print('<table')
+
+  print('<tr><td>Minimum processors</td>'
+        '<td>%s</td></tr>' % stageRows[0]["min_processors"])
+
+  print('<tr><td>Maximum processors</td>'
+        '<td>%s</td></tr>' % stageRows[0]["max_processors"])
+
+  print('<tr><td>Maximum wall seconds</td>'
+        '<td>%s</td></tr>' % stageRows[0]["max_wall_seconds"])
+
+  print('<tr><td>Maximum RSS bytes</td>'
+        '<td>%s (%d MB)</td></tr>' % 
+        (stageRows[0]["max_rss_bytes"], 
+         int(stageRows[0]["max_rss_bytes"]) / 1048576))
+
+  print('<tr><td>Input from any location</td>'
+        '<td>%s</td></tr>' % bool(stageRows[0]["any_location"]))
+
+  numFinding     = int(stageRows[0]["num_finding"])
+  numUnallocated = int(stageRows[0]["num_unallocated"])
+  numAllocated   = int(stageRows[0]["num_allocated"])
+  numProcessed   = int(stageRows[0]["num_processed"])
+  numFiles       = numFinding + numUnallocated + numAllocated + numProcessed
+
+  print('<tr><td>Total files</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d">%d</a></td></tr>'
+        % (requestID, stageID,numFiles))
+    
+  print('<tr><td>Unallocated</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=finding">%d</a></td></tr>'
+        % (requestID, stageID, numFinding))
+    
+  print('<tr><td>Unallocated</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=unallocated">%d</a></td></tr>'
+        % (requestID, stageID, numUnallocated))
+    
+  print('<tr><td>Allocated</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=allocated">%d</a></td></tr>'
+        % (requestID, stageID, numAllocated))
+    
+  print('<tr><td>Processed</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=processed">%d</a></td></tr>'
+        % (requestID, stageID, numProcessed))
+        
+  print('</table>')
+    
+  print("<h2>Output patterns</h2>")
+  print('<table><tr><th>Pattern</th><th>For next stage</th></tr>') 
+
+  query = ("SELECT pattern,for_next_stage "
+           "FROM stages_outputs "
+           "WHERE request_id=%d AND stage_id=%d "
+           "ORDER BY pattern" %
+           (requestID, stageID))
+
+  cur.execute(query)
+  patternRows = cur.fetchall()
+
+  for patternRow in patternRows:
+    print("<tr><td>%s</td><td>%s</td></tr>" %
+           (html.escape(patternRow["pattern"], quote=True),
+            bool(patternRow["for_next_stage"])))
+
+  print('</table>') 
+
+  print("<h2>Bootstrap script</h2>")
+  print('<table><tr><td><pre>') 
+
+  print(html.escape(stageRows[0]["bootstrap"], quote=True))
+  
+  print('</pre></td></tr></table>') 
+
+  footer()
+
+def listFiles(cgiValues):
+  try:
+    requestID = int(cgiValues.getfirst("request_id"))
+  except:
+    errorPage("request_id must be given")
+  
+  try:
+    stageID = int(cgiValues.getfirst("stage_id"))
+  except:
+    errorPage("stage_id must be given")
+
+  state = str(cgiValues.getfirst("state"))
+
+  if state == 'finding' or state == 'unallocated' or state == 'allocated' \
+     or state == 'processed':
+    stateFilter = 'AND files.state="' + state + '"'
+    stateText = ' (state = ' + state + ')'
+  else:
+    stateFilter = ''
+    stateText = ''
+    
+  header("WFS: Files for Request %d, Stage %d%s" 
+         % (requestID, stageID, stateText))
+
+  print("<h1>Files  for Request %d, Stage %d%s</h1>" 
+         % (requestID, stageID, stateText))
+  
+  query = ("SELECT files.file_did,files.state,files.allocated_time,"
+           "storages.rse_name,files.job_id,jobs.dune_site "
+           "FROM files "
+           "LEFT JOIN storages ON files.allocated_rse_id=storages.rse_id "
+           "LEFT JOIN replicas ON replicas.file_id=files.file_id "
+           "AND replicas.rse_id=files.allocated_rse_id "
+           "LEFT JOIN jobs ON jobs.job_id=files.job_id "
+           "WHERE files.request_id=%d AND files.stage_id=%d %s "
+           "ORDER BY files.file_id" % (requestID, stageID, stateFilter))
+
+  cur.execute(query)
+  filesRows = cur.fetchall()
+
+  print(
+"""<table>
+<tr><th rowspan="2">DID</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
+<tr><th>Time</th><th>RSE</th><th>Site</th><th>Job ID</th></tr>""")
+
+  for fileRow in filesRows:
+    print('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+          '%s</a></td><td>%s</td>' % 
+          (requestID, 
+           stageID, 
+           urllib.parse.quote(fileRow["file_did"], safe=''),
+           html.escape(fileRow["file_did"], quote=True),
+           fileRow["state"],
+          )
+         )
+         
+    if fileRow["state"] == 'allocated' or fileRow["state"] == 'processed':
+      print('<td>%s</td>'
+            '<td>%s</td>'
+            '<td>%s</td>'
+            '<td><a href="/dashboard/?method=show-job&job_id=%s">%s</a></td></tr>' % 
+            (str(fileRow["allocated_time"]),
+             str(fileRow["rse_name"]),
+             str(fileRow["dune_site"]),
+             str(fileRow["job_id"]), str(fileRow["job_id"])
+            )
+           )
+    else:
+      print('<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
+      
+  print("</table>")
+  
+  footer()
+
+def showJob(cgiValues):
+  try:
+    jobID = int(cgiValues.getfirst("job_id"))
+  except:
+    errorPage("job_id must be given")
+      
+  header("WFS: Job %d" % jobID)
+
+  print("<h1>Job %s</h1>" % jobID)
+  
+  query = ("SELECT jobs.request_id,jobs.stage_id,jobs.job_name,jobs.dune_site,"
+           "jobs.hostname,jobs.cpuinfo,jobs.os_release,users.name,users.x509dn,"
+           "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
+           "jobs.allocator_name,jobs.state,jobs.started_time,"
+           "jobs.finished_time "
+           "FROM jobs "
+           "LEFT JOIN users ON jobs.job_user_id=users.user_id "
+           "WHERE jobs.job_id=%d" % jobID)
+
+  cur.execute(query)
+  jobRows = cur.fetchall()
+
+  query = ("SELECT file_did FROM files "
+           "WHERE job_id=%d ORDER BY file_id" % jobID)
+
+  cur.execute(query)
+  filesRows = cur.fetchall()
+
+  print('<table>')
+  
+  print('<tr><td>State</td>'
+        '<td>%s</td></tr>'
+        % jobRows[0]["state"])
+      
+  print('<tr><td>Job name</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRows[0]["job_name"], quote=True))
+
+  print('<tr><td>Allocator name</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRows[0]["allocator_name"], quote=True))
+
+  print('<tr><td>Factory X.509</td><td><small>%s</small></td></tr>' % 
+         html.escape(jobRows[0]['x509dn']))
+
+
+  print('<tr><td>Site</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRows[0]["dune_site"], quote=True))
+
+  print('<tr><td>Hostname</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRows[0]["hostname"], quote=True))
+
+  print('<tr><td>cpuinfo</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRows[0]["cpuinfo"], quote=True))
+
+  print('<tr><td>OS release</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRows[0]["os_release"], quote=True))
+
+  print('<tr><td>RSS bytes</td>'
+        '<td>%s (%d MB)</td></tr>' % 
+        (jobRows[0]["rss_bytes"], 
+         int(jobRows[0]["rss_bytes"]) / 1048576))
+
+  print('<tr><td>Processors</td>'
+        '<td>%s</td></tr>'
+        % jobRows[0]["processors"])
+
+  print('<tr><td>Wall seconds limit</td>'
+        '<td>%s (%d hours)</td></tr>'
+        % (jobRows[0]["wall_seconds"],
+           int(jobRows[0]["wall_seconds"]) / 3600))
+
+  print('<tr><td>Request ID</td>'
+        '<td><a href="/dashboard/?method=show-request&request_id=%s">%s</a></td></tr>'
+        % (jobRows[0]["request_id"],
+           jobRows[0]["request_id"]))
+        
+  print('<tr><td>Stage ID</td>'
+        '<td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">%s</a></td></tr>'
+        % (jobRows[0]["request_id"], jobRows[0]["stage_id"],
+           jobRows[0]["stage_id"]))
+        
+  print('<tr><td>Started</td>'
+        '<td>%s</td></tr>'
+        % jobRows[0]["started_time"])
+
+  print('<tr><td>Finished</td>'
+        '<td>%s</td></tr>'
+        % jobRows[0]["finished_time"])
+
+  print('<tr><td>Files</td><td>')
+  
+  for fileRow in filesRows:
+    print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+          '%s</a><br>' % 
+          (jobRows[0]["request_id"], 
+           jobRows[0]["stage_id"],
+           urllib.parse.quote(fileRow["file_did"], safe=''),
+           html.escape(fileRow["file_did"], quote=True)
+          )
+       )
+  print('</td></tr>')
+
+  print("</table>")
+  
+  footer()
+
 #
 # PROGRAM MAIN
 #
@@ -170,15 +532,27 @@ except:
   print('Problem with database connection')
   sys.exit(0)
 
-cgiOptions = cgi.FieldStorage()
+cgiValues = cgi.FieldStorage()
 
-method = cgiOptions.getfirst("section")
+method = cgiValues.getfirst("method")
 
 if method is None:
   mainPage()
   
-if method == "requests":
-  
+if method == "list-requests":
+  listRequests(cgiValues)
+
+if method == "show-request":
+  showRequest(cgiValues)
+
+if method == "show-stage":
+  showStage(cgiValues)
+
+if method == "list-files":
+  listFiles(cgiValues)
+
+if method == "show-job":
+  showJob(cgiValues)
 
 print('Status: 400 Bad Request')
 print()
