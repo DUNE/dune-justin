@@ -277,10 +277,17 @@ queryTerms["storageOrder"] + "files.file_id"
     return None
 
   try: 
+    query = ("INSERT INTO allocations SET allocated_time=NOW(),"
+             "rse_id=" + str(fileRows[0]['rse_id']) + ","
+             "job_id=" + str(job['job_id']) + ","
+             "file_id=" + str(fileRows[0]['file_id'])
+            )
+    cur.execute(query)
+
+    allocationID = cur.lastrowid
+
     query = ("UPDATE files SET state='allocated',"
-             "allocated_time=NOW(),"
-             "allocated_rse_id=" + str(fileRows[0]['rse_id']) + ","
-             "job_id=" + str(job['job_id']) + " "
+             "last_allocation_id=" + str(allocationID) + " "
              "WHERE file_id=" + str(fileRows[0]['file_id'])
             )
     cur.execute(query)

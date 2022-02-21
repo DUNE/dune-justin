@@ -72,11 +72,28 @@ CREATE TABLE `files` (
   `stage_id` tinyint(3) unsigned NOT NULL,
   `file_did` varchar(255) NOT NULL,
   `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
-  `allocated_time` datetime NOT NULL,
-  `allocated_rse_id` smallint(5) unsigned NOT NULL,
-  `job_id` int(10) unsigned NOT NULL,
+  `last_allocation_id` int(10) unsigned NOT NULL,
   PRIMARY KEY (`file_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `files`
+--
+
+DROP TABLE IF EXISTS `allocations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `allocations` (
+  `allocation_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `file_id` int(10) unsigned NOT NULL,
+  `job_id` int(10) unsigned NOT NULL,
+  `rse_id` smallint(5) unsigned NOT NULL,
+  `allocated_time` datetime NOT NULL,
+  `processed_time` datetime NOT NULL,
+  `processed` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY(`allocation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -114,7 +131,7 @@ CREATE TABLE `requests` (
   `submitter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
   PRIMARY KEY (`request_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -183,7 +200,7 @@ CREATE TABLE `storages` (
   `occupancy` float NOT NULL DEFAULT '0',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

@@ -406,6 +406,82 @@ def listFiles(cgiValues):
   
   footer()
 
+def showFile(cgiValues):
+
+  try:
+    fileDID = cgiValues.getfirst("file_did")
+  except:
+    errorPage("file_did must be given")
+
+  if '"' in fileDID:
+    errorPage("Bad format of file_did")
+      
+  try:
+    requestID = int(cgiValues.getfirst("request_id"))
+  except:
+    errorPage("request_id must be given")
+  
+  try:
+    stageID = int(cgiValues.getfirst("stage_id"))
+  except:
+    errorPage("stage_id must be given")
+
+  header("WFS: File %s" 
+         % html.escape(fileDID, quote=True))
+
+  print("<h1>File %s"
+         % html.escape(fileDID, quote=True))
+  
+  query = ('SELECT file_id,state '
+           'FROM files '
+           'WHERE request_id=%d AND stage_id=%d and file_did="%s"' %
+           (requestID, stageID, fileDID))
+
+  cur.execute(query)
+  filesRows = cur.fetchall()
+
+  fileID = int(filesRows[0]["file_id"])
+
+  query = ("SELECT job_id,allocated_time,processed,processed_time,"
+           "rse_name FROM allocations "
+           "LEFT JOIN storages ON storages.rse_id=allocations.rse_id "
+           "WHERE file_id=%d ORDER BY allocation_id" % fileID)
+
+  cur.execute(query)
+  jobsRows = cur.fetchall()
+
+  print('<p><table>')
+  
+  print('<tr><td>Request ID</td>'
+        '<td><a href="/dashboard/?method=show-request&request_id=%d">%d</a></td></tr>'
+        % (requestID, requestID))
+        
+  print('<tr><td>Stage ID</td>'
+        '<td><a href="/dashboard/?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
+        % (requestID, stageID, stageID))
+        
+  print('<tr><td>State</td>'
+        '<td>%s</td></tr>'
+        % filesRows[0]["state"])
+      
+  print('<tr><td>Jobs</td><td>')
+  
+  for jobRow in jobsRows:
+    if jobRow["processed"]:
+      processedState = " (processed)"
+    else:
+      processedState = ""
+  
+    print('<a href="/dashboard/?method=show-job&job_id=%s">'
+          '%s</a>%s<br>' % 
+          (jobRow["job_id"], jobRow["job_id"], processedState))
+
+  print('</td></tr>')
+
+  print("</table>")
+  
+  footer()
+
 def showJob(cgiValues):
   try:
     jobID = int(cgiValues.getfirst("job_id"))
@@ -428,8 +504,9 @@ def showJob(cgiValues):
   cur.execute(query)
   jobRows = cur.fetchall()
 
-  query = ("SELECT file_did FROM files "
-           "WHERE job_id=%d ORDER BY file_id" % jobID)
+  query = ("SELECT file_did FROM allocations "
+           "LEFT JOIN files ON allocations.file_id=files.file_id "
+           "WHERE allocations.job_id=%d ORDER BY allocation_id" % jobID)
 
   cur.execute(query)
   filesRows = cur.fetchall()
@@ -550,6 +627,9 @@ if method == "show-stage":
 
 if method == "list-files":
   listFiles(cgiValues)
+
+if method == "show-file":
+  showFile(cgiValues)
 
 if method == "show-job":
   showJob(cgiValues)
