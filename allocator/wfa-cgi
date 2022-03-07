@@ -538,7 +538,7 @@ def updateFileProcessing(fileList, state, job):
       if '"' in fileDid or "'" in fileDid:
         continue
 
-      processedList.append('file_did="' + str(fileDid) + '"')
+      processedList.append('files.file_did="' + str(fileDid) + '"')
   except:
     return
 
@@ -552,7 +552,25 @@ def updateFileProcessing(fileList, state, job):
                'AND state="allocated"')
       cur.execute(query)
     except:
-      return
+      pass
+
+    if state == 'processed':
+      try:
+        query = ('UPDATE allocations SET processed=TRUE,'
+                 'processed_time=NOW() '
+                 'WHERE job_id=%s AND '
+                 'allocations.file_id IN (SELECT files.file_id FROM files '
+                 'WHERE files.request_id=%s AND files.stage_id=%s '
+                 'AND (%s)) '
+                 'ORDER BY allocation_id DESC LIMIT 1'
+                 % (str(job['job_id']), 
+                    str(job['request_id']),
+                    str(job['stage_id']),
+                    ' OR '.join(processedList)))
+
+        cur.execute(query)
+      except:
+        pass
     
 # Deal with the output files needed by the next stage
 def processNextStageOutputs(jsonDict, job):

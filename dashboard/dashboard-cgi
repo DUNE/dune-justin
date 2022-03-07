@@ -286,7 +286,7 @@ def showStage(cgiValues):
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d">%d</a></td></tr>'
         % (requestID, stageID,numFiles))
     
-  print('<tr><td>Unallocated</td>'
+  print('<tr><td>Finding</td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=finding">%d</a></td></tr>'
         % (requestID, stageID, numFinding))
     
