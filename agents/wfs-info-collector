@@ -85,46 +85,44 @@ def updateStorages():
       # We just ignore tape RSEs for now
       # Need to handle FNAL_DCACHE correctly though
       continue
-  
+
+    try:
+      usageList = rseClient.get_rse_usage(rse['rse'],
+                                          filters = {"source": "storage"})
+    except Exception as e:
+      logLine("Reading %s usage fails with: %s" % 
+              (rse['rse'], str(e)))
+ 
+      occupancy = 1.0
+
+    else:
+      try:
+        usage = next(usageList)
+      except:
+        occupancy = 1.0
+      else:
+        occupancy = float(usage['used']) / usage['total']
+
     try:
       # We should sanitise this name just in case...
-      # This ensures new RSEs appear
-      query = 'INSERT IGNORE INTO storages SET rse_name="%s"' % rse['rse']
+      query = ('INSERT INTO storages SET rse_name="%s",occupancy=%f '
+               'ON DUPLICATE KEY UPDATE occupancy=%f'
+               % (rse['rse'], occupancy, occupancy))
+
+      logLine("Set %s occupancy to %f" % (rse['rse'], occupancy))
       cur.execute(query)
     except Exception as e:
       # Log the error and hope it was transitory
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
-    else:
-    
-      try:
-        usageList = rseClient.get_rse_usage(rse['rse'],
-                                            filters = {"source": "json"})
-
-        for usage in usageList:
-          print(usage)        
-          occupancy = float(usage['used']) / usage['total']
-
-      except Exception as e:
-        logLine("Reading/processing %s usage fails with: %s" % 
-                (rse['rse'], str(e)))
-
-      else:
-        try:
-          query = ('UPDATE storages SET '
-                   'occupancy=%f '
-                   'WHERE rse_name="%s"' % (occupancy, rse['rse']))
-                 
-          cur.execute(query)
-        except Exception as e:
-          logLine('Failed updating RSE %s in database: %s' % 
-                   (rse['rse'], str(e)))
 
 def oneCycle():
 
   global cur
 
   updateStorages()
+
+  db.commit()
   
 #  while True:
 #  
