@@ -343,6 +343,7 @@ def showSitesStoragesCmd(jsonDict):
 
   rows = doQuery("SELECT * FROM sites_storages " 
                  "LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id "
+                 "LEFT JOIN sites ON sites_storages.site_id=sites.site_id "
                  + filter +          
                  " ORDER BY site_name,rse_name")
 

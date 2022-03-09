@@ -71,7 +71,8 @@ def makeQueryTerms(jsonDict, job):
   query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
            'FROM sites_storages '
            'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
-           'WHERE sites_storages.site_name="%s" '
+           'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
+           'WHERE sites.site_name="%s" '
            'ORDER BY location,occupancy,RAND();' 
            % job['dune_site'])
 

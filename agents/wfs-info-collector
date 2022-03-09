@@ -41,6 +41,9 @@ import random
 # Needs MySQL-python RPM
 import MySQLdb
 
+# Installed by pip install of Rucio
+import rucio.client
+
 # wfs/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!
 #
@@ -61,25 +64,83 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
+def updateStorages():
+  # Get info about storages Rucio knows about
+  
+  try:
+    rseClient = rucio.client.rseclient.RSEClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+  
+  try:
+    rseList = rseClient.list_rses()  
+  except Exception as e:
+    logLine("Reading RSE list from Rucio fails with: " + str(e))
+    return
+
+  for rse in rseList:
+  
+    if rse['rse_type'] != 'DISK':
+      # We just ignore tape RSEs for now
+      # Need to handle FNAL_DCACHE correctly though
+      continue
+  
+    try:
+      # We should sanitise this name just in case...
+      # This ensures new RSEs appear
+      query = 'INSERT IGNORE INTO storages SET rse_name="%s"' % rse['rse']
+      cur.execute(query)
+    except Exception as e:
+      # Log the error and hope it was transitory
+      logLine('Failed inserting RSE %s into database: %s' % 
+              (rse['rse'], str(e)))
+    else:
+    
+      try:
+        usageList = rseClient.get_rse_usage(rse['rse'],
+                                            filters = {"source": "json"})
+
+        for usage in usageList:
+          print(usage)        
+          occupancy = float(usage['used']) / usage['total']
+
+      except Exception as e:
+        logLine("Reading/processing %s usage fails with: %s" % 
+                (rse['rse'], str(e)))
+
+      else:
+        try:
+          query = ('UPDATE storages SET '
+                   'occupancy=%f '
+                   'WHERE rse_name="%s"' % (occupancy, rse['rse']))
+                 
+          cur.execute(query)
+        except Exception as e:
+          logLine('Failed updating RSE %s in database: %s' % 
+                   (rse['rse'], str(e)))
+
 def oneCycle():
 
   global cur
-  
-  while True:
-  
-    try:
-      cur.execute('SELECT 1')
-      entries = cur.fetchall()      
-    except Exception as e:
-      logLine('SQL query of entries fails (' + str(e) + ')')
-      break
 
-    if len(entries) == 0:
-      logLine('No entries left')
-      break
-
-    for entry in entries:
-      logLine(str(entry))
+  updateStorages()
+  
+#  while True:
+#  
+#    try:
+#      cur.execute('SELECT 1')
+#      entries = cur.fetchall()      
+#    except Exception as e:
+#      logLine('SQL query of entries fails (' + str(e) + ')')
+#      break
+#
+#    if len(entries) == 0:
+#      logLine('No entries left')
+#      break
+#
+#    for entry in entries:
+#      logLine(str(entry))
       
 #
 # PROGRAM MAIN
@@ -105,11 +166,11 @@ if __name__ == '__main__':
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print 'Failed to create /var/run/wfs-info-collector.pid - exiting'
+        print('Failed to create /var/run/wfs-info-collector.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
-      si = file('/dev/null', 'r')
+      si = open('/dev/null', 'r')
       os.dup2(si.fileno(), sys.stdin.fileno())
 
       while True:
@@ -127,7 +188,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = file('/var/log/wfs/info-collector', 'a+')
+        so = open('/var/log/wfs/info-collector', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -136,7 +197,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        se = file('/var/log/wfs/info-collector', 'a+', 0)
+        se = open('/var/log/wfs/info-collector', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
@@ -145,11 +206,11 @@ if __name__ == '__main__':
           pf.close()
 
           if pid != os.getpid():
-            print 'new /var/run/wfs-info-collector.pid - exiting'
+            print('new /var/run/wfs-info-collector.pid - exiting')
             break
 
         except:
-          print 'no /var/run/wfs-info-collector.pid - exiting'
+          print('no /var/run/wfs-info-collector.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
@@ -174,7 +235,7 @@ if __name__ == '__main__':
             try:
               oneCycle()
             except Exception as e:
-              print 'Cycle fails with exception ' + str(e)
+              print('Cycle fails with exception ' + str(e))
 
           logLine('================ End cycle ================')
           sys.exit(0)
