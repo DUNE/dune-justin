@@ -1,0 +1,13 @@
+[Unit]
+Description=WFS Info Collector daemon
+Documentation=man:wfs-info-collector(8)
+
+[Service]
+Type=forking
+PIDFile=/var/run/wfs-info-collector.pid
+ExecStart=/usr/sbin/wfs-info-collector
+
+[Install]
+#WantedBy=multi-user.target
+
+
