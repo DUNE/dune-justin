@@ -360,7 +360,7 @@ def listFiles(cgiValues):
          % (requestID, stageID, stateText))
   
   query = ("SELECT files.file_did,files.state,files.allocated_time,"
-           "storages.rse_name,files.job_id,jobs.dune_site "
+           "storages.rse_name,files.job_id,jobs.site_name "
            "FROM files "
            "LEFT JOIN storages ON files.allocated_rse_id=storages.rse_id "
            "LEFT JOIN replicas ON replicas.file_id=files.file_id "
@@ -395,7 +395,7 @@ def listFiles(cgiValues):
             '<td><a href="/dashboard/?method=show-job&job_id=%s">%s</a></td></tr>' % 
             (str(fileRow["allocated_time"]),
              str(fileRow["rse_name"]),
-             str(fileRow["dune_site"]),
+             str(fileRow["site_name"]),
              str(fileRow["job_id"]), str(fileRow["job_id"])
             )
            )
@@ -492,7 +492,7 @@ def showJob(cgiValues):
 
   print("<h1>Job %s</h1>" % jobID)
   
-  query = ("SELECT jobs.request_id,jobs.stage_id,jobs.job_name,jobs.dune_site,"
+  query = ("SELECT jobs.request_id,jobs.stage_id,jobs.job_name,jobs.site_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,users.name,users.x509dn,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.state,jobs.started_time,"
@@ -531,7 +531,7 @@ def showJob(cgiValues):
 
   print('<tr><td>Site</td>'
         '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["dune_site"], quote=True))
+        % html.escape(jobRows[0]["site_name"], quote=True))
 
   print('<tr><td>Hostname</td>'
         '<td>%s</td></tr>'

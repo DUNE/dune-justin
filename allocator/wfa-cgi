@@ -74,7 +74,7 @@ def makeQueryTerms(jsonDict, job):
            'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
            'WHERE sites.site_name="%s" '
            'ORDER BY location,occupancy,RAND();' 
-           % job['dune_site'])
+           % job['site_name'])
 
   cur.execute(query)
   storageRows = cur.fetchall()
@@ -199,7 +199,7 @@ def findJob(jsonDict):
     query = ('SELECT jobs.request_id,'
              'jobs.stage_id,'
              'jobs.state,'
-             'jobs.dune_site,'
+             'jobs.site_name,'
              'jobs.hostname,'
              'jobs.cpuinfo,'
              'jobs.os_release,'
@@ -220,7 +220,7 @@ def findJob(jsonDict):
             'request_id'   : int(rows[0]['request_id']),
             'stage_id'     : int(rows[0]['stage_id']),
             'state'        : rows[0]['state'],
-            'dune_site'    : rows[0]['dune_site'],
+            'site_name'    : rows[0]['site_name'],
             'hostname'     : rows[0]['hostname'],
             'cpuinfo'      : rows[0]['cpuinfo'],
             'os_release'   : rows[0]['os_release'],
@@ -396,8 +396,8 @@ def getStageMethod(jsonDict, jobUserID):
 
   job = {}
 
-  # Check jsonDict contains required string values (eg dune_site)
-  for name in ['job_name', 'dune_site', 'cpuinfo', 'os_release', 'hostname']:
+  # Check jsonDict contains required string values (eg site_name)
+  for name in ['job_name', 'site_name', 'cpuinfo', 'os_release', 'hostname']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
@@ -440,7 +440,7 @@ def getStageMethod(jsonDict, jobUserID):
              'job_name="' + job['job_name'] + '",' +
              'request_id=' + str(stage['request_id']) + ','
              'stage_id=' + str(stage['stage_id']) + ','
-             'dune_site="' + job['dune_site'] + '",' +
+             'site_name="' + job['site_name'] + '",' +
              'cpuinfo="' + job['cpuinfo'] + '",' +
              'os_release="' + job['os_release'] + '",' +
              'hostname="' + job['hostname'] + '",' + 

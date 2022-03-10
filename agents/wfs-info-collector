@@ -36,7 +36,7 @@ import os
 import sys
 import stat
 import time
-import random
+import tempfile
 
 # Needs MySQL-python RPM
 import MySQLdb
@@ -52,6 +52,9 @@ import rucio.client
 #
 import wfs.conf
 
+updateSitesInterval    = 3600
+updateStoragesInterval = 3600
+
 sleepSeconds = 60
 
 db  = None
@@ -63,6 +66,15 @@ class wfsError(Exception):
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
+
+def updateSites():
+  # Get info about sites the pilot factories know about
+
+  tmpDir = tempfile.TemporaryDirectory()
+  
+  os.system('git clone https://github.com/opensciencegrid/osg-gfactory.git ' + tmpDir.name)
+
+# 
 
 def updateStorages():
   # Get info about storages Rucio knows about
@@ -120,26 +132,28 @@ def oneCycle():
 
   global cur
 
-  updateStorages()
+  # Is it time to update storages from Rucio?
+  try:
+    lastUpdateStorages = os.stat('/var/run/wfs/last-update-storages').st_mtime
+  except:
+    lastUpdateStorages = 0
+
+  if lastUpdateStorages + updateStoragesInterval < time.time():
+    open('/var/run/wfs/last-update-storages', 'a').close()
+    updateStorages()
+
+  # It is time to update sites from the OSG pilot factory config?
+  try:
+    lastUpdateSites = os.stat('/var/run/wfs/last-update-sites').st_mtime
+  except:
+    lastUpdateSites = 0
+
+  if lastUpdateSites + updateSitesInterval < time.time():
+    open('/var/run/wfs/last-update-sites', 'a').close()
+    updateSites()
 
   db.commit()
-  
-#  while True:
-#  
-#    try:
-#      cur.execute('SELECT 1')
-#      entries = cur.fetchall()      
-#    except Exception as e:
-#      logLine('SQL query of entries fails (' + str(e) + ')')
-#      break
-#
-#    if len(entries) == 0:
-#      logLine('No entries left')
-#      break
-#
-#    for entry in entries:
-#      logLine(str(entry))
-      
+
 #
 # PROGRAM MAIN
 #
@@ -160,11 +174,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        f = open('/var/run/wfs-info-collector.pid', 'w')
+        os.makedirs('/var/run/wfs',         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open('/var/run/wfs/info-collector.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/wfs-info-collector.pid - exiting')
+        print('Failed to create /var/run/wfs/info-collector.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -199,7 +220,7 @@ if __name__ == '__main__':
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/wfs-info-collector.pid', 'r')
+          pf = open('/var/run/wfs/info-collector.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
@@ -208,14 +229,11 @@ if __name__ == '__main__':
             break
 
         except:
-          print('no /var/run/wfs-info-collector.pid - exiting')
+          print('no /var/run/wfs/info-collector.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
         cyclePid = os.fork()
-
-        # Otherwise each subprocess starts from the same point in the sequence!
-        random.seed()
 
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')

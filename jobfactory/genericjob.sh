@@ -16,7 +16,7 @@ export WFS_PATH=`pwd`
 
 # Assemble values we will need 
 export job_name="$JOBSUBJOBID"
-export dune_site=${GLIDEIN_DUNESite:-XX_UNKNOWN}
+export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
 export hostname=`hostname`
@@ -51,7 +51,7 @@ cat <<EOF >wfs-get-stage.json
 {
   "method"      : "get_stage",
   "job_name"    : "$job_name",
-  "dune_site"   : "$dune_site",
+  "site_name"   : "$site_name",
   "cpuinfo"     : "$cpuinfo",
   "os_release"  : "$os_release",
   "hostname"    : "$hostname",

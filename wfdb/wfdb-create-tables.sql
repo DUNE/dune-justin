@@ -46,7 +46,7 @@ CREATE TABLE `jobs` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `job_name` varchar(255) NOT NULL,
-  `dune_site` varchar(255) NOT NULL,
+  `site_name` varchar(255) NOT NULL,
   `hostname` varchar(255) NOT NULL,
   `cpuinfo` varchar(255) NOT NULL,
   `os_release` varchar(255) NOT NULL,
