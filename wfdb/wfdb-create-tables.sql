@@ -145,7 +145,24 @@ CREATE TABLE `sites` (
   `site_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_name` varchar(255) NOT NULL,
   PRIMARY KEY (`site_id`),
-  UNIQUE KEY `site_name` (`site_id`,`site_name`)
+  UNIQUE KEY `site_name` (`site_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `entries`
+--
+
+DROP TABLE IF EXISTS `entries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entries` (
+  `entry_name` varchar(255) NOT NULL,
+  `site_id` smallint(5) unsigned NOT NULL,
+  `rss_bytes` bigint unsigned NOT NULL,
+  `processors` tinyint unsigned NOT NULL,
+  `wall_seconds` mediumint unsigned NOT NULL,  
+  PRIMARY KEY (`entry_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -159,7 +176,7 @@ DROP TABLE IF EXISTS `sites_storages`;
 CREATE TABLE `sites_storages` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `location` enum('samesite','nearby','accessible') NOT NULL DEFAULT 'samesite',
+  `location` enum('samesite','nearby','accessible') NOT NULL DEFAULT 'accessible',
   UNIQUE KEY `rse_id` (`rse_id`,`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

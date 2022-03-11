@@ -36,7 +36,9 @@ import os
 import sys
 import stat
 import time
+import pathlib
 import tempfile
+import xml.dom.minidom
 
 # Needs MySQL-python RPM
 import MySQLdb
@@ -67,14 +69,162 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
+def cleanupNodeXML(node):
+  if node.nodeType == xml.dom.Node.TEXT_NODE \
+     and node.nodeValue.strip() == "":
+    node.nodeValue = ""
+  
+  for childNode in node.childNodes:
+    cleanupNodeXML(childNode)
+
+def processOneFileXML(sitesDict, fileName):
+  xmlDocument = xml.dom.minidom.parse(fileName)
+  cleanupNodeXML(xmlDocument)
+  xmlDocument.normalize()
+
+  xmlEntries = xmlDocument.firstChild.firstChild
+
+  for xmlEntry in xmlEntries.childNodes:
+
+    if xmlEntry.nodeType == xml.dom.Node.ELEMENT_NODE and \
+       xmlEntry.tagName == 'entry':
+
+      siteName  = None
+      voList    = []
+      entryDict = { 'entry_name'   : xmlEntry.getAttribute('name'),
+                    'processors'   : 1,
+                    'rss_bytes'    : 2147483648,
+                    'wall_seconds' : 86400
+                  }
+            
+      for xmlEntryChild in xmlEntry.childNodes:
+        if xmlEntryChild.nodeType == xml.dom.Node.ELEMENT_NODE and \
+           xmlEntryChild.tagName == 'attrs':
+
+          for xmlAttr in xmlEntryChild.childNodes:
+            
+            if xmlAttr.nodeType == xml.dom.Node.ELEMENT_NODE and \
+               xmlAttr.tagName == 'attr':
+               
+              name  = xmlAttr.getAttribute('name')
+              value = xmlAttr.getAttribute('value')
+               
+              if name == 'GLIDEIN_DUNESite':
+                siteName = xmlAttr.getAttribute('value')
+
+              elif name == 'GLIDEIN_CPUS':
+                try:
+                  entryDict['processors'] = int(xmlAttr.getAttribute('value'))
+                except:
+                  pass
+                
+              elif name == 'GLIDEIN_MaxMemMBs':
+                try:
+                  entryDict['rss_bytes'] = int(xmlAttr.getAttribute('value')) * 1048576
+                except:
+                  pass
+                
+              elif name == 'GLIDEIN_Max_Walltime':
+                try:
+                  entryDict['wall_seconds'] = int(xmlAttr.getAttribute('value'))
+                except:
+                  pass
+                
+              elif name == 'GLIDEIN_Supported_VOs':
+                voList = xmlAttr.getAttribute('value').split(',')
+
+      if siteName and ('DUNE' in voList):
+
+        if siteName not in sitesDict:
+          sitesDict[siteName] = []
+
+        sitesDict[siteName].append(entryDict)
+
+def buildSitesDict(sitesDict):
+
+  tmpDir = tempfile.TemporaryDirectory()
+  os.system('git clone https://github.com/opensciencegrid/osg-gfactory.git '
+             + tmpDir.name)
+
+  for fileName in os.listdir(tmpDir.name):
+    if fileName[-4:] == '.xml':
+      processOneFileXML(sitesDict, tmpDir.name + '/' + fileName)
+
 def updateSites():
   # Get info about sites the pilot factories know about
 
-  tmpDir = tempfile.TemporaryDirectory()
-  
-  os.system('git clone https://github.com/opensciencegrid/osg-gfactory.git ' + tmpDir.name)
+  sitesDict = {}               
+  buildSitesDict(sitesDict)
 
-# 
+  for siteName in sitesDict:
+    # Ensure the sites exists
+    query = ('INSERT INTO sites SET site_name="%s" '
+             'ON DUPLICATE KEY UPDATE site_name=site_name'
+               % siteName)
+
+    cur.execute(query)
+
+    for entry in sitesDict[siteName]:
+      query = ('INSERT INTO entries SET '
+               'entry_name="' + entry['entry_name'] + '",' +
+               'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
+                 siteName + '"),' +
+               'processors=' + str(entry['processors']) + ',' +   
+               'rss_bytes=' + str(entry['rss_bytes']) + ',' +   
+               'wall_seconds=' + str(entry['wall_seconds']) + ' ' +
+               'ON DUPLICATE KEY UPDATE '
+               'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
+                 siteName + '"),' +
+               'processors=' + str(entry['processors']) + ',' +
+               'rss_bytes=' + str(entry['rss_bytes']) + ',' +   
+               'wall_seconds=' + str(entry['wall_seconds'])
+              ) 
+
+      cur.execute(query)
+
+def updateSitesStorages(): 
+  # Update the matrix of sites to storage mappings
+
+  # For now, these are hardcoded but eventually they will come from CRIC
+  locations = { 'CERN,CERN_PDUNE_EOS'      : 'samesite',
+                'CZ_FZU,PRAGUE'            : 'samesite',
+                'UK_Manchester,MANCHESTER' : 'samesite',
+                'UK_Lancaster,LANCASTER'   : 'samesite',
+                'UK_QMUL,QMUL'             : 'samesite',
+                'UK_RAL-Tier1,RAL_ECHO'    : 'samesite',
+                'UK_RAL-PPD,RAL_ECHO'      : 'nearby',
+                'UK_RAL-Tier1,RAL_PPD'     : 'nearby',
+                'UK_RAL-PPD,RAL_PPD'       : 'samesite'
+              }
+
+  cur.execute('SELECT site_id,site_name FROM sites')
+  siteRows = cur.fetchall()
+  
+  cur.execute('SELECT rse_id,rse_name FROM storages')
+  storageRows = cur.fetchall()
+  
+  for siteRow in siteRows:
+    for storageRow in storageRows:
+      siteStorage = siteRow['site_name'] + ',' + storageRow['rse_name']    
+
+      if siteStorage in locations:
+        location = locations[siteStorage]
+      else:
+        location = 'accessible'
+
+      query = ('INSERT INTO sites_storages SET '
+               'location="' + location + '",' +
+               'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
+                 siteRow['site_name'] + '"),' +
+               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="' + 
+                 storageRow['rse_name'] + '") ' +
+               'ON DUPLICATE KEY UPDATE '
+               'location="' + location + '"'
+              ) 
+              
+      cur.execute(query)
+
+#  db.commit()
 
 def updateStorages():
   # Get info about storages Rucio knows about
@@ -128,6 +278,8 @@ def updateStorages():
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
 
+#  db.commit()
+
 def oneCycle():
 
   global cur
@@ -139,7 +291,7 @@ def oneCycle():
     lastUpdateStorages = 0
 
   if lastUpdateStorages + updateStoragesInterval < time.time():
-    open('/var/run/wfs/last-update-storages', 'a').close()
+    pathlib.Path('/var/run/wfs/last-update-storages').touch(exist_ok=True)
     updateStorages()
 
   # It is time to update sites from the OSG pilot factory config?
@@ -149,8 +301,9 @@ def oneCycle():
     lastUpdateSites = 0
 
   if lastUpdateSites + updateSitesInterval < time.time():
-    open('/var/run/wfs/last-update-sites', 'a').close()
+    pathlib.Path('/var/run/wfs/last-update-sites').touch(exist_ok=True)
     updateSites()
+    updateSitesStorages()
 
   db.commit()
 
