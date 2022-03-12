@@ -1,0 +1,254 @@
+#!/usr/bin/env python3
+#
+#  wfs-finder - WFs Finder agent
+# 
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-22. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer.
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+import os
+import sys
+import stat
+import time
+import pathlib
+import tempfile
+import xml.dom.minidom
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+# Installed by pip install of Rucio
+import rucio.client
+
+# wfs/conf.py must define these variables in a way that is both
+# valid Python and valid Bash!
+#
+# mysqlUser='username'
+# mysqlPassword='PAsSWoRd'
+#
+import wfs.conf
+
+findFilesInterval    = 3600
+findReplicasInterval = 3600
+
+sleepSeconds = 60
+
+db  = None
+cur = None
+
+class wfsError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+def findFiles():
+  # Find files to be processed for each request in the finding state
+  
+  # WE DO THIS FROM RUCIO FOR NOW, AND JUST WITH DATASETS
+  # THIS WILL BE REPLACED WITH QUERIES TO METACAT WITH ITS MQL QUERY API
+  # https://metacat.fnal.gov:9443/dune_meta_demo/app/static/docs/html/webapi.html
+  #
+  # ONLY MQLs OF THE FORM from files scope:name ARE SUPPORTED UNTIL THEN
+
+  try:
+    didClient = rucio.client.didclient.DIDClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+  
+  cur.execute('SELECT request_id,mql FROM requests WHERE state="finding"')
+  findingRequests = cur.fetchall()
+  
+  for request in findingRequests:
+  
+    mqlSplit = request['mql'].split()
+    
+    if len(mqlSplit) != 3 or mqlSplit[0] != 'from' or mqlSplit[1] != 'files':
+      continue
+      
+    datasetSplit = mqlSplit[2].split(':')
+    if len(datasetSplit) != 2:
+      continue
+
+    try:
+      didsList = didClient.list_files(datasetSplit[0], datasetSplit[1])
+    except Exception as e:
+      logLine("Reading RSE list from Rucio fails with: " + str(e))
+      return
+
+    for did in didsList:  
+      try:
+        query = ('INSERT INTO files SET '
+                 'request_id=' + str(request['request_id']) + ',' +
+                 'file_did="' + did + '"'
+                )
+
+        cur.execute(query)
+      except Exception as e:
+        logLine('Failed inserting DID')
+        return
+
+def oneCycle():
+
+  global cur
+
+  # Is it time to find files for requests?
+  try:
+    lastFindFiles = os.stat('/var/run/wfs/last-find-files').st_mtime
+  except:
+    lastFindFiles = 0
+
+  if lastFindFiles + findFilesInterval < time.time():
+    pathlib.Path('/var/run/wfs/last-find-files').touch(exist_ok=True)
+    findFiles()
+
+  # Is it time to find replicas for files?
+  try:
+    lastFindReplicas = os.stat('/var/run/wfs/last-find-replicas').st_mtime
+  except:
+    lastFindReplicas = 0
+
+  if lastFindReplicas + findReplicasInterval < time.time():
+    pathlib.Path('/var/run/wfs/last-find-replicas').touch(exist_ok=True)
+#    findReplicas()
+
+  db.commit()
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs('/var/run/wfs',         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open('/var/run/wfs/info-collector.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create /var/run/wfs/info-collector.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/wfs directory exists
+        try:
+          os.makedirs('/var/log/wfs', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/wfs/info-collector', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+
+        se = open('/var/log/wfs/info-collector', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open('/var/run/wfs/info-collector.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new /var/run/wfs-info-collector.pid - exiting')
+            break
+
+        except:
+          print('no /var/run/wfs/info-collector.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          try:
+            db  = MySQLdb.connect(host="localhost", 
+                                  user=wfs.conf.mysqlUser,
+                                  passwd=wfs.conf.mysqlPassword, 
+                                  db='wfdb')
+            db.autocommit(False)
+            cur = db.cursor(MySQLdb.cursors.DictCursor)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+

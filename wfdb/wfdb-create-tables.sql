@@ -69,7 +69,7 @@ DROP TABLE IF EXISTS `files`;
 CREATE TABLE `files` (
   `file_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `request_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
   `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
   `last_allocation_id` int(10) unsigned NOT NULL,
