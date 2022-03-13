@@ -54,8 +54,9 @@ import rucio.client
 #
 import wfs.conf
 
-findFilesInterval    = 3600
-findReplicasInterval = 3600
+findFilesInterval     = 3600
+findReplicasInterval  = 3600
+maxFileFindsPerCycle  = 10
 
 sleepSeconds = 60
 
@@ -88,10 +89,9 @@ def findFiles():
   findingRequests = cur.fetchall()
   
   for request in findingRequests:
-  
     mqlSplit = request['mql'].split()
     
-    if len(mqlSplit) != 3 or mqlSplit[0] != 'from' or mqlSplit[1] != 'files':
+    if len(mqlSplit) != 3 or mqlSplit[0] != 'files' or mqlSplit[1] != 'from':
       continue
       
     datasetSplit = mqlSplit[2].split(':')
@@ -108,13 +108,118 @@ def findFiles():
       try:
         query = ('INSERT INTO files SET '
                  'request_id=' + str(request['request_id']) + ',' +
-                 'file_did="' + did + '"'
+                 'file_did="' + did['scope'] + ':' + did['name'] + '"'
                 )
 
         cur.execute(query)
       except Exception as e:
         logLine('Failed inserting DID')
         return
+
+    # All files found for this request so update its state
+    try:
+      query = ('UPDATE requests SET state="running" WHERE request_id=' +
+               str(request['request_id']))
+
+      cur.execute(query)
+    except Exception as e:
+      logLine('Failed updating request ' + str(request['request_id']))
+
+  # All ok, so commit it all to the DB
+  db.commit()
+
+def findReplicas():
+  # Find replicas of files in the finding state
+
+  # Check we can talk to Rucio
+  try:
+    repClient = rucio.client.replicaclient.ReplicaClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+
+  # Cache rse_id of each known RSE into a local dictionary
+  storagesDict = {}
+  cur.execute('SELECT rse_name,rse_id FROM storages')
+  allStorages = cur.fetchall()
+  
+  for storageRow in allStorages:
+    storagesDict[storageRow['rse_name']] = storageRow['rse_id']
+ 
+  print(storagesDict)
+  # Make a list of up to maxFileFindsPerCycle files to work on 
+  didsList = []
+  query = ('SELECT request_id,stage_id,file_id,file_did FROM files '
+           'WHERE state="finding" AND NOW() > finding_retry_time '
+           'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
+  
+  cur.execute(query)
+  findingFiles = cur.fetchall()
+  
+  for fileRow in findingFiles:
+    didSplit = fileRow['file_did'].split(':')
+    didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
+
+  print(didsList)
+  # Make a dictionary with the replicas of all the file DIDs we asked about
+  repsDict = {}
+  try:
+    # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
+    repsList = repClient.list_replicas(didsList, schemes=['root'])
+  except Exception as e:
+    logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
+    return
+
+  for rep in repsList:  
+    repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
+
+  print(repsDict)
+  # Go back to our list of files in finding state and put replicas in DB
+  for fileRow in findingFiles:
+    print(fileRow)
+    if fileRow['file_did'] in repsDict:
+      
+      for rseName in repsDict[fileRow['file_did']]:
+        if rseName in storagesDict and repsDict[fileRow['file_did']][rseName]:
+                
+          print(repsDict[fileRow['file_did']])
+          try:
+            logLine('Inserting %s %s for %d,%d,%s' % 
+                    (rseName, repsDict[fileRow['file_did']],
+                     fileRow['request_id'], 
+                     fileRow['stage_id'], 
+                     fileRow['file_did']))            
+
+            query = ('INSERT INTO replicas SET '
+                     'rse_id=' + str(storagesDict[rseName]) + ','
+                     'file_id=' + str(fileRow['file_id']) + ',' 
+                     'pfn="' + repsDict[fileRow['file_did']][rseName][0] + '"'
+                    )
+                    
+            print(query)
+            cur.execute(query)
+          except Exception as e:
+            logLine('Failed inserting replica: ' + str(e))
+            # We give up if this happens, without the commit
+            return
+
+      # All replicas found for this file so update its state
+      try:
+        query = ('UPDATE files SET state="unallocated" WHERE file_id=' +
+                 str(fileRow['file_id']))
+
+        print(query)
+        cur.execute(query)
+      except Exception as e:
+        logLine('Failed updating file (' + 
+                str(fileRow['request_id']) + ',' + 
+                str(fileRow['stage_id']) +  ',' + 
+                fileRow['file_did'] + 
+                '): ' + str(e))
+        return
+
+  # All ok, so commit it all to the DB
+  db.commit()
 
 def oneCycle():
 
@@ -138,9 +243,7 @@ def oneCycle():
 
   if lastFindReplicas + findReplicasInterval < time.time():
     pathlib.Path('/var/run/wfs/last-find-replicas').touch(exist_ok=True)
-#    findReplicas()
-
-  db.commit()
+    findReplicas()
 
 #
 # PROGRAM MAIN
@@ -169,11 +272,11 @@ if __name__ == '__main__':
         pass
         
       try:
-        f = open('/var/run/wfs/info-collector.pid', 'w')
+        f = open('/var/run/wfs/finder.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/wfs/info-collector.pid - exiting')
+        print('Failed to create /var/run/wfs/finder.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -195,7 +298,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = open('/var/log/wfs/info-collector', 'a+')
+        so = open('/var/log/wfs/finder', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -203,21 +306,21 @@ if __name__ == '__main__':
           close(se)
         except:
           pass
-
-        se = open('/var/log/wfs/info-collector', 'a+')
+          
+        se = open('/var/log/wfs/finder', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/wfs/info-collector.pid', 'r')
+          pf = open('/var/run/wfs/finder.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new /var/run/wfs-info-collector.pid - exiting')
+            print('new /var/run/wfs/finder.pid - exiting')
             break
 
         except:
-          print('no /var/run/wfs/info-collector.pid - exiting')
+          print('no /var/run/wfs/finder.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle

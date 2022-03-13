@@ -315,7 +315,7 @@ def showStoragesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%-15s %.2f" % 
+    print("%-25s %.2f" % 
           (row['rse_name'], row['occupancy']))
    
   sys.exit(0)
