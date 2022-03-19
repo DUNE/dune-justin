@@ -162,7 +162,8 @@ CREATE TABLE `entries` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rss_bytes` bigint unsigned NOT NULL,
   `processors` tinyint unsigned NOT NULL,
-  `wall_seconds` mediumint unsigned NOT NULL,  
+  `wall_seconds` mediumint unsigned NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT '0',  
   PRIMARY KEY (`entry_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
