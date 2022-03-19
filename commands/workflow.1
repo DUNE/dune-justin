@@ -1,4 +1,4 @@
-.TH WORKFLOW  "2021" "workflow" "Vac Manual"
+.TH WORKFLOW  "2021" "workflow" "WFS Manual"
 .SH NAME
 .B workflow
 \- Workflow System utility command
@@ -20,6 +20,12 @@ Show help message and exit
 .B "-v, --verbose"
 .br
 Turn on verbose logging of the communication with the WFDB service.
+
+.HP 
+.B "--hostname HOSTNAME"
+.br
+Use an alternative Worklow Service, rather than wfs.dune.hep.ac.uk. This 
+option is only needed during development and testing.
 
 .SH SUBCOMMANDS
 
@@ -187,6 +193,18 @@ request ID, stage ID, file state, RSE name, and file DID are shown.
 Show jobs identified by Job ID or Request ID (and optionally Stage ID). Job 
 state can also be given to further filter the jobs listed. For each job,
 the Job ID, Request ID, Stage ID, State, and creation time are shown.
+
+.SH FILES
+
+An X.509 user proxy is currently needed to contact the Workflow Service,
+which is either given by 
+.B $X509_USER_PROXY 
+or 
+.B /tmp/x509up_uUSERID
+where 
+.B USERID
+is the numeric Unix user id, given by 
+.B id -u
 
 .SH AUTHOR
 Andrew McNab <Andrew.McNab@cern.ch>

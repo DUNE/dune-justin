@@ -173,15 +173,20 @@ if jsonDict['hostname']:
 else:
   c.setopt(c.URL, 'https://wfs.dune.hep.ac.uk/wfdb-cgi')
 
-c.setopt(c.POSTFIELDS, json.dumps(jsonDict))
-c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
-c.setopt(c.WRITEFUNCTION, body)
-c.setopt(c.USERAGENT, versionString)
-c.setopt(c.TIMEOUT, 30)
+if 'X509_USER_PROXY' in os.environ and os.environ['X509_USER_PROXY']:
+  x509UserProxy = os.environ['X509_USER_PROXY']
+else:
+  x509UserProxy = '/tmp/x509up_u%d' % os.getuid()
+
+c.setopt(c.SSLCERT,        x509UserProxy)
+c.setopt(c.SSLKEY,         x509UserProxy)
+c.setopt(c.CAINFO,         x509UserProxy)
+c.setopt(c.POSTFIELDS,     json.dumps(jsonDict))
+c.setopt(c.HTTPHEADER,     ['Content-Type: application/json'])
+c.setopt(c.WRITEFUNCTION,  body)
+c.setopt(c.USERAGENT,      versionString)
+c.setopt(c.TIMEOUT,        30)
 c.setopt(c.FOLLOWLOCATION, False)
-c.setopt(c.SSLCERT, '/tmp/x509up_u54145')
-c.setopt(c.SSLKEY, '/tmp/x509up_u54145')
-c.setopt(c.CAINFO, '/tmp/x509up_u54145')
 c.setopt(c.SSL_VERIFYPEER, 1)
 c.setopt(c.SSL_VERIFYHOST, 2)
 
