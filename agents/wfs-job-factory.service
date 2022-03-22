@@ -1,0 +1,12 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=WFS Job Factory daemon
+Documentation=man:wfs-job-factory(8)
+
+[Service]
+Type=forking
+PIDFile=/var/run/wfs/job-factory.pid
+ExecStart=/usr/sbin/wfs-job-factory
+
+[Install]
+#WantedBy=multi-user.target

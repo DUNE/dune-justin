@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  wfs-info-collector - WFs Info Collector agent
+#  wfs-info-collector - WFS Info Collector agent
 # 
 #  Andrew McNab, University of Manchester.
 #  Copyright (c) 2013-22. All rights reserved.
@@ -325,8 +325,6 @@ def updateStorages():
 #  db.commit()
 
 def oneCycle():
-
-  global cur
 
   # Is it time to update users?
   try:

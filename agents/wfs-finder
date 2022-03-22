@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  wfs-finder - WFs Finder agent
+#  wfs-finder - WFS Finder agent
 # 
 #  Andrew McNab, University of Manchester.
 #  Copyright (c) 2013-22. All rights reserved.
@@ -222,8 +222,6 @@ def findReplicas():
   db.commit()
 
 def oneCycle():
-
-  global cur
 
   # Is it time to find files for requests?
   try:
