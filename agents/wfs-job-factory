@@ -50,10 +50,6 @@ import MySQLdb
 #
 import wfs.conf
 
-findFilesInterval     = 3600
-findReplicasInterval  = 3600
-maxFileFindsPerCycle  = 10
-
 sleepSeconds = 60
 
 db  = None
@@ -69,13 +65,13 @@ def logLine(text):
 def submitToEntry(numberToSubmit, entryRow):
 
   try: 
-    outcome = subprocess.run(["/var/lib/wfs/job-factory/submit_to_entry",
+    outcome = subprocess.run(["/var/lib/wfs/job-factory/submit-jobs",
                               str(numberToSubmit),
-                              entryRow['site_name'], 
-                              entryRow['entry_name'],
+                              entryRow['jobsub_site_name'], 
                               entryRow['rss_bytes'] / 1024,
                               entryRow['processors'],
-                              entryRow['wall_seconds']
+                              entryRow['wall_seconds'],
+                              '/var/lib/wfs/job-factory/wfs-generic-job'
                              ], 
                              capture_output = True,
                              stdin   = subprocess.DEVNULL,
@@ -93,7 +89,7 @@ def submitToEntry(numberToSubmit, entryRow):
   
   for line in outcome.stdout.splitlines():
     if line.startswith("Use job id "):
-      majorJobsubJobID      = line.split(' ')[4].split('.')[0]
+      majorJobsubJobID = line.split(' ')[4].split('.')[0]
       break
    
   if not majorJobsubJobID:
@@ -146,7 +142,7 @@ def oneCycle():
     pass
 
   try:
-    cur.execute('SELECT sites.site_id,site_name,entry_name,'
+    cur.execute('SELECT sites.site_id,site_name,jobsub_site_name,entry_name,'
                 'rss_bytes,processors,wall_seconds '
                 'FROM sites '
                 'LEFT JOIN entries ON sites.site_id=entries.site_id '

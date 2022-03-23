@@ -4,7 +4,7 @@
 # Workflow Allocator
 #
 
-echo '====Start of genericjob.sh===='
+echo '====Start of wfs-generic-job===='
 
 date
 printenv
@@ -14,8 +14,8 @@ ls -lR
 # Used by bootstrap script to find files from this generic job
 export WFS_PATH=`pwd`
 
-# Create the get-file command
-base64 -d <<EOF > $WFS_PATH/get-file
+# Create the wfs-get-file command
+base64 -d <<EOF > $WFS_PATH/wfs-get-file
 IyEvYmluL3NoCiMKIyBTY3JpcHQgZm9yIHVzZSB3aXRoaW4gYm9vdHN0cmFwIHNjcmlwdCB0byBn
 ZXQgdGhlIERJRCwgUEZOLCBhbmQgUlNFCiMgb2YgYSBmaWxlIHRvIHByb2Nlc3Mgd2l0aGluIHRo
 ZSBzdGFnZSBhc3NpZ25lZCB0byB0aGUgam9iLgojCiMgQm9vdHN0cmFwIHNjcmlwdHMgY2FuIGV4
@@ -41,7 +41,7 @@ RklMRV9UTVAgPiYyCiBlY2hvICJnZXQtZmlsZSBmYWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9j
 b2RlIGZyb20gYWxsb2NhdG9yISIgPiYyCiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9U
 TVAKZXhpdCAkcmV0Y29kZQo=
 EOF
-chmod +x $WFS_PATH/get-file
+chmod +x $WFS_PATH/wfs-get-file
 
 # Assemble values we will need 
 export jobsub_id="$JOBSUBJOBID"
@@ -195,4 +195,4 @@ https://wfs.dune.hep.ac.uk/wfa-cgi`
 echo "return_results returns HTTP code $http_code"
 cat return-results.txt
 
-echo '====End of genericjob.sh===='
+echo '====End of wfs-generic-job===='

@@ -155,6 +155,9 @@ def processOneFileXML(sitesDict, fileName):
               if name == 'GLIDEIN_DUNESite':
                 siteName = xmlAttr.getAttribute('value')
 
+              elif name == 'GLIDEIN_Site':
+                jobsubSiteName = xmlAttr.getAttribute('value')
+
               elif name == 'GLIDEIN_CPUS':
                 try:
                   entryDict['processors'] = int(xmlAttr.getAttribute('value'))
@@ -202,9 +205,9 @@ def updateSites():
 
   for siteName in sitesDict:
     # Ensure the sites exists
-    query = ('INSERT INTO sites SET site_name="%s" '
-             'ON DUPLICATE KEY UPDATE site_name=site_name'
-               % siteName)
+    query = ('INSERT INTO sites SET site_name="%s",jobsub_site_name="%s" '
+             'ON DUPLICATE KEY UPDATE jobsub_site_name="%s"',
+               % (siteName, sitesDict['jobsub_site_name']))
 
     cur.execute(query)
 

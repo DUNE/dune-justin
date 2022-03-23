@@ -166,6 +166,7 @@ DROP TABLE IF EXISTS `sites`;
 CREATE TABLE `sites` (
   `site_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_name` varchar(255) NOT NULL,
+  `jobsub_site_name` varchar(255) NOT NULL,
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
