@@ -68,7 +68,8 @@ allocatorName = None
 # used in subsequent queries
 def makeQueryTerms(jsonDict, job):
 
-  query = ('SELECT sites_storages.rse_id,location,rse_name,occupancy '
+  query = ('SELECT sites_storages.rse_id,location,rse_name,'
+           'occupancy '
            'FROM sites_storages '
            'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
            'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
@@ -189,45 +190,46 @@ def findStage(queryTerms, job):
 def findJob(jsonDict):
 
   try:
-    jobID  = int(jsonDict['job_id'])
+    wfsJobID  = int(jsonDict['wfs_job_id'])
     cookie = str(jsonDict['cookie'])
   except:
     return None
 
   # Find the job info and the stage's any_location flag
   try:
-    query = ('SELECT jobs.request_id,'
-             'jobs.stage_id,'
-             'jobs.state,'
-             'jobs.site_name,'
-             'jobs.hostname,'
-             'jobs.cpuinfo,'
-             'jobs.os_release,'
-             'jobs.rss_bytes,'
-             'jobs.processors,'
-             'jobs.wall_seconds,'
+    query = ('SELECT allocated_jobs.request_id,'
+             'allocated_jobs.stage_id,'
+             'allocated_jobs.state,'
+             'sites.site_name,'
+             'allocated_jobs.hostname,'
+             'allocated_jobs.cpuinfo,'
+             'allocated_jobs.os_release,'
+             'allocated_jobs.rss_bytes,'
+             'allocated_jobs.processors,'
+             'allocated_jobs.wall_seconds,'
              'stages.any_location '
-             'FROM jobs '
-             'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
-             'WHERE jobs.job_id=' + str(jobID) + ' AND ' +
-             'jobs.cookie="' + cookie + '"')
+             'FROM allocated_jobs '
+             'LEFT JOIN sites ON allocated_jobs.site_id=sites.site_id '
+             'LEFT JOIN stages ON allocated_jobs.stage_id=stages.stage_id '
+             'WHERE allocated_jobs.wfs_job_id=' + str(wfsJobID) + ' AND ' +
+             'allocated_jobs.cookie="' + cookie + '"')
 
     cur.execute(query)
     rows=cur.fetchall()
     
-    job = { 'job_id'       : jobID,
-            'cookie'       : cookie,
-            'request_id'   : int(rows[0]['request_id']),
-            'stage_id'     : int(rows[0]['stage_id']),
-            'state'        : rows[0]['state'],
-            'site_name'    : rows[0]['site_name'],
-            'hostname'     : rows[0]['hostname'],
-            'cpuinfo'      : rows[0]['cpuinfo'],
-            'os_release'   : rows[0]['os_release'],
-            'rss_bytes'    : int(rows[0]['rss_bytes']),
-            'processors'   : int(rows[0]['processors']),
-            'wall_seconds' : int(rows[0]['wall_seconds']),
-            'any_location' : bool(rows[0]['any_location'])
+    job = { 'wfs_job_id' : wfsJobID,
+            'cookie'           : cookie,
+            'request_id'       : int(rows[0]['request_id']),
+            'stage_id'         : int(rows[0]['stage_id']),
+            'state'            : rows[0]['state'],
+            'site_name'        : rows[0]['site_name'],
+            'hostname'         : rows[0]['hostname'],
+            'cpuinfo'          : rows[0]['cpuinfo'],
+            'os_release'       : rows[0]['os_release'],
+            'rss_bytes'        : int(rows[0]['rss_bytes']),
+            'processors'       : int(rows[0]['processors']),
+            'wall_seconds'     : int(rows[0]['wall_seconds']),
+            'any_location'     : bool(rows[0]['any_location'])
           }
           
     return job
@@ -280,7 +282,7 @@ queryTerms["storageOrder"] + "files.file_id"
   try: 
     query = ("INSERT INTO allocations SET allocated_time=NOW(),"
              "rse_id=" + str(fileRows[0]['rse_id']) + ","
-             "job_id=" + str(job['job_id']) + ","
+             "wfs_job_id=" + str(job['wfs_job_id']) + ","
              "file_id=" + str(fileRows[0]['file_id'])
             )
     cur.execute(query)
@@ -338,7 +340,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(queryTerms, stage, jobID, cookie):
+def makeTarFile(queryTerms, stage, wfsJobID, cookie):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -370,7 +372,7 @@ def makeTarFile(queryTerms, stage, jobID, cookie):
 
   addFileToTarFile(tar, 'wfs-env.sh', 
        (
-         'export WFS_JOB_ID=' + str(jobID) + '\n' +
+         'export WFS_JOB_ID=' + str(wfsJobID) + '\n' +
          'export WFS_REQUEST_ID=' + str(stage['request_id']) + '\n' +
          'export WFS_STAGE_ID=' + str(stage['stage_id']) + '\n' +
          'export WFS_COOKIE="' + cookie + '"\n' +
@@ -382,7 +384,7 @@ def makeTarFile(queryTerms, stage, jobID, cookie):
        (
          '{\n' +
          '"method" : "get_file",\n' +
-         '"job_id" : ' + str(jobID) + ',\n' +
+         '"wfs_job_id" : ' + str(wfsJobID) + ',\n' +
          '"cookie" : "' + cookie + '"\n' 
          '}\n'
        )
@@ -397,7 +399,7 @@ def getStageMethod(jsonDict, jobUserID):
   job = {}
 
   # Check jsonDict contains required string values (eg site_name)
-  for name in ['job_name', 'site_name', 'cpuinfo', 'os_release', 'hostname']:
+  for name in ['jobsub_id', 'site_name', 'cpuinfo', 'os_release', 'hostname']:
     if name not in jsonDict:
       print('Status: 400 Bad Request')
       print()
@@ -431,24 +433,27 @@ def getStageMethod(jsonDict, jobUserID):
     print('No eligible stages found')
     sys.exit(0)
 
-  cookie  = str(uuid.uuid4())
+  cookie = str(uuid.uuid4())
 
   try:
-    query = ('INSERT INTO jobs SET '
-             'started_time=NOW(),' +
-             'allocator_name="' + allocatorName + '",' +
-             'job_name="' + job['job_name'] + '",' +
+    query = ('INSERT INTO allocated_jobs SET '
+             'started_time=NOW(),' 
+             'allocator_name="' + allocatorName + '",' 
+             'jobsub_id="' + job['jobsub_id'] + '",'              
              'request_id=' + str(stage['request_id']) + ','
              'stage_id=' + str(stage['stage_id']) + ','
-             'site_name="' + job['site_name'] + '",' +
-             'cpuinfo="' + job['cpuinfo'] + '",' +
-             'os_release="' + job['os_release'] + '",' +
-             'hostname="' + job['hostname'] + '",' + 
-             'rss_bytes=' + str(job['rss_bytes']) + ',' +
-             'processors=' + str(job['processors']) + ',' +
-             'wall_seconds=' + str(job['wall_seconds']) + ',' +
-             'job_user_id=' + str(jobUserID) + ',' +
-             'cookie="' + cookie + '"'
+             'cpuinfo="' + job['cpuinfo'] + '",' 
+             'os_release="' + job['os_release'] + '",' 
+             'hostname="' + job['hostname'] + '",' 
+             'rss_bytes=' + str(job['rss_bytes']) + ',' 
+             'processors=' + str(job['processors']) + ',' 
+             'wall_seconds=' + str(job['wall_seconds']) + ',' 
+             'job_user_id=' + str(jobUserID) + ',' 
+             'cookie="' + cookie + '",' 
+             'site_id=(SELECT site_id FROM sites ' 
+                      'WHERE site_name="' + job['site_name'] + "),'
+             'submission_id=(SELECT submission_id FROM submitted_jobs ' 
+                      'WHERE jobsub_id="' + job['jobsub_id'] + ")'
             )
     cur.execute(query)
   except:
@@ -458,9 +463,20 @@ def getStageMethod(jsonDict, jobUserID):
     print('Workflow allocator failed')
     sys.exit(0)
 
-  jobID = cur.lastrowid
+  wfsJobID = cur.lastrowid
 
-  tarFile = makeTarFile(queryTerms, stage, jobID, cookie)
+  try:
+    query = ('UPDATE submitted_jobs SET allocated=TRUE '
+             'WHERE jobsub_id="' + job['jobsub_id'] + '"')
+             
+    cur.execute(query)
+    
+  except Exception as e:
+    # We log this but carry on - someone testing?
+    logLine('Update of submitted_jobs from ' + job['jobsub_id'] + ' fails: '
+            + str(e))
+
+  tarFile = makeTarFile(queryTerms, stage, wfsJobID, cookie)
         
   # All done so commit the job details.
   # We do this before the HTTP response in case
@@ -497,8 +513,8 @@ def getFileMethod(jsonDict):
   if oneFile:
     if job['state'] == 'started':
       try:
-        query = ('UPDATE jobs SET state="processing" ' +
-                 'WHERE job_id=' + str(job['job_id'])
+        query = ('UPDATE allocated_jobs SET state="processing" ' +
+                 'WHERE wfs_job_id=' + str(job['wfs_job_id'])
                 )
         cur.execute(query)
       except:
@@ -559,12 +575,12 @@ def updateFileProcessing(fileList, state, job):
       try:
         query = ('UPDATE allocations SET processed=TRUE,'
                  'processed_time=NOW() '
-                 'WHERE job_id=%s AND '
+                 'WHERE wfs_job_id=%s AND '
                  'allocations.file_id IN (SELECT files.file_id FROM files '
                  'WHERE files.request_id=%s AND files.stage_id=%s '
                  'AND (%s)) '
                  'ORDER BY allocation_id DESC LIMIT 1'
-                 % (str(job['job_id']), 
+                 % (str(job['wfs_job_id']), 
                     str(job['request_id']),
                     str(job['stage_id']),
                     ' OR '.join(processedList)))
@@ -625,7 +641,7 @@ def updateStageCounts(job):
                 
 def resultsMethod(jsonDict):
 
-  # Check jsonDict contains required values (eg job_name)
+  # Check jsonDict contains required values (eg cookie)
   for name in ['cookie', 'processed_inputs', 
                'unprocessed_inputs', 'next_stage_outputs']:
     if name not in jsonDict:
@@ -651,8 +667,8 @@ def resultsMethod(jsonDict):
   updateStageCounts(job)
 
   try:
-    query = ('UPDATE jobs SET state="finished",finished_time=NOW() ' +
-             'WHERE job_id=' + str(job['job_id'])
+    query = ('UPDATE allocated_jobs SET state="finished",finished_time=NOW() ' +
+             'WHERE wfs_job_id=' + str(job['wfs_job_id'])
             )
     cur.execute(query)
   except:

@@ -14,8 +14,37 @@ ls -lR
 # Used by bootstrap script to find files from this generic job
 export WFS_PATH=`pwd`
 
+# Create the get-file command
+base64 -d <<EOF > $WFS_PATH/get-file
+IyEvYmluL3NoCiMKIyBTY3JpcHQgZm9yIHVzZSB3aXRoaW4gYm9vdHN0cmFwIHNjcmlwdCB0byBn
+ZXQgdGhlIERJRCwgUEZOLCBhbmQgUlNFCiMgb2YgYSBmaWxlIHRvIHByb2Nlc3Mgd2l0aGluIHRo
+ZSBzdGFnZSBhc3NpZ25lZCB0byB0aGUgam9iLgojCiMgQm9vdHN0cmFwIHNjcmlwdHMgY2FuIGV4
+ZWN1dGUgdGhpcyBzY3JpcHQgYXM6ICRXRlNfUEFUSC9nZXQtZmlsZQojCiMgRXJyb3IgbWVzc2Fn
+ZXMgdG8gc3RkZXJyCiMgRElEIFBGTiBSU0UgdG8gc3Rkb3V0IG9uIG9uZSBsaW5lIGlmIGEgZmls
+ZSBpcyBhdmFpbGFibGUKIwojIFRoaXMgc2NyaXB0IG11c3QgYmUgY29udmVydGVkIHRvIGJhc2U2
+NCB3aXRoIHNvbWV0aGluZyBsaWtlIHRoZSBmb2xsb3dpbmcgCiMgYW5kIGluY2x1ZGVkIGluIHRo
+ZSBoZXJlIGRvY3VtZW50IG5lYXIgdGhlIHN0YXJ0IG9mIGdlbmVyaWNqb2Iuc2ggOgojCiMgKG1h
+Y09TKSBiYXNlNjQgLWIgNzYgZ2V0LWZpbGUgPiBnZXQtZmlsZS5iNjQKIyAoTGludXgpIGJhc2U2
+NCAgICAgICBnZXQtZmlsZSA+IGdldC1maWxlLmI2NAoKaWYgWyAhIC1yICIkV0ZTX1BBVEgvd2Zz
+LWdldC1maWxlLmpzb24iIF0gOyB0aGVuCiAgZWNobyAiJFdGU19QQVRIL3dmcy1nZXQtZmlsZS5q
+c29uIG5vdCBmb3VuZCEiID4mMgogIGV4aXQgMgpmaQoKR0VUX0ZJTEVfVE1QPWBta3RlbXAgL3Rt
+cC93ZnNfZ2V0X2ZpbGVfWFhYWFhYYAoKaHR0cF9jb2RlPWBjdXJsIFwKLS1oZWFkZXIgIlgtSm9i
+aWQ6ICRKT0JTVUJKT0JJRCIgXAotLWhlYWRlciAiQWNjZXB0OiB0ZXh0L3BsYWluIiBcCi0tY2Fw
+YXRoICR7WDUwOV9DRVJUSUZJQ0FURVM6LS9ldGMvZ3JpZC1zZWN1cml0eS9jZXJ0aWZpY2F0ZXMv
+fSBcCi0tZGF0YSBAJFdGU19QQVRIL3dmcy1nZXQtZmlsZS5qc29uIFwKLS1vdXRwdXQgJEdFVF9G
+SUxFX1RNUCBcCi0td3JpdGUtb3V0ICIle2h0dHBfY29kZX1cbiIgXApodHRwczovL3dmcy1kZXYu
+ZHVuZS5oZXAuYWMudWsvd2ZhLWNnaWAKCmlmIFsgIiRodHRwX2NvZGUiID0gMjAwIF0gOyB0aGVu
+CiBjYXQgJEdFVF9GSUxFX1RNUAogcmV0Y29kZT0wCmVsaWYgWyAiJGh0dHBfY29kZSIgPSA0MDQg
+XSA7IHRoZW4gCiBlY2hvICJObyBmaWxlcyBhdmFpbGFibGUgZnJvbSB0aGlzIHN0YWdlIiA+JjIK
+IHJldGNvZGU9MQplbHNlCiBlY2hvICJnZXRfZmlsZSByZWNlaXZlczoiID4mMgogY2F0ICRHRVRf
+RklMRV9UTVAgPiYyCiBlY2hvICJnZXQtZmlsZSBmYWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9j
+b2RlIGZyb20gYWxsb2NhdG9yISIgPiYyCiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9U
+TVAKZXhpdCAkcmV0Y29kZQo=
+EOF
+chmod +x $WFS_PATH/get-file
+
 # Assemble values we will need 
-export job_name="$JOBSUBJOBID"
+export jobsub_id="$JOBSUBJOBID"
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
@@ -39,18 +68,11 @@ if [ $? -ne 0 ] ; then
  exit
 fi
 
-cp -f $CONDOR_DIR_INPUT/get-file $WFS_PATH
-
-if [ ! -f $WFS_PATH/get-file -o ! -x $WFS_PATH/get-file ] ; then
- echo "$WFS_PATH/get-file missing or not executable"
- exit
-fi
-
 # Create the JSON to send to the allocator
 cat <<EOF >wfs-get-stage.json
 {
   "method"      : "get_stage",
-  "job_name"    : "$job_name",
+  "jobsub_id"   : "$jobsub_id",
   "site_name"   : "$site_name",
   "cpuinfo"     : "$cpuinfo",
   "os_release"  : "$os_release",
@@ -67,7 +89,7 @@ echo '====end wfs-get-stage.json===='
 
 # Make the call to the Workflow Allocator
 http_code=`curl \
---header "X-Jobid: $jobname" \
+--header "X-Jobid: $jobsub_id" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
@@ -75,7 +97,7 @@ http_code=`curl \
 --data @wfs-get-stage.json \
 --output wfs-files.tar \
 --write-out "%{http_code}\n" \
-https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
+https://wfs.dune.hep.ac.uk/wfa-cgi`
 
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
@@ -151,7 +173,7 @@ unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\
 cat <<EOF >wfs-return-results.json
 {
   "method": "return_results",
-  "job_id": $WFS_JOB_ID,
+  "wfs_job_id": $WFS_JOB_ID,
   "cookie": "$WFS_COOKIE",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
@@ -168,7 +190,7 @@ http_code=`curl \
 --data @wfs-return-results.json \
 --output return-results.txt \
 --write-out "%{http_code}\n" \
-https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
+https://wfs.dune.hep.ac.uk/wfa-cgi`
 
 echo "return_results returns HTTP code $http_code"
 cat return-results.txt

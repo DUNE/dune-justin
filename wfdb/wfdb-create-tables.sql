@@ -34,22 +34,40 @@ CREATE TABLE `bootstraps` (
 -- Table structure for table `jobs`
 --
 
-DROP TABLE IF EXISTS `jobs`;
+DROP TABLE IF EXISTS `submitted_jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobs` (
-  `job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+CREATE TABLE `submitted_jobs` (
+  `submission_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `factory_name` varchar(255) NOT NULL,
+  `submitted_time` datetime NOT NULL,
+  `jobsub_id` varchar(255) NOT NULL,
+  `site_id` smallint(5) unsigned NOT NULL,
+  `entry_id` smallint(5) unsigned NOT NULL,
+  `allocated` tinyint(1) NOT NULL DEFAULT '0', 
+  PRIMARY KEY (`submitted_job_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `jobs`
+--
+
+DROP TABLE IF EXISTS `allocated_jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `allocated_jobs` (
+  `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `submission_id` int(10) unsigned,
   `factory_name` varchar(255) NOT NULL,
   `allocator_name` varchar(255) NOT NULL,
-  `submitted_time` datetime NOT NULL,
   `started_time` datetime NOT NULL,
   `finished_time` datetime NOT NULL,
   `state` enum('submitted','started','processing','finished') NOT NULL DEFAULT 'submitted',
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `job_name` varchar(255) NOT NULL,
+  `jobsub_id` varchar(255) NOT NULL,
   `site_id` smallint(5) unsigned NOT NULL,
-  `entry_id` smallint(5) unsigned NOT NULL,
   `hostname` varchar(255) NOT NULL,
   `cpuinfo` varchar(255) NOT NULL,
   `os_release` varchar(255) NOT NULL,
@@ -58,7 +76,7 @@ CREATE TABLE `jobs` (
   `wall_seconds` mediumint unsigned NOT NULL,
   `cookie` varchar(255) NOT NULL,
   `job_user_id` smallint(5) unsigned,
-  PRIMARY KEY (`job_id`)
+  PRIMARY KEY (`wfs_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -91,7 +109,7 @@ DROP TABLE IF EXISTS `allocations`;
 CREATE TABLE `allocations` (
   `allocation_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `file_id` int(10) unsigned NOT NULL,
-  `job_id` int(10) unsigned NOT NULL,
+  `wfs_job_id` int(10) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
   `allocated_time` datetime NOT NULL,
   `processed_time` datetime NOT NULL,

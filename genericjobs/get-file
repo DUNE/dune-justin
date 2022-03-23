@@ -8,6 +8,11 @@
 # Error messages to stderr
 # DID PFN RSE to stdout on one line if a file is available
 #
+# This script must be converted to base64 with something like the following 
+# and included in the here document near the start of genericjob.sh :
+#
+# (macOS) base64 -b 76 get-file > get-file.b64
+# (Linux) base64       get-file > get-file.b64
 
 if [ ! -r "$WFS_PATH/wfs-get-file.json" ] ; then
   echo "$WFS_PATH/wfs-get-file.json not found!" >&2

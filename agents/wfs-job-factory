@@ -36,9 +36,8 @@ import os
 import sys
 import stat
 import time
-import pathlib
 import tempfile
-import xml.dom.minidom
+import subprocess
 
 # Needs MySQL-python RPM
 import MySQLdb
@@ -66,17 +65,85 @@ class wfsError(Exception):
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
+
+def submitToEntry(numberToSubmit, entryRow):
+
+  try: 
+    outcome = subprocess.run(["/var/lib/wfs/job-factory/submit_to_entry",
+                              str(numberToSubmit),
+                              entryRow['site_name'], 
+                              entryRow['entry_name'],
+                              entryRow['rss_bytes'] / 1024,
+                              entryRow['processors'],
+                              entryRow['wall_seconds']
+                             ], 
+                             capture_output = True,
+                             stdin   = subprocess.DEVNULL,
+                             stderr  = subprocess.STDOUT,
+                             timeout = 60
+                            ) 
+  except Exception as e:
+    logLine("submit_to_entry fails with error: " + str(e))
+    return
+
+  logLine(outcome.stdout)
+
+  # Scrape the stdout to find the Jobsub job ID
+  majorJobsubJobID = None
   
+  for line in outcome.stdout.splitlines():
+    if line.startswith("Use job id "):
+      majorJobsubJobID      = line.split(' ')[4].split('.')[0]
+      break
+   
+  if not majorJobsubJobID:
+    # What??
+    logLine("Jobsub job ID not found after submitting job(s)!")
+    return
+
+  # Record the job(s) in the database
+  for i in range(0, numberToSubmit):
+    try:
+      cur.execute('INSERT INTO submitted_jobs '
+                  'SET factory_name="%s",'
+                  'site_id=%d,'
+                  'entry_id=%d,'
+                  'submitted_time=NOW(),'
+                  'jobsub_id="%s.%d"'
+                  % (os.uname()[1],
+                     entryRow['site_id'],
+                     entryRow['entry_id'],
+                     majorJobsubJobID, i)
+                 )
+
+    except Exception as e:
+      # But try to keep going
+      logLine('INSERT INTO jobs fails with: ' + str(e))
+
+  # Commit it all to the DB
+  db.commit()
+
 def processOneEntry(entryRow):
   # Decide how many jobs to submit, targetted at this entry
   # and submit them with jobsub_submit
 
   logLine(str(entryRow))
+  
+  # Decide whether to submit, somehow...
+  numberToSubmit = 1
 
-  # All ok, so commit it all to the DB
-  db.commit()
+  # 
+  submitToEntry(numberToSubmit, entryRow)
 
 def oneCycle():
+
+  try:
+    os.makedirs('/var/spool/wfs',
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+  except:
+    # Probably already exists. Catch other problems later.
+    pass
 
   try:
     cur.execute('SELECT sites.site_id,site_name,entry_name,'
