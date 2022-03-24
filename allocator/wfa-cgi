@@ -197,22 +197,22 @@ def findJob(jsonDict):
 
   # Find the job info and the stage's any_location flag
   try:
-    query = ('SELECT allocated_jobs.request_id,'
-             'allocated_jobs.stage_id,'
-             'allocated_jobs.state,'
+    query = ('SELECT wfs_jobs.request_id,'
+             'wfs_jobs.stage_id,'
+             'wfs_jobs.state,'
              'sites.site_name,'
-             'allocated_jobs.hostname,'
-             'allocated_jobs.cpuinfo,'
-             'allocated_jobs.os_release,'
-             'allocated_jobs.rss_bytes,'
-             'allocated_jobs.processors,'
-             'allocated_jobs.wall_seconds,'
+             'wfs_jobs.hostname,'
+             'wfs_jobs.cpuinfo,'
+             'wfs_jobs.os_release,'
+             'wfs_jobs.rss_bytes,'
+             'wfs_jobs.processors,'
+             'wfs_jobs.wall_seconds,'
              'stages.any_location '
-             'FROM allocated_jobs '
-             'LEFT JOIN sites ON allocated_jobs.site_id=sites.site_id '
-             'LEFT JOIN stages ON allocated_jobs.stage_id=stages.stage_id '
-             'WHERE allocated_jobs.wfs_job_id=' + str(wfsJobID) + ' AND ' +
-             'allocated_jobs.cookie="' + cookie + '"')
+             'FROM wfs_jobs '
+             'LEFT JOIN sites ON wfs_jobs.site_id=sites.site_id '
+             'LEFT JOIN stages ON wfs_jobs.stage_id=stages.stage_id '
+             'WHERE wfs_jobs.wfs_job_id=' + str(wfsJobID) + ' AND ' +
+             'wfs_jobs.cookie="' + cookie + '"')
 
     cur.execute(query)
     rows=cur.fetchall()
@@ -436,7 +436,7 @@ def getStageMethod(jsonDict, jobUserID):
   cookie = str(uuid.uuid4())
 
   try:
-    query = ('INSERT INTO allocated_jobs SET '
+    query = ('INSERT INTO wfs_jobs SET '
              'started_time=NOW(),' 
              'allocator_name="' + allocatorName + '",' 
              'jobsub_id="' + job['jobsub_id'] + '",'              
@@ -452,7 +452,7 @@ def getStageMethod(jsonDict, jobUserID):
              'cookie="' + cookie + '",' 
              'site_id=(SELECT site_id FROM sites ' 
                       'WHERE site_name="' + job['site_name'] + "),'
-             'submission_id=(SELECT submission_id FROM submitted_jobs ' 
+             'submission_id=(SELECT submission_id FROM jobsub_jobs ' 
                       'WHERE jobsub_id="' + job['jobsub_id'] + ")'
             )
     cur.execute(query)
@@ -466,14 +466,14 @@ def getStageMethod(jsonDict, jobUserID):
   wfsJobID = cur.lastrowid
 
   try:
-    query = ('UPDATE submitted_jobs SET allocated=TRUE '
+    query = ('UPDATE jobsub_jobs SET allocated=TRUE '
              'WHERE jobsub_id="' + job['jobsub_id'] + '"')
              
     cur.execute(query)
     
   except Exception as e:
     # We log this but carry on - someone testing?
-    logLine('Update of submitted_jobs from ' + job['jobsub_id'] + ' fails: '
+    logLine('Update of jobsub_jobs from ' + job['jobsub_id'] + ' fails: '
             + str(e))
 
   tarFile = makeTarFile(queryTerms, stage, wfsJobID, cookie)
@@ -513,7 +513,7 @@ def getFileMethod(jsonDict):
   if oneFile:
     if job['state'] == 'started':
       try:
-        query = ('UPDATE allocated_jobs SET state="processing" ' +
+        query = ('UPDATE wfs_jobs SET state="processing" ' +
                  'WHERE wfs_job_id=' + str(job['wfs_job_id'])
                 )
         cur.execute(query)
@@ -667,7 +667,7 @@ def resultsMethod(jsonDict):
   updateStageCounts(job)
 
   try:
-    query = ('UPDATE allocated_jobs SET state="finished",finished_time=NOW() ' +
+    query = ('UPDATE wfs_jobs SET state="finished",finished_time=NOW() ' +
              'WHERE wfs_job_id=' + str(job['wfs_job_id'])
             )
     cur.execute(query)

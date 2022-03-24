@@ -5,13 +5,4 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup jobsub_client
 setup cigetcert
 
-jobsub_submit \
-  --debug \
-  --N ${1} \
-  --site ${2} \
-  --memory ${4}KB \
-  --cpu ${5} \
-  --expected-lifetime=${6}s \
-  --group dune \
-  --resource-provides=usage_model=OFFSITE \
-  file://$7
+jobsub_history --user amcnab

@@ -100,7 +100,7 @@ def submitToEntry(numberToSubmit, entryRow):
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
-      cur.execute('INSERT INTO submitted_jobs '
+      cur.execute('INSERT INTO jobsub_jobs '
                   'SET factory_name="%s",'
                   'site_id=%d,'
                   'entry_id=%d,'

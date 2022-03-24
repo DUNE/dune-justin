@@ -31,32 +31,32 @@ CREATE TABLE `bootstraps` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `jobs`
+-- Table structure for table `jobsub_jobs`
 --
 
-DROP TABLE IF EXISTS `submitted_jobs`;
+DROP TABLE IF EXISTS `jobsub_jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `submitted_jobs` (
+CREATE TABLE `jobsub_jobs` (
   `submission_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
   `submitted_time` datetime NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
   `site_id` smallint(5) unsigned NOT NULL,
   `entry_id` smallint(5) unsigned NOT NULL,
-  `allocated` tinyint(1) NOT NULL DEFAULT '0', 
+  `state` char(1) NOT NULL DEFAULT 'I',
   PRIMARY KEY (`submitted_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `jobs`
+-- Table structure for table `wfs_jobs`
 --
 
-DROP TABLE IF EXISTS `allocated_jobs`;
+DROP TABLE IF EXISTS `wfs_jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `allocated_jobs` (
+CREATE TABLE `wfs_jobs` (
   `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `submission_id` int(10) unsigned,
   `factory_name` varchar(255) NOT NULL,

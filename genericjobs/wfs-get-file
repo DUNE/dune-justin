@@ -9,7 +9,7 @@
 # DID PFN RSE to stdout on one line if a file is available
 #
 # This script must be converted to base64 with something like the following 
-# and included in the here document near the start of genericjob.sh :
+# and included in the here document near the start of wfs-generic-job :
 #
 # (macOS) base64 -b 76 wfs-get-file > wfs-get-file.b64
 # (Linux) base64       wfs-get-file > wfs-get-file.b64
