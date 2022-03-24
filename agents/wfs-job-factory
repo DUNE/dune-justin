@@ -62,10 +62,78 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
+def parseJobsubQ():
+
+  try: 
+    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-q']
+                             capture_output = True,
+                             stdin   = subprocess.DEVNULL,
+                             stderr  = subprocess.STDOUT,
+                             timeout = 60
+                            ) 
+  except Exception as e:
+    logLine("run-jobsub-q fails with error: " + str(e))
+    return
+
+  logLine(outcome.stdout)
+  
+  for line in outcome.stdout.splitlines():
+    if '@jobsub' in line and 'wfs-generic-job' in line:
+      jobsubID = line.split()[0]
+      state    = line.split()[6]
+
+      try:
+        cur.execute('UPDATE jobsub_jobs '
+                    'SET state="%s" '
+                    'WHERE jobsub_id="%s"'
+                    % (state, jobsubID)
+                   )
+
+      except Exception as e:
+        # But try to keep going
+        logLine('Update jobsub job ' + jobsubID + ' fails with: ' + str(e))
+
+  # Commit whatever we found - no rush
+  db.commit()
+
+def parseJobsubHistory():
+
+  try: 
+    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-history']
+                             capture_output = True,
+                             stdin   = subprocess.DEVNULL,
+                             stderr  = subprocess.STDOUT,
+                             timeout = 60
+                            ) 
+  except Exception as e:
+    logLine("run-jobsub-history fails with error: " + str(e))
+    return
+
+  logLine(outcome.stdout)
+  
+  for line in outcome.stdout.splitlines():
+    if '@jobsub' in line and 'wfs-generic-job' in line:
+      jobsubID = line.split()[0]
+      state    = line.split()[7]
+
+      try:
+        cur.execute('UPDATE jobsub_jobs '
+                    'SET state="%s" '
+                    'WHERE jobsub_id="%s"'
+                    % (state, jobsubID)
+                   )
+
+      except Exception as e:
+        # But try to keep going
+        logLine('INSERT INTO jobs fails with: ' + str(e))
+
+  # Commit whatever we found - no rush
+  db.commit()
+   
 def submitToEntry(numberToSubmit, entryRow):
 
   try: 
-    outcome = subprocess.run(["/var/lib/wfs/job-factory/submit-jobs",
+    outcome = subprocess.run(["/var/lib/wfs/run-jobsub-submit",
                               str(numberToSubmit),
                               entryRow['jobsub_site_name'], 
                               entryRow['rss_bytes'] / 1024,
@@ -79,22 +147,25 @@ def submitToEntry(numberToSubmit, entryRow):
                              timeout = 60
                             ) 
   except Exception as e:
-    logLine("submit_to_entry fails with error: " + str(e))
+    logLine("run-jobsub-submit fails with error: " + str(e))
     return
 
   logLine(outcome.stdout)
 
   # Scrape the stdout to find the Jobsub job ID
   majorJobsubJobID = None
+  jobsubHost       = None
   
   for line in outcome.stdout.splitlines():
     if line.startswith("Use job id "):
-      majorJobsubJobID = line.split(' ')[4].split('.')[0]
+      jobsubJobID      = line.split()[4]
+      majorJobsubJobID = jobsubJobID.split('.')[0]
+      jobsubHost       = jobsubJobID.split('@')[1]
       break
    
-  if not majorJobsubJobID:
+  if not majorJobsubJobID or not jobsubHost:
     # What??
-    logLine("Jobsub job ID not found after submitting job(s)!")
+    logLine("Valid jobsub job ID not found after submitting job(s)!")
     return
 
   # Record the job(s) in the database
@@ -105,11 +176,11 @@ def submitToEntry(numberToSubmit, entryRow):
                   'site_id=%d,'
                   'entry_id=%d,'
                   'submitted_time=NOW(),'
-                  'jobsub_id="%s.%d"'
+                  'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
                      entryRow['site_id'],
                      entryRow['entry_id'],
-                     majorJobsubJobID, i)
+                     majorJobsubJobID, i, jobsubHost)
                  )
 
     except Exception as e:
@@ -133,17 +204,22 @@ def processOneEntry(entryRow):
 
 def oneCycle():
 
-  try:
-    os.makedirs('/var/spool/wfs',
-                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
-                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-  except:
-    # Probably already exists. Catch other problems later.
-    pass
+  # Update the database with the states of submitted jobsub jobs
 
+  parseJobsubQ()
+  parseJobsubHistory()
+
+  # Go through the sites/entries, deciding what to submit
+  
   try:
     cur.execute('SELECT sites.site_id,site_name,jobsub_site_name,entry_name,'
-                'rss_bytes,processors,wall_seconds '
+                'rss_bytes,processors,wall_seconds,'
+                '(SELECT COUNT(*) FROM jobsub_jobs WHERE state="I" AND '
+                'jobsub_jobs.site_id=sites.site_id AND '
+                'jobsub_jobs.entry_id=entries.entry_id) AS number_idle,'
+                '(SELECT COUNT(*) FROM jobsub_jobs WHERE state="R" AND '
+                'jobsub_jobs.site_id=sites.site_id AND '
+                'jobsub_jobs.entry_id=entries.entry_id) AS number_running '
                 'FROM sites '
                 'LEFT JOIN entries ON sites.site_id=entries.site_id '
                 'WHERE entries.enabled '

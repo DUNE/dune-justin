@@ -582,7 +582,7 @@ def addFileCmd(jsonDict):
 def showJobsCmd(jsonDict):
 
   try:
-    jobID = int(jsonDict['job_id'])
+    jobID = int(jsonDict['wfs_job_id'])
   except:
     jobID = None
   
@@ -597,7 +597,7 @@ def showJobsCmd(jsonDict):
     stageID = 1
   
   if jobID:
-    filter = "WHERE job_id=%d" % jobID 
+    filter = "WHERE wfs_job_id=%d" % jobID 
   elif requestID:
     filter = "WHERE request_id=%d AND stage_id=%d" % (requestID, stageID)
   else:
@@ -612,10 +612,10 @@ def showJobsCmd(jsonDict):
     except:
       pass
 
-  rows = doQuery("SELECT job_id,request_id,stage_id,state,started_time "
-                 "FROM jobs "
+  rows = doQuery("SELECT wfs_job_id,request_id,stage_id,state,allocated_time "
+                 "FROM wfs_jobs "
                  + filter +
-                 " ORDER BY job_id")
+                 " ORDER BY wfs_job_id")
 
   print('Status: 200 OK')
   print('Content-Type: text/plain')
@@ -623,7 +623,7 @@ def showJobsCmd(jsonDict):
 
   for row in rows:
     print("%6s %5s %2s %10s  %s" % 
-          (row['job_id'], row['request_id'], row['stage_id'], 
+          (row['wfs_job_id'], row['request_id'], row['stage_id'], 
            row['state'], row['started_time']))
    
   sys.exit(0)

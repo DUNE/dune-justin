@@ -45,6 +45,7 @@ CREATE TABLE `jobsub_jobs` (
   `site_id` smallint(5) unsigned NOT NULL,
   `entry_id` smallint(5) unsigned NOT NULL,
   `state` char(1) NOT NULL DEFAULT 'I',
+  `allocated_time` datetime NOT NULL,
   PRIMARY KEY (`submitted_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -61,7 +62,7 @@ CREATE TABLE `wfs_jobs` (
   `submission_id` int(10) unsigned,
   `factory_name` varchar(255) NOT NULL,
   `allocator_name` varchar(255) NOT NULL,
-  `started_time` datetime NOT NULL,
+  `allocated_time` datetime NOT NULL,
   `finished_time` datetime NOT NULL,
   `state` enum('submitted','started','processing','finished') NOT NULL DEFAULT 'submitted',
   `request_id` mediumint(8) unsigned NOT NULL,

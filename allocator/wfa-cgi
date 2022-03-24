@@ -437,7 +437,7 @@ def getStageMethod(jsonDict, jobUserID):
 
   try:
     query = ('INSERT INTO wfs_jobs SET '
-             'started_time=NOW(),' 
+             'allocated_time=NOW(),' 
              'allocator_name="' + allocatorName + '",' 
              'jobsub_id="' + job['jobsub_id'] + '",'              
              'request_id=' + str(stage['request_id']) + ','
@@ -466,7 +466,7 @@ def getStageMethod(jsonDict, jobUserID):
   wfsJobID = cur.lastrowid
 
   try:
-    query = ('UPDATE jobsub_jobs SET allocated=TRUE '
+    query = ('UPDATE jobsub_jobs SET allocated_time=NOW() '
              'WHERE jobsub_id="' + job['jobsub_id'] + '"')
              
     cur.execute(query)
