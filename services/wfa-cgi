@@ -476,6 +476,18 @@ def getStageMethod(jsonDict, jobUserID):
     logLine('Update of jobsub_jobs from ' + job['jobsub_id'] + ' fails: '
             + str(e))
 
+  try:
+    query = ('UPDATE entries SET last_allocated_time=NOW() '
+             'WHERE entry_id=(SELECT entry_id FROM jobsub_jobs '
+             'WHERE jobsub_id="' + job['jobsub_id'] + '")')
+             
+    cur.execute(query)
+    
+  except Exception as e:
+    # We log this but carry on - someone testing?
+    logLine('Update of entries from ' + job['jobsub_id'] + ' fails: '
+            + str(e))
+
   tarFile = makeTarFile(queryTerms, stage, wfsJobID, cookie)
         
   # All done so commit the job details.

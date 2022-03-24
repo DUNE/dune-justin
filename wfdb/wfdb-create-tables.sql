@@ -187,7 +187,9 @@ CREATE TABLE `entries` (
   `rss_bytes` bigint unsigned NOT NULL,
   `processors` tinyint unsigned NOT NULL,
   `wall_seconds` mediumint unsigned NOT NULL,
-  `enabled` tinyint(1) NOT NULL DEFAULT '0',  
+  `enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `last_submitted_time` datetime NOT NULL,
+  `last_allocated_time` datetime NOT NULL,
   PRIMARY KEY (`entry_id`),
   UNIQUE KEY `entry_name` (`entry_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

@@ -187,6 +187,16 @@ def submitToEntry(numberToSubmit, entryRow):
       # But try to keep going
       logLine('INSERT INTO jobs fails with: ' + str(e))
 
+  # Record that we've done a submission for this entry
+  try:
+    cur.execute('UPDATE entries SET last_submitted_time=NOW() '
+                'WHERE entry_id=%d' % entryRow['entry_id']
+               )
+
+  except Exception as e:
+    # But try to keep going
+    logLine('Update entry last_submitted_time fails with: ' + str(e))
+
   # Commit it all to the DB
   db.commit()
 
