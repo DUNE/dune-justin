@@ -117,8 +117,8 @@ def parseJobsubHistory():
         state = 'X'
 
       try:
-        wfs.db.cur.execute('UPDATE jobsub_jobs '
-                    'SET state="%s" '
+        wfs.db.cur.execute('UPDATE jobs '
+                    'SET jobsub_state="%s" '
                     'WHERE jobsub_id="%s"'
                     % (state, jobsubID)
                    )
@@ -139,7 +139,7 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
                 slotSizeRow['jobsub_site_name'],
                 str(int(slotSizeRow['max_rss_bytes'] / 1024)),
                 str(slotSizeRow['max_processors']),
-                str(slotSizeRow['wall_seconds'])
+                str(slotSizeRow['max_wall_seconds'])
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
@@ -175,7 +175,7 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
-      wfs.db.cur.execute('INSERT INTO jobsub_jobs '
+      wfs.db.cur.execute('INSERT INTO jobs '
                   'SET factory_name="%s",'
                   'site_id=%d,'
                   'slot_size_id=%d,'
@@ -189,7 +189,7 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
 
     except Exception as e:
       # But try to keep going
-      logLine('INSERT INTO jobsub_jobs fails with: ' + str(e))
+      logLine('INSERT INTO jobs fails with: ' + str(e))
 
   # Record that we've done a submission for this slot size
   try:
@@ -239,15 +239,15 @@ def oneCycle():
                 'max_rss_bytes,'
                 'min_processors,'
                 'max_processors,'
-                'wall_seconds,'
+                'max_wall_seconds,'
                 'UNIX_TIMESTAMP(last_submitted_time) AS last_submitted_time,'
                 'UNIX_TIMESTAMP(last_allocated_time) AS last_allocated_time,'
-                '(SELECT COUNT(*) FROM jobsub_jobs WHERE state="I" AND '
-                'jobsub_jobs.site_id=sites.site_id AND '
-                'jobsub_jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
-                '(SELECT COUNT(*) FROM jobsub_jobs WHERE state="R" AND '
-                'jobsub_jobs.site_id=sites.site_id AND '
-                'jobsub_jobs.slot_size_id=slot_sizes.slot_size_id) AS number_running '
+                '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="I" AND '
+                'jobs.site_id=sites.site_id AND '
+                'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
+                '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="R" AND '
+                'jobs.site_id=sites.site_id AND '
+                'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_running '
                 'FROM sites '
                 'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
                 'WHERE enabled '
