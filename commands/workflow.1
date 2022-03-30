@@ -75,7 +75,7 @@ Changes the state of the given request back to "running". Requests in this
 state are included in the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --wall-seconds N --rss-bytes N [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -84,10 +84,14 @@ given by the
 .B --upload-file
 option which will be executed on worker nodes to process its files. 
 
-The maximum wallclock time and the maximum amount of resident memory that
-may be needed
-by the script must be given. The resident memory corresponds to the physical
-memory managed by HTCondor's ResidentSetSize value.
+If the maximum wallclock time needed is not given by 
+.B --wall-seconds
+then the default of 80000
+seconds is used. If the maximum amount of resident memory needed is not
+given by 
+.B --rss-mb
+then the default of 2048MiB is used. The resident memory corresponds to the 
+physical memory managed by HTCondor's ResidentSetSize value.
 
 If the script can make use of multiple processors then 
 .B --processors
@@ -113,6 +117,15 @@ Alternatively
 can be given in which the output file will also be registered in the
 Workflow Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
+
+.HP
+.B "quick-request [--name NAME] [--mql QUERY] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN]"
+.br
+Combines the 
+.B create-request, create-stage
+and
+.B approve-request
+subcommands into a single operation, for use with single-stage requests.
 
 .HP
 .B "show-stages --request-id ID [--stage-id ID]"
@@ -161,8 +174,8 @@ given RUCIO file Data Identifier (DID).
 which is the default. Files are created in the "unallocated" state, ready
 for processing. Exactly RSE which has a replica of the file must be
 given along with one PFN to access the replica on that RSE. This subcommand is
-only intended for testing, as normall an agent builds the lists of files and 
-replicas for the first stage of a request using MetaCat and Rucio.
+only intended for testing, as normally the Finder agent builds the lists of 
+files and replicas for the first stage of a request using MetaCat and Rucio.
 
 .HP
 .B "show-files [--request-id ID] [--stage-id ID] [--file-did DID]"

@@ -234,8 +234,8 @@ def updateSites():
     # The biggest slot that was in the XML
     rssBytesList.append(sitesDict[siteName]['largest_rss_bytes'])
 
-    # 10% margin on the slot time limit        
-    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.9)
+    # 5% margin on the slot time limit        
+    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
 
     # Go through the memory sizes we found
     for i in range(1, len(rssBytesList)):
@@ -367,6 +367,10 @@ def updateStorages():
       # Log the error and hope it was transitory
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
+
+  # Ensure the dummy MONTECARLO RSE exists
+  wfs.db.cur.execute('INSERT INTO storages SET '
+    'rse_name="MONTECARLO",occupancy=1 ON DUPLICATE KEY UPDATE occupancy=1')
 
 #  wfs.db.conn.commit()
 

@@ -67,6 +67,72 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
+def addFilesMontecarlo(requestID, count):
+  # Add dummy files to keep track of Monte Carlo processing
+  
+  for i in range(1, count + 1):
+    try:
+      query = ('INSERT INTO files SET '
+               'request_id=%d,file_did="montecarlo-%06d-%06d"' 
+               % (requestID, requestID, i)
+              )
+
+      wfs.db.cur.execute(query)
+    except Exception as e:
+      logLine('Failed inserting dummy Monte Carlo file')
+      return
+
+  # All files found for this request so update its state
+  try:
+    query = ('UPDATE requests SET state="running" WHERE request_id=' +
+             str(requestID))
+
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    logLine('Failed updating request ' + str(requestID))
+
+  # All ok, so commit it all to the DB
+  wfs.db.conn.commit()
+
+def findFilesRucio(didClient, requestID, scope, name):
+  # Find files to be processed for each request in the finding state
+  
+  # WE DO THIS FROM RUCIO FOR NOW, AND JUST WITH DATASETS
+  # THIS WILL BE REPLACED WITH QUERIES TO METACAT WITH ITS MQL QUERY API
+  # https://metacat.fnal.gov:9443/dune_meta_demo/app/static/docs/html/webapi.html
+  #
+  # ONLY MQLs OF THE FORM from files scope:name ARE SUPPORTED UNTIL THEN
+
+  try:
+    didsList = didClient.list_files(scope, name)
+  except Exception as e:
+    logLine("Reading RSE list from Rucio fails with: " + str(e))
+    return
+
+  for did in didsList:  
+    try:
+      query = ('INSERT INTO files SET '
+               'request_id=' + str(requestID) + ',' +
+               'file_did="' + did['scope'] + ':' + did['name'] + '"'
+              )
+
+      wfs.db.cur.execute(query)
+    except Exception as e:
+      logLine('Failed inserting DID')
+      return
+
+  # All files found for this request so update its state
+  try:
+    query = ('UPDATE requests SET state="running" WHERE request_id=' +
+             str(requestID))
+
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    logLine('Failed updating request ' + str(requestID))
+
+  # All ok, so commit it all to the DB
+  wfs.db.conn.commit()
+
 def findFiles():
   # Find files to be processed for each request in the finding state
   
@@ -87,43 +153,26 @@ def findFiles():
   
   for request in findingRequests:
     mqlSplit = request['mql'].split()
-    
-    if len(mqlSplit) != 3 or mqlSplit[0] != 'files' or mqlSplit[1] != 'from':
-      continue
+
+    # Ordinary request with a Rucio dataset
+    if len(mqlSplit) == 3 and mqlSplit[0] == 'files' and mqlSplit[1] == 'from':
       
-    datasetSplit = mqlSplit[2].split(':')
-    if len(datasetSplit) != 2:
-      continue
-
-    try:
-      didsList = didClient.list_files(datasetSplit[0], datasetSplit[1])
-    except Exception as e:
-      logLine("Reading RSE list from Rucio fails with: " + str(e))
-      return
-
-    for did in didsList:  
+      datasetSplit = mqlSplit[2].split(':')
+      if len(datasetSplit) == 2:
+        findFilesRucio(didClient,
+                       request['request_id'], 
+                       datasetSplit[0], 
+                       datasetSplit[1])
+        
+    # Monte Carlo request with a count
+    elif len(mqlSplit) == 2 and mqlSplit[0] == 'montecarlo':
+      
       try:
-        query = ('INSERT INTO files SET '
-                 'request_id=' + str(request['request_id']) + ',' +
-                 'file_did="' + did['scope'] + ':' + did['name'] + '"'
-                )
-
-        wfs.db.cur.execute(query)
-      except Exception as e:
-        logLine('Failed inserting DID')
-        return
-
-    # All files found for this request so update its state
-    try:
-      query = ('UPDATE requests SET state="running" WHERE request_id=' +
-               str(request['request_id']))
-
-      wfs.db.cur.execute(query)
-    except Exception as e:
-      logLine('Failed updating request ' + str(request['request_id']))
-
-  # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+        count = int(mqlSplit[1])
+      except:
+        continue
+      
+      addFilesMontecarlo(request['request_id'], count)
 
 def findReplicas():
   # Find replicas of files in the finding state
@@ -153,13 +202,17 @@ def findReplicas():
   wfs.db.cur.execute(query)
   findingFiles = wfs.db.cur.fetchall()
   
-  for fileRow in findingFiles:
-    didSplit = fileRow['file_did'].split(':')
-    didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
-
-  print(didsList)
   # Make a dictionary with the replicas of all the file DIDs we asked about
   repsDict = {}
+
+  for fileRow in findingFiles:
+    if ':' in fileRow['file_did']:
+      didSplit = fileRow['file_did'].split(':')
+      didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
+    elif fileRow['file_did'].startswith('montecarlo-'):
+      repsDict[fileRow['file_did']] = 'MONTECARLO'
+
+  print(didsList)
   try:
     # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
     repsList = repClient.list_replicas(didsList, schemes=['root'])
@@ -167,7 +220,7 @@ def findReplicas():
     logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
     return
 
-  for rep in repsList:  
+  for rep in repsList:
     repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
 
   print(repsDict)

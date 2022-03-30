@@ -56,7 +56,9 @@ commands = [ "create-request",
              "submit-request", "approve-request",
              "add-file",
              "run-request", "pause-request",
-             "create-stage", "create-storage",
+             "create-stage", 
+             "quick-request", 
+             "create-storage",
              "create-site-storage",
              "show-requests", "show-stages", "show-bootstrap",
              "show-stage-outputs",
@@ -116,7 +118,7 @@ parser.add_argument("--wall-seconds",
 
 parser.add_argument("--rss-mb",
                     type = float,
-                    help = "Maximum RSS megabytes")
+                    help = "Maximum RSS MiB")
 
 parser.add_argument("--any-location",
                     type = bool,

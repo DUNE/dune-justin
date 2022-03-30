@@ -209,10 +209,10 @@ CREATE TABLE `stages` (
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `any_location` tinyint(1) NOT NULL DEFAULT '0',
-  `num_finding` mediumint(8) unsigned NOT NULL,
-  `num_unallocated` mediumint(8) unsigned NOT NULL,
-  `num_allocated` mediumint(8) unsigned NOT NULL,
-  `num_processed` mediumint(8) unsigned NOT NULL,
+  `num_finding` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `num_unallocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `num_allocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `num_processed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

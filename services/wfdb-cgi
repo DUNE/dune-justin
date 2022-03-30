@@ -71,8 +71,8 @@ def doQuery(query):
   try:
     wfs.db.cur.execute(query)
     return wfs.db.cur.fetchall()
-  except:
-    httpError('500 Internal Server Error', 'Error reading workflow database')
+  except Exception as e:
+    httpError('500 Internal Server Error', 'Error reading workflow database ' + str(e))
 
 def showRequestsCmd(jsonDict):
 
@@ -376,6 +376,87 @@ def createRequestCmd(jsonDict, userID):
   wfs.db.conn.commit()
 
   httpError('200 OK', str(wfs.db.cur.lastrowid))
+
+def quickRequestCmd(jsonDict, userID):
+
+  if 'name' in jsonDict and jsonDict['name']:
+    name = jsonDict['name']
+  else:
+    name = str(int(time.time()))
+
+  if 'mql' in jsonDict and jsonDict['mql']:
+    mql = jsonDict['mql']
+  else:
+    mql = ''
+
+  doQuery('INSERT INTO requests SET created=NOW(),'
+          'name="%s",'
+          'mql="%s",'
+          'submitter_id=%d,'
+          'state="finding",'
+          'approved=NOW()' %
+          (name,
+           mql,
+           userID))
+
+  requestID = wfs.db.cur.lastrowid
+
+  try:
+    processors = int(jsonDict['processors'])
+  except:
+    processors = 1
+
+  try:
+    wallSeconds = int(jsonDict['wall_seconds'])
+  except:
+    wallSeconds = 80000
+
+  try:
+    rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
+  except:
+    rssBytes = 2048 * 1024 * 1024
+
+  try:
+    anyLocation = bool(jsonDict['any_location'])
+  except:
+    anyLocation = False
+
+  if 'file' in jsonDict and jsonDict['file']:
+    bootstrap = jsonDict['file']
+  else:
+    httpError('400 Bad Request', 'Upload file is required')
+
+  doQuery("INSERT INTO stages SET "
+          "request_id=%d,"
+          "stage_id=1,"
+          "processors=%d,"
+          "wall_seconds=%d,"
+          "rss_bytes=%d,"
+          "any_location=%s" % 
+          (requestID, processors,
+           wallSeconds, rssBytes, str(anyLocation)))
+          
+  doQuery('INSERT INTO bootstraps SET '
+          'request_id=%d,'
+          'stage_id=1,'
+          'bootstrap="%s"' % 
+          (requestID, 
+           bootstrap.replace('\\','\\\\').replace('"','\\"')))
+
+  if jsonDict['output_pattern']:
+    for pattern in jsonDict['output_pattern']:
+      doQuery('INSERT INTO stages_outputs SET '
+              'request_id=%d,'
+              'stage_id=1,'
+              'pattern="%s",'
+              'for_next_stage=FALSE' % 
+              (requestID, 
+               pattern.replace('\\','\\\\').replace('"','\\"')))
+
+  # Only commit if everything went ok
+  wfs.db.conn.commit()
+
+  httpError('200 OK', str(requestID))
 
 def submitRequestCmd(jsonDict):
 
@@ -693,6 +774,9 @@ if jsonDict['command'] == 'show-sites-storages':
 
 if jsonDict['command'] == 'create-request':
   createRequestCmd(jsonDict, userID)
+
+if jsonDict['command'] == 'quick-request':
+  quickRequestCmd(jsonDict, userID)
 
 if jsonDict['command'] == 'submit-request':
   submitRequestCmd(jsonDict)
