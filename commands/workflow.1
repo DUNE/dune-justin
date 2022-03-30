@@ -75,7 +75,7 @@ Changes the state of the given request back to "running". Requests in this
 state are included in the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --max-wall-seconds N --max-rss-bytes N [--min-processors N] [--max-processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME --wall-seconds N --rss-bytes N [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -86,16 +86,12 @@ option which will be executed on worker nodes to process its files.
 
 The maximum wallclock time and the maximum amount of resident memory that
 may be needed
-by the script  must be given. The resident memory corresponds to the physical
+by the script must be given. The resident memory corresponds to the physical
 memory managed by HTCondor's ResidentSetSize value.
 
 If the script can make use of multiple processors then 
-.B --min-processors
-and
-.B --max-processors
-can be used to give the minimum it needs and the maximum it can use. The 
-minimum defaults to 1 and the maximum defaults to be the same as the minimum 
-value.
+.B --processors
+can be used to give the number needed, with a default of 1 if not given.
 
 By default, input files will only be allocated to a script which are on 
 storages at the same site or nearby sites. This can be changed by setting

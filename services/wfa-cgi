@@ -57,254 +57,7 @@ import MySQLdb
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs.conf
-
-# Global database connection and ID, usable anywhere
-db            = None
-cur           = None
-allocatorName = None
-
-# Return various strings and SQL expressions which are 
-# used in subsequent queries
-def makeQueryTerms(jsonDict, job):
-
-  query = ('SELECT sites_storages.rse_id,location,rse_name,'
-           'occupancy '
-           'FROM sites_storages '
-           'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
-           'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
-           'WHERE sites.site_name="%s" '
-           'ORDER BY location,occupancy,RAND();' 
-           % job['site_name'])
-
-  cur.execute(query)
-  storageRows = cur.fetchall()
-
-  outputRseList  = [] 
-  samesiteList   = []
-  nearbyList     = []
-  accessibleList = []
-
-  for storageRow in storageRows:
-
-    if storageRow['occupancy'] < 1.0:
-      outputRseList.append(storageRow['rse_name'])
-  
-    if storageRow['location'] == 'accessible':
-      accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-    elif storageRow['location'] == 'nearby':
-      nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-    elif storageRow['location'] == 'samesite':
-      samesiteList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-
-  storageWhere = ' OR '.join(samesiteList + nearbyList)
-
-  if accessibleList:
-    if storageWhere:
-      storageWhere += ' OR '
-
-    storageWhere += ('(stages.any_location AND (' + 
-                     ' OR '.join(accessibleList) + '))')
-
-  if storageWhere:
-    storageWhere = ' AND (' + storageWhere + ') '
-
-  # All storages in the same class (samesite, nearby, accessible) get the
-  # same ranking score (3,2,1). In the future, we can apply individual
-  # scores here to each storage relative to where the job is running.
- 
-  if samesiteList:
-    storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
-  else:
-    storageOrder = ''
-
-  if nearbyList:
-    if storageOrder:
-      storageOrder += ' + '
-  
-    storageOrder += '2*(' + ' OR '.join(nearbyList) + ')'
-
-  if accessibleList:
-    if storageOrder:
-      storageOrder += ' + '
-
-    storageOrder += '1*(' + ' OR '.join(accessibleList) + ')'
-
-  # If we got anything for the storage ordering then complete the
-  # expression including the comma; otherwise an empty string
-  if storageOrder:
-    storageOrder += ' DESC,'
-
-  return { "outputRseList"  : outputRseList,
-           "samesiteList"   : samesiteList,
-           "nearbyList"     : nearbyList,
-           "accessibleList" : accessibleList,
-           "storageWhere"   : storageWhere,
-           "storageOrder"   : storageOrder
-         }
-
-# Just in time decision making: identify the best request+stage combination
-# based on the immediate situation rather than trying to plan ahead
-def findStage(queryTerms, job):
-
-  query = (
- "SELECT stages.request_id,stages.stage_id,"
- "stages.any_location,"
- "files.file_did,files.file_id,storages.rse_name "
- "FROM files "
- "LEFT JOIN stages ON files.request_id=stages.request_id AND "
- "files.stage_id=stages.stage_id "
- "LEFT JOIN requests ON requests.request_id=files.request_id "
- "LEFT JOIN replicas ON files.file_id=replicas.file_id "
- "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
- "WHERE files.state='unallocated' AND " +
- str(job["processors"])   + " <= stages.max_processors AND " +
- str(job["processors"])   + " >= stages.min_processors AND " +
- str(job["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
- str(job["wall_seconds"]) + " >= stages.max_wall_seconds " +
- queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL " +
- " ORDER BY " + 
- queryTerms["storageOrder"] + "files.request_id,files.file_id"
- " LIMIT 1 FOR UPDATE"
- )
-
-  cur.execute(query)
-  fileRows = cur.fetchall()
-  
-  if len(fileRows) == 0:
-    return None
-
-  # Take the values of the highest priority result
-  requestID   = int(fileRows[0]['request_id'])
-  stageID     = int(fileRows[0]['stage_id'])
-  anyLocation = bool(fileRows[0]['any_location'])
-  
-  # The dictionary to return
-  stage = { 'request_id'  : requestID,
-            'stage_id'    : stageID,
-            'any_location': anyLocation }
-
-  return stage
-
-# Make a dictionary containing one job's information
-def findJob(jsonDict):
-
-  try:
-    wfsJobID  = int(jsonDict['wfs_job_id'])
-    cookie = str(jsonDict['cookie'])
-  except:
-    return None
-
-  # Find the job info and the stage's any_location flag
-  try:
-    query = ('SELECT wfs_jobs.request_id,'
-             'wfs_jobs.stage_id,'
-             'wfs_jobs.state,'
-             'sites.site_name,'
-             'wfs_jobs.hostname,'
-             'wfs_jobs.cpuinfo,'
-             'wfs_jobs.os_release,'
-             'wfs_jobs.rss_bytes,'
-             'wfs_jobs.processors,'
-             'wfs_jobs.wall_seconds,'
-             'stages.any_location '
-             'FROM wfs_jobs '
-             'LEFT JOIN sites ON wfs_jobs.site_id=sites.site_id '
-             'LEFT JOIN stages ON wfs_jobs.stage_id=stages.stage_id '
-             'WHERE wfs_jobs.wfs_job_id=' + str(wfsJobID) + ' AND ' +
-             'wfs_jobs.cookie="' + cookie + '"')
-
-    cur.execute(query)
-    rows=cur.fetchall()
-    
-    job = { 'wfs_job_id' : wfsJobID,
-            'cookie'           : cookie,
-            'request_id'       : int(rows[0]['request_id']),
-            'stage_id'         : int(rows[0]['stage_id']),
-            'state'            : rows[0]['state'],
-            'site_name'        : rows[0]['site_name'],
-            'hostname'         : rows[0]['hostname'],
-            'cpuinfo'          : rows[0]['cpuinfo'],
-            'os_release'       : rows[0]['os_release'],
-            'rss_bytes'        : int(rows[0]['rss_bytes']),
-            'processors'       : int(rows[0]['processors']),
-            'wall_seconds'     : int(rows[0]['wall_seconds']),
-            'any_location'     : bool(rows[0]['any_location'])
-          }
-          
-    return job
-    
-  except:
-    # WE SHOULD PROVIDE SOME KIND OF DEBUGGING FOR ALL THIS!!
-    return None
-
-# Make a dictionary containing one file's information
-def findOneFile(jsonDict, queryTerms, job):
-
-  if job['any_location']:
-    # If this stage can access data on any accessible storage, then 
-    # use all three lists
-    storageWhere = ' OR '.join(queryTerms["samesiteList"] + 
-                               queryTerms["nearbyList"] + 
-                               queryTerms["accessibleList"])
-  else:
-    # Otherwise just use samesite and nearby lists of storages
-    storageWhere = ' OR '.join(queryTerms["samesiteList"] + 
-                               queryTerms["nearbyList"])
-
-  if storageWhere:
-    storageWhere = ' AND (' + storageWhere + ') '
-
-  query = (
-"SELECT files.file_id,files.file_did,storages.rse_name,"
-"replicas.rse_id,replicas.pfn "
-"FROM files "
-"LEFT JOIN replicas ON files.file_id=replicas.file_id "
-"LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
-"WHERE files.state='unallocated' AND files.request_id=" +
-str(job['request_id']) + " AND files.stage_id=" + str(job['stage_id']) + 
-storageWhere + " AND storages.rse_NAME IS NOT NULL "
-"ORDER BY " + 
-queryTerms["storageOrder"] + "files.file_id"
-" LIMIT 1 FOR UPDATE"
-) 
-   
-  print('DEBUG: ' + query, file=sys.stderr)
-   
-  cur.execute(query)
-  fileRows = cur.fetchall()
-  
-  print('DEBUG: ' + str(fileRows), file=sys.stderr)
-  
-  if len(fileRows) == 0:
-    return None
-
-  try: 
-    query = ("INSERT INTO allocations SET allocated_time=NOW(),"
-             "rse_id=" + str(fileRows[0]['rse_id']) + ","
-             "wfs_job_id=" + str(job['wfs_job_id']) + ","
-             "file_id=" + str(fileRows[0]['file_id'])
-            )
-    cur.execute(query)
-
-    allocationID = cur.lastrowid
-
-    query = ("UPDATE files SET state='allocated',"
-             "last_allocation_id=" + str(allocationID) + " "
-             "WHERE file_id=" + str(fileRows[0]['file_id'])
-            )
-    cur.execute(query)
-  except:
-    # If anything goes wrong, we stop straightaway
-    return None
-
-  # The dictionary to return
-  oneFile = { 'file_did'    : fileRows[0]['file_did'],
-              'pfn'         : fileRows[0]['pfn'],
-              'rse_name'    : fileRows[0]['rse_name']
-            }
-                      
-  return oneFile
+import wfs
 
 # Successfully identified the request+stage and files so get the 
 # bootstrap for this stage and return it
@@ -315,8 +68,8 @@ def getBootstrap(queryTerms, stage):
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    cur.execute(query)
-    rows = cur.fetchall()
+    wfs.db.cur.execute(query)
+    rows = wfs.db.cur.fetchall()
     bootstrap = rows[0]['bootstrap']
   except:
     return None
@@ -358,8 +111,8 @@ def makeTarFile(queryTerms, stage, wfsJobID, cookie):
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    cur.execute(query)
-    rows = cur.fetchall()
+    wfs.db.cur.execute(query)
+    rows = wfs.db.cur.fetchall()
   except:
     return None
 
@@ -419,11 +172,11 @@ def getStageMethod(jsonDict, jobUserID):
       sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict, job)
+  queryTerms = wfs.allocator.makeQueryTerms(jsonDict, job)
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
-  stage = findStage(queryTerms, job)
+  stage = wfs.allocator.findStage(queryTerms, job)
 
   if not stage:
     # No stages/files eligible to be processed by this job
@@ -455,7 +208,7 @@ def getStageMethod(jsonDict, jobUserID):
              'submission_id=(SELECT submission_id FROM jobsub_jobs ' 
                       'WHERE jobsub_id="' + job['jobsub_id'] + ")'
             )
-    cur.execute(query)
+    wfs.db.cur.execute(query)
   except:
     print('Status: 500 Internal Server Error')
     print('Content-Type: text/plain')
@@ -463,13 +216,13 @@ def getStageMethod(jsonDict, jobUserID):
     print('Workflow allocator failed')
     sys.exit(0)
 
-  wfsJobID = cur.lastrowid
+  wfsJobID = wfs.db.cur.lastrowid
 
   try:
     query = ('UPDATE jobsub_jobs SET allocated_time=NOW() '
              'WHERE jobsub_id="' + job['jobsub_id'] + '"')
              
-    cur.execute(query)
+    wfs.db.cur.execute(query)
     
   except Exception as e:
     # We log this but carry on - someone testing?
@@ -481,7 +234,7 @@ def getStageMethod(jsonDict, jobUserID):
              'WHERE entry_id=(SELECT entry_id FROM jobsub_jobs '
              'WHERE jobsub_id="' + job['jobsub_id'] + '")')
              
-    cur.execute(query)
+    wfs.db.cur.execute(query)
     
   except Exception as e:
     # We log this but carry on - someone testing?
@@ -494,7 +247,7 @@ def getStageMethod(jsonDict, jobUserID):
   # We do this before the HTTP response in case
   # it is received ok by the job and run 
   # but times out and fails here on the server side
-  db.commit()
+  wfs.db.conn.commit()
 
   # Return the script to the workflow job 
   print('Status: 200 OK')
@@ -508,7 +261,7 @@ def getStageMethod(jsonDict, jobUserID):
 def getFileMethod(jsonDict):
 
   # Find details of this job
-  job = findJob(jsonDict)
+  job = wfs.allocator.findJob(jsonDict)
 
   if not job:
     print('Status: 400 Bad Request')
@@ -517,10 +270,10 @@ def getFileMethod(jsonDict):
     sys.exit(0)
 
   # Make strings used in SQL queries
-  queryTerms = makeQueryTerms(jsonDict, job)
+  queryTerms = wfs.allocator.makeQueryTerms(jsonDict, job)
 
   # Create a stage dictionary with the next file in this stage  
-  oneFile = findOneFile(jsonDict, queryTerms, job)
+  oneFile = wfs.allocator.findOneFile(jsonDict, queryTerms, job)
   
   if oneFile:
     if job['state'] == 'started':
@@ -528,7 +281,7 @@ def getFileMethod(jsonDict):
         query = ('UPDATE wfs_jobs SET state="processing" ' +
                  'WHERE wfs_job_id=' + str(job['wfs_job_id'])
                 )
-        cur.execute(query)
+        wfs.db.cur.execute(query)
       except:
         print('Status: 500 Internal Server Error')
         print('Content-Type: text/plain')
@@ -540,7 +293,7 @@ def getFileMethod(jsonDict):
     # We do this before the HTTP response in case
     # it is received ok by the job and processed
     # but times out and fails here on the server side
-    db.commit()
+    wfs.db.conn.commit()
 
     # Now tell the job what file to process and where it is
     print('Status: 200 OK')
@@ -579,7 +332,7 @@ def updateFileProcessing(fileList, state, job):
                'AND request_id=' + str(job['request_id']) + ' ' 
                'AND stage_id=' + str(job['stage_id']) + ' ' 
                'AND state="allocated"')
-      cur.execute(query)
+      wfs.db.cur.execute(query)
     except:
       pass
 
@@ -597,7 +350,7 @@ def updateFileProcessing(fileList, state, job):
                     str(job['stage_id']),
                     ' OR '.join(processedList)))
 
-        cur.execute(query)
+        wfs.db.cur.execute(query)
       except:
         pass
     
@@ -616,7 +369,7 @@ def processNextStageOutputs(jsonDict, job):
                  'request_id=' + str(job['request_id']) + ','
                  'stage_id='   + str(job['stage_id'] + 1)
                 )
-        cur.execute(query)
+        wfs.db.cur.execute(query)
       except:
         # Just do our best if anything goes wrong for now
         # Should decide what to do in these partial failure cases
@@ -647,7 +400,7 @@ def updateStageCounts(job):
               job['request_id'], job['stage_id'],
               job['request_id'], job['stage_id']))
             )
-    cur.execute(query)
+    wfs.db.cur.execute(query)
   except:
     pass
                 
@@ -682,13 +435,13 @@ def resultsMethod(jsonDict):
     query = ('UPDATE wfs_jobs SET state="finished",finished_time=NOW() ' +
              'WHERE wfs_job_id=' + str(job['wfs_job_id'])
             )
-    cur.execute(query)
+    wfs.db.cur.execute(query)
   except:
     # Don't give up! Record what we can!
     pass
 
   # Commit everything, before we return OK to the job
-  db.commit()
+  wfs.db.conn.commit()
 
   # Return OK to the workflow job
   print('Status: 200 OK')
@@ -712,8 +465,8 @@ def getJobUserID():
            clientDN.replace('\\','\\\\').replace('"','\\"'))
 
   try:
-    cur.execute(query)
-    rows = cur.fetchall()
+    wfs.db.cur.execute(query)
+    rows = wfs.db.cur.fetchall()
   except:
     print('Status: 500 Internal Server Error')
     print()
@@ -762,10 +515,10 @@ if 'method' not in jsonDict:
 
 # Do as many checks as we can before connecting to the database here
 try:
-  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
-                        passwd=wfs.conf.mysqlPassword, db='wfdb')
-  db.autocommit(False)
-  cur = db.cursor(MySQLdb.cursors.DictCursor) 
+  wfs.db.conn = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
+                                passwd=wfs.conf.mysqlPassword, db='wfdb')
+  wfs.db.conn.autocommit(False)
+  wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
 except:
   print('Status: 500 Internal Server Error')
   print()

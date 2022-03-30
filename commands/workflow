@@ -106,19 +106,15 @@ parser.add_argument("--upload-file",
                     type = str,
                     help = "Specify a local file")
 
-parser.add_argument("--min-processors",
+parser.add_argument("--processors",
                     type = int,
-                    help = "Minimum processors required")
+                    help = "Number of processors required")
 
-parser.add_argument("--max-processors",
-                    type = int,
-                    help = "Maximum processors stage can use")
-
-parser.add_argument("--max-wall-seconds",
+parser.add_argument("--wall-seconds",
                     type = int,
                     help = "Maximum wall seconds")
 
-parser.add_argument("--max-rss-mb",
+parser.add_argument("--rss-mb",
                     type = float,
                     help = "Maximum RSS megabytes")
 

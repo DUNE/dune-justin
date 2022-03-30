@@ -52,16 +52,13 @@ import rucio.client
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs.conf
+import wfs
 
 findFilesInterval     = 3600
 findReplicasInterval  = 3600
 maxFileFindsPerCycle  = 10
 
 sleepSeconds = 60
-
-db  = None
-cur = None
 
 class wfsError(Exception):
   pass
@@ -85,8 +82,8 @@ def findFiles():
     logLine("Connect to Rucio fails with: " + str(e))
     return
   
-  cur.execute('SELECT request_id,mql FROM requests WHERE state="finding"')
-  findingRequests = cur.fetchall()
+  wfs.db.cur.execute('SELECT request_id,mql FROM requests WHERE state="finding"')
+  findingRequests = wfs.db.cur.fetchall()
   
   for request in findingRequests:
     mqlSplit = request['mql'].split()
@@ -111,7 +108,7 @@ def findFiles():
                  'file_did="' + did['scope'] + ':' + did['name'] + '"'
                 )
 
-        cur.execute(query)
+        wfs.db.cur.execute(query)
       except Exception as e:
         logLine('Failed inserting DID')
         return
@@ -121,12 +118,12 @@ def findFiles():
       query = ('UPDATE requests SET state="running" WHERE request_id=' +
                str(request['request_id']))
 
-      cur.execute(query)
+      wfs.db.cur.execute(query)
     except Exception as e:
       logLine('Failed updating request ' + str(request['request_id']))
 
   # All ok, so commit it all to the DB
-  db.commit()
+  wfs.db.conn.commit()
 
 def findReplicas():
   # Find replicas of files in the finding state
@@ -140,8 +137,8 @@ def findReplicas():
 
   # Cache rse_id of each known RSE into a local dictionary
   storagesDict = {}
-  cur.execute('SELECT rse_name,rse_id FROM storages')
-  allStorages = cur.fetchall()
+  wfs.db.cur.execute('SELECT rse_name,rse_id FROM storages')
+  allStorages = wfs.db.cur.fetchall()
   
   for storageRow in allStorages:
     storagesDict[storageRow['rse_name']] = storageRow['rse_id']
@@ -153,8 +150,8 @@ def findReplicas():
            'WHERE state="finding" AND NOW() > finding_retry_time '
            'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
   
-  cur.execute(query)
-  findingFiles = cur.fetchall()
+  wfs.db.cur.execute(query)
+  findingFiles = wfs.db.cur.fetchall()
   
   for fileRow in findingFiles:
     didSplit = fileRow['file_did'].split(':')
@@ -197,7 +194,7 @@ def findReplicas():
                     )
                     
             print(query)
-            cur.execute(query)
+            wfs.db.cur.execute(query)
           except Exception as e:
             logLine('Failed inserting replica: ' + str(e))
             # We give up if this happens, without the commit
@@ -209,7 +206,7 @@ def findReplicas():
                  str(fileRow['file_id']))
 
         print(query)
-        cur.execute(query)
+        wfs.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (' + 
                 str(fileRow['request_id']) + ',' + 
@@ -219,7 +216,7 @@ def findReplicas():
         return
 
   # All ok, so commit it all to the DB
-  db.commit()
+  wfs.db.conn.commit()
 
 def oneCycle():
 
@@ -328,12 +325,12 @@ if __name__ == '__main__':
           logLine('=============== Start cycle ===============')
           
           try:
-            db  = MySQLdb.connect(host="localhost", 
+            wfs.db.conn = MySQLdb.connect(host="localhost", 
                                   user=wfs.conf.mysqlUser,
                                   passwd=wfs.conf.mysqlPassword, 
                                   db='wfdb')
-            db.autocommit(False)
-            cur = db.cursor(MySQLdb.cursors.DictCursor)
+            wfs.db.conn.autocommit(False)
+            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:

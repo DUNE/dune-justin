@@ -56,11 +56,7 @@ import MySQLdb
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs.conf
-
-# Global database connection and ID, usable anywhere
-db          = None
-cur         = None
+import wfs
 
 def httpError(code, message):
   print('Status: ' + code)
@@ -73,8 +69,8 @@ def httpError(code, message):
 def doQuery(query):
 
   try:
-    cur.execute(query)
-    return cur.fetchall()
+    wfs.db.cur.execute(query)
+    return wfs.db.cur.fetchall()
   except:
     httpError('500 Internal Server Error', 'Error reading workflow database')
 
@@ -125,13 +121,12 @@ def showStagesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%5d %2d %d-%d %d %d %s" % 
+    print("%5d %2d %d %d %d %s" % 
           (row['request_id'], 
            row['stage_id'], 
-           row['min_processors'],
-           row['max_processors'],
-           row['max_wall_seconds'],
-           row['max_rss_bytes'],
+           row['processors'],
+           row['wall_seconds'],
+           row['rss_bytes'],
            str(row['any_location']),
           )
          )
@@ -378,9 +373,9 @@ def createRequestCmd(jsonDict, userID):
           (name,
            mql,
            userID))
-  db.commit()
+  wfs.db.conn.commit()
 
-  httpError('200 OK', str(cur.lastrowid))
+  httpError('200 OK', str(wfs.db.cur.lastrowid))
 
 def submitRequestCmd(jsonDict):
 
@@ -394,7 +389,7 @@ def submitRequestCmd(jsonDict):
   doQuery("UPDATE requests SET state='submitted',submitted=NOW() "
           "WHERE request_id=%d AND state='draft'" % requestID)
 
-  db.commit()
+  wfs.db.conn.commit()
 
   httpError('200 OK', None)
 
@@ -411,7 +406,7 @@ def approveRequestCmd(jsonDict):
           "WHERE request_id=%d AND (state='draft' OR state='submitted')"
           % requestID)
 
-  db.commit()
+  wfs.db.conn.commit()
 
   httpError('200 OK', None)
 
@@ -426,7 +421,7 @@ def runRequestCmd(jsonDict):
   doQuery("UPDATE requests SET state='running' WHERE request_id=%d" %
           requestID)
 
-  db.commit()
+  wfs.db.conn.commit()
 
   httpError('200 OK', None)
 
@@ -441,7 +436,7 @@ def pauseRequestCmd(jsonDict):
   doQuery("UPDATE requests SET state='paused' WHERE request_id=%d" %
           requestID)
 
-  db.commit()
+  wfs.db.conn.commit()
 
   httpError('200 OK', None)
 
@@ -458,24 +453,19 @@ def createStageCmd(jsonDict):
     httpError('400 Bad Request', 'Stage ID must be given')
 
   try:
-    minProcessors = int(jsonDict['min_processors'])
+    processors = int(jsonDict['processors'])
   except:
-    minProcessors = 1
+    processors = 1
 
   try:
-    maxProcessors = int(jsonDict['max_processors'])
+    wallSeconds = int(jsonDict['wall_seconds'])
   except:
-    maxProcessors = minProcessors
+    httpError('400 Bad Request', 'Wall seconds must be given')
 
   try:
-    maxWallSeconds = int(jsonDict['max_wall_seconds'])
+    rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
   except:
-    httpError('400 Bad Request', 'Max wall seconds must be given')
-
-  try:
-    maxRssBytes = int(jsonDict['max_rss_mb']) * 1024 * 1024
-  except:
-    httpError('400 Bad Request', 'Max RSS MB must be given')
+    httpError('400 Bad Request', 'RSS MB must be given')
 
   try:
     anyLocation = bool(jsonDict['any_location'])
@@ -490,13 +480,12 @@ def createStageCmd(jsonDict):
   doQuery("INSERT INTO stages SET "
           "request_id=%d,"
           "stage_id=%d,"
-          "min_processors=%d,"
-          "max_processors=%d,"
-          "max_wall_seconds=%d,"
-          "max_rss_bytes=%d,"
+          "processors=%d,"
+          "wall_seconds=%d,"
+          "rss_bytes=%d,"
           "any_location=%s" % 
-          (requestID, stageID, minProcessors, maxProcessors,
-           maxWallSeconds, maxRssBytes, str(anyLocation)))
+          (requestID, stageID, processors,
+           wallSeconds, rssBytes, str(anyLocation)))
           
   doQuery('INSERT INTO bootstraps SET '
           'request_id=%d,'
@@ -525,7 +514,7 @@ def createStageCmd(jsonDict):
               (requestID, stageID,
                pattern.replace('\\','\\\\').replace('"','\\"')))
           
-  db.commit()
+  wfs.db.conn.commit()
 
   httpError('200 OK', None)
 
@@ -567,7 +556,7 @@ def addFileCmd(jsonDict):
           "state='unallocated'" % 
           (requestID, stageID, fileDID))
 
-  fileID = cur.lastrowid
+  fileID = wfs.db.cur.lastrowid
 
   for rseName in rseList:
     doQuery("INSERT INTO replicas SET "
@@ -575,7 +564,7 @@ def addFileCmd(jsonDict):
             "file_id=%d" % 
             (rseName, fileID))
               
-  db.commit()
+  wfs.db.conn.commit()
 
   httpError('200 OK', None)
 
@@ -658,10 +647,10 @@ if os.environ['REQUEST_METHOD'] != 'POST':
 
 # Do as many checks as we can before connecting to the database here
 try:
-  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
+  wfs.db.conn = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
                         passwd=wfs.conf.mysqlPassword, db='wfdb')
-  db.autocommit(False)
-  cur = db.cursor(MySQLdb.cursors.DictCursor) 
+  wfs.db.conn.autocommit(False)
+  wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
 except:
   httpError('500 Internal Server Error', 'Problem with database connection')
 

@@ -51,11 +51,7 @@ import MySQLdb
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs.conf
-
-# Global database connection and ID, usable anywhere
-db            = None
-cur           = None
+import wfs
 
 def header(title):
   print("Status: 200 OK")
@@ -99,8 +95,8 @@ def listRequests(cgiValues):
   query = ("SELECT * FROM requests "
            "ORDER BY request_id")
 
-  cur.execute(query)
-  rows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  rows = wfs.db.cur.fetchall()
 
   print('<table')
   print("<tr><th>Request ID</th><th>Name</th><th>State</th><th>MQL</th><tr>")
@@ -136,8 +132,8 @@ def showRequest(cgiValues):
            "WHERE request_id=%d "
            "ORDER BY request_id" % requestID)
 
-  cur.execute(query)
-  requestRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  requestRows = wfs.db.cur.fetchall()
   
   state = requestRows[0]['state']
 
@@ -187,8 +183,8 @@ def showRequest(cgiValues):
            "WHERE request_id=%d "
            "ORDER BY stage_id" % requestID)
 
-  cur.execute(query)
-  stagesRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  stagesRows = wfs.db.cur.fetchall()
   
   print('<h2>Stages</h2>')
   print('<table')
@@ -252,8 +248,8 @@ def showStage(cgiValues):
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 
-  cur.execute(query)
-  stageRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  stageRows = wfs.db.cur.fetchall()
   
   print("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
   
@@ -313,8 +309,8 @@ def showStage(cgiValues):
            "ORDER BY pattern" %
            (requestID, stageID))
 
-  cur.execute(query)
-  patternRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  patternRows = wfs.db.cur.fetchall()
 
   for patternRow in patternRows:
     print("<tr><td>%s</td><td>%s</td></tr>" %
@@ -369,8 +365,8 @@ def listFiles(cgiValues):
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id" % (requestID, stageID, stateFilter))
 
-  cur.execute(query)
-  filesRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  filesRows = wfs.db.cur.fetchall()
 
   print(
 """<table>
@@ -437,8 +433,8 @@ def showFile(cgiValues):
            'WHERE request_id=%d AND stage_id=%d and file_did="%s"' %
            (requestID, stageID, fileDID))
 
-  cur.execute(query)
-  filesRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  filesRows = wfs.db.cur.fetchall()
 
   fileID = int(filesRows[0]["file_id"])
 
@@ -447,8 +443,8 @@ def showFile(cgiValues):
            "LEFT JOIN storages ON storages.rse_id=allocations.rse_id "
            "WHERE file_id=%d ORDER BY allocation_id" % fileID)
 
-  cur.execute(query)
-  jobsRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  jobsRows = wfs.db.cur.fetchall()
 
   print('<p><table>')
   
@@ -501,15 +497,15 @@ def showJob(cgiValues):
            "LEFT JOIN users ON jobs.job_user_id=users.user_id "
            "WHERE jobs.job_id=%d" % jobID)
 
-  cur.execute(query)
-  jobRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  jobRows = wfs.db.cur.fetchall()
 
   query = ("SELECT file_did FROM allocations "
            "LEFT JOIN files ON allocations.file_id=files.file_id "
            "WHERE allocations.job_id=%d ORDER BY allocation_id" % jobID)
 
-  cur.execute(query)
-  filesRows = cur.fetchall()
+  wfs.db.cur.execute(query)
+  filesRows = wfs.db.cur.fetchall()
 
   print('<table>')
   
@@ -599,10 +595,10 @@ def showJob(cgiValues):
 #
 
 try:
-  db  = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
+  wfs.db.conn = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
                         passwd=wfs.conf.mysqlPassword, db='wfdb')
-  db.autocommit(False)
-  cur = db.cursor(MySQLdb.cursors.DictCursor) 
+  wfs.db.conn.autocommit(False)
+  wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
 except:
   print('Status: 500 Internal Server Error')
   print()

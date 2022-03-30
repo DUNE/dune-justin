@@ -31,44 +31,26 @@ CREATE TABLE `bootstraps` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `jobsub_jobs`
+-- Table structure for table `jobs`
 --
 
-DROP TABLE IF EXISTS `jobsub_jobs`;
+DROP TABLE IF EXISTS `jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobsub_jobs` (
-  `submission_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+CREATE TABLE `jobs` (
+  `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
   `submitted_time` datetime NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
   `site_id` smallint(5) unsigned NOT NULL,
-  `entry_id` smallint(5) unsigned NOT NULL,
-  `state` char(1) NOT NULL DEFAULT 'I',
-  `allocated_time` datetime NOT NULL,
-  PRIMARY KEY (`submitted_job_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `wfs_jobs`
---
-
-DROP TABLE IF EXISTS `wfs_jobs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `wfs_jobs` (
-  `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `submission_id` int(10) unsigned,
-  `factory_name` varchar(255) NOT NULL,
+  `slot_size_id` smallint(5) unsigned NOT NULL,
+  `jobsub_state` char(1) NOT NULL DEFAULT 'I',
+  `allocation_state` enum('submitted','started','processing','finished') NOT NULL DEFAULT 'submitted',
+  `allocated_time` datetime NOT NULL DEFAULT '1970-01-01',
   `allocator_name` varchar(255) NOT NULL,
-  `allocated_time` datetime NOT NULL,
   `finished_time` datetime NOT NULL,
-  `state` enum('submitted','started','processing','finished') NOT NULL DEFAULT 'submitted',
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `jobsub_id` varchar(255) NOT NULL,
-  `site_id` smallint(5) unsigned NOT NULL,
   `hostname` varchar(255) NOT NULL,
   `cpuinfo` varchar(255) NOT NULL,
   `os_release` varchar(255) NOT NULL,
@@ -94,7 +76,7 @@ CREATE TABLE `files` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
   `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
-  `finding_retry_time` datetime NOT NULL DEFAULT 0,
+  `finding_retry_time` datetime NOT NULL DEFAULT '1970-01-01',
   `last_allocation_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
@@ -168,30 +150,33 @@ CREATE TABLE `sites` (
   `site_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_name` varchar(255) NOT NULL,
   `jobsub_site_name` varchar(255) NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `entries`
+-- Table structure for table `slot_sizes`
 --
 
-DROP TABLE IF EXISTS `entries`;
+DROP TABLE IF EXISTS `slot_sizes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `entries` (
-  `entry_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `entry_name` varchar(255) NOT NULL,
+CREATE TABLE `slot_sizes` (
+  `slot_size_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_id` smallint(5) unsigned NOT NULL,
-  `rss_bytes` bigint unsigned NOT NULL,
-  `processors` tinyint unsigned NOT NULL,
-  `wall_seconds` mediumint unsigned NOT NULL,
-  `enabled` tinyint(1) NOT NULL DEFAULT '0',
-  `last_submitted_time` datetime NOT NULL,
-  `last_allocated_time` datetime NOT NULL,
-  PRIMARY KEY (`entry_id`),
-  UNIQUE KEY `entry_name` (`entry_name`)
+  `max_processors` tinyint unsigned NOT NULL,
+  `min_processors` tinyint unsigned NOT NULL DEFAULT 1,
+  `min_rss_bytes` bigint unsigned NOT NULL,
+  `max_rss_bytes` bigint unsigned NOT NULL,
+  `max_wall_seconds` mediumint unsigned NOT NULL,
+  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_allocated_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  PRIMARY KEY (`slot_size_id`),
+  UNIQUE KEY `site_id` (`site_id`,`min_rss_bytes`,`max_rss_bytes`,
+                        `max_processors`,`min_processors`,`max_wall_seconds`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -220,10 +205,9 @@ DROP TABLE IF EXISTS `stages`;
 CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
-  `min_processors` tinyint(3) unsigned NOT NULL,
-  `max_processors` tinyint(3) unsigned NOT NULL,
-  `max_wall_seconds` mediumint(8) unsigned DEFAULT NULL,
-  `max_rss_bytes` bigint(20) unsigned DEFAULT NULL,
+  `processors` tinyint(3) unsigned NOT NULL,
+  `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
+  `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `any_location` tinyint(1) NOT NULL DEFAULT '0',
   `num_finding` mediumint(8) unsigned NOT NULL,
   `num_unallocated` mediumint(8) unsigned NOT NULL,

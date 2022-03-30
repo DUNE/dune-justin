@@ -48,12 +48,9 @@ import MySQLdb
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs.conf
+import wfs
 
 sleepSeconds = 60
-
-db  = None
-cur = None
 
 class wfsError(Exception):
   pass
@@ -65,25 +62,25 @@ def logLine(text):
 def parseJobsubQ():
 
   try: 
-    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-q']
-                             capture_output = True,
+    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-q'],
                              stdin   = subprocess.DEVNULL,
                              stderr  = subprocess.STDOUT,
+                             stdout  = subprocess.PIPE,
                              timeout = 60
                             ) 
   except Exception as e:
     logLine("run-jobsub-q fails with error: " + str(e))
     return
 
-  logLine(outcome.stdout)
+  logLine(outcome.stdout.decode())
   
-  for line in outcome.stdout.splitlines():
+  for line in outcome.stdout.decode().splitlines():
     if '@jobsub' in line and 'wfs-generic-job' in line:
       jobsubID = line.split()[0]
-      state    = line.split()[6]
+      state    = line.split()[5]
 
       try:
-        cur.execute('UPDATE jobsub_jobs '
+        wfs.db.cur.execute('UPDATE jobsub_jobs '
                     'SET state="%s" '
                     'WHERE jobsub_id="%s"'
                     % (state, jobsubID)
@@ -94,30 +91,33 @@ def parseJobsubQ():
         logLine('Update jobsub job ' + jobsubID + ' fails with: ' + str(e))
 
   # Commit whatever we found - no rush
-  db.commit()
+  wfs.db.conn.commit()
 
 def parseJobsubHistory():
 
   try: 
-    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-history']
-                             capture_output = True,
+    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-history'],
                              stdin   = subprocess.DEVNULL,
                              stderr  = subprocess.STDOUT,
+                             stdout  = subprocess.PIPE,
                              timeout = 60
                             ) 
   except Exception as e:
     logLine("run-jobsub-history fails with error: " + str(e))
     return
 
-  logLine(outcome.stdout)
+  logLine(outcome.stdout.decode())
   
-  for line in outcome.stdout.splitlines():
+  for line in outcome.stdout.decode().splitlines():
     if '@jobsub' in line and 'wfs-generic-job' in line:
       jobsubID = line.split()[0]
-      state    = line.split()[7]
+      try:
+        state = line.split()[6]
+      except:
+        state = 'X'
 
       try:
-        cur.execute('UPDATE jobsub_jobs '
+        wfs.db.cur.execute('UPDATE jobsub_jobs '
                     'SET state="%s" '
                     'WHERE jobsub_id="%s"'
                     % (state, jobsubID)
@@ -128,40 +128,44 @@ def parseJobsubHistory():
         logLine('INSERT INTO jobs fails with: ' + str(e))
 
   # Commit whatever we found - no rush
-  db.commit()
+  wfs.db.conn.commit()
    
-def submitToEntry(numberToSubmit, entryRow):
+def submitToSlotSize(numberToSubmit, slotSizeRow):
 
   try: 
-    outcome = subprocess.run(["/var/lib/wfs/run-jobsub-submit",
-                              str(numberToSubmit),
-                              entryRow['jobsub_site_name'], 
-                              entryRow['rss_bytes'] / 1024,
-                              entryRow['processors'],
-                              entryRow['wall_seconds'],
-                              '/var/lib/wfs/job-factory/wfs-generic-job'
-                             ], 
-                             capture_output = True,
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.STDOUT,
-                             timeout = 60
+    outcome = subprocess.run(
+               ["/var/lib/wfs/run-jobsub-submit",
+                str(numberToSubmit),
+                slotSizeRow['jobsub_site_name'],
+                str(int(slotSizeRow['max_rss_bytes'] / 1024)),
+                str(slotSizeRow['max_processors']),
+                str(slotSizeRow['wall_seconds'])
+               ],
+               stdin   = subprocess.DEVNULL,
+               stderr  = subprocess.STDOUT,
+               stdout  = subprocess.PIPE,
+               timeout = 60
                             ) 
   except Exception as e:
     logLine("run-jobsub-submit fails with error: " + str(e))
     return
 
-  logLine(outcome.stdout)
+  logLine(outcome.stdout.decode())
+  logLine('run-jobsub-submit exit code: ' + str(outcome.returncode))
 
   # Scrape the stdout to find the Jobsub job ID
   majorJobsubJobID = None
   jobsubHost       = None
   
-  for line in outcome.stdout.splitlines():
+  for line in outcome.stdout.decode().splitlines():
     if line.startswith("Use job id "):
-      jobsubJobID      = line.split()[4]
-      majorJobsubJobID = jobsubJobID.split('.')[0]
-      jobsubHost       = jobsubJobID.split('@')[1]
-      break
+      try:
+        jobsubJobID      = line.split()[3]
+        majorJobsubJobID = jobsubJobID.split('.')[0]
+        jobsubHost       = jobsubJobID.split('@')[1]
+        break
+      except:
+        pass
    
   if not majorJobsubJobID or not jobsubHost:
     # What??
@@ -171,46 +175,51 @@ def submitToEntry(numberToSubmit, entryRow):
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
-      cur.execute('INSERT INTO jobsub_jobs '
+      wfs.db.cur.execute('INSERT INTO jobsub_jobs '
                   'SET factory_name="%s",'
                   'site_id=%d,'
-                  'entry_id=%d,'
+                  'slot_size_id=%d,'
                   'submitted_time=NOW(),'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
-                     entryRow['site_id'],
-                     entryRow['entry_id'],
+                     slotSizeRow['site_id'],
+                     slotSizeRow['slot_size_id'],
                      majorJobsubJobID, i, jobsubHost)
                  )
 
     except Exception as e:
       # But try to keep going
-      logLine('INSERT INTO jobs fails with: ' + str(e))
+      logLine('INSERT INTO jobsub_jobs fails with: ' + str(e))
 
-  # Record that we've done a submission for this entry
+  # Record that we've done a submission for this slot size
   try:
-    cur.execute('UPDATE entries SET last_submitted_time=NOW() '
-                'WHERE entry_id=%d' % entryRow['entry_id']
+    wfs.db.cur.execute('UPDATE slot_sizes SET last_submitted_time=NOW() '
+                'WHERE slot_size_id=%d' % slotSizeRow['slot_size_id']
                )
 
   except Exception as e:
     # But try to keep going
-    logLine('Update entry last_submitted_time fails with: ' + str(e))
+    logLine('Update last_submitted_time fails with: ' + str(e))
 
   # Commit it all to the DB
-  db.commit()
+  wfs.db.conn.commit()
 
-def processOneEntry(entryRow):
-  # Decide how many jobs to submit, targetted at this entry
-  # and submit them with jobsub_submit
+def processOneSlotSize(slotSizeRow):
+  # Decide how many jobs to submit, targetted at this slot size at one
+  # site and submit them with jobsub_submit
 
-  logLine(str(entryRow))
+  logLine(str(slotSizeRow))
+
+  timeNow = int(time.time())
   
-  # Decide whether to submit, somehow...
-  numberToSubmit = 1
+  # Submit a job at least every hour 
+  # If an allocation has been made to this slot size since the last submission
+  # then do another submission
+  if ((slotSizeRow['last_submitted_time'] < timeNow - 3600) or 
+     (slotSizeRow['last_submitted_time'] < slotSizeRow['last_allocated_time'])):
 
-  # 
-  submitToEntry(numberToSubmit, entryRow)
+    numberToSubmit = 1
+    submitToSlotSize(numberToSubmit, slotSizeRow)
 
 def oneCycle():
 
@@ -219,31 +228,40 @@ def oneCycle():
   parseJobsubQ()
   parseJobsubHistory()
 
-  # Go through the sites/entries, deciding what to submit
+  # Go through the sites / slot sizes, deciding what to submit
   
   try:
-    cur.execute('SELECT sites.site_id,site_name,jobsub_site_name,entry_name,'
-                'rss_bytes,processors,wall_seconds,'
+    wfs.db.cur.execute('SELECT sites.site_id,'
+                'site_name,'
+                'jobsub_site_name,'
+                'slot_size_id,'
+                'min_rss_bytes,'
+                'max_rss_bytes,'
+                'min_processors,'
+                'max_processors,'
+                'wall_seconds,'
+                'UNIX_TIMESTAMP(last_submitted_time) AS last_submitted_time,'
+                'UNIX_TIMESTAMP(last_allocated_time) AS last_allocated_time,'
                 '(SELECT COUNT(*) FROM jobsub_jobs WHERE state="I" AND '
                 'jobsub_jobs.site_id=sites.site_id AND '
-                'jobsub_jobs.entry_id=entries.entry_id) AS number_idle,'
+                'jobsub_jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
                 '(SELECT COUNT(*) FROM jobsub_jobs WHERE state="R" AND '
                 'jobsub_jobs.site_id=sites.site_id AND '
-                'jobsub_jobs.entry_id=entries.entry_id) AS number_running '
+                'jobsub_jobs.slot_size_id=slot_sizes.slot_size_id) AS number_running '
                 'FROM sites '
-                'LEFT JOIN entries ON sites.site_id=entries.site_id '
-                'WHERE entries.enabled '
-                'ORDER BY site_name,entry_name'
+                'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
+                'WHERE enabled '
+                'ORDER BY site_name'
                 # Should change this to random order
                )
 
-    entryRows = cur.fetchall()
-  except:
-    logLine('Failed getting list of entries at sites')
+    slotSizesRows = wfs.db.cur.fetchall()
+  except Exception as e:
+    logLine('Failed getting list of slot sizes at sites: ' + str(e))
     return
   
-  for entryRow in entryRows:
-    processOneEntry(entryRow)
+  for slotSizeRow in slotSizesRows:
+    processOneSlotSize(slotSizeRow)
     
   
 #
@@ -331,12 +349,12 @@ if __name__ == '__main__':
           logLine('=============== Start cycle ===============')
           
           try:
-            db  = MySQLdb.connect(host="localhost", 
+            wfs.db.conn = MySQLdb.connect(host="localhost", 
                                   user=wfs.conf.mysqlUser,
                                   passwd=wfs.conf.mysqlPassword, 
                                   db='wfdb')
-            db.autocommit(False)
-            cur = db.cursor(MySQLdb.cursors.DictCursor)
+            wfs.db.conn.autocommit(False)
+            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:

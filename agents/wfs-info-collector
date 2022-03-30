@@ -52,16 +52,13 @@ import rucio.client
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs.conf
+import wfs
 
 updateUsersInterval    = 3600
 updateSitesInterval    = 3600
 updateStoragesInterval = 3600
 
 sleepSeconds = 60
-
-db  = None
-cur = None
 
 class wfsError(Exception):
   pass
@@ -106,7 +103,7 @@ def updateUsers():
                    'ON DUPLICATE KEY UPDATE name="' + account['account'] + '"'
                   )
 
-          cur.execute(query)
+          wfs.db.cur.execute(query)
         except Exception as e:
           # Log the error and hope it was transitory
           logLine('Failed inserting %s into database: %s' % 
@@ -132,13 +129,12 @@ def processOneFileXML(sitesDict, fileName):
     if xmlEntry.nodeType == xml.dom.Node.ELEMENT_NODE and \
        xmlEntry.tagName == 'entry':
 
-      siteName  = None
-      voList    = []
-      entryDict = { 'entry_name'   : xmlEntry.getAttribute('name'),
-                    'processors'   : 1,
-                    'rss_bytes'    : 2147483648,
-                    'wall_seconds' : 86400
-                  }
+      siteName        = None
+      jobsubSiteName  = None
+      voList          = []
+      processors      = 1
+      rssBytes        = 2147483648
+      wallSeconds     = 86400
             
       for xmlEntryChild in xmlEntry.childNodes:
         if xmlEntryChild.nodeType == xml.dom.Node.ELEMENT_NODE and \
@@ -160,33 +156,43 @@ def processOneFileXML(sitesDict, fileName):
 
               elif name == 'GLIDEIN_CPUS':
                 try:
-                  entryDict['processors'] = int(xmlAttr.getAttribute('value'))
+                  processors = int(xmlAttr.getAttribute('value'))
                 except:
                   pass
                 
               elif name == 'GLIDEIN_MaxMemMBs':
                 try:
-                  entryDict['rss_bytes'] = int(xmlAttr.getAttribute('value')) * 1048576
+                  rssBytes = int(xmlAttr.getAttribute('value')) * 1048576
                 except:
                   pass
                 
               elif name == 'GLIDEIN_Max_Walltime':
                 try:
-                  entryDict['wall_seconds'] = int(xmlAttr.getAttribute('value'))
+                  wallSeconds = int(xmlAttr.getAttribute('value'))
                 except:
                   pass
                 
               elif name == 'GLIDEIN_Supported_VOs':
                 voList = xmlAttr.getAttribute('value').split(',')
 
-      if siteName and ('DUNE' in voList):
+      if (siteName and jobsubSiteName and processors and rssBytes and
+          wallSeconds and ('DUNE' in voList)):
 
         if siteName not in sitesDict:
-          sitesDict[siteName] = []
+          sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
+                                  'largest_rss_bytes'     : rssBytes,
+                                  'largest_processors'    : processors,
+                                  'smallest_wall_seconds' : wallSeconds
+                                }
 
-        sitesDict[siteName].append(entryDict)
+        if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
+          sitesDict[siteName]['largest_rss_bytes']    = rssBytes
+          sitesDict[siteName]['largest_processors']   = processors
+          
+        if wallSeconds < sitesDict[siteName]['smallest_wall_seconds']:
+          sitesDict[siteName]['smallest_wall_seconds'] = wallSeconds
 
-def buildSitesDict(sitesDict):
+def buildSites(sitesDict):
 
   tmpDir = tempfile.TemporaryDirectory()
   os.system('git clone https://github.com/opensciencegrid/osg-gfactory.git '
@@ -200,34 +206,71 @@ def updateSites():
   # Get info about sites the pilot factories know about
   logLine('---- Start updateSites ----')
 
-  sitesDict = {}               
-  buildSitesDict(sitesDict)
+  sitesDict = {}
+  buildSites(sitesDict)
 
   for siteName in sitesDict:
-    # Ensure the sites exists
+    # Ensure the sites exist
     query = ('INSERT INTO sites SET site_name="%s",jobsub_site_name="%s" '
-             'ON DUPLICATE KEY UPDATE jobsub_site_name="%s"',
-               % (siteName, sitesDict['jobsub_site_name']))
+             'ON DUPLICATE KEY UPDATE jobsub_site_name="%s"' 
+             % (siteName, 
+                sitesDict[siteName]['jobsub_site_name'], 
+                sitesDict[siteName]['jobsub_site_name']
+               )
+            )
 
-    cur.execute(query)
+    wfs.db.cur.execute(query)
 
-    for entry in sitesDict[siteName]:
-      query = ('INSERT INTO entries SET '
-               'entry_name="' + entry['entry_name'] + '",' +
+    # Assemble a list of memory slot sizes
+    rssBytesList = [0]
+
+    # If the site allows multiprocessor jobs, then we create multiple 
+    # slots. (Otherwise just the record whole slot from the XML).
+    if sitesDict[siteName]['largest_processors'] > 1:
+      for i in [2147483648, 4294967296, 6442450944, 8589934592]:
+        if i < sitesDict[siteName]['largest_rss_bytes']:
+          rssBytesList.append(i)
+
+    # The biggest slot that was in the XML
+    rssBytesList.append(sitesDict[siteName]['largest_rss_bytes'])
+
+    # 10% margin on the slot time limit        
+    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.9)
+
+    # Go through the memory sizes we found
+    for i in range(1, len(rssBytesList)):
+
+      if i == (len(rssBytesList) - 1):
+        # Catch-all slot based on the largest in the XML
+        if i == 1:
+          minProcessors = 0
+        else:
+          minProcessors = 1
+
+        maxProcessors = sitesDict[siteName]['largest_processors']
+        minRssBytes   = 0
+        maxRssBytes   = rssBytesList[i]
+      else:
+        # One or more single processor slots of increasing memory size
+        minProcessors = 0
+        maxProcessors = 1                
+        minRssBytes   = rssBytesList[i-1]
+        maxRssBytes   = rssBytesList[i]
+
+      # Now add whatever we decided/found for this slot
+      query = ('INSERT INTO slot_sizes SET '
+               'last_seen_time=NOW(),'
                'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
-                 siteName + '"),' +
-               'processors=' + str(entry['processors']) + ',' +   
-               'rss_bytes=' + str(entry['rss_bytes']) + ',' +   
-               'wall_seconds=' + str(entry['wall_seconds']) + ' ' +
-               'ON DUPLICATE KEY UPDATE '
-               'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
-                 siteName + '"),' +
-               'processors=' + str(entry['processors']) + ',' +
-               'rss_bytes=' + str(entry['rss_bytes']) + ',' +   
-               'wall_seconds=' + str(entry['wall_seconds'])
+                  siteName + '"),' +
+               'min_processors='   + str(minProcessors) + ',' +
+               'max_processors='   + str(maxProcessors) + ',' +
+               'min_rss_bytes='    + str(minRssBytes) + ',' +
+               'max_rss_bytes='    + str(maxRssBytes) + ',' +
+               'max_wall_seconds=' + str(maxWallSeconds) + ' ' +
+               'ON DUPLICATE KEY UPDATE last_seen_time=NOW()'
               ) 
 
-      cur.execute(query)
+      wfs.db.cur.execute(query)
 
 def updateSitesStorages(): 
   # Update the matrix of sites to storage mappings
@@ -245,11 +288,11 @@ def updateSitesStorages():
                 'UK_RAL-PPD,RAL_PPD'       : 'samesite'
               }
 
-  cur.execute('SELECT site_id,site_name FROM sites')
-  siteRows = cur.fetchall()
+  wfs.db.cur.execute('SELECT site_id,site_name FROM sites')
+  siteRows = wfs.db.cur.fetchall()
   
-  cur.execute('SELECT rse_id,rse_name FROM storages')
-  storageRows = cur.fetchall()
+  wfs.db.cur.execute('SELECT rse_id,rse_name FROM storages')
+  storageRows = wfs.db.cur.fetchall()
   
   for siteRow in siteRows:
     for storageRow in storageRows:
@@ -270,9 +313,9 @@ def updateSitesStorages():
                'location="' + location + '"'
               ) 
               
-      cur.execute(query)
+      wfs.db.cur.execute(query)
 
-#  db.commit()
+#  wfs.db.conn.commit()
 
 def updateStorages():
   # Get info about storages Rucio knows about
@@ -319,13 +362,13 @@ def updateStorages():
                'ON DUPLICATE KEY UPDATE occupancy=%f'
                % (rse['rse'], occupancy, occupancy))
 
-      cur.execute(query)
+      wfs.db.cur.execute(query)
     except Exception as e:
       # Log the error and hope it was transitory
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
 
-#  db.commit()
+#  wfs.db.conn.commit()
 
 def oneCycle():
 
@@ -360,7 +403,7 @@ def oneCycle():
     updateSites()
     updateSitesStorages()
 
-  db.commit()
+  wfs.db.conn.commit()
 
 #
 # PROGRAM MAIN
@@ -447,12 +490,12 @@ if __name__ == '__main__':
           logLine('=============== Start cycle ===============')
           
           try:
-            db  = MySQLdb.connect(host="localhost", 
+            wfs.db.conn = MySQLdb.connect(host="localhost", 
                                   user=wfs.conf.mysqlUser,
                                   passwd=wfs.conf.mysqlPassword, 
                                   db='wfdb')
-            db.autocommit(False)
-            cur = db.cursor(MySQLdb.cursors.DictCursor)
+            wfs.db.conn.autocommit(False)
+            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
