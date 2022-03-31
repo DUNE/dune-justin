@@ -364,12 +364,16 @@ def createRequestCmd(jsonDict, userID):
   else:
     mql = ''
 
+  if 'monte-carlo' in jsonDict and jsonDict['monte-carlo']:
+    try:
+      mql = 'monte-carlo %d' + int(jsonDict['monte-carlo'])
+    except:
+      httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
+      
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'
           'submitter_id=%d' %
-#          (name.replace('\\','_').replace('"','_'),
-#           mql.replace('\\','\\\\').replace('"','\\"'),
           (name,
            mql,
            userID))
@@ -389,6 +393,12 @@ def quickRequestCmd(jsonDict, userID):
   else:
     mql = ''
 
+  if 'monte-carlo' in jsonDict and jsonDict['monte-carlo']:
+    try:
+      mql = 'monte-carlo %d' + int(jsonDict['monte-carlo'])
+    except:
+      httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
+      
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'

@@ -30,10 +30,11 @@ option is only needed during development and testing.
 .SH SUBCOMMANDS
 
 .HP
-.B "create-request [--name NAME] [--mql QUERY]"
+.B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT]"
 .br
 Create a new, empty request in the database, optionally with the given 
-human-readable name and MetaCat Query Language expression. If a name is not 
+human-readable name and either a MetaCat Query Language expression or
+the count of the number of Monte Carlo instances to run. If a name is not 
 given, a name based on a timestamp is created. If present, the query will be
 used by the Workflow System to build the list of input files from MetaCat.
 Requests are created in the state "draft" and the command returns the new 
@@ -119,7 +120,7 @@ Workflow Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
 
 .HP
-.B "quick-request [--name NAME] [--mql QUERY] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN]"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN]"
 .br
 Combines the 
 .B create-request, create-stage

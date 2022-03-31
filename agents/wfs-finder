@@ -67,13 +67,13 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
-def addFilesMontecarlo(requestID, count):
+def addFilesMonteCarlo(requestID, count):
   # Add dummy files to keep track of Monte Carlo processing
   
   for i in range(1, count + 1):
     try:
       query = ('INSERT INTO files SET '
-               'request_id=%d,file_did="montecarlo-%06d-%06d"' 
+               'request_id=%d,file_did="monte-carlo-%06d-%06d"' 
                % (requestID, requestID, i)
               )
 
@@ -165,14 +165,14 @@ def findFiles():
                        datasetSplit[1])
         
     # Monte Carlo request with a count
-    elif len(mqlSplit) == 2 and mqlSplit[0] == 'montecarlo':
+    elif len(mqlSplit) == 2 and mqlSplit[0] == 'monte-carlo':
       
       try:
         count = int(mqlSplit[1])
       except:
         continue
       
-      addFilesMontecarlo(request['request_id'], count)
+      addFilesMonteCarlo(request['request_id'], count)
 
 def findReplicas():
   # Find replicas of files in the finding state
@@ -209,7 +209,7 @@ def findReplicas():
     if ':' in fileRow['file_did']:
       didSplit = fileRow['file_did'].split(':')
       didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
-    elif fileRow['file_did'].startswith('montecarlo-'):
+    elif fileRow['file_did'].startswith('monte-carlo-'):
       repsDict[fileRow['file_did']] = 'MONTECARLO'
 
   print(didsList)
