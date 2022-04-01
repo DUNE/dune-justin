@@ -55,19 +55,71 @@ allocatorName = None
 
 # Return various strings and SQL expressions which are 
 # used in subsequent queries
-def makeQueryTerms(jsonDict, job):
+def makeJobDict(jobsubID, cookie = None):
 
-  query = ('SELECT sites_storages.rse_id,location,rse_name,'
-           'occupancy '
-           'FROM sites_storages '
-           'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
-           'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
-           'WHERE sites.site_name="%s" '
-           'ORDER BY location,occupancy,RAND();' 
-           % job['site_name'])
+  # Find the job info and the stage's any_location flag
+  try:
+    query = ('SELECT '
+             'jobs.slot_size_id,'
+             'jobs.allocation_state,'
+             'jobs.cookie,'
+             'stages.any_location,'
+             'jobs.request_id,'
+             'jobs.stage_id '
+             'FROM jobs '
+             'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
+             'WHERE jobs.jobsub_id="' + jobsubID + '"')
 
-  wfs.db.cur.execute(query)
-  storageRows = wfs.db.cur.fetchall()
+    wfs.db.cur.execute(query)
+    job = wfs.db.cur.fetchone()
+  except:
+    return { "error_message": "Failed to find job from jobsubID" }
+
+  if job['allocation_state'] != 'submitted' and \
+     (cookie is None or job['cookie'] != cookie):
+    return { "error_message": "Cookie mismatch" }
+
+  return { "errorMessage" : None,
+           "request_id"   : job['request_id'],
+           "stage_id"     : job['stage_id'],
+           "slot_size_id" : job['slot_size_id'],
+           "any_location" : job['any_location']
+         }
+ 
+def makeQueryDict(slotSizeID):
+
+  # Find the job info and the stage's any_location flag
+  try:
+    query = ('SELECT '
+             'sites.site_name,'
+             'slot_sizes.min_processors,'
+             'slot_sizes.max_processors,'
+             'slot_sizes.min_rss_bytes,'
+             'slot_sizes.max_rss_bytes,'
+             'slot_sizes.max_wall_seconds '
+             'FROM slot_sizes '
+             'LEFT JOIN sites ON slot_sizes.site_id=sites.site_id '
+             'WHERE slot_sizes.slot_size_id=' + str(slotSizeID))
+
+    wfs.db.cur.execute(query)
+    slotSize = wfs.db.cur.fetchone()
+  except:
+    return { "error_message": "Failed to find slot size from slotSizeID" }
+ 
+  try:
+    query = ('SELECT sites_storages.rse_id,location,rse_name,'
+             'occupancy '
+             'FROM sites_storages '
+             'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
+             'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
+             'WHERE sites.site_name="%s" '
+             'ORDER BY location,occupancy,RAND();' % slotSize['site_name'])
+
+    wfs.db.cur.execute(query)
+    storageRows = wfs.db.cur.fetchall()
+
+  except:
+    return { "error_message": "Failed to fetch storages info" }
 
   outputRseList  = [] 
   samesiteList   = []
@@ -76,7 +128,8 @@ def makeQueryTerms(jsonDict, job):
 
   for storageRow in storageRows:
 
-    if storageRow['occupancy'] < 1.0:
+    if storageRow['rse_id'] != wfs.conf.MonteCarloRseID and \
+       storageRow['occupancy'] < 1.0:
       outputRseList.append(storageRow['rse_name'])
   
     if storageRow['location'] == 'accessible':
@@ -124,17 +177,23 @@ def makeQueryTerms(jsonDict, job):
   if storageOrder:
     storageOrder += ' DESC,'
 
-  return { "outputRseList"  : outputRseList,
-           "samesiteList"   : samesiteList,
-           "nearbyList"     : nearbyList,
-           "accessibleList" : accessibleList,
-           "storageWhere"   : storageWhere,
-           "storageOrder"   : storageOrder
+  return { "errorMessage"    : None,
+           "outputRseList"   : outputRseList,
+           "samesiteList"    : samesiteList,
+           "nearbyList"      : nearbyList,
+           "accessibleList"  : accessibleList,
+           "storageWhere"    : storageWhere,
+           "storageOrder"    : storageOrder,
+           "min_processors"  : slotSize['min_processors'],
+           "max_processors"  : slotSize['max_processors'],
+           "min_rss_bytes"   : slotSize['min_rss_bytes'],
+           "max_rss_bytes"   : slotSize['max_rss_bytes'],
+           "max_wall_seconds": slotSize['max_wall_seconds']
          }
 
 # Just in time decision making: identify the best request+stage combination
 # based on the immediate situation rather than trying to plan ahead
-def findStage(queryTerms, job):
+def findStage(queryDict):
 
   query = (
  "SELECT stages.request_id,stages.stage_id,"
@@ -146,100 +205,52 @@ def findStage(queryTerms, job):
  "LEFT JOIN requests ON requests.request_id=files.request_id "
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
- "WHERE files.state='unallocated' AND " +
- str(job["processors"])   + " <= stages.max_processors AND " +
- str(job["processors"])   + " >= stages.min_processors AND " +
- str(job["rss_bytes"])    + " >= stages.max_rss_bytes AND " +
- str(job["wall_seconds"]) + " >= stages.max_wall_seconds " +
- queryTerms["storageWhere"] + " AND storages.rse_name IS NOT NULL " +
- " ORDER BY " + 
- queryTerms["storageOrder"] + "files.request_id,files.file_id"
- " LIMIT 1 FOR UPDATE"
- )
+ "WHERE files.state='unallocated' AND " 
+ "%d < stages.processors AND "
+ "stages.processors <= %d AND "
+ "%d < stages.rss_bytes AND "
+ "stages.rss_bytes <= %d AND "
+ "stages.wall_seconds <= %d %s "
+ "AND storages.rse_name IS NOT NULL " 
+ "ORDER BY %sfiles.request_id,files.file_id "
+ "LIMIT 1 FOR UPDATE" %
+ (queryDict["min_processors"], queryDict["max_processors"], 
+  queryDict["min_rss_bytes"], queryDict["max_rss_bytes"], 
+  queryDict["max_wall_seconds"], 
+  queryDict["storageWhere"],
+  queryDict["storageOrder"] 
+ ))
 
-  wfs.db.cur.execute(query)
-  fileRows = wfs.db.cur.fetchall()
+  print()
+  print(query)
+  print()
   
-  if len(fileRows) == 0:
+  wfs.db.cur.execute(query)
+  fileRow = wfs.db.cur.fetchone()
+  
+  if not fileRow:
     return None
 
-  # Take the values of the highest priority result
-  requestID   = int(fileRows[0]['request_id'])
-  stageID     = int(fileRows[0]['stage_id'])
-  anyLocation = bool(fileRows[0]['any_location'])
-  
-  # The dictionary to return
-  stage = { 'request_id'  : requestID,
-            'stage_id'    : stageID,
-            'any_location': anyLocation }
+  # The dictionary to return, with the highest priority result
+  stage = { 'request_id'  : fileRow['request_id'],
+            'stage_id'    : fileRow['stage_id'],
+            'any_location': bool(fileRow['any_location']) }
 
   return stage
 
-# Make a dictionary containing one job's information
-def findJob(jsonDict):
-
-  try:
-    wfsJobID  = int(jsonDict['wfs_job_id'])
-    cookie = str(jsonDict['cookie'])
-  except:
-    return None
-
-  # Find the job info and the stage's any_location flag
-  try:
-    query = ('SELECT wfs_jobs.request_id,'
-             'wfs_jobs.stage_id,'
-             'wfs_jobs.state,'
-             'sites.site_name,'
-             'wfs_jobs.hostname,'
-             'wfs_jobs.cpuinfo,'
-             'wfs_jobs.os_release,'
-             'wfs_jobs.rss_bytes,'
-             'wfs_jobs.processors,'
-             'wfs_jobs.wall_seconds,'
-             'stages.any_location '
-             'FROM jobs '
-             'LEFT JOIN sites ON wfs_jobs.site_id=sites.site_id '
-             'LEFT JOIN stages ON wfs_jobs.stage_id=stages.stage_id '
-             'WHERE wfs_jobs.wfs_job_id=' + str(wfsJobID) + ' AND ' +
-             'wfs_jobs.cookie="' + cookie + '"')
-
-    wfs.db.cur.execute(query)
-    rows=wfs.db.cur.fetchall()
-    
-    job = { 'wfs_job_id' : wfsJobID,
-            'cookie'           : cookie,
-            'request_id'       : int(rows[0]['request_id']),
-            'stage_id'         : int(rows[0]['stage_id']),
-            'state'            : rows[0]['state'],
-            'site_name'        : rows[0]['site_name'],
-            'hostname'         : rows[0]['hostname'],
-            'cpuinfo'          : rows[0]['cpuinfo'],
-            'os_release'       : rows[0]['os_release'],
-            'rss_bytes'        : int(rows[0]['rss_bytes']),
-            'processors'       : int(rows[0]['processors']),
-            'wall_seconds'     : int(rows[0]['wall_seconds']),
-            'any_location'     : bool(rows[0]['any_location'])
-          }
-          
-    return job
-    
-  except:
-    # WE SHOULD PROVIDE SOME KIND OF DEBUGGING FOR ALL THIS!!
-    return None
-
 # Make a dictionary containing one file's information
-def findOneFile(jsonDict, queryTerms, job):
+def findFile(jobDict, queryDict):
 
-  if job['any_location']:
+  if jobDict['any_location']:
     # If this stage can access data on any accessible storage, then 
     # use all three lists
-    storageWhere = ' OR '.join(queryTerms["samesiteList"] + 
-                               queryTerms["nearbyList"] + 
-                               queryTerms["accessibleList"])
+    storageWhere = ' OR '.join(queryDict["samesiteList"] + 
+                               queryDict["nearbyList"] + 
+                               queryDict["accessibleList"])
   else:
     # Otherwise just use samesite and nearby lists of storages
-    storageWhere = ' OR '.join(queryTerms["samesiteList"] + 
-                               queryTerms["nearbyList"])
+    storageWhere = ' OR '.join(queryDict["samesiteList"] + 
+                               queryDict["nearbyList"])
 
   if storageWhere:
     storageWhere = ' AND (' + storageWhere + ') '
@@ -250,13 +261,11 @@ def findOneFile(jsonDict, queryTerms, job):
 "FROM files "
 "LEFT JOIN replicas ON files.file_id=replicas.file_id "
 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
-"WHERE files.state='unallocated' AND files.request_id=" +
-str(job['request_id']) + " AND files.stage_id=" + str(job['stage_id']) + 
-storageWhere + " AND storages.rse_NAME IS NOT NULL "
-"ORDER BY " + 
-queryTerms["storageOrder"] + "files.file_id"
-" LIMIT 1 FOR UPDATE"
-) 
+"WHERE files.state='unallocated' AND files.request_id=%d "
+"AND files.stage_id=%d %s AND storages.rse_NAME IS NOT NULL "
+"ORDER BY %sfiles.file_id LIMIT 1 FOR UPDATE" %
+(jobDict['request_id'], jobDict['stage_id'], 
+ storageWhere, queryDict['storageOrder'])) 
    
   print('DEBUG: ' + query, file=sys.stderr)
    
@@ -271,7 +280,7 @@ queryTerms["storageOrder"] + "files.file_id"
   try: 
     query = ("INSERT INTO allocations SET allocated_time=NOW(),"
              "rse_id=" + str(fileRows[0]['rse_id']) + ","
-             "wfs_job_id=" + str(job['wfs_job_id']) + ","
+             "wfs_job_id=" + str(queryDict['wfs_job_id']) + ","
              "file_id=" + str(fileRows[0]['file_id'])
             )
     wfs.db.cur.execute(query)

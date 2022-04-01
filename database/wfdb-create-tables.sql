@@ -173,6 +173,7 @@ CREATE TABLE `slot_sizes` (
   `max_wall_seconds` mediumint unsigned NOT NULL,
   `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_no_match_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_allocated_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY (`slot_size_id`),
   UNIQUE KEY `site_id` (`site_id`,`min_rss_bytes`,`max_rss_bytes`,

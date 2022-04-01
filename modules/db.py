@@ -34,3 +34,19 @@
 ## Global database connection
 conn = None
 cur  = None
+
+import re
+
+
+def stringIsJobsubID(s):
+  return re.search('[^A-Z,a-z,0-9,_,.,@,-]', s) is None
+
+def stringIsDomain(s):
+  return re.search('[^A-Z,a-z,0-9,.,-]', s) is None
+
+def stringIsSite(s):
+  return re.search('[^A-Z,a-z,0-9,_,-]', s) is None
+
+def stringNoQuotes(s):
+  return re.search('[",`,\']', s) is None
+

@@ -44,7 +44,6 @@ EOF
 chmod +x $WFS_PATH/wfs-get-file
 
 # Assemble values we will need 
-export jobsub_id="$JOBSUBJOBID"
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
@@ -72,7 +71,7 @@ fi
 cat <<EOF >wfs-get-stage.json
 {
   "method"       : "get_stage",
-  "jobsub_id"    : "$jobsub_id",
+  "jobsub_id"    : "$JOBSUBJOBID",
   "site_name"    : "$site_name",
   "cpuinfo"      : "$cpuinfo",
   "os_release"   : "$os_release",
@@ -89,7 +88,7 @@ echo '====end wfs-get-stage.json===='
 
 # Make the call to the Workflow Allocator
 http_code=`curl \
---header "X-Jobid: $jobsub_id" \
+--header "X-Jobid: $JOBSUBJOBID" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
@@ -173,7 +172,7 @@ unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\
 cat <<EOF >wfs-return-results.json
 {
   "method": "return_results",
-  "wfs_job_id": $WFS_JOB_ID,
+  "jobsub_id": $JOBSUBJOBID,
   "cookie": "$WFS_COOKIE",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
@@ -186,6 +185,7 @@ cat wfs-return-results.json
 echo "=====End wfs-return-results.json=="
 
 http_code=`curl \
+--header "X-Jobid: $JOBSUBJOBID" \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
 --data @wfs-return-results.json \
 --output return-results.txt \

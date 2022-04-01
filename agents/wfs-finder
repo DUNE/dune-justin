@@ -54,11 +54,8 @@ import rucio.client
 #
 import wfs
 
-findFilesInterval     = 3600
-findReplicasInterval  = 3600
-maxFileFindsPerCycle  = 10
-
-sleepSeconds = 60
+maxFileFindsPerCycle = 10
+sleepSeconds         = 60
 
 class wfsError(Exception):
   pass
@@ -72,7 +69,7 @@ def addFilesMonteCarlo(requestID, count):
   
   for i in range(1, count + 1):
     try:
-      query = ('INSERT INTO files SET '
+      query = ('INSERT INTO files SET state="unallocated",'
                'request_id=%d,file_did="monte-carlo-%06d-%06d"' 
                % (requestID, requestID, i)
               )
@@ -82,7 +79,17 @@ def addFilesMonteCarlo(requestID, count):
       logLine('Failed inserting dummy Monte Carlo file')
       return
 
-  # All files found for this request so update its state
+    try:
+      query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
+               'pfn="monte-carlo-%06d-%06d"' 
+               % (wfs.conf.MonteCarloRseID,  wfs.db.cur.lastrowid,
+                  requestID, i))
+
+      wfs.db.cur.execute(query)
+    except Exception as e:
+      logLine('Failed inserting dummy Monte Carlo replica')
+      return
+
   try:
     query = ('UPDATE requests SET state="running" WHERE request_id=' +
              str(requestID))
@@ -142,14 +149,19 @@ def findFiles():
   #
   # ONLY MQLs OF THE FORM from files scope:name ARE SUPPORTED UNTIL THEN
 
+  wfs.db.cur.execute('SELECT request_id,mql FROM requests '
+                     'WHERE state="finding" ORDER BY request_id')
+  findingRequests = wfs.db.cur.fetchall()
+  
+  if not findingRequests:  
+    # Nothing to do
+    return
+  
   try:
     didClient = rucio.client.didclient.DIDClient()
   except Exception as e:
     logLine("Connect to Rucio fails with: " + str(e))
     return
-  
-  wfs.db.cur.execute('SELECT request_id,mql FROM requests WHERE state="finding"')
-  findingRequests = wfs.db.cur.fetchall()
   
   for request in findingRequests:
     mqlSplit = request['mql'].split()
@@ -177,12 +189,47 @@ def findFiles():
 def findReplicas():
   # Find replicas of files in the finding state
 
+  # Make a list of up to maxFileFindsPerCycle files to work on 
+  # but only for Rucio DIDs in scope:name format
+  didsList = []
+  query = ('SELECT request_id,stage_id,file_id,file_did FROM files '
+           'WHERE state="finding" AND NOW() > finding_retry_time '
+           'AND file_did LIKE "%:%" '
+           'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
+  
+  wfs.db.cur.execute(query)
+  findingFiles = wfs.db.cur.fetchall()
+  
+  if not findingFiles:
+    # Nothing to do
+    return
+  
+  for fileRow in findingFiles:
+    didSplit = fileRow['file_did'].split(':')
+    didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
+        
   # Check we can talk to Rucio
   try:
     repClient = rucio.client.replicaclient.ReplicaClient()
   except Exception as e:
     logLine("Connect to Rucio fails with: " + str(e))
     return
+
+  print(didsList)
+  try:
+    # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
+    repsList = repClient.list_replicas(didsList, schemes=['root'])
+  except Exception as e:
+    logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
+    return
+
+  # Make a dictionary with the replicas of all the file DIDs we asked about
+  repsDict = {}
+
+  for rep in repsList:
+    repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
+
+  print(repsDict)
 
   # Cache rse_id of each known RSE into a local dictionary
   storagesDict = {}
@@ -193,37 +240,7 @@ def findReplicas():
     storagesDict[storageRow['rse_name']] = storageRow['rse_id']
  
   print(storagesDict)
-  # Make a list of up to maxFileFindsPerCycle files to work on 
-  didsList = []
-  query = ('SELECT request_id,stage_id,file_id,file_did FROM files '
-           'WHERE state="finding" AND NOW() > finding_retry_time '
-           'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
-  
-  wfs.db.cur.execute(query)
-  findingFiles = wfs.db.cur.fetchall()
-  
-  # Make a dictionary with the replicas of all the file DIDs we asked about
-  repsDict = {}
 
-  for fileRow in findingFiles:
-    if ':' in fileRow['file_did']:
-      didSplit = fileRow['file_did'].split(':')
-      didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
-    elif fileRow['file_did'].startswith('monte-carlo-'):
-      repsDict[fileRow['file_did']] = 'MONTECARLO'
-
-  print(didsList)
-  try:
-    # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
-    repsList = repClient.list_replicas(didsList, schemes=['root'])
-  except Exception as e:
-    logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
-    return
-
-  for rep in repsList:
-    repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
-
-  print(repsDict)
   # Go back to our list of files in finding state and put replicas in DB
   for fileRow in findingFiles:
     print(fileRow)
@@ -273,25 +290,8 @@ def findReplicas():
 
 def oneCycle():
 
-  # Is it time to find files for requests?
-  try:
-    lastFindFiles = os.stat('/var/run/wfs/last-find-files').st_mtime
-  except:
-    lastFindFiles = 0
-
-  if lastFindFiles + findFilesInterval < time.time():
-    pathlib.Path('/var/run/wfs/last-find-files').touch(exist_ok=True)
-    findFiles()
-
-  # Is it time to find replicas for files?
-  try:
-    lastFindReplicas = os.stat('/var/run/wfs/last-find-replicas').st_mtime
-  except:
-    lastFindReplicas = 0
-
-  if lastFindReplicas + findReplicasInterval < time.time():
-    pathlib.Path('/var/run/wfs/last-find-replicas').touch(exist_ok=True)
-    findReplicas()
+  findFiles()
+  findReplicas()
 
 #
 # PROGRAM MAIN

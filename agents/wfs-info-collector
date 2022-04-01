@@ -321,6 +321,11 @@ def updateStorages():
   # Get info about storages Rucio knows about
   logLine('---- Start updateStorages ----')
   
+  # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
+  wfs.db.cur.execute('INSERT INTO storages SET rse_id=%d,'
+    'rse_name="MONTECARLO",occupancy=1 ON DUPLICATE KEY UPDATE occupancy=1'
+    % wfs.conf.MonteCarloRseID)
+
   try:
     rseClient = rucio.client.rseclient.RSEClient()
   except Exception as e:
@@ -367,10 +372,6 @@ def updateStorages():
       # Log the error and hope it was transitory
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
-
-  # Ensure the dummy MONTECARLO RSE exists
-  wfs.db.cur.execute('INSERT INTO storages SET '
-    'rse_name="MONTECARLO",occupancy=1 ON DUPLICATE KEY UPDATE occupancy=1')
 
 #  wfs.db.conn.commit()
 

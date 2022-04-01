@@ -204,22 +204,32 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
   # Commit it all to the DB
   wfs.db.conn.commit()
 
-def processOneSlotSize(slotSizeRow):
+def processSlotSize(slotSizeRow):
   # Decide how many jobs to submit, targetted at this slot size at one
   # site and submit them with jobsub_submit
 
   logLine(str(slotSizeRow))
 
-  timeNow = int(time.time())
-  
-  # Submit a job at least every hour 
-  # If an allocation has been made to this slot size since the last submission
-  # then do another submission
-  if ((slotSizeRow['last_submitted_time'] < timeNow - 3600) or 
-     (slotSizeRow['last_submitted_time'] < slotSizeRow['last_allocated_time'])):
+  if slotSizeRow['number_idle'] > 0:
+    # Really cautious for now: no submissions if any already waiting
+    return
 
+  try:
+    queryDict = wfs.allocator.makeQueryDict(slotSizeRow['slot_size_id'])
+    print(queryDict)
+    stage = wfs.allocator.findStage(queryDict)
+    print(stage)
+  except Exception as e:
+    logLine('Update makeQueryDict/findStage fails with: ' + str(e))
+    stage = None
+
+  if stage: 
+    # Submit one job if none idle and at least one stage would match 
     numberToSubmit = 1
+    logLine('Match found - submit %d job(s)' % numberToSubmit)
     submitToSlotSize(numberToSubmit, slotSizeRow)
+  else:
+    logLine('No match found')
 
 def oneCycle():
 
@@ -261,7 +271,7 @@ def oneCycle():
     return
   
   for slotSizeRow in slotSizesRows:
-    processOneSlotSize(slotSizeRow)
+    processSlotSize(slotSizeRow)
     
   
 #

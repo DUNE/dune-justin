@@ -364,9 +364,9 @@ def createRequestCmd(jsonDict, userID):
   else:
     mql = ''
 
-  if 'monte-carlo' in jsonDict and jsonDict['monte-carlo']:
+  if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
     try:
-      mql = 'monte-carlo %d' + int(jsonDict['monte-carlo'])
+      mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
     except:
       httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
       
@@ -393,9 +393,15 @@ def quickRequestCmd(jsonDict, userID):
   else:
     mql = ''
 
-  if 'monte-carlo' in jsonDict and jsonDict['monte-carlo']:
+  try:
+    anyLocation = bool(jsonDict['any_location'])
+  except:
+    anyLocation = False
+
+  if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
     try:
-      mql = 'monte-carlo %d' + int(jsonDict['monte-carlo'])
+      mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
+      anyLocation = True
     except:
       httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
       
@@ -425,11 +431,6 @@ def quickRequestCmd(jsonDict, userID):
     rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
   except:
     rssBytes = 2048 * 1024 * 1024
-
-  try:
-    anyLocation = bool(jsonDict['any_location'])
-  except:
-    anyLocation = False
 
   if 'file' in jsonDict and jsonDict['file']:
     bootstrap = jsonDict['file']
