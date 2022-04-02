@@ -238,18 +238,16 @@ def updateSites():
     maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
 
     # Go through the memory sizes we found
-    for i in range(1, len(rssBytesList)):
+    for i in range(0, len(rssBytesList)):
 
-      if i == (len(rssBytesList) - 1):
-        # Catch-all slot based on the largest in the XML
-        if i == 1:
-          minProcessors = 0
-        else:
-          minProcessors = 1
-
-        maxProcessors = sitesDict[siteName]['largest_processors']
-        minRssBytes   = 0
-        maxRssBytes   = rssBytesList[i]
+      if i == 0 and sitesDict[siteName]['largest_processors'] > 1:
+         # Special multiprocessor slot with all the memory
+         minProcessors = 1
+         maxProcessors = sitesDict[siteName]['largest_processors']
+         minRssBytes   = 0
+         maxRssBytes   = sitesDict[siteName]['largest_rss_bytes']
+      elif i == 0:
+        continue
       else:
         # One or more single processor slots of increasing memory size
         minProcessors = 0

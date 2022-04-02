@@ -1,11 +1,16 @@
 #!/bin/sh
 
-input_file_did='##wfa_files_did##'
+# Get an unprocessed file from this stage
+did_pfn_rse=`$WFS_PATH/wfs-get-file`
+did=`echo $did_pfn_rse | cut -f1 -d' '`
 
-FILETIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+# We say we processed whatever we were given
+echo "$did" > wfs-processed-inputs.txt
 
-echo "hello world $input_file_did" > $FILETIMESTAMP.helloworld.dat
+# Nothing unprocessed
+echo > wfs-unprocessed-inputs.txt
 
-echo "$input_file_did" > wfa-processed-inputs.txt
+# Hello world
+echo "Hello world"
 
 exit 0

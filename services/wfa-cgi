@@ -144,7 +144,7 @@ def makeTarFile(jsonDict, queryDict, stage, cookie):
        (
          '{\n' +
          '"method" : "get_file",\n' +
-         '"jobsub_id" : ' + str(jsonDict['jobsub_id']) + ',\n' +
+         '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
          '"cookie" : "' + cookie + '"\n' 
          '}\n'
        )
@@ -169,7 +169,7 @@ def getStageMethod(jsonDict, jobUserID):
 
   # Check jsonDict contains required string values
   for name in ['cpuinfo', 'os_release', 'hostname']:
-    if name not in jsonDict or not stringNoQuotes(jsonDict[name]):
+    if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]):
       httpError('400 Bad Request', 'Missing/invalid value(s) in JSON')
 
   # Find details of the job
@@ -192,7 +192,7 @@ def getStageMethod(jsonDict, jobUserID):
     # No stages/files eligible to be processed by this job
     try:
       query = ('UPDATE slot_sizes SET last_no_match_time=NOW() '
-               'WHERE slot_sizes_id=' + str(jobDict['slot_sizes_id']))
+               'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
              
       wfs.db.cur.execute(query)    
     except Exception as e:
@@ -204,35 +204,37 @@ def getStageMethod(jsonDict, jobUserID):
 
   try:
     query = ('UPDATE jobs SET '
-             'allocated_time=NOW(),' 
-             'allocated_state="started",'
+             'allocation_time=NOW(),' 
+             'allocation_state="started",'
              'allocator_name="' + allocatorName + '",' 
              'request_id=' + str(stage['request_id']) + ','
              'stage_id=' + str(stage['stage_id']) + ','
              'cpuinfo="' + str(jsonDict['cpuinfo']) + '",' 
              'os_release="' + str(jsonDict['os_release']) + '",' 
              'hostname="' + str(jsonDict['hostname']) + '",' 
-             'rss_bytes=' + str(jsobDict['rss_bytes']) + ',' 
+             'rss_bytes=' + str(jsonDict['rss_bytes']) + ',' 
              'processors=' + str(jsonDict['processors']) + ',' 
              'wall_seconds=' + str(jsonDict['wall_seconds']) + ',' 
              'job_user_id=' + str(jobUserID) + ',' 
-             'cookie="' + cookie + '",' 
+             'cookie="' + cookie + '" ' 
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
             )
     wfs.db.cur.execute(query)
-  except:
-    httpError('500 Internal Server Error', 'Workflow allocator failed')
+  except Exception as e:
+    httpError('500 Internal Server Error', 
+              'Workflow allocator failed: ' + str(e))
 
   try:
-    query = ('UPDATE slot_sizes SET last_allocated_time=NOW() '
-             'WHERE slot_sizes_id=' + str(jobDict['slot_sizes_id']))
+    query = ('UPDATE slot_sizes SET last_allocation_time=NOW() '
+             'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
              
     wfs.db.cur.execute(query)
     
   except Exception as e:
     # We log this but carry on - someone testing?
-    logLine('Update of slot_sizes from ' + jsonDict['jobsub_id'] + ' fails: '
-            + str(e))
+    httpError('500 Internal Server Error',
+              'Workflow allocator failed: ' + str(e))
+
 
   tarFile = makeTarFile(jsonDict, queryDict, stage, cookie)
         
@@ -268,6 +270,10 @@ def getFileMethod(jsonDict):
   if jobDict['error_message']:
     httpError('400 Bad Request', jobDict['error_message'])
 
+  if jobDict['allocation_state'] != 'started' and \
+     jobDict['allocation_state'] != 'processing':
+    httpError('403 Forbidden', 'Job in wrong state to find file')
+    
   # Make strings used in SQL queries
   queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
                                           
@@ -275,18 +281,22 @@ def getFileMethod(jsonDict):
     httpError('400 Bad Request', queryDict['error_message'])
 
   # Create a stage dictionary with the next file in this stage  
-  oneFile = wfs.allocator.findFile(queryDict)
+  oneFile = wfs.allocator.findFile(jobDict, queryDict)
+
+  if oneFile['error_message']:
+    httpError('500 Internal Server Error', 
+              'Failed finding one file: ' + oneFile['error_message'])
   
-  if oneFile:
-    if queryDict['allocated_state'] == 'started':
+  if oneFile['file_did']:
+    if jobDict['allocation_state'] == 'started':
       try:
-        query = ('UPDATE jobs SET state="processing" ' +
-                 'WHERE jobsub_id=' + str(jsonDict['jobsub_id'])
+        query = ('UPDATE jobs SET allocation_state="processing" ' +
+                 'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                 )
         wfs.db.cur.execute(query)
-      except:
+      except Exception as e:
         httpError('500 Internal Server Error',
-                  'Unable to update job to processing')
+                  'Unable to update job to processing: ' + str(e))
 
     # All done so commit the allocation and updates
     # We do this before the HTTP response in case
@@ -448,13 +458,22 @@ def resultsMethod(jsonDict):
   updateStageCounts(requestID, stageID)
 
   try:
-    query = ('UPDATE jobs SET state="finished",finished_time=NOW() ' +
-             'WHERE jobsub_id=' + str(jsonDict['jobsub_id'])
-            )
+    query = ('UPDATE jobs SET allocation_state="finished",'
+             'finished_time=NOW() '
+             'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+
     wfs.db.cur.execute(query)
-  except:
-    # Don't give up! Record what we can!
-    pass
+  except Exception as e:
+    httpError('500 Internal Server Error', 'Failed updating jobs: ' + str(e))
+
+  try:
+    query = ('INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
+             'bootstrap_log="' +
+             jsonDict['bootstrap_log'].replace('"', '_') + '"')
+
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))
 
   # Commit everything, before we return OK to the job
   wfs.db.conn.commit()

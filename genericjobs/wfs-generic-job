@@ -6,10 +6,10 @@
 
 echo '====Start of wfs-generic-job===='
 
+echo '### date ; pwd ; printenv'
 date
-printenv
 pwd
-ls -lR
+printenv
 
 # Used by bootstrap script to find files from this generic job
 export WFS_PATH=`pwd`
@@ -19,27 +19,28 @@ base64 -d <<EOF > $WFS_PATH/wfs-get-file
 IyEvYmluL3NoCiMKIyBTY3JpcHQgZm9yIHVzZSB3aXRoaW4gYm9vdHN0cmFwIHNjcmlwdCB0byBn
 ZXQgdGhlIERJRCwgUEZOLCBhbmQgUlNFCiMgb2YgYSBmaWxlIHRvIHByb2Nlc3Mgd2l0aGluIHRo
 ZSBzdGFnZSBhc3NpZ25lZCB0byB0aGUgam9iLgojCiMgQm9vdHN0cmFwIHNjcmlwdHMgY2FuIGV4
-ZWN1dGUgdGhpcyBzY3JpcHQgYXM6ICRXRlNfUEFUSC9nZXQtZmlsZQojCiMgRXJyb3IgbWVzc2Fn
-ZXMgdG8gc3RkZXJyCiMgRElEIFBGTiBSU0UgdG8gc3Rkb3V0IG9uIG9uZSBsaW5lIGlmIGEgZmls
-ZSBpcyBhdmFpbGFibGUKIwojIFRoaXMgc2NyaXB0IG11c3QgYmUgY29udmVydGVkIHRvIGJhc2U2
-NCB3aXRoIHNvbWV0aGluZyBsaWtlIHRoZSBmb2xsb3dpbmcgCiMgYW5kIGluY2x1ZGVkIGluIHRo
-ZSBoZXJlIGRvY3VtZW50IG5lYXIgdGhlIHN0YXJ0IG9mIGdlbmVyaWNqb2Iuc2ggOgojCiMgKG1h
-Y09TKSBiYXNlNjQgLWIgNzYgZ2V0LWZpbGUgPiBnZXQtZmlsZS5iNjQKIyAoTGludXgpIGJhc2U2
-NCAgICAgICBnZXQtZmlsZSA+IGdldC1maWxlLmI2NAoKaWYgWyAhIC1yICIkV0ZTX1BBVEgvd2Zz
-LWdldC1maWxlLmpzb24iIF0gOyB0aGVuCiAgZWNobyAiJFdGU19QQVRIL3dmcy1nZXQtZmlsZS5q
-c29uIG5vdCBmb3VuZCEiID4mMgogIGV4aXQgMgpmaQoKR0VUX0ZJTEVfVE1QPWBta3RlbXAgL3Rt
-cC93ZnNfZ2V0X2ZpbGVfWFhYWFhYYAoKaHR0cF9jb2RlPWBjdXJsIFwKLS1oZWFkZXIgIlgtSm9i
-aWQ6ICRKT0JTVUJKT0JJRCIgXAotLWhlYWRlciAiQWNjZXB0OiB0ZXh0L3BsYWluIiBcCi0tY2Fw
-YXRoICR7WDUwOV9DRVJUSUZJQ0FURVM6LS9ldGMvZ3JpZC1zZWN1cml0eS9jZXJ0aWZpY2F0ZXMv
-fSBcCi0tZGF0YSBAJFdGU19QQVRIL3dmcy1nZXQtZmlsZS5qc29uIFwKLS1vdXRwdXQgJEdFVF9G
-SUxFX1RNUCBcCi0td3JpdGUtb3V0ICIle2h0dHBfY29kZX1cbiIgXApodHRwczovL3dmcy1kZXYu
-ZHVuZS5oZXAuYWMudWsvd2ZhLWNnaWAKCmlmIFsgIiRodHRwX2NvZGUiID0gMjAwIF0gOyB0aGVu
-CiBjYXQgJEdFVF9GSUxFX1RNUAogcmV0Y29kZT0wCmVsaWYgWyAiJGh0dHBfY29kZSIgPSA0MDQg
-XSA7IHRoZW4gCiBlY2hvICJObyBmaWxlcyBhdmFpbGFibGUgZnJvbSB0aGlzIHN0YWdlIiA+JjIK
-IHJldGNvZGU9MQplbHNlCiBlY2hvICJnZXRfZmlsZSByZWNlaXZlczoiID4mMgogY2F0ICRHRVRf
-RklMRV9UTVAgPiYyCiBlY2hvICJnZXQtZmlsZSBmYWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9j
-b2RlIGZyb20gYWxsb2NhdG9yISIgPiYyCiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9U
-TVAKZXhpdCAkcmV0Y29kZQo=
+ZWN1dGUgdGhpcyBzY3JpcHQgYXM6ICRXRlNfUEFUSC93ZnMtZ2V0LWZpbGUKIwojIEVycm9yIG1l
+c3NhZ2VzIHRvIHN0ZGVycgojIERJRCBQRk4gUlNFIHRvIHN0ZG91dCBvbiBvbmUgbGluZSBpZiBh
+IGZpbGUgaXMgYXZhaWxhYmxlCiMKIyBUaGlzIHNjcmlwdCBtdXN0IGJlIGNvbnZlcnRlZCB0byBi
+YXNlNjQgd2l0aCBzb21ldGhpbmcgbGlrZSB0aGUgZm9sbG93aW5nIAojIGFuZCBpbmNsdWRlZCBp
+biB0aGUgaGVyZSBkb2N1bWVudCBuZWFyIHRoZSBzdGFydCBvZiB3ZnMtZ2VuZXJpYy1qb2IgOgoj
+CiMgKG1hY09TKSBiYXNlNjQgLWIgNzYgd2ZzLWdldC1maWxlID4gd2ZzLWdldC1maWxlLmI2NAoj
+IChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1nZXQtZmlsZSA+IHdmcy1nZXQtZmlsZS5iNjQKCmlm
+IFsgISAtciAiJFdGU19QQVRIL3dmcy1nZXQtZmlsZS5qc29uIiBdIDsgdGhlbgogIGVjaG8gIiRX
+RlNfUEFUSC93ZnMtZ2V0LWZpbGUuanNvbiBub3QgZm91bmQhIiA+JjIKICBleGl0IDIKZmkKCkdF
+VF9GSUxFX1RNUD1gbWt0ZW1wIC90bXAvd2ZzX2dldF9maWxlX1hYWFhYWGAKCmh0dHBfY29kZT1g
+Y3VybCBcCi0tc2lsZW50IFwKLS1oZWFkZXIgIlgtSm9iaWQ6ICRKT0JTVUJKT0JJRCIgXAotLWhl
+YWRlciAiQWNjZXB0OiB0ZXh0L3BsYWluIiBcCi0tY2FwYXRoICR7WDUwOV9DRVJUSUZJQ0FURVM6
+LS9ldGMvZ3JpZC1zZWN1cml0eS9jZXJ0aWZpY2F0ZXMvfSBcCi0tZGF0YSBAJFdGU19QQVRIL3dm
+cy1nZXQtZmlsZS5qc29uIFwKLS1vdXRwdXQgJEdFVF9GSUxFX1RNUCBcCi0td3JpdGUtb3V0ICIl
+e2h0dHBfY29kZX1cbiIgXApodHRwczovL3dmcy5kdW5lLmhlcC5hYy51ay93ZmEtY2dpIDI+L2Rl
+di9udWxsYAoKaWYgWyAiJGh0dHBfY29kZSIgPSAyMDAgXSA7IHRoZW4KIGNhdCAkR0VUX0ZJTEVf
+VE1QCiByZXRjb2RlPTAKZWxpZiBbICIkaHR0cF9jb2RlIiA9IDQwNCBdIDsgdGhlbiAKIGVjaG8g
+Ik5vIGZpbGVzIGF2YWlsYWJsZSBmcm9tIHRoaXMgc3RhZ2UiID4mMgogcmV0Y29kZT0xCmVsc2UK
+IGVjaG8gImdldF9maWxlIHJlY2VpdmVzOiIgPiYyCiBjYXQgJEdFVF9GSUxFX1RNUCA+JjIKIGVj
+aG8gImdldC1maWxlIGZhaWxzIHdpdGggSFRUUCBjb2RlICRodHRwX2NvZGUgZnJvbSBhbGxvY2F0
+b3IhIiA+JjIKIHJldGNvZGU9MwpmaQoKcm0gLWYgJEdFVF9GSUxFX1RNUApleGl0ICRyZXRjb2Rl
+Cg==
 EOF
 chmod +x $WFS_PATH/wfs-get-file
 
@@ -49,10 +50,13 @@ export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
 export hostname=`hostname`
 
-export processors=`grep '^RequestCpus = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
-rss_mb=`grep '^RequestMemory = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
-export rss_bytes=`expr rss_mb \* 1048576`
-export wall_seconds=$GLIDEIN_Max_Walltime
+echo "### $_CONDOR_JOB_AD"
+cat $_CONDOR_JOB_AD
+
+export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
+export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
+export rss_bytes=`expr $rss_mb \* 1048576`
+export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
 
 # Check requirements are present
 
@@ -98,10 +102,12 @@ http_code=`curl \
 --write-out "%{http_code}\n" \
 https://wfs.dune.hep.ac.uk/wfa-cgi`
 
+echo curl returns HTTP code $http_code
+
 if [ "$http_code" != "200" ] ; then
   echo "curl call to WFA fails with code $http_code"
   cat wfs-files.tar
-  exit
+  exit 1
 fi
 
 tar xvf wfs-files.tar
@@ -109,6 +115,10 @@ tar xvf wfs-files.tar
 if [ -r wfs-env.sh ] ; then
   . ./wfs-env.sh
 fi
+
+echo '====Start wfs-get-file.json===='
+cat wfs-get-file.json
+echo '====End wfs-get-file.jsonh===='
 
 # Run the bootstrap script
 if [ -f wfs-bootstrap.sh ] ; then
@@ -120,14 +130,18 @@ if [ -f wfs-bootstrap.sh ] ; then
 
   mkdir workspace
   echo '====Run wfs-bootstrap.sh===='
-  ( cd workspace ; $WFS_PATH/wfs-bootstrap.sh )
+  ( cd workspace ; $WFS_PATH/wfs-bootstrap.sh ) >wfs-bootstrap.log 2>&1
   retval=$?
   echo '====After wfs-bootstrap.sh===='
 else
   # How can this happen???
   echo No wfs-bootstrap.sh found
-  retval=1
+  exit 1
 fi
+
+echo '#### wfs-bootstrap.log'
+cat wfs-bootstrap.log
+echo '####'
 
 # Make the lists of output files and files for the next stage
 echo -n > wfs-outputs.txt
@@ -166,19 +180,28 @@ done
 
 # wfs-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
-processed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-inputs.txt\`|sed 's/ /,/g'`
-unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\`|sed 's/ /,/g'`
+if [ -f workspace/wfs-processed-inputs.txt ] ; then
+  processed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-inputs.txt\`|sed 's/ /,/g'`
+fi
+
+if [ -f workspace/wfs-unprocessed-inputs.txt ] ; then
+  unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\`|sed 's/ /,/g'`
+fi
 
 cat <<EOF >wfs-return-results.json
 {
   "method": "return_results",
-  "jobsub_id": $JOBSUBJOBID,
+  "jobsub_id": "$JOBSUBJOBID",
   "cookie": "$WFS_COOKIE",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
-  "next_stage_outputs": [$next_stage_outputs]
-}
+  "next_stage_outputs": [$next_stage_outputs],
+  "bootstrap_log": "
 EOF
+
+tail -c 10000 wfs-bootstrap.log | sed 's/"/\\\"/g' >>wfs-return-results.json
+  
+echo '"}' >>wfs-return-results.json
 
 echo "=====Start wfs-return-results.json=="
 cat wfs-return-results.json
@@ -196,3 +219,5 @@ echo "return_results returns HTTP code $http_code"
 cat return-results.txt
 
 echo '====End of wfs-generic-job===='
+exit 0
+

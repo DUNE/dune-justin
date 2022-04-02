@@ -46,7 +46,7 @@ CREATE TABLE `jobs` (
   `slot_size_id` smallint(5) unsigned NOT NULL,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','finished') NOT NULL DEFAULT 'submitted',
-  `allocated_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `finished_time` datetime NOT NULL DEFAULT '1970-01-01',
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
@@ -59,6 +59,20 @@ CREATE TABLE `jobs` (
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `cookie` varchar(255) NOT NULL DEFAULT '',
   `job_user_id` smallint(5) unsigned DEFAULT 0,
+  PRIMARY KEY (`wfs_job_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `jobs_logs`
+--
+
+DROP TABLE IF EXISTS `jobs_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `jobs_logs` (
+  `wfs_job_id` int(10) unsigned NOT NULL,
+  `bootstrap_log` text NOT NULL DEFAULT '',
   PRIMARY KEY (`wfs_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -94,8 +108,8 @@ CREATE TABLE `allocations` (
   `file_id` int(10) unsigned NOT NULL,
   `wfs_job_id` int(10) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `allocated_time` datetime NOT NULL,
-  `processed_time` datetime NOT NULL,
+  `allocation_time` datetime NOT NULL,
+  `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `processed` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY(`allocation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -174,7 +188,7 @@ CREATE TABLE `slot_sizes` (
   `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_no_match_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `last_allocated_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_allocation_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY (`slot_size_id`),
   UNIQUE KEY `site_id` (`site_id`,`min_rss_bytes`,`max_rss_bytes`,
                         `max_processors`,`min_processors`,`max_wall_seconds`)

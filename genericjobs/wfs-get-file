@@ -22,13 +22,14 @@ fi
 GET_FILE_TMP=`mktemp /tmp/wfs_get_file_XXXXXX`
 
 http_code=`curl \
+--silent \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Accept: text/plain" \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
 --data @$WFS_PATH/wfs-get-file.json \
 --output $GET_FILE_TMP \
 --write-out "%{http_code}\n" \
-https://wfs-dev.dune.hep.ac.uk/wfa-cgi`
+https://wfs.dune.hep.ac.uk/wfa-cgi 2>/dev/null`
 
 if [ "$http_code" = 200 ] ; then
  cat $GET_FILE_TMP

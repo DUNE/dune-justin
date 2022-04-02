@@ -65,7 +65,8 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.cookie,'
              'stages.any_location,'
              'jobs.request_id,'
-             'jobs.stage_id '
+             'jobs.stage_id,'
+             'jobs.wfs_job_id '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
@@ -79,11 +80,13 @@ def makeJobDict(jobsubID, cookie = None):
      (cookie is None or job['cookie'] != cookie):
     return { "error_message": "Cookie mismatch" }
 
-  return { "errorMessage" : None,
-           "request_id"   : job['request_id'],
-           "stage_id"     : job['stage_id'],
-           "slot_size_id" : job['slot_size_id'],
-           "any_location" : job['any_location']
+  return { "error_message"    : None,
+           "request_id"       : job['request_id'],
+           "stage_id"         : job['stage_id'],
+           "wfs_job_id"       : job['wfs_job_id'],
+           "allocation_state" : job['allocation_state'],
+           "slot_size_id"     : job['slot_size_id'],
+           "any_location"     : job['any_location']
          }
  
 def makeQueryDict(slotSizeID):
@@ -177,7 +180,7 @@ def makeQueryDict(slotSizeID):
   if storageOrder:
     storageOrder += ' DESC,'
 
-  return { "errorMessage"    : None,
+  return { "error_message"   : None,
            "outputRseList"   : outputRseList,
            "samesiteList"    : samesiteList,
            "nearbyList"      : nearbyList,
@@ -206,6 +209,7 @@ def findStage(queryDict):
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "WHERE files.state='unallocated' AND " 
+ "requests.state='running' AND "
  "%d < stages.processors AND "
  "stages.processors <= %d AND "
  "%d < stages.rss_bytes AND "
@@ -220,10 +224,6 @@ def findStage(queryDict):
   queryDict["storageWhere"],
   queryDict["storageOrder"] 
  ))
-
-  print()
-  print(query)
-  print()
   
   wfs.db.cur.execute(query)
   fileRow = wfs.db.cur.fetchone()
@@ -266,21 +266,20 @@ def findFile(jobDict, queryDict):
 "ORDER BY %sfiles.file_id LIMIT 1 FOR UPDATE" %
 (jobDict['request_id'], jobDict['stage_id'], 
  storageWhere, queryDict['storageOrder'])) 
-   
-  print('DEBUG: ' + query, file=sys.stderr)
-   
+      
   wfs.db.cur.execute(query)
   fileRows = wfs.db.cur.fetchall()
   
-  print('DEBUG: ' + str(fileRows), file=sys.stderr)
-  
   if len(fileRows) == 0:
-    return None
+    # No matches found
+    return { 'error_message': None,
+             'file_did'     : None
+           }
 
   try: 
-    query = ("INSERT INTO allocations SET allocated_time=NOW(),"
+    query = ("INSERT INTO allocations SET allocation_time=NOW(),"
              "rse_id=" + str(fileRows[0]['rse_id']) + ","
-             "wfs_job_id=" + str(queryDict['wfs_job_id']) + ","
+             "wfs_job_id=" + str(jobDict['wfs_job_id']) + ","
              "file_id=" + str(fileRows[0]['file_id'])
             )
     wfs.db.cur.execute(query)
@@ -292,15 +291,14 @@ def findFile(jobDict, queryDict):
              "WHERE file_id=" + str(fileRows[0]['file_id'])
             )
     wfs.db.cur.execute(query)
-  except:
+  except Exception as e:
     # If anything goes wrong, we stop straightaway
-    return None
+    return { 'error_message': 'Failed recording state change: ' + str(e) }
 
   # The dictionary to return
-  oneFile = { 'file_did'    : fileRows[0]['file_did'],
-              'pfn'         : fileRows[0]['pfn'],
-              'rse_name'    : fileRows[0]['rse_name']
-            }
-                      
-  return oneFile
+  return { 'error_message': None,
+           'file_did'     : fileRows[0]['file_did'],
+           'pfn'          : fileRows[0]['pfn'],
+           'rse_name'     : fileRows[0]['rse_name']
+         }
 
