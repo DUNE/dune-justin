@@ -83,6 +83,7 @@ def mainPage():
   
   print('<ul>')
   print('<li><a href="/dashboard/?method=list-requests">Requests</a></li>')
+  print('<li><a href="/dashboard/?method=list-jobs">Jobs</a></li>')
   print('</ul>')
   
   footer()
@@ -496,11 +497,12 @@ def showJob(cgiValues):
            "jobs.finished_time,jobs.jobsub_state,"
            "slot_sizes.max_processors,slot_sizes.min_processors,"
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
-           "slot_sizes.max_wall_seconds "
+           "slot_sizes.max_wall_seconds,bootstrap_log "
            "FROM jobs "
            "LEFT JOIN users ON jobs.job_user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "LEFT JOIN slot_sizes ON jobs.slot_size_id=slot_sizes.slot_size_id "
+           "LEFT JOIN jobs_logs ON jobs_logs.wfs_job_id=jobs.wfs_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   wfs.db.cur.execute(query)
@@ -588,7 +590,7 @@ def showJob(cgiValues):
         
   print('<tr><td>Started</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["started_time"])
+        % jobRows[0]["allocation_time"])
 
   print('<tr><td>Finished</td>'
         '<td>%s</td></tr>'
@@ -608,7 +610,71 @@ def showJob(cgiValues):
   print('</td></tr>')
 
   print("</table>")
+
+  if jobRows[0]['bootstrap_log']:
+    print("<h2>Bootstrap log</h2>")
+    print('<table><tr><td><pre>') 
+ 
+    print(html.escape(jobRows[0]["bootstrap_log"], quote=True))
   
+    print('</pre></td></tr></table>') 
+
+  footer()
+
+def listJobs(cgiValues):
+      
+  header("WFS: Jobs")
+
+  print("<h1>Jobs</h1>")
+  
+  query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
+           "jobs.allocation_state,jobs.allocation_time,"
+           "jobs.finished_time,jobs.jobsub_state "
+           "FROM jobs "
+           "LEFT JOIN users ON jobs.job_user_id=users.user_id "
+           "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "ORDER BY jobs.wfs_job_id"
+          )
+
+  wfs.db.cur.execute(query)
+  jobRows = wfs.db.cur.fetchall()
+
+  print('<table>')
+  
+  print('<tr>'
+        '<th>Jobsub ID</th>'
+        '<th>Jobsub State</th>'
+        '<th>Allocation state</th>'
+        '<th>Site</th>'
+        '<th>Request</th>'
+        '<th>Stage</th>'
+        '<th>Started</th>'
+        '<th>Finished</th>'
+        '</tr>')
+  
+  for jobRow in jobRows:
+    print('<tr>'
+          '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'          
+          '<td><a href="/dashboard/?method=show-request&request_id=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">%s</a></td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '</tr>'
+          % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
+             jobRow['jobsub_state'],
+             jobRow['allocation_state'],
+             jobRow['site_name'],
+             jobRow["request_id"], jobRow["request_id"],
+             jobRow["request_id"], jobRow["stage_id"], jobRow["stage_id"],
+             jobRow["allocation_time"],
+             jobRow["finished_time"]             
+            )
+         )    
+
+  print("</table>")
   footer()
 
 #
@@ -650,6 +716,9 @@ if method == "show-file":
 
 if method == "show-job":
   showJob(cgiValues)
+
+if method == "list-jobs":
+  listJobs(cgiValues)
 
 print('Status: 400 Bad Request')
 print()
