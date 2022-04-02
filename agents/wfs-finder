@@ -81,9 +81,8 @@ def addFilesMonteCarlo(requestID, count):
 
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
-               'pfn="monte-carlo-%06d-%06d"' 
-               % (wfs.conf.MonteCarloRseID,  wfs.db.cur.lastrowid,
-                  requestID, i))
+               'pfn="%06d"' 
+               % (wfs.conf.MonteCarloRseID, wfs.db.cur.lastrowid, i))
 
       wfs.db.cur.execute(query)
     except Exception as e:

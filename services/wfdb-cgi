@@ -663,9 +663,9 @@ def addFileCmd(jsonDict):
 def showJobsCmd(jsonDict):
 
   try:
-    jobID = int(jsonDict['wfs_job_id'])
+    jobsubID = jsonDict['jobsub_id']
   except:
-    jobID = None
+    jobsubID = None
   
   try:
     requestID = int(jsonDict['request_id'])
@@ -677,24 +677,24 @@ def showJobsCmd(jsonDict):
   except:
     stageID = 1
   
-  if jobID:
-    filter = "WHERE wfs_job_id=%d" % jobID 
+  if jobsubID:
+    filter = "WHERE jobsub_id='%s'" % jobsubID 
   elif requestID:
     filter = "WHERE request_id=%d AND stage_id=%d" % (requestID, stageID)
   else:
-    httpError('400 Bad Request', 'Either Job ID or Request ID must be given')
+    httpError('400 Bad Request', 'Either Jobsub ID or Request ID must be given')
 
   if jsonDict['state']:
     try:  
-      filter += (' AND state="' +
+      filter += (' AND allocation_state="' +
                  re.sub('[^a-z]+', '', str(jsonDict['state'])) +
                  '"'
                 )
     except:
       pass
 
-  rows = doQuery("SELECT wfs_job_id,request_id,stage_id,state,allocated_time "
-                 "FROM wfs_jobs "
+  rows = doQuery("SELECT jobsub_id,request_id,stage_id,allocation_state,allocation_time "
+                 "FROM jobs "
                  + filter +
                  " ORDER BY wfs_job_id")
 
@@ -703,9 +703,9 @@ def showJobsCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%6s %5s %2s %10s  %s" % 
-          (row['wfs_job_id'], row['request_id'], row['stage_id'], 
-           row['state'], row['started_time']))
+    print("%30s %5s %2s %10s  %s" % 
+          (row['jobsub_id'], row['request_id'], row['stage_id'], 
+           row['allocation_state'], row['allocation_time']))
    
   sys.exit(0)
 

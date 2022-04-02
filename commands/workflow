@@ -143,9 +143,9 @@ parser.add_argument("--pfn",
                     action = "append",
                     help   = "PFN of a replica")
 
-parser.add_argument("--job-id",
-                    type = int,
-                    help = "Job ID number")
+parser.add_argument("--jobsub-id",
+                    type = str,
+                    help = "Jobsub ID number")
 
 parser.add_argument("--state",
                     type = str,

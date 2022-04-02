@@ -232,10 +232,10 @@ def showStage(cgiValues):
   
   header("WFS: Request %d, Stage %d" % (requestID, stageID))
 
-  query = ("SELECT stages.min_processors,"
-           "stages.max_processors,"
-           "stages.max_wall_seconds,"
-           "stages.max_rss_bytes,"
+  query = ("SELECT "
+           "stages.processors,"
+           "stages.wall_seconds,"
+           "stages.rss_bytes,"
            "stages.any_location,"
            "stages.num_finding,"
            "stages.num_unallocated,"
@@ -255,19 +255,16 @@ def showStage(cgiValues):
   
   print('<table')
 
-  print('<tr><td>Minimum processors</td>'
-        '<td>%s</td></tr>' % stageRows[0]["min_processors"])
+  print('<tr><td>Processors</td>'
+        '<td>%s</td></tr>' % stageRows[0]["processors"])
 
-  print('<tr><td>Maximum processors</td>'
-        '<td>%s</td></tr>' % stageRows[0]["max_processors"])
+  print('<tr><td>Wall seconds</td>'
+        '<td>%s</td></tr>' % stageRows[0]["wall_seconds"])
 
-  print('<tr><td>Maximum wall seconds</td>'
-        '<td>%s</td></tr>' % stageRows[0]["max_wall_seconds"])
-
-  print('<tr><td>Maximum RSS bytes</td>'
+  print('<tr><td>RSS bytes</td>'
         '<td>%s (%d MB)</td></tr>' % 
-        (stageRows[0]["max_rss_bytes"], 
-         int(stageRows[0]["max_rss_bytes"]) / 1048576))
+        (stageRows[0]["rss_bytes"], 
+         int(stageRows[0]["rss_bytes"]) / 1048576))
 
   print('<tr><td>Input from any location</td>'
         '<td>%s</td></tr>' % bool(stageRows[0]["any_location"]))
@@ -355,13 +352,16 @@ def listFiles(cgiValues):
   print("<h1>Files  for Request %d, Stage %d%s</h1>" 
          % (requestID, stageID, stateText))
   
-  query = ("SELECT files.file_did,files.state,files.allocated_time,"
-           "storages.rse_name,files.job_id,jobs.site_name "
+  query = ("SELECT files.file_did,files.state,allocations.allocation_time,"
+           "storages.rse_name,jobs.jobsub_id,sites.site_name "
            "FROM files "
-           "LEFT JOIN storages ON files.allocated_rse_id=storages.rse_id "
-           "LEFT JOIN replicas ON replicas.file_id=files.file_id "
-           "AND replicas.rse_id=files.allocated_rse_id "
-           "LEFT JOIN jobs ON jobs.job_id=files.job_id "
+           "LEFT JOIN allocations"
+           " ON files.last_allocation_id=allocations.allocation_id "
+           "LEFT JOIN storages ON allocations.rse_id=storages.rse_id "
+           "LEFT JOIN replicas ON replicas.file_id=files.file_id"
+           " AND replicas.rse_id=allocations.rse_id "
+           "LEFT JOIN jobs ON jobs.wfs_job_id=allocations.wfs_job_id "
+           "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id" % (requestID, stageID, stateFilter))
 
@@ -371,7 +371,7 @@ def listFiles(cgiValues):
   print(
 """<table>
 <tr><th rowspan="2">DID</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
-<tr><th>Time</th><th>RSE</th><th>Site</th><th>Job ID</th></tr>""")
+<tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows:
     print('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
@@ -388,11 +388,11 @@ def listFiles(cgiValues):
       print('<td>%s</td>'
             '<td>%s</td>'
             '<td>%s</td>'
-            '<td><a href="/dashboard/?method=show-job&job_id=%s">%s</a></td></tr>' % 
-            (str(fileRow["allocated_time"]),
+            '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
+            (str(fileRow["allocation_time"]),
              str(fileRow["rse_name"]),
              str(fileRow["site_name"]),
-             str(fileRow["job_id"]), str(fileRow["job_id"])
+             str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
             )
            )
     else:
@@ -438,9 +438,10 @@ def showFile(cgiValues):
 
   fileID = int(filesRows[0]["file_id"])
 
-  query = ("SELECT job_id,allocated_time,processed,processed_time,"
+  query = ("SELECT jobsub_id,allocations.allocation_time,processed,processed_time,"
            "rse_name FROM allocations "
            "LEFT JOIN storages ON storages.rse_id=allocations.rse_id "
+           "LEFT JOIN jobs ON allocations.wfs_job_id=jobs.wfs_job_id "
            "WHERE file_id=%d ORDER BY allocation_id" % fileID)
 
   wfs.db.cur.execute(query)
@@ -468,9 +469,9 @@ def showFile(cgiValues):
     else:
       processedState = ""
   
-    print('<a href="/dashboard/?method=show-job&job_id=%s">'
+    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">'
           '%s</a>%s<br>' % 
-          (jobRow["job_id"], jobRow["job_id"], processedState))
+          (jobRow["jobsub_id"], jobRow["jobsub_id"], processedState))
 
   print('</td></tr>')
 
@@ -480,42 +481,52 @@ def showFile(cgiValues):
 
 def showJob(cgiValues):
   try:
-    jobID = int(cgiValues.getfirst("job_id"))
+    jobsubID = cgiValues.getfirst("jobsub_id")
   except:
-    errorPage("job_id must be given")
+    errorPage("jobsub_id must be given")
       
-  header("WFS: Job %d" % jobID)
+  header("WFS: Jobsub %s" % jobsubID)
 
-  print("<h1>Job %s</h1>" % jobID)
+  print("<h1>Jobsub %s</h1>" % jobsubID)
   
-  query = ("SELECT jobs.request_id,jobs.stage_id,jobs.job_name,jobs.site_name,"
+  query = ("SELECT jobs.wfs_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,users.name,users.x509dn,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
-           "jobs.allocator_name,jobs.state,jobs.started_time,"
-           "jobs.finished_time "
+           "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
+           "jobs.finished_time,jobs.jobsub_state,"
+           "slot_sizes.max_processors,slot_sizes.min_processors,"
+           "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
+           "slot_sizes.max_wall_seconds "
            "FROM jobs "
            "LEFT JOIN users ON jobs.job_user_id=users.user_id "
-           "WHERE jobs.job_id=%d" % jobID)
+           "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "LEFT JOIN slot_sizes ON jobs.slot_size_id=slot_sizes.slot_size_id "
+           "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   wfs.db.cur.execute(query)
   jobRows = wfs.db.cur.fetchall()
 
   query = ("SELECT file_did FROM allocations "
            "LEFT JOIN files ON allocations.file_id=files.file_id "
-           "WHERE allocations.job_id=%d ORDER BY allocation_id" % jobID)
+           "WHERE allocations.wfs_job_id=%d ORDER BY allocation_id" % 
+           jobRows[0]['wfs_job_id'])
 
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
 
   print('<table>')
   
-  print('<tr><td>State</td>'
+  print('<tr><td>Jobsub state</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["state"])
+        % jobRows[0]["jobsub_state"])
       
-  print('<tr><td>Job name</td>'
+  print('<tr><td>Allocation state</td>'
         '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["job_name"], quote=True))
+        % jobRows[0]["allocation_state"])
+      
+  print('<tr><td>Jobsub ID</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobsubID, quote=True))
 
   print('<tr><td>Allocator name</td>'
         '<td>%s</td></tr>'
@@ -528,6 +539,16 @@ def showJob(cgiValues):
   print('<tr><td>Site</td>'
         '<td>%s</td></tr>'
         % html.escape(jobRows[0]["site_name"], quote=True))
+
+  print('<tr><td>Slot</td><td>'
+        '%d &lt; processors &le; %d<br>'
+        '%d &lt; rss bytes &le; %d<br>'
+        'wall seconds &le; %d</td></tr>'
+        % (jobRows[0]["min_processors"], jobRows[0]["max_processors"],
+           jobRows[0]["min_rss_bytes"], jobRows[0]["max_rss_bytes"],
+           jobRows[0]["max_wall_seconds"]
+          )
+       )
 
   print('<tr><td>Hostname</td>'
         '<td>%s</td></tr>'
