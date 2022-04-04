@@ -44,6 +44,22 @@ Cg==
 EOF
 chmod +x $WFS_PATH/wfs-get-file
 
+# Create the wfs-rucio command
+base64 -d <<EOF > $WFS_PATH/wfs-rucio
+IyEvYmluL3NoCiMKIyBSdW4gdGhlIHJ1Y2lvIGNvbW1hbmQgaW4gYW4gZW52aXJvbm1lbnQgd2l0
+aCBQeXRob24zIGFuZCB0aGUgcmVxdWlyZWQgCiMgbW9kdWxlcyBhbHJlYWR5IGluc3RhbGxlZCBp
+biAkV0ZTX1BBVEgvd2ZzLXJ1Y2lvLWxvY2FsCiMKIyBUaGlzIHNjcmlwdCBtdXN0IGJlIGNvbnZl
+cnRlZCB0byBiYXNlNjQgd2l0aCBzb21ldGhpbmcgbGlrZSB0aGUgZm9sbG93aW5nIAojIGFuZCBp
+bmNsdWRlZCBpbiB0aGUgaGVyZSBkb2N1bWVudCBuZWFyIHRoZSBzdGFydCBvZiB3ZnMtZ2VuZXJp
+Yy1qb2IgOgojCiMgKG1hY09TKSBiYXNlNjQgLWIgNzYgd2ZzLXJ1Y2lvID4gd2ZzLXJ1Y2lvLmI2
+NAojIChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1ydWNpbyA+IHdmcy1ydWNpby5iNjQKIwoKZXhw
+b3J0IFdGU19SVUNJT19MT0NBTD0kV0ZTX1BBVEgvd2ZzLXJ1Y2lvLWxvY2FsCmV4cG9ydCBQWVRI
+T05QQVRIPSIkV0ZTX1JVQ0lPX0xPQ0FML2xpYi9weXRob24zLjgvc2l0ZS1wYWNrYWdlcyIKCmV4
+ZWMgJFdGU19SVUNJT19MT0NBTC9iaW4vcnVjaW8gLS10aW1lb3V0IDYwIFwKICAtLWNvbmZpZyAk
+V0ZTX1JVQ0lPX0xPQ0FML2V0Yy9ydWNpby5jZmcgJCoK
+EOF
+chmod +x $WFS_PATH/wfs-rucio
+
 # Assemble values we will need 
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
@@ -58,6 +74,8 @@ export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_bytes=`expr $rss_mb \* 1048576`
 export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
 
+export X509_CERTIFICATES=${X509_CERTIFICATES:-/etc/grid-security/certificates/}
+
 # Check requirements are present
 
 if [ ! -r "$X509_USER_PROXY" ] ; then
@@ -70,6 +88,44 @@ if [ $? -ne 0 ] ; then
  echo Failed running curl
  exit
 fi
+
+# Install a private version of the Rucio client
+# Will be removed once we can get Rucio entirely from cvmfs
+(
+export WFS_RUCIO_LOCAL=$PWD/wfs-rucio-local
+export PATH="$PATH:$WFS_RUCIO_LOCAL/bin"
+export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages"
+
+mkdir -p $WFS_RUCIO_LOCAL/bin
+# Have to create symbolic link since cvmfs path 
+# is too long for hash-bang at the start of a script
+ln -sf /cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-scientific7-x86_64-gcc-8.2.0-x7eyi5xeluhxm3nzllayh4lsmdz3pfai/bin/python3.8 \
+  $WFS_RUCIO_LOCAL/bin/python38
+
+# Have to install PIP for Python3
+curl --insecure https://bootstrap.pypa.io/get-pip.py > get-pip.py
+$WFS_RUCIO_LOCAL/bin/python38 get-pip.py --prefix $WFS_RUCIO_LOCAL \
+  --ignore-installed
+
+# Install Rucio with PIP
+# DOES NOT WORK WITH RUCIO 1.27 !!!
+$WFS_RUCIO_LOCAL/bin/pip3.8 install --prefix $WFS_RUCIO_LOCAL --ignore-installed rucio-clients==1.26
+
+cat <<EOF > $WFS_RUCIO_LOCAL/etc/rucio.cfg
+[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://auth-dune-rucio.fnal.gov
+ca_cert = \$X509_CERTIFICATES
+account = amcnab
+auth_type = x509_proxy
+client_x509_proxy = \$X509_USER_PROXY
+request_retries = 3
+EOF
+) 2>&1
+
+# Check Rucio is working
+$WFS_PATH/wfs-rucio --version
+$WFS_PATH/wfs-rucio whoami
 
 # Create the JSON to send to the allocator
 cat <<EOF >wfs-get-stage.json
@@ -96,7 +152,7 @@ http_code=`curl \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
---capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--capath $X509_CERTIFICATES \
 --data @wfs-get-stage.json \
 --output wfs-files.tar \
 --write-out "%{http_code}\n" \
@@ -209,7 +265,7 @@ echo "=====End wfs-return-results.json=="
 
 http_code=`curl \
 --header "X-Jobid: $JOBSUBJOBID" \
---capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--capath $X509_CERTIFICATES \
 --data @wfs-return-results.json \
 --output return-results.txt \
 --write-out "%{http_code}\n" \

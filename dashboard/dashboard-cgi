@@ -448,6 +448,14 @@ def showFile(cgiValues):
   wfs.db.cur.execute(query)
   jobsRows = wfs.db.cur.fetchall()
 
+  query = ('SELECT pfn,rse_name '
+           'FROM replicas '
+           'LEFT JOIN storages ON storages.rse_id=replicas.rse_id '
+           'WHERE file_id=%d' % fileID)
+
+  wfs.db.cur.execute(query)
+  replicaRows = wfs.db.cur.fetchall()
+
   print('<p><table>')
   
   print('<tr><td>Request ID</td>'
@@ -462,6 +470,14 @@ def showFile(cgiValues):
         '<td>%s</td></tr>'
         % filesRows[0]["state"])
       
+  print('<tr><td>Replicas</td><td>')
+  
+  for replicaRow in replicaRows:  
+    print('<small>%s: %s</small><br>' % 
+          (replicaRow["rse_name"], replicaRow["pfn"]))
+
+  print('</td></tr>')
+
   print('<tr><td>Jobs</td><td>')
   
   for jobRow in jobsRows:
