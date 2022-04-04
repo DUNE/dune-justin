@@ -185,6 +185,9 @@ def findFiles():
       
       addFilesMonteCarlo(request['request_id'], count)
 
+    # Update the stats for the first stage
+    wfs.allocator.updateStageCounts(request['request_id'], 1)
+
 def findReplicas():
   # Find replicas of files in the finding state
 

@@ -238,6 +238,9 @@ def getStageMethod(jsonDict, jobUserID):
 
   tarFile = makeTarFile(jsonDict, queryDict, stage, cookie)
         
+  wfs.allocator.updateStageCounts(stage['request_id'], 
+                                  stage['stage_id'])
+ 
   # All done so commit the job details.
   # We do this before the HTTP response in case
   # it is received ok by the job and run 
@@ -294,9 +297,13 @@ def getFileMethod(jsonDict):
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                 )
         wfs.db.cur.execute(query)
+        wfs.allocator.updateStageCounts(jobDict['request_id'], 
+                                        jobDict['stage_id'])
+
       except Exception as e:
         httpError('500 Internal Server Error',
                   'Unable to update job to processing: ' + str(e))
+
 
     # All done so commit the allocation and updates
     # We do this before the HTTP response in case
@@ -384,32 +391,6 @@ def processNextStageOutputs(nextStageOutputs, requestID, stageID):
   except:
     return
                 
-# Update the counters used for quick listing of stages
-def updateStageCounts(requestID, stageID):
-
-  try:
-    # Use a brute force recount of everything for this 
-    # stage rather than try to use increments
-    query = ('UPDATE stages SET '
-             'num_finding=(SELECT COUNT(*) FROM files'
-             ' WHERE state="finding" AND request_id=%d AND stage_id=%d),'
-             'num_unallocated=(SELECT COUNT(*) FROM files'
-             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
-             'num_allocated=(SELECT COUNT(*) FROM files'
-             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
-             'num_processed=(SELECT COUNT(*) FROM files'
-             ' WHERE state="processed" AND request_id=%d AND stage_id=%d) '
-             'WHERE request_id=%d AND stage_id=%d' % 
-             (requestID, stageID,
-              requestID, stageID,
-              requestID, stageID,
-              requestID, stageID,
-              requestID, stageID)
-            )
-    wfs.db.cur.execute(query)
-  except:
-    pass
-                
 def resultsMethod(jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
@@ -455,7 +436,7 @@ def resultsMethod(jsonDict):
 
   processNextStageOutputs(jsonDict['next_stage_outputs'], requestID, stageID)
   
-  updateStageCounts(requestID, stageID)
+  wfs.allocator.updateStageCounts(requestID, stageID)
 
   try:
     query = ('UPDATE jobs SET allocation_state="finished",'

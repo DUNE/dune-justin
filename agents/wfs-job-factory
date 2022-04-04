@@ -80,8 +80,8 @@ def parseJobsubQ():
       state    = line.split()[5]
 
       try:
-        wfs.db.cur.execute('UPDATE jobsub_jobs '
-                    'SET state="%s" '
+        wfs.db.cur.execute('UPDATE jobs '
+                    'SET jobsub_state="%s" '
                     'WHERE jobsub_id="%s"'
                     % (state, jobsubID)
                    )

@@ -320,7 +320,9 @@ def showStage(cgiValues):
   print("<h2>Bootstrap script</h2>")
   print('<table><tr><td><pre>') 
 
-  print(html.escape(stageRows[0]["bootstrap"], quote=True))
+  print(html.escape(
+   stageRows[0]["bootstrap"].encode('ascii',errors='ignore').decode(), 
+   quote=True))
   
   print('</pre></td></tr></table>') 
 
@@ -359,8 +361,6 @@ def listFiles(cgiValues):
            "LEFT JOIN allocations"
            " ON files.last_allocation_id=allocations.allocation_id "
            "LEFT JOIN storages ON allocations.rse_id=storages.rse_id "
-           "LEFT JOIN replicas ON replicas.file_id=files.file_id"
-           " AND replicas.rse_id=allocations.rse_id "
            "LEFT JOIN jobs ON jobs.wfs_job_id=allocations.wfs_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
@@ -534,13 +534,14 @@ def showJob(cgiValues):
         '<td>%s</td></tr>'
         % html.escape(jobRows[0]["allocator_name"], quote=True))
 
-  print('<tr><td>Factory X.509</td><td><small>%s</small></td></tr>' % 
-         html.escape(jobRows[0]['x509dn']))
+  if jobRows[0]['x509dn']:
+    print('<tr><td>Factory X.509</td><td><small>%s</small></td></tr>' % 
+          html.escape(jobRows[0]['x509dn']))
 
-
-  print('<tr><td>Site</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["site_name"], quote=True))
+  if jobRows[0]["site_name"]:
+    print('<tr><td>Site</td>'
+          '<td>%s</td></tr>'
+          % html.escape(jobRows[0]["site_name"], quote=True))
 
   print('<tr><td>Slot</td><td>'
         '%d &lt; processors &le; %d<br>'
@@ -552,31 +553,37 @@ def showJob(cgiValues):
           )
        )
 
-  print('<tr><td>Hostname</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["hostname"], quote=True))
+  if jobRows[0]["hostname"]:
+    print('<tr><td>Hostname</td>'
+          '<td>%s</td></tr>'
+          % html.escape(jobRows[0]["hostname"], quote=True))
+  
+  if jobRows[0]["cpuinfo"]:
+    print('<tr><td>cpuinfo</td>'
+          '<td>%s</td></tr>'
+          % html.escape(jobRows[0]["cpuinfo"], quote=True))
 
-  print('<tr><td>cpuinfo</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["cpuinfo"], quote=True))
+  if jobRows[0]["os_release"]:
+    print('<tr><td>OS release</td>'
+          '<td>%s</td></tr>'
+          % html.escape(jobRows[0]["os_release"], quote=True))
 
-  print('<tr><td>OS release</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["os_release"], quote=True))
+  if jobRows[0]["rss_bytes"]:
+    print('<tr><td>RSS bytes</td>'
+          '<td>%s (%d MB)</td></tr>' % 
+          (jobRows[0]["rss_bytes"], 
+           int(jobRows[0]["rss_bytes"]) / 1048576))
 
-  print('<tr><td>RSS bytes</td>'
-        '<td>%s (%d MB)</td></tr>' % 
-        (jobRows[0]["rss_bytes"], 
-         int(jobRows[0]["rss_bytes"]) / 1048576))
+  if jobRows[0]["processors"]:
+    print('<tr><td>Processors</td>'
+          '<td>%s</td></tr>'
+          % jobRows[0]["processors"])
 
-  print('<tr><td>Processors</td>'
-        '<td>%s</td></tr>'
-        % jobRows[0]["processors"])
-
-  print('<tr><td>Wall seconds limit</td>'
-        '<td>%s (%d hours)</td></tr>'
-        % (jobRows[0]["wall_seconds"],
-           int(jobRows[0]["wall_seconds"]) / 3600))
+  if jobRows[0]["wall_seconds"]:
+    print('<tr><td>Wall seconds limit</td>'
+          '<td>%s (%d hours)</td></tr>'
+          % (jobRows[0]["wall_seconds"],
+             int(jobRows[0]["wall_seconds"]) / 3600))
 
   print('<tr><td>Request ID</td>'
         '<td><a href="/dashboard/?method=show-request&request_id=%s">%s</a></td></tr>'
@@ -633,7 +640,7 @@ def listJobs(cgiValues):
            "FROM jobs "
            "LEFT JOIN users ON jobs.job_user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
-           "ORDER BY jobs.wfs_job_id"
+           "ORDER BY jobs.wfs_job_id DESC"
           )
 
   wfs.db.cur.execute(query)

@@ -302,3 +302,27 @@ def findFile(jobDict, queryDict):
            'rse_name'     : fileRows[0]['rse_name']
          }
 
+def updateStageCounts(requestID, stageID):
+
+  try:
+    # Use a brute force recount of everything for this 
+    # stage rather than try to use increments
+    query = ('UPDATE stages SET '
+             'num_finding=(SELECT COUNT(*) FROM files'
+             ' WHERE state="finding" AND request_id=%d AND stage_id=%d),'
+             'num_unallocated=(SELECT COUNT(*) FROM files'
+             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
+             'num_allocated=(SELECT COUNT(*) FROM files'
+             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
+             'num_processed=(SELECT COUNT(*) FROM files'
+             ' WHERE state="processed" AND request_id=%d AND stage_id=%d) '
+             'WHERE request_id=%d AND stage_id=%d' % 
+             (requestID, stageID,
+              requestID, stageID,
+              requestID, stageID,
+              requestID, stageID,
+              requestID, stageID)
+            )
+    wfs.db.cur.execute(query)
+  except:
+    pass
