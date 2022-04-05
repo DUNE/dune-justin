@@ -173,7 +173,7 @@ c = pycurl.Curl()
 if jsonDict['hostname']:
   c.setopt(c.URL, 'https://' + jsonDict['hostname'] + '/wfdb-cgi')
 else:
-  c.setopt(c.URL, 'https://wfs.dune.hep.ac.uk/wfdb-cgi')
+  c.setopt(c.URL, 'https://wfs-pro.dune.hep.ac.uk/wfdb-cgi')
 
 if 'X509_USER_PROXY' in os.environ and os.environ['X509_USER_PROXY']:
   x509UserProxy = os.environ['X509_USER_PROXY']

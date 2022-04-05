@@ -33,14 +33,14 @@ Y3VybCBcCi0tc2lsZW50IFwKLS1oZWFkZXIgIlgtSm9iaWQ6ICRKT0JTVUJKT0JJRCIgXAotLWhl
 YWRlciAiQWNjZXB0OiB0ZXh0L3BsYWluIiBcCi0tY2FwYXRoICR7WDUwOV9DRVJUSUZJQ0FURVM6
 LS9ldGMvZ3JpZC1zZWN1cml0eS9jZXJ0aWZpY2F0ZXMvfSBcCi0tZGF0YSBAJFdGU19QQVRIL3dm
 cy1nZXQtZmlsZS5qc29uIFwKLS1vdXRwdXQgJEdFVF9GSUxFX1RNUCBcCi0td3JpdGUtb3V0ICIl
-e2h0dHBfY29kZX1cbiIgXApodHRwczovL3dmcy5kdW5lLmhlcC5hYy51ay93ZmEtY2dpIDI+L2Rl
-di9udWxsYAoKaWYgWyAiJGh0dHBfY29kZSIgPSAyMDAgXSA7IHRoZW4KIGNhdCAkR0VUX0ZJTEVf
-VE1QCiByZXRjb2RlPTAKZWxpZiBbICIkaHR0cF9jb2RlIiA9IDQwNCBdIDsgdGhlbiAKIGVjaG8g
-Ik5vIGZpbGVzIGF2YWlsYWJsZSBmcm9tIHRoaXMgc3RhZ2UiID4mMgogcmV0Y29kZT0xCmVsc2UK
-IGVjaG8gImdldF9maWxlIHJlY2VpdmVzOiIgPiYyCiBjYXQgJEdFVF9GSUxFX1RNUCA+JjIKIGVj
-aG8gImdldC1maWxlIGZhaWxzIHdpdGggSFRUUCBjb2RlICRodHRwX2NvZGUgZnJvbSBhbGxvY2F0
-b3IhIiA+JjIKIHJldGNvZGU9MwpmaQoKcm0gLWYgJEdFVF9GSUxFX1RNUApleGl0ICRyZXRjb2Rl
-Cg==
+e2h0dHBfY29kZX1cbiIgXApodHRwczovL3dmcy1wcm8uZHVuZS5oZXAuYWMudWsvd2ZhLWNnaSAy
+Pi9kZXYvbnVsbGAKCmlmIFsgIiRodHRwX2NvZGUiID0gMjAwIF0gOyB0aGVuCiBjYXQgJEdFVF9G
+SUxFX1RNUAogcmV0Y29kZT0wCmVsaWYgWyAiJGh0dHBfY29kZSIgPSA0MDQgXSA7IHRoZW4gCiBl
+Y2hvICJObyBmaWxlcyBhdmFpbGFibGUgZnJvbSB0aGlzIHN0YWdlIiA+JjIKIHJldGNvZGU9MQpl
+bHNlCiBlY2hvICJnZXRfZmlsZSByZWNlaXZlczoiID4mMgogY2F0ICRHRVRfRklMRV9UTVAgPiYy
+CiBlY2hvICJnZXQtZmlsZSBmYWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9jb2RlIGZyb20gYWxs
+b2NhdG9yISIgPiYyCiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9UTVAKZXhpdCAkcmV0
+Y29kZQo=
 EOF
 chmod +x $WFS_PATH/wfs-get-file
 
@@ -156,7 +156,7 @@ http_code=`curl \
 --data @wfs-get-stage.json \
 --output wfs-files.tar \
 --write-out "%{http_code}\n" \
-https://wfs.dune.hep.ac.uk/wfa-cgi`
+https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
 
 echo curl returns HTTP code $http_code
 
@@ -269,7 +269,7 @@ http_code=`curl \
 --data @wfs-return-results.json \
 --output return-results.txt \
 --write-out "%{http_code}\n" \
-https://wfs.dune.hep.ac.uk/wfa-cgi`
+https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
 
 echo "return_results returns HTTP code $http_code"
 cat return-results.txt

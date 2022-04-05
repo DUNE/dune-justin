@@ -638,7 +638,8 @@ def showJob(cgiValues):
     print("<h2>Bootstrap log</h2>")
     print('<table><tr><td><pre>') 
  
-    print(html.escape(jobRows[0]["bootstrap_log"], quote=True))
+    print(html.escape(jobRows[0]["bootstrap_log"], 
+          quote=True))
   
     print('</pre></td></tr></table>') 
 

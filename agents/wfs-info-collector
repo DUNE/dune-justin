@@ -129,13 +129,18 @@ def processOneFileXML(sitesDict, fileName):
     if xmlEntry.nodeType == xml.dom.Node.ELEMENT_NODE and \
        xmlEntry.tagName == 'entry':
 
+      try:
+        entryName = xmlEntry.getAttribute('name')
+      except:
+        continue
+
       siteName        = None
       jobsubSiteName  = None
       voList          = []
       processors      = 1
       rssBytes        = 2147483648
-      wallSeconds     = 86400
-            
+      wallSeconds     = 86400            
+
       for xmlEntryChild in xmlEntry.childNodes:
         if xmlEntryChild.nodeType == xml.dom.Node.ELEMENT_NODE and \
            xmlEntryChild.tagName == 'attrs':
@@ -179,6 +184,9 @@ def processOneFileXML(sitesDict, fileName):
           wallSeconds and ('DUNE' in voList)):
 
         if siteName not in sitesDict:
+          logLine("Create maxima for %s:%s to %d bytes, %d processors" %
+                  (siteName, entryName, rssBytes, processors))
+
           sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
                                   'largest_rss_bytes'     : rssBytes,
                                   'largest_processors'    : processors,
@@ -186,6 +194,8 @@ def processOneFileXML(sitesDict, fileName):
                                 }
 
         if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
+          logLine("Update maxima for %s:%s to %d bytes, %d processors" %
+                  (siteName, entryName, rssBytes, processors))
           sitesDict[siteName]['largest_rss_bytes']    = rssBytes
           sitesDict[siteName]['largest_processors']   = processors
           
@@ -220,52 +230,31 @@ def updateSites():
             )
 
     wfs.db.cur.execute(query)
-
-    # Assemble a list of memory slot sizes
-    rssBytesList = [0]
-
-    # If the site allows multiprocessor jobs, then we create multiple 
-    # slots. (Otherwise just the record whole slot from the XML).
-    if sitesDict[siteName]['largest_processors'] > 1:
-      for i in [2147483648, 4294967296, 6442450944, 8589934592]:
-        if i < sitesDict[siteName]['largest_rss_bytes']:
-          rssBytesList.append(i)
-
-    # The biggest slot that was in the XML
-    rssBytesList.append(sitesDict[siteName]['largest_rss_bytes'])
-
-    # 5% margin on the slot time limit        
+    
+    maxProcessors  = sitesDict[siteName]['largest_processors']
+    maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
     maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
 
-    # Go through the memory sizes we found
-    for i in range(0, len(rssBytesList)):
+    logLine('Site: %s, %d processors, %d bytes, %s seconds' %
+            (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
 
-      if i == 0 and sitesDict[siteName]['largest_processors'] > 1:
-         # Special multiprocessor slot with all the memory
-         minProcessors = 1
-         maxProcessors = sitesDict[siteName]['largest_processors']
-         minRssBytes   = 0
-         maxRssBytes   = sitesDict[siteName]['largest_rss_bytes']
-      elif i == 0:
-        continue
-      else:
-        # One or more single processor slots of increasing memory size
-        minProcessors = 0
-        maxProcessors = 1                
-        minRssBytes   = rssBytesList[i-1]
-        maxRssBytes   = rssBytesList[i]
+    # Go through the range of processors we found
+    for processors in range(1, maxProcessors + 1):
 
-      # Now add whatever we decided/found for this slot
       query = ('INSERT INTO slot_sizes SET '
                'last_seen_time=NOW(),'
                'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
-                  siteName + '"),' +
-               'min_processors='   + str(minProcessors) + ',' +
-               'max_processors='   + str(maxProcessors) + ',' +
-               'min_rss_bytes='    + str(minRssBytes) + ',' +
-               'max_rss_bytes='    + str(maxRssBytes) + ',' +
-               'max_wall_seconds=' + str(maxWallSeconds) + ' ' +
-               'ON DUPLICATE KEY UPDATE last_seen_time=NOW()'
+                  siteName + '"),' 
+               'min_processors=%d,max_processors=%d,' 
+               'min_rss_bytes=%d,'
+               'max_rss_bytes=%d,' 
+               'max_wall_seconds=%d '
+               'ON DUPLICATE KEY UPDATE last_seen_time=NOW()' %
+               (processors - 1, processors,
+                int((maxRssBytes / maxProcessors) * (processors - 1)),
+                int((maxRssBytes / maxProcessors) *  processors),
+                maxWallSeconds
+               )
               ) 
 
       wfs.db.cur.execute(query)

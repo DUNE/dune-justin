@@ -210,20 +210,24 @@ def findStage(queryDict):
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "WHERE files.state='unallocated' AND " 
  "requests.state='running' AND "
- "%d < stages.processors AND "
- "stages.processors <= %d AND "
- "%d < stages.rss_bytes AND "
- "stages.rss_bytes <= %d AND "
+ "((%d < stages.processors AND stages.processors <= %d AND "
+ "  stages.rss_bytes <= %d) OR "
+ " (%d < stages.rss_bytes AND stages.rss_bytes <= %d AND "
+ "  stages.processors <= %d)) AND "
  "stages.wall_seconds <= %d %s "
- "AND storages.rse_name IS NOT NULL " 
+ "AND storages.rse_name IS NOT NULL "
  "ORDER BY %sfiles.request_id,files.file_id "
  "LIMIT 1 FOR UPDATE" %
  (queryDict["min_processors"], queryDict["max_processors"], 
-  queryDict["min_rss_bytes"], queryDict["max_rss_bytes"], 
+  queryDict["max_rss_bytes"],
+  queryDict["min_rss_bytes"], queryDict["max_rss_bytes"],
+  queryDict["max_processors"],
   queryDict["max_wall_seconds"], 
   queryDict["storageWhere"],
   queryDict["storageOrder"] 
  ))
+
+#  print(query, file=sys.stderr)
   
   wfs.db.cur.execute(query)
   fileRow = wfs.db.cur.fetchone()

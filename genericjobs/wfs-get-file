@@ -29,7 +29,7 @@ http_code=`curl \
 --data @$WFS_PATH/wfs-get-file.json \
 --output $GET_FILE_TMP \
 --write-out "%{http_code}\n" \
-https://wfs.dune.hep.ac.uk/wfa-cgi 2>/dev/null`
+https://wfs-pro.dune.hep.ac.uk/wfa-cgi 2>/dev/null`
 
 if [ "$http_code" = 200 ] ; then
  cat $GET_FILE_TMP
