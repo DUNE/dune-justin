@@ -67,6 +67,7 @@ td,th { border: thin solid black; padding: 0.75ex }
 </head><body>""")
 
 def footer():
+  print("<hr>Time now: %s" % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
   print("</body></html>")
   sys.exit()
 
@@ -94,7 +95,7 @@ def listRequests(cgiValues):
   print("<h1>Requests</h1>")
   
   query = ("SELECT * FROM requests "
-           "ORDER BY request_id")
+           "ORDER BY request_id DESC")
 
   wfs.db.cur.execute(query)
   rows = wfs.db.cur.fetchall()
@@ -271,7 +272,7 @@ def showStage(cgiValues):
         '<td>%s</td></tr>' % bool(stageRows[0]["any_location"]))
 
   print('<tr><td>Output RSEs</td>'
-        '<td>'
+        '<td>')
         
   query = ("SELECT rse_name "
            "FROM stages_output_storages "
@@ -450,7 +451,7 @@ def showFile(cgiValues):
   header("WFS: File %s" 
          % html.escape(fileDID, quote=True))
 
-  print("<h1>File %s"
+  print("<h1>File %s</h1>"
          % html.escape(fileDID, quote=True))
   
   query = ('SELECT file_id,state '

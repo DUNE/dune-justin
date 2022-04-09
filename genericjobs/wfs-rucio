@@ -10,8 +10,10 @@
 # (Linux) base64       wfs-rucio > wfs-rucio.b64
 #
 
+. /cvmfs/grid.cern.ch/c7ui-test/etc/profile.d/setup-c7-ui-python3-example.sh
+
 export WFS_RUCIO_LOCAL=$WFS_PATH/wfs-rucio-local
-export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages"
+export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages:$PYTHONPATH"
 
 exec $WFS_RUCIO_LOCAL/bin/rucio --timeout 60 \
   --config $WFS_RUCIO_LOCAL/etc/rucio.cfg $*

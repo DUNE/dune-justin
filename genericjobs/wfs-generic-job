@@ -52,11 +52,13 @@ biAkV0ZTX1BBVEgvd2ZzLXJ1Y2lvLWxvY2FsCiMKIyBUaGlzIHNjcmlwdCBtdXN0IGJlIGNvbnZl
 cnRlZCB0byBiYXNlNjQgd2l0aCBzb21ldGhpbmcgbGlrZSB0aGUgZm9sbG93aW5nIAojIGFuZCBp
 bmNsdWRlZCBpbiB0aGUgaGVyZSBkb2N1bWVudCBuZWFyIHRoZSBzdGFydCBvZiB3ZnMtZ2VuZXJp
 Yy1qb2IgOgojCiMgKG1hY09TKSBiYXNlNjQgLWIgNzYgd2ZzLXJ1Y2lvID4gd2ZzLXJ1Y2lvLmI2
-NAojIChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1ydWNpbyA+IHdmcy1ydWNpby5iNjQKIwoKZXhw
-b3J0IFdGU19SVUNJT19MT0NBTD0kV0ZTX1BBVEgvd2ZzLXJ1Y2lvLWxvY2FsCmV4cG9ydCBQWVRI
-T05QQVRIPSIkV0ZTX1JVQ0lPX0xPQ0FML2xpYi9weXRob24zLjgvc2l0ZS1wYWNrYWdlcyIKCmV4
-ZWMgJFdGU19SVUNJT19MT0NBTC9iaW4vcnVjaW8gLS10aW1lb3V0IDYwIFwKICAtLWNvbmZpZyAk
-V0ZTX1JVQ0lPX0xPQ0FML2V0Yy9ydWNpby5jZmcgJCoK
+NAojIChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1ydWNpbyA+IHdmcy1ydWNpby5iNjQKIwoKLiAv
+Y3ZtZnMvZ3JpZC5jZXJuLmNoL2M3dWktdGVzdC9ldGMvcHJvZmlsZS5kL3NldHVwLWM3LXVpLXB5
+dGhvbjMtZXhhbXBsZS5zaAoKZXhwb3J0IFdGU19SVUNJT19MT0NBTD0kV0ZTX1BBVEgvd2ZzLXJ1
+Y2lvLWxvY2FsCmV4cG9ydCBQWVRIT05QQVRIPSIkV0ZTX1JVQ0lPX0xPQ0FML2xpYi9weXRob24z
+Ljgvc2l0ZS1wYWNrYWdlczokUFlUSE9OUEFUSCIKCmV4ZWMgJFdGU19SVUNJT19MT0NBTC9iaW4v
+cnVjaW8gLS10aW1lb3V0IDYwIFwKICAtLWNvbmZpZyAkV0ZTX1JVQ0lPX0xPQ0FML2V0Yy9ydWNp
+by5jZmcgJCoK
 EOF
 chmod +x $WFS_PATH/wfs-rucio
 
@@ -92,9 +94,11 @@ fi
 # Install a private version of the Rucio client
 # Will be removed once we can get Rucio entirely from cvmfs
 (
+. /cvmfs/grid.cern.ch/c7ui-test/etc/profile.d/setup-c7-ui-python3-example.sh
+
 export WFS_RUCIO_LOCAL=$PWD/wfs-rucio-local
 export PATH="$PATH:$WFS_RUCIO_LOCAL/bin"
-export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages"
+export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages:$PYTHONPATH"
 
 mkdir -p $WFS_RUCIO_LOCAL/bin
 # Have to create symbolic link since cvmfs path 
@@ -107,8 +111,7 @@ curl --insecure https://bootstrap.pypa.io/get-pip.py > get-pip.py
 $WFS_RUCIO_LOCAL/bin/python38 get-pip.py --prefix $WFS_RUCIO_LOCAL \
   --ignore-installed
 
-# Install Rucio with PIP
-# DOES NOT WORK WITH RUCIO 1.27 !!!
+# Install Rucio with PIP - DOES NOT WORK WITH RUCIO 1.27 !!!
 $WFS_RUCIO_LOCAL/bin/pip3.8 install --prefix $WFS_RUCIO_LOCAL --ignore-installed rucio-clients==1.26
 
 cat <<EOF > $WFS_RUCIO_LOCAL/etc/rucio.cfg
@@ -122,6 +125,10 @@ client_x509_proxy = \$X509_USER_PROXY
 request_retries = 3
 EOF
 ) 2>&1
+
+echo "#### ls -lR $WFS_RUCIO_LOCAL ####"
+ls -lR $WFS_RUCIO_LOCAL
+echo "####"
 
 # Check Rucio is working
 $WFS_PATH/wfs-rucio --version
@@ -172,9 +179,13 @@ if [ -r wfs-env.sh ] ; then
   . ./wfs-env.sh
 fi
 
+echo '====Start wfs-output-patterns.txt===='
+cat wfs-output-patterns.txt
+echo '====End wfs-output-patterns.txt===='
+
 echo '====Start wfs-get-file.json===='
 cat wfs-get-file.json
-echo '====End wfs-get-file.jsonh===='
+echo '====End wfs-get-file.json===='
 
 # Run the bootstrap script
 if [ -f wfs-bootstrap.sh ] ; then
@@ -224,24 +235,37 @@ do
 done
 )
 
+echo '#### wfs-outputs.txt'
+cat $WFS_PATH/wfs-outputs.txt
+echo '####'
+echo
+echo '#### wfs-next-stage-outputs.txt'
+cat $WFS_PATH/wfs-next-stage-outputs.txt
+echo '####'
+
 next_stage_outputs=`echo \`sed 's/.*/"&"/' wfs-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
 # Just try the first RSE for now; eventually will do failovers on errors
 output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
 
-for dataset scope fn in `cat wfs-outputs.txt`
+cat $WFS_PATH/wfs-outputs.txt | (
+
+while read dataset scope fn
 do
   echo "Upload $scope:$fn"
-  $WFS_PATH/wfs-rucio -a test upload -v --rse "$output_rse" --scope "$scope" "$fn"
+  $WFS_PATH/wfs-rucio --verbose -a test upload --rse "$output_rse" --scope "$scope" "workspace/$fn"
+  echo "wfs-rucio returns $?"
 
   if [ $? = 0 ] ; then
     echo "Add $scope:$fn to $dataset"
-    $WFS_PATH/wfs-rucio -a test attach -v "$dataset" "$scope:$fn"
+    $WFS_PATH/wfs-rucio --verbose -a test attach "$dataset" "$scope:$fn"
   fi
  
   echo "Metadata too? $fn.json"
   echo
 done
+
+)
 
 # wfs-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
@@ -276,12 +300,11 @@ http_code=`curl \
 --header "X-Jobid: $JOBSUBJOBID" \
 --capath $X509_CERTIFICATES \
 --data @wfs-return-results.json \
---output return-results.txt \
+--output return-results.log \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
 
 echo "return_results returns HTTP code $http_code"
-cat return-results.txt
 
 echo '====End of wfs-generic-job===='
 exit 0

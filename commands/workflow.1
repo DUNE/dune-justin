@@ -131,8 +131,9 @@ If one or more options
 .B --output-rse NAME
 is given, then the RSE used for uploads of output files will be chosen
 from that list of RSEs, with preference given to RSEs at the same site and 
-then nearby sites and then any which are accessible. If none of the given
-RSEs are available, then the default algorithm for choosing an RSE is used.
+then nearby sites and then any which are accessible. If this option is not
+used, or none of the given RSEs are available, then the default algorithm for 
+choosing the closest available RSE is used.
 
 .HP
 .B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET::SCOPE::PATTERN] --output-rse NAME"

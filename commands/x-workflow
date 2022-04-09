@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# Run the workflow command even if you have set up the Python2 DUNE
+# environment
+# 
+# Put this command (x-workflow) and the Python3 workflow script itself 
+# somewhere on your path. For example in $HOME/bin/
+#
+# Then just run x-workflow as you would run workflow
+#
+unset PYTHONPATH LD_LIBRARY_PATH
+exec workflow $*

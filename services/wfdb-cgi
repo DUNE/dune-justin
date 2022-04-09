@@ -549,7 +549,7 @@ def quickRequestCmd(jsonDict, userID):
       doQuery('INSERT INTO stages_output_storages SET '
               'request_id=%d,'
               'stage_id=1,'
-              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")'
+              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
               (requestID, rseName))
 
   # Only commit if everything went ok
