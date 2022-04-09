@@ -53,8 +53,7 @@ import wfs
 
 allocatorName = None
 
-# Return various strings and SQL expressions which are 
-# used in subsequent queries
+# Return information about the job from tnhe jobsubID
 def makeJobDict(jobsubID, cookie = None):
 
   # Find the job info and the stage's any_location flag
@@ -66,7 +65,8 @@ def makeJobDict(jobsubID, cookie = None):
              'stages.any_location,'
              'jobs.request_id,'
              'jobs.stage_id,'
-             'jobs.wfs_job_id '
+             'jobs.wfs_job_id, '
+             'jobs.site_id '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
@@ -83,6 +83,7 @@ def makeJobDict(jobsubID, cookie = None):
   return { "error_message"    : None,
            "request_id"       : job['request_id'],
            "stage_id"         : job['stage_id'],
+           "site_id"          : job['site_id'],
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
            "slot_size_id"     : job['slot_size_id'],
@@ -111,7 +112,7 @@ def makeQueryDict(slotSizeID):
  
   try:
     query = ('SELECT sites_storages.rse_id,location,rse_name,'
-             'occupancy '
+             'occupancy,rse_write,rse_read,ignore_for_output '
              'FROM sites_storages '
              'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
              'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
@@ -131,16 +132,20 @@ def makeQueryDict(slotSizeID):
 
   for storageRow in storageRows:
 
-    if storageRow['rse_id'] != wfs.conf.MonteCarloRseID and \
-       storageRow['occupancy'] < 1.0:
+    if not storageRow['ignore_for_output'] and \
+       storageRow['rse_id'] != wfs.conf.MonteCarloRseID and \
+       storageRow['occupancy'] < 1.0 and \
+       storageRow['rse_write']:
+      # storageRows is already sorted by RSE location vs our site
       outputRseList.append(storageRow['rse_name'])
-  
-    if storageRow['location'] == 'accessible':
-      accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-    elif storageRow['location'] == 'nearby':
-      nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
-    elif storageRow['location'] == 'samesite':
-      samesiteList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+
+    if storageRow['rse_read']:
+      if storageRow['location'] == 'accessible':
+        accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+      elif storageRow['location'] == 'nearby':
+        nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+      elif storageRow['location'] == 'samesite':
+        samesiteList.append('replicas.rse_id=%s' % storageRow['rse_id'])
 
   storageWhere = ' OR '.join(samesiteList + nearbyList)
 
@@ -224,7 +229,7 @@ def findStage(queryDict):
   queryDict["max_processors"],
   queryDict["max_wall_seconds"], 
   queryDict["storageWhere"],
-  queryDict["storageOrder"] 
+  queryDict["storageOrder"]
  ))
 
 #  print(query, file=sys.stderr)
@@ -269,7 +274,8 @@ def findFile(jobDict, queryDict):
 "AND files.stage_id=%d %s AND storages.rse_NAME IS NOT NULL "
 "ORDER BY %sfiles.file_id LIMIT 1 FOR UPDATE" %
 (jobDict['request_id'], jobDict['stage_id'], 
- storageWhere, queryDict['storageOrder'])) 
+ storageWhere, 
+ queryDict['storageOrder'])) 
       
   wfs.db.cur.execute(query)
   fileRows = wfs.db.cur.fetchall()

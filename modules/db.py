@@ -37,6 +37,9 @@ cur  = None
 
 import re
 
+rseAvailabilityDelete = 1
+rseAvailabilityWrite  = 2
+rseAvailabilityRead   = 4
 
 def stringIsJobsubID(s):
   return re.search('[^A-Z,a-z,0-9,_,.,@,-]', s) is None

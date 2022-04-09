@@ -126,7 +126,7 @@ def showRequest(cgiValues):
 
   query = ("SELECT requests.name AS requestname,requests.state,users.name AS username,"
            "x509dn,"
-           "requests.created,requests.submitted,requests.approved,"
+           "requests.created,requests.submitted,requests.started,"
            "requests.checking,requests.completed,mql "
            "FROM requests "
            "LEFT JOIN users ON users.user_id=requests.submitter_id "
@@ -159,9 +159,9 @@ def showRequest(cgiValues):
   else:
     print('<td>-</td></tr>')
 
-  print('<tr><td>Approved</td>')
-  if requestRows[0]['approved']:
-    print('<td>%s</td></tr>' % str(requestRows[0]['approved']))
+  print('<tr><td>Started</td>')
+  if requestRows[0]['started']:
+    print('<td>%s</td></tr>' % str(requestRows[0]['started']))
   else:
     print('<td>-</td></tr>')
     
@@ -270,6 +270,27 @@ def showStage(cgiValues):
   print('<tr><td>Input from any location</td>'
         '<td>%s</td></tr>' % bool(stageRows[0]["any_location"]))
 
+  print('<tr><td>Output RSEs</td>'
+        '<td>'
+        
+  query = ("SELECT rse_name "
+           "FROM stages_output_storages "
+           "LEFT JOIN storages ON stages_output_storages.rse_id=storages.rse_id "
+           "WHERE request_id=%d AND stage_id=%d "
+           "ORDER BY rse_name" %
+           (requestID, stageID))
+
+  wfs.db.cur.execute(query)
+  rseRows = wfs.db.cur.fetchall()
+  
+  if (len(rseRows) == 0):
+    print("(any)")
+  else:
+    for rseRow in rseRows:
+      print("%s " % rseRow['rse_name'])
+        
+  print('</td></tr>')
+
   numFinding     = int(stageRows[0]["num_finding"])
   numUnallocated = int(stageRows[0]["num_unallocated"])
   numAllocated   = int(stageRows[0]["num_allocated"])
@@ -299,20 +320,23 @@ def showStage(cgiValues):
   print('</table>')
     
   print("<h2>Output patterns</h2>")
-  print('<table><tr><th>Pattern</th><th>For next stage</th></tr>') 
+  print('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
+        '<th>For next stage</th></tr>') 
 
-  query = ("SELECT pattern,for_next_stage "
+  query = ("SELECT dataset,file_scope,file_pattern,for_next_stage "
            "FROM stages_outputs "
            "WHERE request_id=%d AND stage_id=%d "
-           "ORDER BY pattern" %
+           "ORDER BY dataset,file_scope,file_pattern" %
            (requestID, stageID))
 
   wfs.db.cur.execute(query)
   patternRows = wfs.db.cur.fetchall()
 
   for patternRow in patternRows:
-    print("<tr><td>%s</td><td>%s</td></tr>" %
-           (html.escape(patternRow["pattern"], quote=True),
+    print("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" %
+           (patternRow["dataset"],
+            patternRow["file_scope"],
+            html.escape(patternRow["file_pattern"], quote=True),
             bool(patternRow["for_next_stage"])))
 
   print('</table>') 
@@ -677,13 +701,28 @@ def listJobs(cgiValues):
         '</tr>')
   
   for jobRow in jobRows:
+    if jobRow['request_id']:
+      requestIdStr = ('<a href="/dashboard/?method=show-request&'
+                      'request_id=%s">%s</a>' %
+                      (jobRow["request_id"], jobRow["request_id"]))
+    else:
+      requestIdStr = ' '
+      
+    if jobRow['stage_id']:
+      stageIdStr = ('<a href="/dashboard/?method=show-stage&request_id=%s&'
+                    'stage_id=%s">%s</a>' %
+                    (jobRow["request_id"], 
+                     jobRow["stage_id"], jobRow["stage_id"]))
+    else:
+      stageIdStr = ' '  
+  
     print('<tr>'
           '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'          
-          '<td><a href="/dashboard/?method=show-request&request_id=%s">%s</a></td>'
-          '<td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">%s</a></td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>'
@@ -691,8 +730,8 @@ def listJobs(cgiValues):
              jobRow['jobsub_state'],
              jobRow['allocation_state'],
              jobRow['site_name'],
-             jobRow["request_id"], jobRow["request_id"],
-             jobRow["request_id"], jobRow["stage_id"], jobRow["stage_id"],
+             requestIdStr,
+             stageIdStr,
              jobRow["allocation_time"],
              jobRow["finished_time"]             
             )

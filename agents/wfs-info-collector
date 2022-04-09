@@ -84,6 +84,7 @@ def updateUsers():
     return
 
   for account in accountsList:
+    logLine(str(account))
     if account['type'] != 'USER' or account['account'] == 'test':
       continue
 
@@ -310,7 +311,9 @@ def updateStorages():
   
   # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
   wfs.db.cur.execute('INSERT INTO storages SET rse_id=%d,'
-    'rse_name="MONTECARLO",occupancy=1 ON DUPLICATE KEY UPDATE occupancy=1'
+    'rse_name="MONTECARLO",occupancy=1,rse_write=FALSE,'
+    'rse_read=TRUE,rse_delete=FALSE ` 
+    'ON DUPLICATE KEY UPDATE occupancy=1'
     % wfs.conf.MonteCarloRseID)
 
   try:
@@ -327,9 +330,16 @@ def updateStorages():
 
   for rse in rseList:
   
+    logLine(str(rse))
+  
     if rse['rse_type'] != 'DISK' and rse['rse'] != 'FNAL_DCACHE':
       # We ignore tape RSEs apart from tape-backed dCache at FNAL
       continue
+      
+    try:
+      availability = rse['availability']
+    except:
+      availability = 0  
 
     try:
       usageList = rseClient.get_rse_usage(rse['rse'],
@@ -347,12 +357,32 @@ def updateStorages():
         occupancy = 1.0
       else:
         occupancy = float(usage['used']) / usage['total']
+       
+    # The FIRST time these are seen, they get set to ignore  
+    if rse['rse'] in ['MONTECARLO', 'FNAL_DCACHE_TEST', 'SCRATCH_DCACHE']:
+      ignoreForOutput = True
+    else:
+      ignoreForOutput = False
 
     try:
       # We should sanitise this name just in case...
-      query = ('INSERT INTO storages SET rse_name="%s",occupancy=%f '
-               'ON DUPLICATE KEY UPDATE occupancy=%f'
-               % (rse['rse'], occupancy, occupancy))
+      query = ('INSERT INTO storages SET rse_name="%s",'
+               'occupancy=%f,rse_write=%d,rse_read=%d,rse-delete=%d,'
+               'ignore_for_output=%d '
+               'ON DUPLICATE KEY UPDATE occupancy=%f,rse_write=%d,'
+               'rse_read=%d,rse_delete=%d '
+               % (rse['rse'], 
+                  occupancy, 
+                  ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
+                  ((availability & wfs.db.rseAvailabilityRead)   != 0), 
+                  ((availability & wfs.db.rseAvailabilityDelete) != 0),
+                  ignoreForOutput,
+                  occupancy,
+                  ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
+                  ((availability & wfs.db.rseAvailabilityRead)   != 0), 
+                  ((availability & wfs.db.rseAvailabilityDelete) != 0)
+                 )
+              )
 
       wfs.db.cur.execute(query)
     except Exception as e:

@@ -22,6 +22,7 @@ echo "$did" > wfs-processed-inputs.txt
 echo > wfs-unprocessed-inputs.txt
 
 # Hello world
-echo "Hello world $pfn"
+echo "Hello world $pfn" 
+echo "Hello world $pfn" >hello-world-$(date -u +%Y%m%dT%H%M%SZ).txt
 
 exit 0

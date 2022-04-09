@@ -90,7 +90,7 @@ def addFilesMonteCarlo(requestID, count):
       return
 
   try:
-    query = ('UPDATE requests SET state="running" WHERE request_id=' +
+    query = ('UPDATE requests SET find_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
     wfs.db.cur.execute(query)
@@ -119,17 +119,18 @@ def findFilesRucio(didClient, requestID, scope, name):
     try:
       query = ('INSERT INTO files SET '
                'request_id=' + str(requestID) + ',' +
-               'file_did="' + did['scope'] + ':' + did['name'] + '"'
+               'file_did="' + did['scope'] + ':' + did['name'] + '" '
+               'ON DUPLICATE KEY UPDATE request_id=request_id'
               )
 
       wfs.db.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting DID')
+      logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
       return
 
   # All files found for this request so update its state
   try:
-    query = ('UPDATE requests SET state="running" WHERE request_id=' +
+    query = ('UPDATE requests SET find_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
     wfs.db.cur.execute(query)
@@ -148,10 +149,16 @@ def findFiles():
   #
   # ONLY MQLs OF THE FORM from files scope:name ARE SUPPORTED UNTIL THEN
 
-  wfs.db.cur.execute('SELECT request_id,mql FROM requests '
-                     'WHERE state="finding" ORDER BY request_id')
+  query = ('SELECT request_id,mql FROM requests '
+           'WHERE state="running" AND '
+           '((refind_seconds=0 AND find_last_time="1970-01-01 00:00:00") OR '
+           ' (DATE_ADD(find_last_time, INTERVAL refind_seconds SECOND) '
+           ' < NOW() AND refind_end_time > NOW())) '
+           'ORDER BY request_id')
+
+  wfs.db.cur.execute(query)
+
   findingRequests = wfs.db.cur.fetchall()
-  
   if not findingRequests:  
     # Nothing to do
     return
@@ -205,6 +212,9 @@ def findReplicas():
   if not findingFiles:
     # Nothing to do
     return
+
+  # Receives a list of unique (requestID,stageID) combinations
+  requestsStages = set()
   
   for fileRow in findingFiles:
     didSplit = fileRow['file_did'].split(':')
@@ -231,7 +241,7 @@ def findReplicas():
   for rep in repsList:
     repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
 
-  print(repsDict)
+#  print(repsDict)
 
   # Cache rse_id of each known RSE into a local dictionary
   storagesDict = {}
@@ -241,8 +251,6 @@ def findReplicas():
   for storageRow in allStorages:
     storagesDict[storageRow['rse_name']] = storageRow['rse_id']
  
-  print(storagesDict)
-
   # Go back to our list of files in finding state and put replicas in DB
   for fileRow in findingFiles:
     print(fileRow)
@@ -286,7 +294,13 @@ def findReplicas():
                 fileRow['file_did'] + 
                 '): ' + str(e))
         return
+      else:
+        requestsStages.add((fileRow['request_id'],fileRow['stage_id']))
 
+  # Update all the stages for which we've updated a file
+  for (requestID, stageID) in requestsStages:
+    wfs.allocator.updateStageCounts(requestID, stageID)
+    
   # All ok, so commit it all to the DB
   wfs.db.conn.commit()
 

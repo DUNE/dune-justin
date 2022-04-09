@@ -30,15 +30,20 @@ option is only needed during development and testing.
 .SH SUBCOMMANDS
 
 .HP
-.B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT]"
+.B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-days DAYS --refind-limit-days DAYS]"
 .br
 Create a new, empty request in the database, optionally with the given 
 human-readable name and either a MetaCat Query Language expression or
 the count of the number of Monte Carlo instances to run. If a name is not 
-given, a name based on a timestamp is created. If present, the query will be
-used by the Workflow System to build the list of input files from MetaCat.
+given, a name based on a timestamp is created. 
 Requests are created in the state "draft" and the command returns the new 
 request's ID number.
+Once the request is in the running state, the Workflow System will use the 
+MQL expression to find the list of input files from MetaCat. If 
+.B --refind-days
+is given, the MQL query will be resubmitted at that interval to add any
+new matching files for the duration given by the required value of
+.B --refind-limit-days.
 
 .HP
 .B "show-requests [--request-id ID]"
@@ -58,10 +63,10 @@ very large requests it may give an opportunity for manual approval by the
 operations team.
 
 .HP
-.B "approve-request --request-id ID"
+.B "start-request --request-id ID"
 .br
-Approves the a request in the "draft" or "submitted" state and changes its 
-state to "finding".
+Starts a request in the "draft" or "submitted" state and changes its 
+state to "running".
 
 .HP
 .B "pause-request --request-id ID"
@@ -70,13 +75,13 @@ Changes the state of the given request to "paused". This state temporarily
 excludes a request from the workflow allocation process.
 
 .HP
-.B "run-request --request-id ID"
+.B "restart-request --request-id ID"
 .br
 Changes the state of the given request back to "running". Requests in this
 state are included in the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN] [--output-pattern-next-stage PATTERN]"
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET::SCOPE::PATTERN] [--output-pattern-next-stage DATASET::SCOPE::PATTERN] [--output-rse NAME]" 
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -103,29 +108,39 @@ storages at the same site or nearby sites. This can be changed by setting
 .B --any-location TRUE
 to allow input files to be allocated from any accessible storage.
 
-If 
-.B --output-pattern
+If one or more options 
+.B --output-pattern DATASET::SCOPE::PATTERN
 is given then the generic job will look for files created by the script
-which match this pattern. The pattern is a Bash shell pattern using *, ? and
+which match the pattern following the last "::". The pattern is a Bash 
+shell pattern using *, ? and
 [...] expressions. See the bash(1) Pattern Matching section for details. Any
 output files found by this matching will be uploaded and registered by the
-generic job. Furthermore, if the found files have a corresponding JSON metadata
+generic job in the Rucio dataset given before the first "::", with a DID
+composed of the scope given and the found filename. Furthermore, if the 
+found files have a corresponding JSON metadata
 file with the same name but with ".json" appended, that will be recorded for
 that file in MetaCat.
 
 Alternatively
-.B --output-pattern-next-stage
+.B --output-pattern-next-stage DATASET::SCOPE::PATTERN
 can be given in which the output file will also be registered in the
 Workflow Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
 
+If one or more options
+.B --output-rse NAME
+is given, then the RSE used for uploads of output files will be chosen
+from that list of RSEs, with preference given to RSEs at the same site and 
+then nearby sites and then any which are accessible. If none of the given
+RSEs are available, then the default algorithm for choosing an RSE is used.
+
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern PATTERN]"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET::SCOPE::PATTERN] --output-rse NAME"
 .br
 Combines the 
 .B create-request, create-stage
 and
-.B approve-request
+.B start-request
 subcommands into a single operation, for use with single-stage requests.
 
 .HP
@@ -145,23 +160,25 @@ Show the bootstrap script of the given stage within the given request.
 .HP
 .B "show-stage-outputs --request-id ID --stage-id ID"
 .br
-Shows the patterns used to find output files of the given stage within the 
+Shows the datasets to be assigned and the patterns used to find output files 
+of the given stage within the 
 given request. Each line of the response consists of "(next)" or "(  )" 
 depending on whether the files are passed to the next stage within the
-request, and then the pattern itself.
+request, and then the dataset, scope, and files pattern themselves.
 
 .HP
 .B "show-storages [--rse-name NAME]"
 .br
-Shows information about RUCIO storage elements cached in the Workflow
+Shows information about Rucio Storage Elements cached in the Workflow
 Database, optionally limiting output to a single RSE using its name. Each
 line of the output consists of the RSE name followed by the occupancy
-fraction obtained from RUCIO in the range 0.0 to 1.0.
+fraction obtained from Rucio in the range 0.0 to 1.0, and then the Read, Write
+and Delete availability of the RSE from Rucio.
 
 .HP
 .B "show-sites-storages [--site-name NAME] [--rse-name NAME]"
 .br
-Shows information about the locations of RUCIO storage elements relative to
+Shows information about the locations of Rucio storage elements relative to
 sites, optionally limited to the given site and/or RSE. Each line of the
 output gives the site name, RSE name, and then their relative locaton:
 "samesite", "nearby" or "accessible". 
@@ -170,7 +187,7 @@ output gives the site name, RSE name, and then their relative locaton:
 .B "add-file --request-id ID [--stage-id ID] --file-did DID --rse-name NAME --pfn URL"
 .br
 Adds one file to the list of files to be processed in a stage, with the
-given RUCIO file Data Identifier (DID). 
+given Rucio file Data Identifier (DID). 
 .B Normally this should only be done for the first stage, 
 which is the default. Files are created in the "unallocated" state, ready
 for processing. Exactly RSE which has a replica of the file must be

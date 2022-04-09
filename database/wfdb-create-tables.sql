@@ -92,7 +92,8 @@ CREATE TABLE `files` (
   `state` enum('finding','unallocated','allocated','processed') NOT NULL DEFAULT 'finding',
   `finding_retry_time` datetime NOT NULL DEFAULT '1970-01-01',
   `last_allocation_id` int(10) unsigned NOT NULL DEFAULT 0,
-  PRIMARY KEY (`file_id`)
+  PRIMARY KEY (`file_id`),
+  UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -140,13 +141,16 @@ DROP TABLE IF EXISTS `requests`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-  `state` enum('draft','submitted','finding','running','paused','checking','completed','deleted') NOT NULL,
+  `state` enum('draft','submitted','running','paused','checking','completed','deleted') NOT NULL,
   `name` varchar(255) NOT NULL,
   `created` datetime NOT NULL,
   `submitted` datetime DEFAULT NULL,
-  `approved` datetime DEFAULT NULL,
+  `started` datetime DEFAULT NULL,
   `checking` datetime DEFAULT NULL,
   `completed` datetime DEFAULT NULL,
+  `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `refind_end_time` datetime DEFAULT '1970-01-01 00:00:00',
+  `find_last_time` datetime DEFAULT '1970-01-01 00:00:00',
   `submitter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
   PRIMARY KEY (`request_id`)
@@ -223,7 +227,7 @@ CREATE TABLE `stages` (
   `processors` tinyint(3) unsigned NOT NULL,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
-  `any_location` tinyint(1) NOT NULL DEFAULT '0',
+  `any_location` tinyint(1) NOT NULL DEFAULT 0,
   `num_finding` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_unallocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_allocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
@@ -242,8 +246,24 @@ DROP TABLE IF EXISTS `stages_outputs`;
 CREATE TABLE `stages_outputs` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `pattern` varchar(255) NOT NULL,
+  `file_pattern` varchar(255) NOT NULL,
+  `file_scope` varchar(255) NOT NULL,
+  `dataset` varchar(255) NOT NULL,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `stages_outputs`
+--
+
+DROP TABLE IF EXISTS `stages_output_storages`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `stages_output_storages` (
+  `request_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `rse_id` smallint(5) unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -257,7 +277,11 @@ DROP TABLE IF EXISTS `storages`;
 CREATE TABLE `storages` (
   `rse_name` varchar(255) NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `occupancy` float NOT NULL DEFAULT '0',
+  `occupancy` float NOT NULL DEFAULT 0,
+  `rse_write` tinyint(1) NOT NULL DEFAULT TRUE,
+  `rse_read` tinyint(1) NOT NULL DEFAULT TRUE,
+  `rse_delete` tinyint(1) NOT NULL DEFAULT TRUE,
+  `ignore_for_output` tinyint(1) NOT NULL DEFAULT FALSE,
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

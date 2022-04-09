@@ -101,7 +101,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(jsonDict, queryDict, stage, cookie):
+def makeTarFile(jsonDict, queryDict, jobDict, stage, cookie):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -115,7 +115,8 @@ def makeTarFile(jsonDict, queryDict, stage, cookie):
 
   # Create a file containing the output file patterns
   try:
-    query = ("SELECT pattern,for_next_stage FROM stages_outputs "
+    query = ("SELECT dataset,file_scope,file_pattern,for_next_stage "
+             "FROM stages_outputs "
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
@@ -127,19 +128,50 @@ def makeTarFile(jsonDict, queryDict, stage, cookie):
   patternsFile = ''
 
   for row in rows:
-    patternsFile += str(row['for_next_stage']) + ' ' + row['pattern'] + '\n'
+    patternsFile += (str(row['for_next_stage']) + ' ' + 
+                     row['dataset'] + ' ' +
+                     row['file_scope'] + ' ' +
+                     row['file_pattern'] + '\n')
     
   addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
+
+  # Look for an output RSE list specific to this stage
+  try:
+    query = ('SELECT rse_name '
+             'FROM stage_output_storages '
+             'LEFT JOIN storages '
+             'ON storages.rse_id=stage_output_storages.rse_id '
+             'LEFT JOIN sites_storages '
+             'ON stage_output_storages.rse_id=sites_storages.rse_id '
+             'WHERE stage_output_storages.request_id=%d AND '
+             'occupancy < 1.0 AND '
+             'stage_output_storages.stage_id=%d AND '
+             'storages.rse_write AND '
+             'sites_storages.site_id=%d '
+             'ORDER BY location,occupancy,RAND()' 
+             % (stage['request_id'], stage['stage_id'], jobDict['site_id'])
+
+    wfs.db.cur.execute(query)
+    rseRows = wfs.db.cur.fetchall()
+  except:
+    return None
+
+  rseList = []
+  for rseRow in rseRows:
+    rseList.append(rseRow['rse_name'])
+
+  outputRseList = rseList + queryDict['outputRseList']
+      
   addFileToTarFile(tar, 'wfs-env.sh', 
        (
          'export WFS_REQUEST_ID=' + str(stage['request_id']) + '\n' +
          'export WFS_STAGE_ID=' + str(stage['stage_id']) + '\n' +
          'export WFS_COOKIE="' + cookie + '"\n' +
-         'export WFS_RSE_LIST="' + ' '.join(queryDict['outputRseList']) + '"\n'
-       )
+         'export WFS_OUTPUT_RSE_LIST="' + ' '.join(outputRseList) + '"\n'
+       )  
                   )
-
+                  
   addFileToTarFile(tar, 'wfs-get-file.json', 
        (
          '{\n' +
@@ -149,7 +181,7 @@ def makeTarFile(jsonDict, queryDict, stage, cookie):
          '}\n'
        )
                   )
-
+                  
   tar.close()  
   return buffer.getvalue()
 
@@ -235,8 +267,7 @@ def getStageMethod(jsonDict, jobUserID):
     httpError('500 Internal Server Error',
               'Workflow allocator failed: ' + str(e))
 
-
-  tarFile = makeTarFile(jsonDict, queryDict, stage, cookie)
+  tarFile = makeTarFile(jsonDict, queryDict, jobDict, stage, cookie)
         
   wfs.allocator.updateStageCounts(stage['request_id'], 
                                   stage['stage_id'])

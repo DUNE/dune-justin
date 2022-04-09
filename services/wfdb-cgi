@@ -171,7 +171,7 @@ def showStageOutputsCmd(jsonDict):
 
   rows = doQuery("SELECT * FROM stages_outputs "
                  "WHERE request_id=%d AND stage_id=%d "
-                 "ORDER BY pattern" 
+                 "ORDER BY dataset,file_scope,file_pattern" 
                  % (requestID, stageID))
 
   print('Status: 200 OK')
@@ -180,7 +180,10 @@ def showStageOutputsCmd(jsonDict):
 
   for row in rows:
     nextStage = '(next)' if row['for_next_stage'] else '(    )'
-    print("%s %s" % (nextStage, row['pattern']))
+    print("%s %s %s %s" % (nextStage,
+                        row['dataset'],
+                        row['file_scope'],
+                        row['file_pattern']))
    
   sys.exit(0)
 
@@ -310,8 +313,19 @@ def showStoragesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%-25s %.2f" % 
-          (row['rse_name'], row['occupancy']))
+    availabilityList = ['-', '-', '-']
+
+    if row['rse_read']:
+      availabilityList[0] = 'R'
+  
+    if row['rse_write']:
+      availabilityList[1] = 'W'
+  
+    if row['rse_delete']:
+      availabilityList[2] = 'D'  
+  
+    print("%-25s %.2f  %s" % 
+          (row['rse_name'], row['occupancy'], ''.join(availabilityList)))
    
   sys.exit(0)
 
@@ -368,15 +382,42 @@ def createRequestCmd(jsonDict, userID):
     try:
       mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
     except:
-      httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
-      
+      httpError('400 Bad Request', 
+                'Monte Carlo option requires an integer count')
+
+  if 'refind_days' in jsonDict and jsonDict['refind_days']:
+    try:
+      refindSeconds = int(jsonDict['refind_days'] * 86400)
+    except:
+      httpError('400 Bad Request', '--refind-days requires a numeric argument')
+  else:
+    refindSeconds = 0
+
+  if 'refind_limit_days' in jsonDict and jsonDict['refind_limit_days']:
+    try:
+      refindLimitSeconds = int(jsonDict['refind_limit_days'] * 86400)
+    except:
+      httpError('400 Bad Request', 
+                '--refind-limit-days requires a numeric argument')
+  else:
+    refindLimitSeconds = 0
+
+  if refindSeconds > 0 and refindLimitSeconds <= 0:
+    httpError('400 Bad Request', 
+              '--refind-limit-days must be given if --refind-days is given')
+        
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'
-          'submitter_id=%d' %
+          'submitter_id=%d,'
+          'refind_seconds=%d,'
+          'refind_end_time=DATE_ADD(NOW(),INTERVAL %d SECOND)' %
           (name,
            mql,
-           userID))
+           userID,
+           refindSeconds,
+           refindLimitSeconds))
+
   wfs.db.conn.commit()
 
   httpError('200 OK', str(wfs.db.cur.lastrowid))
@@ -405,15 +446,39 @@ def quickRequestCmd(jsonDict, userID):
     except:
       httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
       
+  if 'refind_days' in jsonDict and jsonDict['refind_days']:
+    try:
+      refindSeconds = int(jsonDict['refind_days'] * 86400)
+    except:
+      httpError('400 Bad Request', '--refind-days requires a numeric argument')
+  else:
+    refindSeconds = 0
+
+  if 'refind_limit_days' in jsonDict and jsonDict['refind_limit_days']:
+    try:
+      refindLimitSeconds = int(jsonDict['refind_limit_days'] * 86400)
+    except:
+      httpError('400 Bad Request', 
+                '--refind-limit-days requires a numeric argument')
+  else:
+    refindLimitSeconds = 0
+
+  if refindSeconds > 0 and refindLimitSeconds <= 0:
+    httpError('400 Bad Request', 
+              '--refind-limit-days must be given if --refind-days is given')
+        
   doQuery('INSERT INTO requests SET created=NOW(),'
+          'state="running",'
           'name="%s",'
           'mql="%s",'
           'submitter_id=%d,'
-          'state="finding",'
-          'approved=NOW()' %
+          'refind_seconds=%d,'
+          'refind_end_time=DATE_ADD(NOW(),INTERVAL %d SECOND)' %
           (name,
            mql,
-           userID))
+           userID,
+           refindSeconds,
+           refindLimitSeconds))
 
   requestID = wfs.db.cur.lastrowid
 
@@ -455,14 +520,37 @@ def quickRequestCmd(jsonDict, userID):
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
 
   if jsonDict['output_pattern']:
-    for pattern in jsonDict['output_pattern']:
+    for i in jsonDict['output_pattern']:     
+      try:
+       (dataset, scope, pattern) = i.split('::')
+      except:
+       continue
+    
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=1,'
-              'pattern="%s",'
+              'dataset="%s",'
+              'file_scope="%s",'
+              'file_pattern="%s",'
               'for_next_stage=FALSE' % 
               (requestID, 
-               pattern.replace('\\','\\\\').replace('"','\\"')))
+               dataset.replace('\\','\\\\').replace('"','\\"'),
+               scope.replace('\\','\\\\').replace('"','\\"'),
+               pattern.replace('\\','\\\\').replace('"','\\"')
+              )
+             )
+
+  if jsonDict['output_rse']:
+    for rseName in jsonDict['output_rse']:
+    
+      if not wfs.db.stringIsSite(rseName):
+        httpError('400 Bad Request', 'Invalid RSE name')
+        
+      doQuery('INSERT INTO stages_output_storages SET '
+              'request_id=%d,'
+              'stage_id=1,'
+              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")'
+              (requestID, rseName))
 
   # Only commit if everything went ok
   wfs.db.conn.commit()
@@ -485,7 +573,7 @@ def submitRequestCmd(jsonDict):
 
   httpError('200 OK', None)
 
-def approveRequestCmd(jsonDict):
+def startRequestCmd(jsonDict):
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -494,7 +582,7 @@ def approveRequestCmd(jsonDict):
 
 # change to handle errors properly eg no such request
 # or not in draft or submitted states
-  doQuery("UPDATE requests SET state='finding',approved=NOW() "
+  doQuery("UPDATE requests SET state='running',started=NOW() "
           "WHERE request_id=%d AND (state='draft' OR state='submitted')"
           % requestID)
 
@@ -502,7 +590,7 @@ def approveRequestCmd(jsonDict):
 
   httpError('200 OK', None)
 
-def runRequestCmd(jsonDict):
+def restartRequestCmd(jsonDict):
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -510,8 +598,8 @@ def runRequestCmd(jsonDict):
     httpError('400 Bad Request', 'Request ID must be given')
 
 # change to handle errors properly eg no such request
-  doQuery("UPDATE requests SET state='running' WHERE request_id=%d" %
-          requestID)
+  doQuery("UPDATE requests SET state='running' WHERE request_id=%d "
+          "AND state='paused'" % requestID)
 
   wfs.db.conn.commit()
 
@@ -525,8 +613,8 @@ def pauseRequestCmd(jsonDict):
     httpError('400 Bad Request', 'Request ID must be given')
 
 # change to handle errors properly eg no such request
-  doQuery("UPDATE requests SET state='paused' WHERE request_id=%d" %
-          requestID)
+  doQuery("UPDATE requests SET state='paused' WHERE request_id=%d "
+          "AND state='running'" % requestID)
 
   wfs.db.conn.commit()
 
@@ -587,25 +675,61 @@ def createStageCmd(jsonDict):
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
 
   if jsonDict['output_pattern']:
-    for pattern in jsonDict['output_pattern']:
+    for i in jsonDict['output_pattern']:
+    
+      try:
+       (dataset, scope, pattern) = i.split('::')
+      except:
+       continue
+    
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
-              'pattern="%s",'
+              'dataset="%s",'
+              'file_scope="%s",'
+              'file_pattern="%s",'
               'for_next_stage=FALSE' % 
               (requestID, stageID,
-               pattern.replace('\\','\\\\').replace('"','\\"')))
+               dataset.replace('\\','\\\\').replace('"','\\"'),
+               scope.replace('\\','\\\\').replace('"','\\"'),
+               pattern.replace('\\','\\\\').replace('"','\\"')
+              )
+             )
 
   if jsonDict['output_pattern_next_stage']:
-    for pattern in jsonDict['output_pattern_next_stage']:
+    for i in jsonDict['output_pattern_next_stage']:
+    
+      try:
+       (dataset, scope, pattern) = i.split('::')
+      except:
+       continue
+    
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
-              'pattern="%s",'
+              'dataset="%s",'
+              'file_scope="%s",'
+              'file_pattern="%s",'
               'for_next_stage=TRUE' % 
               (requestID, stageID,
-               pattern.replace('\\','\\\\').replace('"','\\"')))
+               dataset.replace('\\','\\\\').replace('"','\\"'),
+               scope.replace('\\','\\\\').replace('"','\\"'),
+               pattern.replace('\\','\\\\').replace('"','\\"')
+              )
+             )
           
+  if jsonDict['output_rse']:
+    for rseName in jsonDict['output_rse']:
+    
+      if not wfs.db.stringIsSite(rseName):
+        httpError('400 Bad Request', 'Invalid RSE name')
+        
+      doQuery('INSERT INTO stages_output_storages SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")'
+              (requestID, stageID, rseName))
+
   wfs.db.conn.commit()
 
   httpError('200 OK', None)
@@ -792,11 +916,11 @@ if jsonDict['command'] == 'quick-request':
 if jsonDict['command'] == 'submit-request':
   submitRequestCmd(jsonDict)
 
-if jsonDict['command'] == 'approve-request':
-  approveRequestCmd(jsonDict)
+if jsonDict['command'] == 'start-request':
+  startRequestCmd(jsonDict)
 
-if jsonDict['command'] == 'run-request':
-  runRequestCmd(jsonDict)
+if jsonDict['command'] == 'restart-request':
+  restartRequestCmd(jsonDict)
 
 if jsonDict['command'] == 'pause-request':
   pauseRequestCmd(jsonDict)

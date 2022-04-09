@@ -204,7 +204,7 @@ echo -n > wfs-outputs.txt
 echo -n > wfs-next-stage-outputs.txt
 
 cat wfs-output-patterns.txt | (
-while read for_next_stage pattern
+while read for_next_stage dataset scope pattern
 do  
   (
     cd workspace
@@ -212,9 +212,11 @@ do
     for fn in $pattern
     do
       if [ -r "$fn" ] ; then
-        echo "$fn" >> $WFS_PATH/wfs-outputs.txt
+        # wfs-outputs.txt gets DATASET SCOPE FILENAME on each line
+        echo "$dataset $scope $fn" >> $WFS_PATH/wfs-outputs.txt
         if [ "$for_next_stage" = "True" ] ; then
-          echo "$fn" >> $WFS_PATH/wfs-next-stage-outputs.txt    
+          # wfs-next-stage-outputs gets a list of DIDs
+          echo "$scope:$fn" >> $WFS_PATH/wfs-next-stage-outputs.txt    
         fi
       fi
     done
@@ -224,12 +226,19 @@ done
 
 next_stage_outputs=`echo \`sed 's/.*/"&"/' wfs-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
-# Just try the first RSE for now
-rse=`echo $rse_list | cut -f1 -d' '`
+# Just try the first RSE for now; eventually will do failovers on errors
+output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
 
-for fn in `cat wfs-outputs.txt`
+for dataset scope fn in `cat wfs-outputs.txt`
 do
-  echo "Would do rucio upload of $fn to $rse"
+  echo "Upload $scope:$fn"
+  $WFS_PATH/wfs-rucio -a test upload -v --rse "$output_rse" --scope "$scope" "$fn"
+
+  if [ $? = 0 ] ; then
+    echo "Add $scope:$fn to $dataset"
+    $WFS_PATH/wfs-rucio -a test attach -v "$dataset" "$scope:$fn"
+  fi
+ 
   echo "Metadata too? $fn.json"
   echo
 done

@@ -53,9 +53,9 @@ def body(buf):
 parser = argparse.ArgumentParser()
 
 commands = [ "create-request", 
-             "submit-request", "approve-request",
+             "submit-request", "start-request",
              "add-file",
-             "run-request", "pause-request",
+             "restart-request", "pause-request",
              "create-stage", 
              "quick-request", 
              "create-storage",
@@ -108,6 +108,14 @@ parser.add_argument("--monte-carlo",
                     type = int,
                     help = "Monte Carlo count")
 
+parser.add_argument("--refind-days",
+                    type = float,
+                    help = "Refind interval in days")
+
+parser.add_argument("--refind-limit-days",
+                    type = float,
+                    help = "Refind duration in days")
+
 parser.add_argument("--upload-file",
                     type = str,
                     help = "Specify a local file")
@@ -137,6 +145,11 @@ parser.add_argument("--output-pattern-next-stage",
                     type   = str,
                     action = "append",
                     help   = "Output files for next stage pattern")
+
+parser.add_argument("--output-rse",
+                    type   = str,
+                    action = "append",
+                    help   = "Name of RSE to use for output files")
 
 parser.add_argument("--pfn",
                     type   = str,
