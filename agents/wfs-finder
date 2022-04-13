@@ -35,7 +35,10 @@
 import os
 import sys
 import stat
+import json
 import time
+import urllib
+import urllib.request
 import pathlib
 import tempfile
 import xml.dom.minidom
@@ -102,17 +105,11 @@ def addFilesMonteCarlo(requestID, count):
 
 def findFilesRucio(didClient, requestID, scope, name):
   # Find files to be processed for each request in the finding state
-  
-  # WE DO THIS FROM RUCIO FOR NOW, AND JUST WITH DATASETS
-  # THIS WILL BE REPLACED WITH QUERIES TO METACAT WITH ITS MQL QUERY API
-  # https://metacat.fnal.gov:9443/dune_meta_demo/app/static/docs/html/webapi.html
-  #
-  # ONLY MQLs OF THE FORM from files scope:name ARE SUPPORTED UNTIL THEN
 
   try:
     didsList = didClient.list_files(scope, name)
   except Exception as e:
-    logLine("Reading RSE list from Rucio fails with: " + str(e))
+    logLine("Reading file list from Rucio fails with: " + str(e))
     return
 
   for did in didsList:  
@@ -126,6 +123,59 @@ def findFilesRucio(didClient, requestID, scope, name):
       wfs.db.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
+      return
+
+  # All files found for this request so update its state
+  try:
+    query = ('UPDATE requests SET find_last_time=NOW() WHERE request_id=' +
+             str(requestID))
+
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    logLine('Failed updating request ' + str(requestID))
+
+  # All ok, so commit it all to the DB
+  wfs.db.conn.commit()
+
+def findFilesMetaCat(requestID, mql):
+  # Find files matching the mql query from MetaCat
+
+  try:
+    response = urllib.request.urlopen(
+       "https://metacat.fnal.gov:9443/dune_meta_demo/app/data/query?"
+       "with_meta=no&with_provenance=no",
+       data = mql.encode()           )
+
+    if response.status != 200:
+      logLine("Reading files list from MetaCat fails with HTTP code "
+              + str(response.status))
+      return
+
+    filesList = json.load(response)
+  except Exception as e:
+    logLine("Reading files list from MetaCat fails with: " + str(e))
+    return
+
+  for fileDict in filesList:
+  
+    if 'namespace' not in fileDict or not fileDict['namespace'] \
+       or 'name' not in fileDict or not fileDict['name']:
+      logLine('Ignore file with invalid SCOPE:NAME from MetaCat: '
+              + str(fileDict))
+      continue
+
+    try:
+      query = ('INSERT INTO files SET '
+               'request_id=' + str(requestID) + ',' +
+               'file_did="' + fileDict['namespace'] + ':' 
+                + fileDict['name'] + '" '
+               'ON DUPLICATE KEY UPDATE request_id=request_id'
+              )
+
+      wfs.db.cur.execute(query)
+    except Exception as e:
+      logLine('Failed inserting DID %:%s' % 
+              ( fileDict['namespace'], fileDict['name'] ))
       return
 
   # All files found for this request so update its state
@@ -172,10 +222,10 @@ def findFiles():
   for request in findingRequests:
     mqlSplit = request['mql'].split()
 
-    # Ordinary request with a Rucio dataset
-    if len(mqlSplit) == 3 and mqlSplit[0] == 'files' and mqlSplit[1] == 'from':
+    # Request for a Rucio dataset: "rucio-dataset SCOPE:NAME"
+    if len(mqlSplit) == 2 and mqlSplit[0] == 'rucio-dataset':
       
-      datasetSplit = mqlSplit[2].split(':')
+      datasetSplit = mqlSplit[1].split(':')
       if len(datasetSplit) == 2:
         findFilesRucio(didClient,
                        request['request_id'], 
@@ -191,6 +241,10 @@ def findFiles():
         continue
       
       addFilesMonteCarlo(request['request_id'], count)
+
+    else:
+    
+      findFilesMetaCat(request['request_id'], request['mql'])
 
     # Update the stats for the first stage
     wfs.allocator.updateStageCounts(request['request_id'], 1)
