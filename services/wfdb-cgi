@@ -520,21 +520,27 @@ def quickRequestCmd(jsonDict, userID):
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
 
   if jsonDict['output_pattern']:
-    for i in jsonDict['output_pattern']:     
-      try:
-       (dataset, scope, pattern) = i.split('::')
-      except:
-       continue
+    for i in jsonDict['output_pattern']:
+      splitList = i.split(':')
+       
+      if len(splitList) < 4:
+        continue
+    
+      datasetScope = splitList[0]
+      datasetName  = splitList[1]
+      scope        = splitList[2]
+      pattern      = ':'.join(splitList[3:])
     
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=1,'
-              'dataset="%s",'
+              'dataset="%s:%s",'
               'file_scope="%s",'
               'file_pattern="%s",'
               'for_next_stage=FALSE' % 
-              (requestID, 
-               dataset.replace('\\','\\\\').replace('"','\\"'),
+              (requestID,
+               datasetScope.replace('\\','\\\\').replace('"','\\"'),
+               datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"')
               )
@@ -583,23 +589,9 @@ def startRequestCmd(jsonDict):
 # change to handle errors properly eg no such request
 # or not in draft or submitted states
   doQuery("UPDATE requests SET state='running',started=NOW() "
-          "WHERE request_id=%d AND (state='draft' OR state='submitted')"
+          "WHERE request_id=%d AND "
+          "(state='draft' OR state='submitted' OR state='paused')"
           % requestID)
-
-  wfs.db.conn.commit()
-
-  httpError('200 OK', None)
-
-def restartRequestCmd(jsonDict):
-
-  try:
-    requestID = int(jsonDict['request_id'])
-  except:
-    httpError('400 Bad Request', 'Request ID must be given')
-
-# change to handle errors properly eg no such request
-  doQuery("UPDATE requests SET state='running' WHERE request_id=%d "
-          "AND state='paused'" % requestID)
 
   wfs.db.conn.commit()
 
@@ -677,20 +669,26 @@ def createStageCmd(jsonDict):
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
     
-      try:
-       (dataset, scope, pattern) = i.split('::')
-      except:
-       continue
+      splitList = i.split(':')
+       
+      if len(splitList) < 4:
+        continue
     
+      datasetScope = splitList[0]
+      datasetName  = splitList[1]
+      scope        = splitList[2]
+      pattern      = ':'.join(splitList[3:])
+        
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
-              'dataset="%s",'
+              'dataset="%s:%s",'
               'file_scope="%s",'
               'file_pattern="%s",'
               'for_next_stage=FALSE' % 
               (requestID, stageID,
-               dataset.replace('\\','\\\\').replace('"','\\"'),
+               datasetScope.replace('\\','\\\\').replace('"','\\"'),
+               datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"')
               )
@@ -699,20 +697,26 @@ def createStageCmd(jsonDict):
   if jsonDict['output_pattern_next_stage']:
     for i in jsonDict['output_pattern_next_stage']:
     
-      try:
-       (dataset, scope, pattern) = i.split('::')
-      except:
-       continue
+      splitList = i.split(':')
+       
+      if len(splitList) < 4:
+        continue
     
+      datasetScope = splitList[0]
+      datasetName  = splitList[1]
+      scope        = splitList[2]
+      pattern      = ':'.join(splitList[3:])
+        
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
-              'dataset="%s",'
+              'dataset="%s:%s",'
               'file_scope="%s",'
               'file_pattern="%s",'
               'for_next_stage=TRUE' % 
               (requestID, stageID,
-               dataset.replace('\\','\\\\').replace('"','\\"'),
+               datasetScope.replace('\\','\\\\').replace('"','\\"'),
+               datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"')
               )
@@ -918,9 +922,6 @@ if jsonDict['command'] == 'submit-request':
 
 if jsonDict['command'] == 'start-request':
   startRequestCmd(jsonDict)
-
-if jsonDict['command'] == 'restart-request':
-  restartRequestCmd(jsonDict)
 
 if jsonDict['command'] == 'pause-request':
   pauseRequestCmd(jsonDict)

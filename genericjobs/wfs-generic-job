@@ -52,13 +52,27 @@ biAkV0ZTX1BBVEgvd2ZzLXJ1Y2lvLWxvY2FsCiMKIyBUaGlzIHNjcmlwdCBtdXN0IGJlIGNvbnZl
 cnRlZCB0byBiYXNlNjQgd2l0aCBzb21ldGhpbmcgbGlrZSB0aGUgZm9sbG93aW5nIAojIGFuZCBp
 bmNsdWRlZCBpbiB0aGUgaGVyZSBkb2N1bWVudCBuZWFyIHRoZSBzdGFydCBvZiB3ZnMtZ2VuZXJp
 Yy1qb2IgOgojCiMgKG1hY09TKSBiYXNlNjQgLWIgNzYgd2ZzLXJ1Y2lvID4gd2ZzLXJ1Y2lvLmI2
-NAojIChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1ydWNpbyA+IHdmcy1ydWNpby5iNjQKIwoKLiAv
+NAojIChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1ydWNpbyA+IHdmcy1ydWNpby5iNjQKIwoKZXhw
+b3J0IExEX0xJQlJBUllfUEFUSD0iIgpleHBvcnQgUEFUSD0iL2N2bWZzL2Zlcm1pbGFiLm9wZW5z
+Y2llbmNlZ3JpZC5vcmcvcGFja2FnZXMvZXh0ZXJuYWwvcHl0aG9uLzMuOC44L2xpbnV4LXNjaWVu
+dGlmaWM3LXg4Nl82NC1nY2MtOC4yLjAteDdleWk1eGVsdWh4bTNuemxsYXloNGxzbWR6M3BmYWkv
+YmluOi91c3IvbG9jYWwvYmluOi91c3IvYmluOi91c3IvbG9jYWwvc2JpbjovdXNyL3NiaW4iCmV4
+cG9ydCBQWVRIT05QQVRIPSIvY3ZtZnMvZmVybWlsYWIub3BlbnNjaWVuY2VncmlkLm9yZy9wYWNr
+YWdlcy9leHRlcm5hbC9weXRob24vMy44LjgvbGludXgtc2NpZW50aWZpYzcteDg2XzY0LWdjYy04
+LjIuMC14N2V5aTV4ZWx1aHhtM256bGxheWg0bHNtZHozcGZhaS9saWIvcHl0aG9uMy44IgoKLiAv
 Y3ZtZnMvZ3JpZC5jZXJuLmNoL2M3dWktdGVzdC9ldGMvcHJvZmlsZS5kL3NldHVwLWM3LXVpLXB5
 dGhvbjMtZXhhbXBsZS5zaAoKZXhwb3J0IFdGU19SVUNJT19MT0NBTD0kV0ZTX1BBVEgvd2ZzLXJ1
-Y2lvLWxvY2FsCmV4cG9ydCBQWVRIT05QQVRIPSIkV0ZTX1JVQ0lPX0xPQ0FML2xpYi9weXRob24z
-Ljgvc2l0ZS1wYWNrYWdlczokUFlUSE9OUEFUSCIKCmV4ZWMgJFdGU19SVUNJT19MT0NBTC9iaW4v
-cnVjaW8gLS10aW1lb3V0IDYwIFwKICAtLWNvbmZpZyAkV0ZTX1JVQ0lPX0xPQ0FML2V0Yy9ydWNp
-by5jZmcgJCoK
+Y2lvLWxvY2FsCmV4cG9ydCBQQVRIPSIkV0ZTX1JVQ0lPX0xPQ0FML2JpbjokUEFUSCIKZXhwb3J0
+IFBZVEhPTlBBVEg9IiRXRlNfUlVDSU9fTE9DQUwvbGliL3B5dGhvbjMuOC9zaXRlLXBhY2thZ2Vz
+OiRXRlNfUlVDSU9fTE9DQUwvbGliNjQvcHl0aG9uMy44L3NpdGUtcGFja2FnZXM6JFBZVEhPTlBB
+VEgiCgplY2hvICcjIyMjIHByaW50ZW52fHNvcnQgOyB1bmFtZSA7IHJlbGVhc2UgOyBsZGQgOyB2
+ZXJzaW9uIDsgd2hvYW1pJwpwcmludGVudiB8IHNvcnQKdW5hbWUgLWEKY2F0IC9ldGMvcmVkaGF0
+LXJlbGVhc2UKbGRkIC9jdm1mcy9ncmlkLmNlcm4uY2gvY2VudG9zNy11aS0yMDAxMjIvdXNyL2xp
+YjY0L3B5dGhvbjMuNi9zaXRlLXBhY2thZ2VzL2dmYWwyLnNvCiRXRlNfUlVDSU9fTE9DQUwvYmlu
+L3J1Y2lvIC0tdmVyc2lvbgokV0ZTX1JVQ0lPX0xPQ0FML2Jpbi9ydWNpbyAtLXRpbWVvdXQgNjAg
+XAogLS1jb25maWcgJFdGU19SVUNJT19MT0NBTC9ldGMvcnVjaW8uY2ZnIHdob2FtaQplY2hvICcj
+IyMjJwoKCmV4ZWMgJFdGU19SVUNJT19MT0NBTC9iaW4vcnVjaW8gLS10aW1lb3V0IDYwIFwKICAt
+LWNvbmZpZyAkV0ZTX1JVQ0lPX0xPQ0FML2V0Yy9ydWNpby5jZmcgIiRAIgo=
 EOF
 chmod +x $WFS_PATH/wfs-rucio
 
@@ -94,25 +108,32 @@ fi
 # Install a private version of the Rucio client
 # Will be removed once we can get Rucio entirely from cvmfs
 (
+export LD_LIBRARY_PATH=""
+export PATH="/cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-scientific7-x86_64-gcc-8.2.0-x7eyi5xeluhxm3nzllayh4lsmdz3pfai/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin"
+export PYTHONPATH="/cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-scientific7-x86_64-gcc-8.2.0-x7eyi5xeluhxm3nzllayh4lsmdz3pfai/lib/python3.8"
+
 . /cvmfs/grid.cern.ch/c7ui-test/etc/profile.d/setup-c7-ui-python3-example.sh
 
+rm -Rf $PWD/wfs-rucio-local
 export WFS_RUCIO_LOCAL=$PWD/wfs-rucio-local
-export PATH="$PATH:$WFS_RUCIO_LOCAL/bin"
-export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages:$PYTHONPATH"
+export PATH="$WFS_RUCIO_LOCAL/bin:$PATH"
+export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages:$WFS_RUCIO_LOCAL/lib64/python3.8/site-packages:$PYTHONPATH"
 
 mkdir -p $WFS_RUCIO_LOCAL/bin
-# Have to create symbolic link since cvmfs path 
+# Have to create symbolic links since cvmfs path 
 # is too long for hash-bang at the start of a script
 ln -sf /cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-scientific7-x86_64-gcc-8.2.0-x7eyi5xeluhxm3nzllayh4lsmdz3pfai/bin/python3.8 \
-  $WFS_RUCIO_LOCAL/bin/python38
+       $WFS_RUCIO_LOCAL/bin/python38
+ln -sf $WFS_RUCIO_LOCAL/bin/python38 $WFS_RUCIO_LOCAL/bin/python3
 
 # Have to install PIP for Python3
 curl --insecure https://bootstrap.pypa.io/get-pip.py > get-pip.py
-$WFS_RUCIO_LOCAL/bin/python38 get-pip.py --prefix $WFS_RUCIO_LOCAL \
+$WFS_RUCIO_LOCAL/bin/python3 get-pip.py --prefix $WFS_RUCIO_LOCAL \
   --ignore-installed
 
 # Install Rucio with PIP - DOES NOT WORK WITH RUCIO 1.27 !!!
-$WFS_RUCIO_LOCAL/bin/pip3.8 install --prefix $WFS_RUCIO_LOCAL --ignore-installed rucio-clients==1.26
+$WFS_RUCIO_LOCAL/bin/pip3 install --prefix $WFS_RUCIO_LOCAL \
+  --ignore-installed rucio-clients==1.26
 
 cat <<EOF > $WFS_RUCIO_LOCAL/etc/rucio.cfg
 [client]
@@ -129,10 +150,6 @@ EOF
 echo "#### ls -lR $WFS_RUCIO_LOCAL ####"
 ls -lR $WFS_RUCIO_LOCAL
 echo "####"
-
-# Check Rucio is working
-$WFS_PATH/wfs-rucio --version
-$WFS_PATH/wfs-rucio whoami
 
 # Create the JSON to send to the allocator
 cat <<EOF >wfs-get-stage.json
@@ -253,7 +270,7 @@ cat $WFS_PATH/wfs-outputs.txt | (
 while read dataset scope fn
 do
   echo "Upload $scope:$fn"
-  $WFS_PATH/wfs-rucio --verbose -a test upload --rse "$output_rse" --scope "$scope" "workspace/$fn"
+  $WFS_PATH/wfs-rucio --verbose -a test upload --rse "$output_rse" --lifetime 3600 --scope "$scope" "workspace/$fn" 
   echo "wfs-rucio returns $?"
 
   if [ $? = 0 ] ; then

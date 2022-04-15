@@ -65,8 +65,8 @@ operations team.
 .HP
 .B "start-request --request-id ID"
 .br
-Starts a request in the "draft" or "submitted" state and changes its 
-state to "running".
+Starts a request in the "draft" or "submitted" state or restarts a request
+in the "paused" stated, and changes its state to "running".
 
 .HP
 .B "pause-request --request-id ID"
@@ -75,13 +75,7 @@ Changes the state of the given request to "paused". This state temporarily
 excludes a request from the workflow allocation process.
 
 .HP
-.B "restart-request --request-id ID"
-.br
-Changes the state of the given request back to "running". Requests in this
-state are included in the workflow allocation process.
-
-.HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET::SCOPE::PATTERN] [--output-pattern-next-stage DATASET::SCOPE::PATTERN] [--output-rse NAME]" 
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-pattern-next-stage DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-rse NAME]" 
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -109,20 +103,20 @@ storages at the same site or nearby sites. This can be changed by setting
 to allow input files to be allocated from any accessible storage.
 
 If one or more options 
-.B --output-pattern DATASET::SCOPE::PATTERN
+.B --output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN
 is given then the generic job will look for files created by the script
-which match the pattern following the last "::". The pattern is a Bash 
+which match the pattern given as PATTERN. The pattern is a Bash 
 shell pattern using *, ? and
 [...] expressions. See the bash(1) Pattern Matching section for details. Any
 output files found by this matching will be uploaded and registered by the
-generic job in the Rucio dataset given before the first "::", with a DID
-composed of the scope given and the found filename. Furthermore, if the 
+generic job in the Rucio dataset given by DATASET-SCOPE:DATASET-NAME, with a 
+DID composed of the scope given and the found filename. Furthermore, if the 
 found files have a corresponding JSON metadata
 file with the same name but with ".json" appended, that will be recorded for
 that file in MetaCat.
 
 Alternatively
-.B --output-pattern-next-stage DATASET::SCOPE::PATTERN
+.B --output-pattern-next-stage DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN
 can be given in which the output file will also be registered in the
 Workflow Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
@@ -136,7 +130,7 @@ used, or none of the given RSEs are available, then the default algorithm for
 choosing the closest available RSE is used.
 
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET::SCOPE::PATTERN] --output-rse NAME"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
 .br
 Combines the 
 .B create-request, create-stage
@@ -221,6 +215,31 @@ request ID, stage ID, file state, RSE name, and file DID are shown.
 Show jobs identified by Jobsub ID or Request ID (and optionally Stage ID). Job 
 state can also be given to further filter the jobs listed. For each job,
 the Jobsub ID, Request ID, Stage ID, State, and creation time are shown.
+
+.SH REQUEST PROCESSING
+
+Once a request enters the running state, it is processed by the Workflow 
+System's Finder agent. Usually this is just done once, but it can be
+repeated if the --refind-days option is given when creating the request.
+When the request is processed, the Finder uses the requests's MQL 
+expression to create a list of input files for the first stage. Work is only
+assigned to jobs when a matching file is found and so these lists of files 
+are essential.
+
+In most cases, the MQL query is a MetaCat Query Language expression, which the
+Finder sends to the MetaCat service to get a list of matching file DIDs.
+However, if the query is of the form "rucio-dataset SCOPE:NAME" then the
+query is sent directly to Rucio to get the list of file DIDs contained in
+the given Rucio dataset. Finally if the 
+.B --monte-carlo COUNT
+option is used when creating the request, then an MQL of the form
+"monte-carlo COUNT" is stored. This causes the Finder itself to create a
+series of COUNT placeholder files which can be used to keep track of Monte
+Carlo processing without a distinct input file for each of the COUNT jobs.
+Each of these placeholder files has a DID of the form 
+monte-carlo-REQUEST_ID-NUMBER where
+NUMBER is in the range 1 to COUNT, and REQUEST_ID is the assigned request ID
+number. 
 
 .SH FILES
 

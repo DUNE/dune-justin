@@ -10,10 +10,26 @@
 # (Linux) base64       wfs-rucio > wfs-rucio.b64
 #
 
+export LD_LIBRARY_PATH=""
+export PATH="/cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-scientific7-x86_64-gcc-8.2.0-x7eyi5xeluhxm3nzllayh4lsmdz3pfai/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin"
+export PYTHONPATH="/cvmfs/fermilab.opensciencegrid.org/packages/external/python/3.8.8/linux-scientific7-x86_64-gcc-8.2.0-x7eyi5xeluhxm3nzllayh4lsmdz3pfai/lib/python3.8"
+
 . /cvmfs/grid.cern.ch/c7ui-test/etc/profile.d/setup-c7-ui-python3-example.sh
 
 export WFS_RUCIO_LOCAL=$WFS_PATH/wfs-rucio-local
-export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages:$PYTHONPATH"
+export PATH="$WFS_RUCIO_LOCAL/bin:$PATH"
+export PYTHONPATH="$WFS_RUCIO_LOCAL/lib/python3.8/site-packages:$WFS_RUCIO_LOCAL/lib64/python3.8/site-packages:$PYTHONPATH"
+
+echo '#### printenv|sort ; uname ; release ; ldd ; version ; whoami'
+printenv | sort
+uname -a
+cat /etc/redhat-release
+ldd /cvmfs/grid.cern.ch/centos7-ui-200122/usr/lib64/python3.6/site-packages/gfal2.so
+$WFS_RUCIO_LOCAL/bin/rucio --version
+$WFS_RUCIO_LOCAL/bin/rucio --timeout 60 \
+ --config $WFS_RUCIO_LOCAL/etc/rucio.cfg whoami
+echo '####'
+
 
 exec $WFS_RUCIO_LOCAL/bin/rucio --timeout 60 \
-  --config $WFS_RUCIO_LOCAL/etc/rucio.cfg $*
+  --config $WFS_RUCIO_LOCAL/etc/rucio.cfg "$@"

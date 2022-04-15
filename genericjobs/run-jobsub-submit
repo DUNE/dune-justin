@@ -7,7 +7,7 @@ setup cigetcert
 
 jobsub_submit \
   --debug \
-  --N ${1} \
+  -N ${1} \
   --site ${2} \
   --memory ${3}KB \
   --cpu ${4} \

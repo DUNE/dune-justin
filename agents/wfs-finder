@@ -84,7 +84,7 @@ def addFilesMonteCarlo(requestID, count):
 
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
-               'pfn="%06d"' 
+               'pfn="%06d"'
                % (wfs.conf.MonteCarloRseID, wfs.db.cur.lastrowid, i))
 
       wfs.db.cur.execute(query)
@@ -350,6 +350,22 @@ def findReplicas():
         return
       else:
         requestsStages.add((fileRow['request_id'],fileRow['stage_id']))
+
+    else:
+      # No RSE/PFN info for this file from Rucio!      
+      # Need to protect against transient Rucio failures here??
+      try:
+        query = ('UPDATE files SET state="notfound" WHERE file_id=' +
+                 str(fileRow['file_id']))
+
+        wfs.db.cur.execute(query)
+      except Exception as e:
+        logLine('Failed updating file (' + 
+                str(fileRow['request_id']) + ',' + 
+                str(fileRow['stage_id']) +  ',' + 
+                fileRow['file_did'] + 
+                '): ' + str(e))
+
 
   # Update all the stages for which we've updated a file
   for (requestID, stageID) in requestsStages:

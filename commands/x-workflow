@@ -9,4 +9,4 @@
 # Then just run x-workflow as you would run workflow
 #
 unset PYTHONPATH LD_LIBRARY_PATH
-exec workflow $*
+exec workflow "$@"
