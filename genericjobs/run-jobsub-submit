@@ -5,7 +5,18 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup jobsub_client
 setup cigetcert
 
-jobsub_submit \
+if [ "$2" = "FNAL_GPGrid" ] ; then
+ jobsub_submit \
+  --debug \
+  -N ${1} \
+  --memory ${3}KB \
+  --cpu ${4} \
+  --expected-lifetime=${5}s \
+  --group dune \
+  --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
+  file:///var/lib/wfs/wfs-generic-job
+else
+ jobsub_submit \
   --debug \
   -N ${1} \
   --site ${2} \
@@ -15,3 +26,4 @@ jobsub_submit \
   --group dune \
   --resource-provides=usage_model=OFFSITE \
   file:///var/lib/wfs/wfs-generic-job
+fi

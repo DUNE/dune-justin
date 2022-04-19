@@ -128,6 +128,7 @@ def makeQueryDict(slotSizeID):
   outputRseList  = [] 
   samesiteList   = []
   nearbyList     = []
+  sameregionList = []
   accessibleList = []
 
   for storageRow in storageRows:
@@ -142,6 +143,8 @@ def makeQueryDict(slotSizeID):
     if storageRow['rse_read']:
       if storageRow['location'] == 'accessible':
         accessibleList.append('replicas.rse_id=%s' % storageRow['rse_id'])
+      elif storageRow['location'] == 'sameregion':
+        sameregionList.append('replicas.rse_id=%s' % storageRow['rse_id'])
       elif storageRow['location'] == 'nearby':
         nearbyList.append('replicas.rse_id=%s' % storageRow['rse_id'])
       elif storageRow['location'] == 'samesite':
@@ -149,22 +152,23 @@ def makeQueryDict(slotSizeID):
 
   storageWhere = ' OR '.join(samesiteList + nearbyList)
 
-  if accessibleList:
+  if accessibleList or sameregionList:
     if storageWhere:
       storageWhere += ' OR '
 
     storageWhere += ('(stages.any_location AND (' + 
-                     ' OR '.join(accessibleList) + '))')
+                     ' OR '.join(accessibleList + sameregionList) + '))')
 
   if storageWhere:
     storageWhere = ' AND (' + storageWhere + ') '
 
-  # All storages in the same class (samesite, nearby, accessible) get the
-  # same ranking score (3,2,1). In the future, we can apply individual
-  # scores here to each storage relative to where the job is running.
+  # All storages in the same class (samesite, nearby, sameregion, accessible) 
+  # get the same ranking score (4,3,2,1). In the future, we can apply 
+  # individual scores here to each storage relative to where the job is 
+  # running.
  
   if samesiteList:
-    storageOrder = '3*(' + ' OR '.join(samesiteList) + ')'
+    storageOrder = '4*(' + ' OR '.join(samesiteList) + ')'
   else:
     storageOrder = ''
 
@@ -172,7 +176,13 @@ def makeQueryDict(slotSizeID):
     if storageOrder:
       storageOrder += ' + '
   
-    storageOrder += '2*(' + ' OR '.join(nearbyList) + ')'
+    storageOrder += '3*(' + ' OR '.join(nearbyList) + ')'
+
+  if sameregionList:
+    if storageOrder:
+      storageOrder += ' + '
+
+    storageOrder += '2*(' + ' OR '.join(sameregionList) + ')'
 
   if accessibleList:
     if storageOrder:
@@ -255,6 +265,7 @@ def findFile(jobDict, queryDict):
     # use all three lists
     storageWhere = ' OR '.join(queryDict["samesiteList"] + 
                                queryDict["nearbyList"] + 
+                               queryDict["sameregionList"] + 
                                queryDict["accessibleList"])
   else:
     # Otherwise just use samesite and nearby lists of storages

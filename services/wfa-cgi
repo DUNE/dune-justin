@@ -186,7 +186,7 @@ def makeTarFile(jsonDict, queryDict, jobDict, stage, cookie):
   return buffer.getvalue()
 
 # Try to get the stage with the highest priority files still unallocated
-def getStageMethod(jsonDict, jobUserID):
+def getStageMethod(jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
@@ -247,7 +247,6 @@ def getStageMethod(jsonDict, jobUserID):
              'rss_bytes=' + str(jsonDict['rss_bytes']) + ',' 
              'processors=' + str(jsonDict['processors']) + ',' 
              'wall_seconds=' + str(jsonDict['wall_seconds']) + ',' 
-             'job_user_id=' + str(jobUserID) + ',' 
              'cookie="' + cookie + '" ' 
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
             )
@@ -498,7 +497,7 @@ def resultsMethod(jsonDict):
   print()
   sys.exit(0)
 
-def getJobUserID():
+def checkJobUser():
 
   # Use certificates and proxies for now; will transition to tokens in future
   if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
@@ -507,8 +506,9 @@ def getJobUserID():
   # Convert to the older format with slashes 
   clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
-  query = ('SELECT user_id FROM users '
-           'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
+  query = ('SELECT users.generic_jobs FROM x509 '
+           'LEFT JOIN users ON users.user_id=x509.user_id '
+           'WHERE x509dn=LEFT("%s",LENGTH(x509dn)) ORDER BY users.user_id' % 
            clientDN.replace('\\','\\\\').replace('"','\\"'))
 
   try:
@@ -517,12 +517,9 @@ def getJobUserID():
   except:
     httpError('500 Internal Server Error', 'Error reading database')
 
-  try:
-    jobUserID = int(rows[0]['user_id'])
-  except:
-    httpError('403 Forbidden','Forbidden - authorized identity not provided')
-
-  return jobUserID
+  # User must be have generic_jobs=TRUE
+  if not rows[0]['generic_jobs']:
+    httpError('403 Forbidden', 'Forbidden - authorized identity not provided')
 
 #
 # PROGRAM MAIN
@@ -556,10 +553,10 @@ except:
 
 # Get the stage for the job to work on
 if jsonDict['method'] == 'get_stage':
-  # getJobUserID() fails with an HTTP error and exit if authorized ID not given
-  jobUserID = getJobUserID()
+  # Fails with an HTTP error and exit if authorized ID not given
+  checkJobUser()
 
-  getStageMethod(jsonDict, jobUserID)
+  getStageMethod(jsonDict)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':

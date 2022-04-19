@@ -22,9 +22,10 @@ Show help message and exit
 Turn on verbose logging of the communication with the WFDB service.
 
 .HP 
-.B "--hostname HOSTNAME"
+.B "--url URL"
 .br
-Use an alternative Worklow Service, rather than wfs-pro.dune.hep.ac.uk. This 
+Use an alternative Worklow Service, rather than 
+https://wfs-pro.dune.hep.ac.uk/wfdb-cgi This 
 option is only needed during development and testing.
 
 .SH SUBCOMMANDS
@@ -176,7 +177,7 @@ and Delete availability of the RSE from Rucio.
 Shows information about the locations of Rucio storage elements relative to
 sites, optionally limited to the given site and/or RSE. Each line of the
 output gives the site name, RSE name, and then their relative locaton:
-"samesite", "nearby" or "accessible". 
+"samesite", "nearby", "sameregion", or "accessible". 
 
 .HP
 .B "add-file --request-id ID [--stage-id ID] --file-did DID --rse-name NAME --pfn URL"

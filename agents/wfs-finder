@@ -192,12 +192,8 @@ def findFilesMetaCat(requestID, mql):
 
 def findFiles():
   # Find files to be processed for each request in the finding state
-  
-  # WE DO THIS FROM RUCIO FOR NOW, AND JUST WITH DATASETS
-  # THIS WILL BE REPLACED WITH QUERIES TO METACAT WITH ITS MQL QUERY API
-  # https://metacat.fnal.gov:9443/dune_meta_demo/app/static/docs/html/webapi.html
-  #
-  # ONLY MQLs OF THE FORM from files scope:name ARE SUPPORTED UNTIL THEN
+  # By default we use MetaCat, but MQLs starting rucio-dataset or monte-carlo 
+  # are handled directly.
 
   query = ('SELECT request_id,mql FROM requests '
            'WHERE state="running" AND '
@@ -212,19 +208,23 @@ def findFiles():
   if not findingRequests:  
     # Nothing to do
     return
-  
-  try:
-    didClient = rucio.client.didclient.DIDClient()
-  except Exception as e:
-    logLine("Connect to Rucio fails with: " + str(e))
-    return
-  
+
+  didClient = None
+
   for request in findingRequests:
     mqlSplit = request['mql'].split()
 
     # Request for a Rucio dataset: "rucio-dataset SCOPE:NAME"
     if len(mqlSplit) == 2 and mqlSplit[0] == 'rucio-dataset':
-      
+
+      if not didClient:      
+       # Only set up Rucio if we see a rucio-dataset
+       try:
+         didClient = rucio.client.didclient.DIDClient()
+       except Exception as e:
+         logLine("Connect to Rucio fails with: " + str(e))
+         continue
+
       datasetSplit = mqlSplit[1].split(':')
       if len(datasetSplit) == 2:
         findFilesRucio(didClient,
@@ -248,7 +248,8 @@ def findFiles():
 
     # Update the stats for the first stage
     wfs.allocator.updateStageCounts(request['request_id'], 1)
-
+    wfs.db.conn.commit()
+    
 def findReplicas():
   # Find replicas of files in the finding state
 

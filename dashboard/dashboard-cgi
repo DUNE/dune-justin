@@ -94,20 +94,23 @@ def listRequests(cgiValues):
 
   print("<h1>Requests</h1>")
   
-  query = ("SELECT * FROM requests "
-           "ORDER BY request_id DESC")
+  query = ('SELECT request_id,name,username,state,mql FROM requests '
+           'LEFT JOIN users ON requests.user_id=users.user_id '
+           'ORDER BY request_id DESC')
 
   wfs.db.cur.execute(query)
   rows = wfs.db.cur.fetchall()
 
   print('<table')
-  print("<tr><th>Request ID</th><th>Name</th><th>State</th><th>MQL</th><tr>")
+  print('<tr><th>Request ID</th><th>Name</th><th>User</th><th>State</th>'
+        '<th>MQL</th><tr>')
 
   for row in rows:
     print('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
-          '%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
+          '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
           (row["request_id"], row["request_id"],
            html.escape(row["name"], quote=True),
+           row["username"],
            row["state"],
            html.escape(row["mql"], quote=True)
           )
@@ -125,12 +128,12 @@ def showRequest(cgiValues):
   
   header("WFS: Request %d" % requestID)
 
-  query = ("SELECT requests.name AS requestname,requests.state,users.name AS username,"
-           "x509dn,"
+  query = ("SELECT requests.name,requests.state,"
+           "users.username,"
            "requests.created,requests.submitted,requests.started,"
            "requests.checking,requests.completed,mql "
            "FROM requests "
-           "LEFT JOIN users ON users.user_id=requests.submitter_id "
+           "LEFT JOIN users ON users.user_id=requests.user_id "
            "WHERE request_id=%d "
            "ORDER BY request_id" % requestID)
 
@@ -144,13 +147,13 @@ def showRequest(cgiValues):
   print('<table')
 
   print('<tr><td>Name</td><td>%s</td></tr>' % 
-        html.escape(requestRows[0]['requestname'], quote=True))
+        html.escape(requestRows[0]['name'], quote=True))
   print('<tr><td>State</td><td>%s</td></tr>' % state)
-  print('<tr><td>Submitter</td><td>%s<br><small>%s</small></td></tr>' % 
-        (html.escape(requestRows[0]['username']), html.escape(requestRows[0]['x509dn'])))
-
   print('<tr><td>MQL</td><td>%s</td></tr>' % 
         html.escape(requestRows[0]['mql'], quote=True))
+
+  print('<tr><td>Created by</td><td>%s</td></tr>' % 
+        requestRows[0]['username'])
 
   print('<tr><td>Created</td><td>%s</td></tr>' % requestRows[0]['created'])
 
@@ -532,7 +535,7 @@ def showJob(cgiValues):
   print("<h1>Jobsub %s</h1>" % jobsubID)
   
   query = ("SELECT jobs.wfs_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
-           "jobs.hostname,jobs.cpuinfo,jobs.os_release,users.name,users.x509dn,"
+           "jobs.hostname,jobs.cpuinfo,jobs.os_release,username,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.finished_time,jobs.jobsub_state,"
@@ -540,7 +543,8 @@ def showJob(cgiValues):
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
            "slot_sizes.max_wall_seconds,bootstrap_log "
            "FROM jobs "
-           "LEFT JOIN users ON jobs.job_user_id=users.user_id "
+           "LEFT JOIN requests ON requests.request_id=jobs.request_id "
+           "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "LEFT JOIN slot_sizes ON jobs.slot_size_id=slot_sizes.slot_size_id "
            "LEFT JOIN jobs_logs ON jobs_logs.wfs_job_id=jobs.wfs_job_id "
@@ -574,10 +578,6 @@ def showJob(cgiValues):
   print('<tr><td>Allocator name</td>'
         '<td>%s</td></tr>'
         % html.escape(jobRows[0]["allocator_name"], quote=True))
-
-  if jobRows[0]['x509dn']:
-    print('<tr><td>Factory X.509</td><td><small>%s</small></td></tr>' % 
-          html.escape(jobRows[0]['x509dn']))
 
   if jobRows[0]["site_name"]:
     print('<tr><td>Site</td>'
@@ -625,6 +625,9 @@ def showJob(cgiValues):
           '<td>%s (%d hours)</td></tr>'
           % (jobRows[0]["wall_seconds"],
              int(jobRows[0]["wall_seconds"]) / 3600))
+
+  print('<tr><td>Request by</td><td>%s</td></tr>' 
+        % jobRows[0]['username'])
 
   print('<tr><td>Request ID</td>'
         '<td><a href="/dashboard/?method=show-request&request_id=%s">%s</a></td></tr>'
@@ -678,9 +681,10 @@ def listJobs(cgiValues):
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,"
-           "jobs.finished_time,jobs.jobsub_state "
+           "jobs.finished_time,jobs.jobsub_state,users.username "
            "FROM jobs "
-           "LEFT JOIN users ON jobs.job_user_id=users.user_id "
+           "LEFT JOIN requests ON requests.request_id=jobs.request_id "
+           "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "ORDER BY jobs.wfs_job_id DESC"
           )
@@ -695,6 +699,7 @@ def listJobs(cgiValues):
         '<th>Jobsub State</th>'
         '<th>Allocation state</th>'
         '<th>Site</th>'
+        '<th>User</th>'
         '<th>Request</th>'
         '<th>Stage</th>'
         '<th>Started</th>'
@@ -702,6 +707,11 @@ def listJobs(cgiValues):
         '</tr>')
   
   for jobRow in jobRows:
+    if jobRow['username']:
+      usernameStr = jobRow["username"]
+    else:
+      usernameStr = ' '
+      
     if jobRow['request_id']:
       requestIdStr = ('<a href="/dashboard/?method=show-request&'
                       'request_id=%s">%s</a>' %
@@ -722,6 +732,7 @@ def listJobs(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'          
+          '<td>%s</td>'          
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
@@ -731,6 +742,7 @@ def listJobs(cgiValues):
              jobRow['jobsub_state'],
              jobRow['allocation_state'],
              jobRow['site_name'],
+             usernameStr,
              requestIdStr,
              stageIdStr,
              jobRow["allocation_time"],

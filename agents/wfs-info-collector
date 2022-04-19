@@ -88,6 +88,24 @@ def updateUsers():
     if account['type'] != 'USER' or account['account'] == 'test':
       continue
 
+    if account['account'] in ['amcnab']:
+      # First time these blessed accounts are seen, they get the jobs flag
+      genericJobsStr = ',generic_jobs=TRUE '
+    else:
+      genericJobsStr = ' '
+
+    try:
+      query = ('INSERT INTO users SET '
+               'username="' + account['account'] + '"' + genericJobsStr +
+               'ON DUPLICATE KEY UPDATE username="' + account['account'] + '"'
+              )
+
+      wfs.db.cur.execute(query)
+    except Exception as e:
+          # Log the error and hope it was transitory
+          logLine('Failed inserting %s into database: %s' % 
+                  (account['account'], str(e)))
+
     try:
       identitiesList = accClient.list_identities(account['account'])
     except Exception as e:
@@ -98,10 +116,11 @@ def updateUsers():
     for identity in identitiesList:
       if identity['type'] == 'X509' and 'identity' in identity:
         try:
-          query = ('INSERT INTO users SET '
-                   'name="' + account['account'] + '",' +
+          query = ('INSERT INTO x509 SET '
+                   'user_id=(SELECT user_id FROM users WHERE username="' + 
+                    account['account'] + '"),' +
                    'x509dn="' + identity['identity'] + '" ' +
-                   'ON DUPLICATE KEY UPDATE name="' + account['account'] + '"'
+                   'ON DUPLICATE KEY UPDATE user_id=user_id'
                   )
 
           wfs.db.cur.execute(query)

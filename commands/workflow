@@ -37,10 +37,11 @@
 import os
 import sys
 import json
-import pycurl
+import ssl
+import urllib.request
 import argparse
 
-versionString = 'Workflow 0.1 (pyCurl)'
+versionString = 'Workflow 0.1 (urllib)'
 
 def body(buf): 
 
@@ -165,7 +166,7 @@ parser.add_argument("--state",
                     type = str,
                     help = "Restrict output by state")
 
-parser.add_argument("--hostname",
+parser.add_argument("--url",
                     type = str,
                     help = "WFS service to contact")
 
@@ -183,42 +184,39 @@ if args.command not in commands:
 if jsonDict['verbose']:
   print(jsonDict)
 
-c = pycurl.Curl()
-if jsonDict['hostname']:
-  c.setopt(c.URL, 'https://' + jsonDict['hostname'] + '/wfdb-cgi')
+# Set up request contexts to send the command to the WFS
+
+if jsonDict['url']:
+  url = jsonDict['url']
 else:
-  c.setopt(c.URL, 'https://wfs-pro.dune.hep.ac.uk/wfdb-cgi')
+  url = 'https://wfs-pro.dune.hep.ac.uk/wfdb-cgi'
+
+httpRequest = urllib.request.Request(url,
+                                     data = json.dumps(jsonDict).encode(),
+                                     method = 'POST')
+
+sslContext = ssl.SSLContext()
 
 if 'X509_USER_PROXY' in os.environ and os.environ['X509_USER_PROXY']:
-  x509UserProxy = os.environ['X509_USER_PROXY']
+  sslContext.load_cert_chain(os.environ['X509_USER_PROXY'])
 else:
-  x509UserProxy = '/tmp/x509up_u%d' % os.getuid()
+  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
 
-c.setopt(c.SSLCERT,        x509UserProxy)
-c.setopt(c.SSLKEY,         x509UserProxy)
-c.setopt(c.CAINFO,         x509UserProxy)
-c.setopt(c.POSTFIELDS,     json.dumps(jsonDict))
-c.setopt(c.HTTPHEADER,     ['Content-Type: application/json'])
-c.setopt(c.WRITEFUNCTION,  body)
-c.setopt(c.USERAGENT,      versionString)
-c.setopt(c.TIMEOUT,        30)
-c.setopt(c.FOLLOWLOCATION, False)
-c.setopt(c.SSL_VERIFYPEER, 1)
-c.setopt(c.SSL_VERIFYHOST, 2)
+if 'X509_CERTIFICATES' in os.environ and os.environ['X509_CERTIFICATES']:
+  sslContext.load_verify_locations(capath = os.environ['X509_CERTIFICATES'])
+else:
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
-if jsonDict['verbose']:
-  c.setopt(c.VERBOSE, 1)
-
-if os.path.isdir('/etc/grid-security/certificates'):
-  c.setopt(c.CAPATH, '/etc/grid-security/certificates')
-  
 try:
-  c.perform()
-except Exception as e:
-  print(str(e))
-  sys.exit(10)
-
-if c.getinfo(c.RESPONSE_CODE) != 200:
+  response = urllib.request.urlopen(httpRequest, context = sslContext)
+except urllib.error.URLError as e:
+  print(e.read().decode('utf-8'), end='')
+  sys.exit(21)
+  
+if response.status != 200:
+  if jsonDict['verbose']:
+    print(response.read().decode('utf-8'), end='')
   sys.exit(20)
   
+print(response.read().decode('utf-8'), end='')
 sys.exit(0)

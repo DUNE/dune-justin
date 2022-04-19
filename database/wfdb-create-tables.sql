@@ -58,7 +58,6 @@ CREATE TABLE `jobs` (
   `processors` tinyint unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `cookie` varchar(255) NOT NULL DEFAULT '',
-  `job_user_id` smallint(5) unsigned DEFAULT 0,
   PRIMARY KEY (`wfs_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -166,7 +165,7 @@ CREATE TABLE `requests` (
   `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `refind_end_time` datetime DEFAULT '1970-01-01 00:00:00',
   `find_last_time` datetime DEFAULT '1970-01-01 00:00:00',
-  `submitter_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
   PRIMARY KEY (`request_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
@@ -224,7 +223,7 @@ DROP TABLE IF EXISTS `sites_storages`;
 CREATE TABLE `sites_storages` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `location` enum('samesite','nearby','accessible') NOT NULL DEFAULT 'accessible',
+  `location` enum('samesite','nearby','sameregion','accessible') NOT NULL DEFAULT 'accessible',
   UNIQUE KEY `rse_id` (`rse_id`,`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -311,10 +310,25 @@ DROP TABLE IF EXISTS `users`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `x509dn` varchar(255) NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
   PRIMARY KEY (`user_id`),
-  UNIQUE KEY `x509dn` (`x509dn`)
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+--
+-- Table structure for table `x509`
+--
+
+DROP TABLE IF EXISTS `x509`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `x509` (
+  `x509dn` varchar(255) NOT NULL,
+  `user_id` smallint(5) unsigned NOT NULL,
+  PRIMARY KEY (`x509dn`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

@@ -409,7 +409,7 @@ def createRequestCmd(jsonDict, userID):
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'
-          'submitter_id=%d,'
+          'user_id=%d,'
           'refind_seconds=%d,'
           'refind_end_time=DATE_ADD(NOW(),INTERVAL %d SECOND)' %
           (name,
@@ -471,7 +471,7 @@ def quickRequestCmd(jsonDict, userID):
           'state="running",'
           'name="%s",'
           'mql="%s",'
-          'submitter_id=%d,'
+          'user_id=%d,'
           'refind_seconds=%d,'
           'refind_end_time=DATE_ADD(NOW(),INTERVAL %d SECOND)' %
           (name,
@@ -846,7 +846,7 @@ def getUserID():
   # Convert to the older format with slashes 
   clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
-  rows = doQuery('SELECT user_id FROM users '
+  rows = doQuery('SELECT user_id FROM x509 '
                  'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
                  clientDN.replace('\\','\\\\').replace('"','\\"'))
   
