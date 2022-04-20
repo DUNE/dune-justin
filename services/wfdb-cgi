@@ -323,9 +323,15 @@ def showStoragesCmd(jsonDict):
   
     if row['rse_delete']:
       availabilityList[2] = 'D'  
+      
+    if row['use_for_output']:
+      useForOutput = 'Y'
+    else:
+      useForOutput = 'N'
   
-    print("%-25s %.2f  %s" % 
-          (row['rse_name'], row['occupancy'], ''.join(availabilityList)))
+    print("%-25s %.2f  %s %s" % 
+          (row['rse_name'], row['occupancy'], 
+           ''.join(availabilityList), useForOutput))
    
   sys.exit(0)
 
@@ -361,8 +367,9 @@ def showSitesStoragesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%-20s %-22s %.1f" % 
-          (row['site_name'], row['rse_name'], row['distance']))
+    print("%-20s %-22s %5.1f" % 
+          (row['site_name'], row['rse_name'], 
+           row['distance']))
    
   sys.exit(0)
 

@@ -314,7 +314,7 @@ def updateStorages():
   # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
   wfs.db.cur.execute('INSERT INTO storages SET rse_id=%d,'
     'rse_name="MONTECARLO",occupancy=1,rse_write=FALSE,'
-    'rse_read=TRUE,rse_delete=FALSE,ignore_for_output=TRUE '
+    'rse_read=TRUE,rse_delete=FALSE,use_for_output=FALSE '
     'ON DUPLICATE KEY UPDATE occupancy=1'
     % wfs.conf.MonteCarloRseID)
 
@@ -361,16 +361,16 @@ def updateStorages():
         occupancy = float(usage['used']) / usage['total']
        
     # The FIRST time these are seen, they get set to ignore  
-    if rse['rse'] in ['FNAL_DCACHE_TEST', 'SCRATCH_DCACHE']:
-      ignoreForOutput = True
+    if rse['rse'] in ['FNAL_DCACHE_TEST', 'SCRATCH_DCACHE', 'T3_US_NERSC']:
+      useForOutput = False
     else:
-      ignoreForOutput = False
+      useForOutput = True
 
     try:
       # We should sanitise this name just in case...
       query = ('INSERT INTO storages SET rse_name="%s",'
                'occupancy=%f,rse_write=%d,rse_read=%d,rse_delete=%d,'
-               'ignore_for_output=%d '
+               'use_for_output=%d '
                'ON DUPLICATE KEY UPDATE occupancy=%f,rse_write=%d,'
                'rse_read=%d,rse_delete=%d '
                % (rse['rse'], 
@@ -378,7 +378,7 @@ def updateStorages():
                   ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
                   ((availability & wfs.db.rseAvailabilityRead)   != 0), 
                   ((availability & wfs.db.rseAvailabilityDelete) != 0),
-                  ignoreForOutput,
+                  useForOutput,
                   occupancy,
                   ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
                   ((availability & wfs.db.rseAvailabilityRead)   != 0), 

@@ -146,7 +146,9 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
              'LEFT JOIN sites_storages '
              'ON (stages_output_storages.rse_id=sites_storages.rse_id '
              'AND sites_storages.site_id=%d) '
-             'WHERE site_storages.distance IS NOT NULL AND '
+             'WHERE (use_for_output OR '
+             'stages_output_storages.rse_id IS NOT NULL) AND '
+             'site_storages.distance IS NOT NULL AND '
              'storages.occupancy < 1.0 AND '
              'storages.rse_write AND '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
@@ -212,12 +214,6 @@ def getStageMethod(jsonDict):
 
   if jobDict['error_message']:
     httpError('400 Bad Request', jobDict['error_message'])
-
-#  # Make strings used in SQL queries
-#  queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
-#
-#  if queryDict['error_message']:
-#    httpError('400 Bad Request', queryDict['error_message'])
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
@@ -313,12 +309,6 @@ def getFileMethod(jsonDict):
      jobDict['allocation_state'] != 'processing':
     httpError('403 Forbidden', 'Job in wrong state to find file')
     
-#  # Make strings used in SQL queries
-#  queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
-#                                          
-#  if queryDict['error_message']:
-#    httpError('400 Bad Request', queryDict['error_message'])
-
   # Create a stage dictionary with the next file in this stage  
   oneFile = wfs.allocator.findFile(jobDict)
 

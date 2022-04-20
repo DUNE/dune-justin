@@ -295,7 +295,7 @@ CREATE TABLE `storages` (
   `rse_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `rse_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `rse_delete` tinyint(1) NOT NULL DEFAULT TRUE,
-  `ignore_for_output` tinyint(1) NOT NULL DEFAULT FALSE,
+  `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
