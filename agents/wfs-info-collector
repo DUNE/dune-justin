@@ -283,18 +283,6 @@ def updateSitesStorages():
   # Update the matrix of sites to storage mappings
   logLine('---- Start updateSitesStorages ----')
 
-  # For now, these are hardcoded but eventually they will come from CRIC
-  locations = { 'CERN,CERN_PDUNE_EOS'      : 'samesite',
-                'CZ_FZU,PRAGUE'            : 'samesite',
-                'UK_Manchester,MANCHESTER' : 'samesite',
-                'UK_Lancaster,LANCASTER'   : 'samesite',
-                'UK_QMUL,QMUL'             : 'samesite',
-                'UK_RAL-Tier1,RAL_ECHO'    : 'samesite',
-                'UK_RAL-PPD,RAL_ECHO'      : 'nearby',
-                'UK_RAL-Tier1,RAL_PPD'     : 'nearby',
-                'UK_RAL-PPD,RAL_PPD'       : 'samesite'
-              }
-
   wfs.db.cur.execute('SELECT site_id,site_name FROM sites')
   siteRows = wfs.db.cur.fetchall()
   
@@ -305,19 +293,14 @@ def updateSitesStorages():
     for storageRow in storageRows:
       siteStorage = siteRow['site_name'] + ',' + storageRow['rse_name']    
 
-      if siteStorage in locations:
-        location = locations[siteStorage]
-      else:
-        location = 'accessible'
-
       query = ('INSERT INTO sites_storages SET '
-               'location="' + location + '",' +
+               'distance=100.0,' +
                'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
                  siteRow['site_name'] + '"),' +
                'rse_id=(SELECT rse_id FROM storages WHERE rse_name="' + 
                  storageRow['rse_name'] + '") ' +
                'ON DUPLICATE KEY UPDATE '
-               'location="' + location + '"'
+               'distance=distance'
               ) 
               
       wfs.db.cur.execute(query)

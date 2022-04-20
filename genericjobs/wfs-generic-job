@@ -156,13 +156,13 @@ cat <<EOF >wfs-get-stage.json
 {
   "method"       : "get_stage",
   "jobsub_id"    : "$JOBSUBJOBID",
-  "site_name"    : "$site_name",
-  "cpuinfo"      : "$cpuinfo",
-  "os_release"   : "$os_release",
-  "hostname"     : "$hostname",
-  "rss_bytes"    : $rss_bytes,
-  "processors"   : $processors,
-  "wall_seconds" : $wall_seconds
+  "site_name"    : "${site_name:-XX-UNKNOWN}",
+  "cpuinfo"      : "${cpuinfo:-Unknown}",
+  "os_release"   : "${os_release:-Unknown}",
+  "hostname"     : "${hostname:-unknown}",
+  "rss_bytes"    : ${rss_bytes:-0},
+  "processors"   : ${processors:-0},
+  "wall_seconds" : ${wall_seconds:-0}
 }
 EOF
 

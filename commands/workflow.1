@@ -76,7 +76,8 @@ Changes the state of the given request to "paused". This state temporarily
 excludes a request from the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-pattern-next-stage DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-rse NAME]" 
+.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N]
+[--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-pattern-next-stage DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-rse NAME]" 
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -99,9 +100,10 @@ If the script can make use of multiple processors then
 can be used to give the number needed, with a default of 1 if not given.
 
 By default, input files will only be allocated to a script which are on 
-storages at the same site or nearby sites. This can be changed by setting
-.B --any-location TRUE
-to allow input files to be allocated from any accessible storage.
+storages at the same site (distance=0). This can be changed by setting
+.B --max-distance DIST
+to allow input files to be allocated on storages at greater distances, up to
+a value of 100 which represents maximally remote storages.
 
 If one or more options 
 .B --output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN
@@ -131,7 +133,7 @@ used, or none of the given RSEs are available, then the default algorithm for
 choosing the closest available RSE is used.
 
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--any-location TRUE/FALSE] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
 .br
 Combines the 
 .B create-request, create-stage
@@ -145,8 +147,8 @@ subcommands into a single operation, for use with single-stage requests.
 Shows details of all stages of the given request or optionally of a single 
 stage of that request. Each line
 of the output gives the request ID, stage ID,, min processors,
-max processors, max wallclock seconds, max RSS bytes, and the any location 
-switch.
+max processors, max wallclock seconds, max RSS bytes, and the max distance
+value.
 
 .HP
 .B "show-bootstrap --request-id ID --stage-id ID"
@@ -174,10 +176,10 @@ and Delete availability of the RSE from Rucio.
 .HP
 .B "show-sites-storages [--site-name NAME] [--rse-name NAME]"
 .br
-Shows information about the locations of Rucio storage elements relative to
+Shows information about the distances of Rucio storage elements relative to
 sites, optionally limited to the given site and/or RSE. Each line of the
-output gives the site name, RSE name, and then their relative locaton:
-"samesite", "nearby", "sameregion", or "accessible". 
+output gives the site name, RSE name, and then their relative distance
+between 0 (same site) and 100 (maximally remote).
 
 .HP
 .B "add-file --request-id ID [--stage-id ID] --file-did DID --rse-name NAME --pfn URL"

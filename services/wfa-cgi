@@ -101,7 +101,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(jsonDict, queryDict, jobDict, stage, cookie):
+def makeTarFile(jsonDict, jobDict, stage, cookie):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -135,33 +135,36 @@ def makeTarFile(jsonDict, queryDict, jobDict, stage, cookie):
     
   addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
-
-  # Look for an output RSE list specific to this stage
+  # Create an ordered output RSE list specific to this stage
   try:
     query = ('SELECT rse_name '
-             'FROM stages_output_storages '
-             'LEFT JOIN storages '
-             'ON storages.rse_id=stages_output_storages.rse_id '
+             'FROM storages '
+             'LEFT JOIN stages_output_storages '
+             'ON (storages.rse_id=stages_output_storages.rse_id '
+             'AND stages_output_storages.request_id=%d '
+             'AND stages_output_storages.stage_id=%d) '
              'LEFT JOIN sites_storages '
-             'ON stages_output_storages.rse_id=sites_storages.rse_id '
-             'WHERE stages_output_storages.request_id=%d AND '
-             'occupancy < 1.0 AND '
-             'stages_output_storages.stage_id=%d AND '
+             'ON (stages_output_storages.rse_id=sites_storages.rse_id '
+             'AND sites_storages.site_id=%d) '
+             'WHERE site_storages.distance IS NOT NULL AND '
+             'storages.occupancy < 1.0 AND '
              'storages.rse_write AND '
-             'sites_storages.site_id=%d '
-             'ORDER BY location,occupancy,RAND()' 
-             % (stage['request_id'], stage['stage_id'], jobDict['site_id']))
+             'ORDER BY (stages_output_storages.rse_id IS NULL),'
+             'distance,occupancy,RAND()' 
+             % (stage['request_id'], 
+                stage['stage_id'],
+                jobDict['site_id']                
+               )
+            )
 
     wfs.db.cur.execute(query)
     rseRows = wfs.db.cur.fetchall()
   except:
     return None
 
-  rseList = []
+  outputRseList = []
   for rseRow in rseRows:
-    rseList.append(rseRow['rse_name'])
-
-  outputRseList = rseList + queryDict['outputRseList']
+    outputRseList.append(rseRow['rse_name'])
       
   addFileToTarFile(tar, 'wfs-env.sh', 
        (
@@ -210,15 +213,15 @@ def getStageMethod(jsonDict):
   if jobDict['error_message']:
     httpError('400 Bad Request', jobDict['error_message'])
 
-  # Make strings used in SQL queries
-  queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
-
-  if queryDict['error_message']:
-    httpError('400 Bad Request', queryDict['error_message'])
+#  # Make strings used in SQL queries
+#  queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
+#
+#  if queryDict['error_message']:
+#    httpError('400 Bad Request', queryDict['error_message'])
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
-  stage = wfs.allocator.findStage(queryDict)
+  stage = wfs.allocator.findStage(jobDict)
 
   if not stage:
     # No stages/files eligible to be processed by this job
@@ -266,7 +269,7 @@ def getStageMethod(jsonDict):
     httpError('500 Internal Server Error',
               'Workflow allocator failed: ' + str(e))
 
-  tarFile = makeTarFile(jsonDict, queryDict, jobDict, stage, cookie)
+  tarFile = makeTarFile(jsonDict, jobDict, stage, cookie)
   
   if not tarFile:
     httpError('500 Internal Server Error', 'Failed to create tar file')
@@ -310,14 +313,14 @@ def getFileMethod(jsonDict):
      jobDict['allocation_state'] != 'processing':
     httpError('403 Forbidden', 'Job in wrong state to find file')
     
-  # Make strings used in SQL queries
-  queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
-                                          
-  if queryDict['error_message']:
-    httpError('400 Bad Request', queryDict['error_message'])
+#  # Make strings used in SQL queries
+#  queryDict = wfs.allocator.makeQueryDict(jobDict['slot_size_id'])
+#                                          
+#  if queryDict['error_message']:
+#    httpError('400 Bad Request', queryDict['error_message'])
 
   # Create a stage dictionary with the next file in this stage  
-  oneFile = wfs.allocator.findFile(jobDict, queryDict)
+  oneFile = wfs.allocator.findFile(jobDict)
 
   if oneFile['error_message']:
     httpError('500 Internal Server Error', 

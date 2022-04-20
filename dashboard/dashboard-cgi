@@ -241,7 +241,7 @@ def showStage(cgiValues):
            "stages.processors,"
            "stages.wall_seconds,"
            "stages.rss_bytes,"
-           "stages.any_location,"
+           "stages.max_distance,"
            "stages.num_finding,"
            "stages.num_unallocated,"
            "stages.num_allocated,"
@@ -271,8 +271,8 @@ def showStage(cgiValues):
         (stageRows[0]["rss_bytes"], 
          int(stageRows[0]["rss_bytes"]) / 1048576))
 
-  print('<tr><td>Input from any location</td>'
-        '<td>%s</td></tr>' % bool(stageRows[0]["any_location"]))
+  print('<tr><td>Max distance for inputs</td>'
+        '<td>%.1f</td></tr>' % stageRows[0]["max_distance"])
 
   print('<tr><td>Output RSEs</td>'
         '<td>')
@@ -538,7 +538,7 @@ def showJob(cgiValues):
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,username,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
-           "jobs.finished_time,jobs.jobsub_state,"
+           "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "slot_sizes.max_processors,slot_sizes.min_processors,"
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
            "slot_sizes.max_wall_seconds,bootstrap_log "
@@ -575,6 +575,10 @@ def showJob(cgiValues):
         '<td>%s</td></tr>'
         % html.escape(jobsubID, quote=True))
 
+  print('<tr><td>Submitted time</td>'
+        '<td>%s</td></tr>'
+        % jobRows[0]["submitted_time"])
+      
   print('<tr><td>Allocator name</td>'
         '<td>%s</td></tr>'
         % html.escape(jobRows[0]["allocator_name"], quote=True))

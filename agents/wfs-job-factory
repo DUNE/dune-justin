@@ -215,9 +215,9 @@ def processSlotSize(slotSizeRow):
     return
 
   try:
-    queryDict = wfs.allocator.makeQueryDict(slotSizeRow['slot_size_id'])
-    print(queryDict)
-    stage = wfs.allocator.findStage(queryDict)
+    jobDict = wfs.allocator.makeSlotSizeDict(slotSizeRow['slot_size_id'])
+    print(jobDict)
+    stage = wfs.allocator.findStage(jobDict)
     print(stage)
   except Exception as e:
     logLine('Update makeQueryDict/findStage fails with: ' + str(e))

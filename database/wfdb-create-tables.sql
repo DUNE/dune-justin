@@ -223,7 +223,7 @@ DROP TABLE IF EXISTS `sites_storages`;
 CREATE TABLE `sites_storages` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `location` enum('samesite','nearby','sameregion','accessible') NOT NULL DEFAULT 'accessible',
+  `distance` float NOT NULL DEFAULT 100.0,
   UNIQUE KEY `rse_id` (`rse_id`,`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -241,7 +241,7 @@ CREATE TABLE `stages` (
   `processors` tinyint(3) unsigned NOT NULL,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
-  `any_location` tinyint(1) NOT NULL DEFAULT 0,
+  `max_distance` float NOT NULL DEFAULT 0.0,
   `num_finding` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_unallocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_allocated` mediumint(8) unsigned NOT NULL DEFAULT 0,

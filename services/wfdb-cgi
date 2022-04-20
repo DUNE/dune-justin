@@ -121,13 +121,13 @@ def showStagesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%5d %2d %d %d %d %s" % 
+    print("%5d %2d %d %d %d %.1f" % 
           (row['request_id'], 
            row['stage_id'], 
            row['processors'],
            row['wall_seconds'],
            row['rss_bytes'],
-           str(row['any_location']),
+           row['max_distance'],
           )
          )
    
@@ -434,15 +434,18 @@ def quickRequestCmd(jsonDict, userID):
   else:
     mql = ''
 
-  try:
-    anyLocation = bool(jsonDict['any_location'])
-  except:
-    anyLocation = False
+  if 'max_distance' in jsonDict:
+    try:
+      maxDistance = float(jsonDict['max_distance'])
+    except:
+      httpError('400 Bad Request', '--max-distance option requires a numeric distance')
+  else:
+    maxDistance = 0.0
 
   if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
     try:
       mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
-      anyLocation = True
+      maxDistance = 100.0
     except:
       httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
       
@@ -508,9 +511,9 @@ def quickRequestCmd(jsonDict, userID):
           "processors=%d,"
           "wall_seconds=%d,"
           "rss_bytes=%d,"
-          "any_location=%s" % 
+          "max_distance=%f" % 
           (requestID, processors,
-           wallSeconds, rssBytes, str(anyLocation)))
+           wallSeconds, rssBytes, maxDistance))
           
   doQuery('INSERT INTO bootstraps SET '
           'request_id=%d,'
@@ -639,10 +642,13 @@ def createStageCmd(jsonDict):
   except:
     httpError('400 Bad Request', 'RSS MB must be given')
 
-  try:
-    anyLocation = bool(jsonDict['any_location'])
-  except:
-    anyLocation = False
+  if 'max_distance' in jsonDict:
+    try:
+      maxDistance = float(jsonDict['max_distance'])
+    except:
+      httpError('400 Bad Request', '--max-distance option requires a numeric distance')
+  else:
+    maxDistance = 0.0
 
   if 'file' in jsonDict and jsonDict['file']:
     bootstrap = jsonDict['file']
@@ -655,9 +661,9 @@ def createStageCmd(jsonDict):
           "processors=%d,"
           "wall_seconds=%d,"
           "rss_bytes=%d,"
-          "any_location=%s" % 
+          "max_distance=%f" % 
           (requestID, stageID, processors,
-           wallSeconds, rssBytes, str(anyLocation)))
+           wallSeconds, rssBytes, maxDistance))
           
   doQuery('INSERT INTO bootstraps SET '
           'request_id=%d,'
