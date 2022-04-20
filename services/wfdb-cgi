@@ -361,8 +361,8 @@ def showSitesStoragesCmd(jsonDict):
   print() 
 
   for row in rows:
-    print("%-20s %-15s %s" % 
-          (row['site_name'], row['rse_name'], row['location']))
+    print("%-20s %-22s %.1f" % 
+          (row['site_name'], row['rse_name'], row['distance']))
    
   sys.exit(0)
 

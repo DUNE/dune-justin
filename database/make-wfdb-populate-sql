@@ -31,7 +31,7 @@ echo "UPDATE sites_storages SET distance=3.0 WHERE "
 echo " (SELECT site_name FROM sites "
 echo "  WHERE sites.site_id=sites_storages.site_id) "
 echo "  RLIKE '^CERN|^CH_|^CZ_|^ES_|^FR_|^NL|^UK_'"
-echo " AND site_storages.rse_id IN "
+echo " AND sites_storages.rse_id IN "
 echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
 
 echo
@@ -46,7 +46,7 @@ done
 echo "UPDATE sites_storages SET distance=2.0 WHERE "
 echo " (SELECT site_name FROM sites "
 echo "  WHERE sites.site_id=sites_storages.site_id) RLIKE '^UK_'"
-echo " AND site_storages.rse_id IN "
+echo " AND sites_storages.rse_id IN "
 echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
 
 echo
@@ -60,7 +60,7 @@ done
 echo "UPDATE sites_storages SET distance=2.0 WHERE "
 echo " (SELECT site_name FROM sites "
 echo "  WHERE sites.site_id=sites_storages.site_id) RLIKE '^US_|^CA_'"
-echo " AND site_storages.rse_id IN "
+echo " AND sites_storages.rse_id IN "
 echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
 
 echo
@@ -68,7 +68,7 @@ echo '# Sites which have storages nearby get distance 1.0'
 (
 cat <<EOF
 UK_RAL-PPD RAL_ECHO
-UK_RAL-Tier1 RAL_PPD
+UK_RAL-Tier1 RAL-PP
 EOF
 ) | (
 while read site rse
@@ -98,10 +98,10 @@ UK_Lancaster LANCASTER
 UK_Manchester MANCHESTER
 UK_QMUL QMUL
 UK_RAL-Tier1 RAL_ECHO
-UK_RAL-PPD RAL_PPD
+UK_RAL-PPD RAL-PP
 US_BNL DUNE_US_BNL_SDCC
 US_FNAL FNAL_DCACHE
-US_FNAL FNAL_DCACHE_PERSISTANT
+US_FNAL FNAL_DCACHE_PERSISTENT
 US_FNAL FNAL_DCACHE_STAGING
 US_FNAL FNAL_DCACHE_TEST
 EOF
