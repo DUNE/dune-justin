@@ -34,10 +34,10 @@
 
 import os
 import sys
+import ssl
 import stat
 import json
 import time
-import urllib
 import urllib.request
 import pathlib
 import tempfile
@@ -249,7 +249,7 @@ def findFiles():
     # Update the stats for the first stage
     wfs.allocator.updateStageCounts(request['request_id'], 1)
     wfs.db.conn.commit()
-    
+
 def findReplicas():
   # Find replicas of files in the finding state
 
@@ -257,7 +257,7 @@ def findReplicas():
   # but only for Rucio DIDs in scope:name format
   didsList = []
   query = ('SELECT request_id,stage_id,file_id,file_did FROM files '
-           'WHERE state="finding" AND NOW() > finding_retry_time '
+           'WHERE state="finding" '
            'AND file_did LIKE "%:%" '
            'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
   
@@ -296,49 +296,52 @@ def findReplicas():
   for rep in repsList:
     repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
 
-#  print(repsDict)
-
   # Cache rse_id of each known RSE into a local dictionary
   storagesDict = {}
-  wfs.db.cur.execute('SELECT rse_name,rse_id FROM storages')
+  wfs.db.cur.execute('SELECT rse_name,rse_id,needs_pin FROM storages')
   allStorages = wfs.db.cur.fetchall()
   
   for storageRow in allStorages:
-    storagesDict[storageRow['rse_name']] = storageRow['rse_id']
+    storagesDict[storageRow['rse_name']] = { 
+                     'rse_id'    : storageRow['rse_id'], 
+                     'needs_pin' : bool(storageRow['needs_pin']) }
  
   # Go back to our list of files in finding state and put replicas in DB
   for fileRow in findingFiles:
-    print(fileRow)
+    replicaInserts = []
+    
     if fileRow['file_did'] in repsDict:
-      
+
       for rseName in repsDict[fileRow['file_did']]:
         if rseName in storagesDict and repsDict[fileRow['file_did']][rseName]:
-                
-          print(repsDict[fileRow['file_did']])
-          try:
-            logLine('Inserting %s %s for %d,%d,%s' % 
-                    (rseName, repsDict[fileRow['file_did']],
-                     fileRow['request_id'], 
-                     fileRow['stage_id'], 
-                     fileRow['file_did']))            
 
-            query = ('INSERT INTO replicas SET '
-                     'rse_id=' + str(storagesDict[rseName]) + ','
-                     'file_id=' + str(fileRow['file_id']) + ',' 
-                     'pfn="' + repsDict[fileRow['file_did']][rseName][0] + '"'
-                    )
-                    
-            print(query)
-            wfs.db.cur.execute(query)
-          except Exception as e:
-            logLine('Failed inserting replica: ' + str(e))
-            # We give up if this happens, without the commit
-            return
+         if storagesDict[rseName]['needs_pin']:
+           accessibleUntil = ',accessible_until="1971-01-01 00:00:00" '
+         else:
+           accessibleUntil = ''
+             
+         replicaInserts.append('INSERT INTO replicas SET '
+                               'rse_id=' + str(storagesDict[rseName]) + ','
+                               'file_id=' + str(fileRow['file_id']) + ',' 
+                               'pfn="' + 
+                                repsDict[fileRow['file_did']][rseName][0] + 
+                                '"' + accessibleUntil
+                              )
+                              
+    if replicaInserts:
+      for query in replicaInserts:
+        try:
+          logLine('Inserting replica: ' + query)
+          wfs.db.cur.execute(query)
+        except Exception as e:
+          logLine('Failed inserting replica: ' + str(e))
+          # We give up if this happens, without the commit
+          return
 
-      # All replicas found for this file so update its state
+      # Found all the replicas for this file so update its state
       try:
         query = ('UPDATE files SET state="unallocated" WHERE file_id=' +
-                 str(fileRow['file_id']))
+                      str(fileRow['file_id']))
 
         print(query)
         wfs.db.cur.execute(query)
@@ -349,12 +352,13 @@ def findReplicas():
                 fileRow['file_did'] + 
                 '): ' + str(e))
         return
-      else:
-        requestsStages.add((fileRow['request_id'],fileRow['stage_id']))
+
+      # Add request/stage to the list to have updated stats at the end
+      requestsStages.add((fileRow['request_id'],fileRow['stage_id']))
 
     else:
-      # No RSE/PFN info for this file from Rucio!      
-      # Need to protect against transient Rucio failures here??
+      # No usable RSE/PFN info for this file from Rucio!      
+      # Should protect against transient Rucio failures here...
       try:
         query = ('UPDATE files SET state="notfound" WHERE file_id=' +
                  str(fileRow['file_id']))
@@ -366,7 +370,6 @@ def findReplicas():
                 str(fileRow['stage_id']) +  ',' + 
                 fileRow['file_did'] + 
                 '): ' + str(e))
-
 
   # Update all the stages for which we've updated a file
   for (requestID, stageID) in requestsStages:

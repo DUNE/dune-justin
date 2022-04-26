@@ -41,7 +41,7 @@ import ssl
 import urllib.request
 import argparse
 
-versionString = 'Workflow 0.1 (urllib)'
+versionNumber = '00.00.01'
 
 def body(buf): 
 
@@ -118,7 +118,7 @@ parser.add_argument("--refind-limit-days",
                     type = float,
                     help = "Refind duration in days")
 
-parser.add_argument("--upload-file",
+parser.add_argument("--file",
                     type = str,
                     help = "Specify a local file")
 
@@ -173,9 +173,16 @@ parser.add_argument("--url",
 args = parser.parse_args()
 jsonDict = vars(args)
 
-if jsonDict['upload_file']:
-  with open(jsonDict['upload_file']) as f:
-    jsonDict['file'] = f.read()
+if jsonDict['command'] == 'version':
+  print(versionNumber)
+  sys.exit(0)
+
+jsonDict['version'] = versionNumber
+
+if jsonDict['file']:
+  with open(jsonDict['file']) as f:
+    contents = f.read()
+    jsonDict['file'] = contents
 
 if args.command not in commands:
   print("%s not recognised as a workflow command" % args.command)

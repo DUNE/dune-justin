@@ -136,6 +136,10 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
   addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
   # Create an ordered output RSE list specific to this stage
+  #
+  # When the occupancy figures are usable this needs to have 
+  #  'storages.occupancy < 1.0 AND ' added to WHERE and 
+  #  storages.occupancy added to ORDER BY
   try:
     query = ('SELECT rse_name '
              'FROM storages '
@@ -148,16 +152,16 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
              'AND sites_storages.site_id=%d) '
              'WHERE (use_for_output OR '
              'stages_output_storages.rse_id IS NOT NULL) AND '
-             'site_storages.distance IS NOT NULL AND '
-             'storages.occupancy < 1.0 AND '
-             'storages.rse_write AND '
+             'sites_storages.distance IS NOT NULL AND '
+             'storages.rse_write '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
-             'distance,occupancy,RAND()' 
+             'distance,RAND()' 
              % (stage['request_id'], 
                 stage['stage_id'],
                 jobDict['site_id']                
                )
             )
+    print(query,file=sys.stderr)
 
     wfs.db.cur.execute(query)
     rseRows = wfs.db.cur.fetchall()

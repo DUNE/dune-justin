@@ -64,7 +64,15 @@ table { border-collapse: collapse; border: medium solid black;}
 tr { text-align: left }
 td,th { border: thin solid black; padding: 0.75ex }
 </style>
-</head><body>""")
+</head><body>
+<p>
+<a href="/dashboard/">Dashboard</a> . 
+<a href="/dashboard/?method=list-requests">Requests</a> . 
+<a href="/dashboard/?method=list-jobs">Jobs</a> . 
+<a href="/dashboard/?method=list-sites">Sites</a> . 
+<a href="/dashboard/?method=list-storages">Storages</a>
+</p>
+""")
 
 def footer():
   print("<hr>Time now: %s" % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
@@ -85,6 +93,8 @@ def mainPage():
   print('<ul>')
   print('<li><a href="/dashboard/?method=list-requests">Requests</a></li>')
   print('<li><a href="/dashboard/?method=list-jobs">Jobs</a></li>')
+  print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
+  print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
   print('</ul>')
   
   footer()
@@ -194,17 +204,18 @@ def showRequest(cgiValues):
   print('<h2>Stages</h2>')
   print('<table')
   print("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
-        "<th>Unallocated</th><th>Allocated</th><th>Processed</th><tr>")
+        "<th>Unallocated</th><th>Allocated</th><th>Processed</th>"
+        "<th>Not found</th><tr>")
 
   for stageRow in stagesRows:
     numFinding     = int(stageRow["num_finding"])
     numUnallocated = int(stageRow["num_unallocated"])
     numAllocated   = int(stageRow["num_allocated"])
     numProcessed   = int(stageRow["num_processed"])
-    numFiles       = numFinding + numUnallocated + numAllocated + numProcessed
+    numNotfound    = int(stageRow["num_notfound"])
+    numFiles       = (numFinding + numUnallocated + numAllocated + 
+                      numProcessed + numNotfound)
     
-    
-
     print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
@@ -212,13 +223,15 @@ def showRequest(cgiValues):
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
           '</tr>' % 
           (stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
            stageRow["request_id"], stageRow["stage_id"], numFiles, 
            stageRow["request_id"], stageRow["stage_id"], numFinding, 
            stageRow["request_id"], stageRow["stage_id"], numUnallocated, 
            stageRow["request_id"], stageRow["stage_id"], numAllocated, 
-           stageRow["request_id"], stageRow["stage_id"], numProcessed))
+           stageRow["request_id"], stageRow["stage_id"], numProcessed,
+           stageRow["request_id"], stageRow["stage_id"], numNotfound))
 
   print("</table>")
 
@@ -246,6 +259,7 @@ def showStage(cgiValues):
            "stages.num_unallocated,"
            "stages.num_allocated,"
            "stages.num_processed,"
+           "stages.num_notfound,"
            "bootstraps.bootstrap "
            "FROM stages "
            "LEFT JOIN bootstraps ON bootstraps.request_id=stages.request_id"
@@ -299,7 +313,9 @@ def showStage(cgiValues):
   numUnallocated = int(stageRows[0]["num_unallocated"])
   numAllocated   = int(stageRows[0]["num_allocated"])
   numProcessed   = int(stageRows[0]["num_processed"])
-  numFiles       = numFinding + numUnallocated + numAllocated + numProcessed
+  numNotfound    = int(stageRows[0]["num_notfound"])
+  numFiles       = (numFinding + numUnallocated + numAllocated + 
+                    numProcessed + numNotfound)
 
   print('<tr><td>Total files</td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d">%d</a></td></tr>'
@@ -320,6 +336,10 @@ def showStage(cgiValues):
   print('<tr><td>Processed</td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=processed">%d</a></td></tr>'
         % (requestID, stageID, numProcessed))
+        
+  print('<tr><td>Not found</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=notfound">%d</a></td></tr>'
+        % (requestID, stageID, numNotfound))
         
   print('</table>')
     
@@ -370,7 +390,7 @@ def listFiles(cgiValues):
   state = str(cgiValues.getfirst("state"))
 
   if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-     or state == 'processed':
+     or state == 'processed' or state == 'notfound':
     stateFilter = 'AND files.state="' + state + '"'
     stateText = ' (state = ' + state + ')'
   else:
@@ -501,8 +521,9 @@ def showFile(cgiValues):
   print('<tr><td>Replicas</td><td>')
   
   for replicaRow in replicaRows:  
-    print('<small>%s: %s</small><br>' % 
-          (replicaRow["rse_name"], replicaRow["pfn"]))
+    print('<small>%s: %s </small><br>' % 
+          (replicaRow["rse_name"], 
+           replicaRow["pfn"]))
 
   print('</td></tr>')
 
@@ -757,6 +778,287 @@ def listJobs(cgiValues):
   print("</table>")
   footer()
 
+def listSites(cgiValues):
+      
+  header("WFS: Sites")
+
+  print("<h1>Sites</h1>")
+  
+  query = ("SELECT * FROM sites "
+           "ORDER BY site_name"
+          )
+
+  wfs.db.cur.execute(query)
+  siteRows = wfs.db.cur.fetchall()
+
+  print('<table>')
+  
+  print('<tr>'
+        '<th>Site name</th>'
+        '<th>Jobsub site name</th>'
+        '<th>WLCG site name</th>'
+        '<th>Enabled?</th>'
+        '<th colspan=2>&nbsp;</th>'
+        '</tr>')
+  
+  for siteRow in siteRows:  
+    print('<tr>'
+          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td><a '
+          'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
+          'CRIC</a></td>'
+          '<td><form method="post" style="display:inline" '
+          'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
+          '<input type="hidden" name="SearchString" value="%s">'
+          '<input type="submit" value="GOCDB"></form></td>'
+          '</tr>'
+          % (siteRow['site_name'], siteRow['site_name'],
+             siteRow['jobsub_site_name'],
+             siteRow['wlcg_site_name'],
+             bool(siteRow['enabled']),
+             siteRow['site_name'],
+             siteRow['wlcg_site_name']
+            )
+         )    
+
+  print("</table>")
+  footer()
+
+def listStorages(cgiValues):
+      
+  header("WFS: Storages")
+
+  print("<h1>Storages</h1>")
+  
+  query = "SELECT * FROM storages ORDER BY rse_name"
+  wfs.db.cur.execute(query)
+  storageRows = wfs.db.cur.fetchall()
+
+  print('<table>')
+  
+  print('<tr>'
+        '<th>RSE name</th>'
+        '<th>Occupancy</th>'
+        '<th>Read</th>'
+        '<th>Write</th>'
+        '<th>Delete</th>'
+        '<th>For output</th>'
+        '</tr>')
+  
+  for storageRow in storageRows:  
+    print('<tr>'
+          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+          '<td>%.2f</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '</tr>' 
+          % (storageRow['rse_name'], storageRow['rse_name'],
+             storageRow['occupancy'],
+             bool(storageRow['rse_read']),
+             bool(storageRow['rse_write']),
+             bool(storageRow['rse_delete']),
+             bool(storageRow['use_for_output'])
+            )
+         )    
+
+  print("</table>")
+  footer()
+
+def showSite(cgiValues):
+      
+  try:
+    siteName = cgiValues.getfirst("site_name")
+  except:
+    errorPage("site_name must be given")
+    
+  if not wfs.db.stringIsSite(siteName):
+    errorPage("Invalid site name!")
+        
+  header("WFS: Site " + siteName)
+
+  print("<h1>Site %s</h1>" % siteName)
+  
+  query = 'SELECT * FROM sites WHERE site_name="%s"' % siteName
+  wfs.db.cur.execute(query)
+  siteRow = wfs.db.cur.fetchone()
+
+  print('<table>')
+  
+  print('<tr><td>Site name</td><td>%s</td></tr>' % siteName)
+  
+  print('<tr><td>Jobsub site name</td><td>%s</td></tr>' 
+        % siteRow['jobsub_site_name'])
+
+  print('<tr><td>WLCG site name</td><td>%s</td></tr>' 
+        % siteRow['wlcg_site_name'])
+
+  print('<tr><td>Enabled?</td><td>%s</td></tr>' 
+        % bool(siteRow['enabled']))
+
+  print('<tr><td>External info</td><td><a '
+          'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
+          'CRIC</a> '
+        '<form method="post" style="display:inline" '
+          'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
+          '<input type="hidden" name="SearchString" value="%s">'
+          '<input type="submit" value="GOCDB"></form></td>'
+          '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name']))
+
+  print("</table>")
+
+  print("<h2>Slot sizes</h2>")
+
+  query = ('SELECT * FROM slot_sizes WHERE site_id=%d '
+           'ORDER BY min_processors' % siteRow['site_id'])
+  wfs.db.cur.execute(query)
+  slotRows = wfs.db.cur.fetchall()
+
+  print('<table>'
+        '<tr><th colspan=2>Processors OR Memory (MB)</th>'
+        '<th>Wall time (s)</th>'
+        '<th>Last submission</th><th>Last no match</th>'
+        '<th>Last allocation</th></tr>')
+
+  for slotRow in slotRows:
+    print('<tr><td>%d &lt; p &le; %d</td>'
+          '<td>%d &lt; m &le; %d</td>'
+          '<td>t &le; %d</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '</tr>' 
+          % (slotRow['min_processors'],
+             slotRow['max_processors'],
+             int(slotRow['min_rss_bytes'] / 1048576), 
+             int(slotRow['max_rss_bytes'] / 1048576),
+             slotRow['max_wall_seconds'],
+             slotRow['last_submitted_time'],
+             slotRow['last_no_match_time'],
+             slotRow['last_allocation_time']
+            )
+         )
+
+  print('</table>')
+
+
+  print("<h2>Storages by distance</h2>")
+
+  query = ('SELECT rse_name,occupancy,rse_write,rse_read,rse_delete,'
+           'use_for_output,distance FROM storages '
+           'LEFT JOIN sites_storages ON sites_storages.rse_id=storages.rse_id '
+           'WHERE site_id=%d '
+           'ORDER BY distance,rse_name' % siteRow['site_id'])
+
+  wfs.db.cur.execute(query)
+  storageRows = wfs.db.cur.fetchall()
+
+  print('<table>')
+  
+  print('<tr>'
+        '<th>RSE name</th>'
+        '<th>Distance</th>'
+        '<th>Occupancy</th>'
+        '<th>Read</th>'
+        '<th>Write</th>'
+        '<th>Delete</th>'
+        '<th>For output</th>'
+        '</tr>')
+  
+  for storageRow in storageRows:  
+    print('<tr>'
+          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+          '<td>%d</td>'
+          '<td>%.2f</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '</tr>' 
+          % (storageRow['rse_name'], storageRow['rse_name'],
+             int(storageRow['distance']),
+             storageRow['occupancy'],
+             bool(storageRow['rse_read']),
+             bool(storageRow['rse_write']),
+             bool(storageRow['rse_delete']),
+             bool(storageRow['use_for_output'])
+            )
+         )    
+
+  print("</table>")
+
+  footer()
+
+def showStorage(cgiValues):
+      
+  try:
+    rseName = cgiValues.getfirst("rse_name")
+  except:
+    errorPage("rse_name must be given")
+    
+  if not wfs.db.stringIsSite(rseName):
+    errorPage("Invalid RSE name!")
+        
+  header("WFS: Storage " + rseName)
+
+  print("<h1>Storage %s</h1>" % rseName)
+  
+  query = 'SELECT * FROM storages WHERE rse_name="%s"' % rseName
+  wfs.db.cur.execute(query)
+  storageRow = wfs.db.cur.fetchone()
+
+  print('<table>')
+  
+  print('<tr><td>RSE name</td><td>%s</td></tr>' % rseName)
+  
+  print('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
+
+  print('<tr><td>Read</td><td>%s</td></tr>' % bool(storageRow['rse_read']))
+  print('<tr><td>Write</td><td>%s</td></tr>' % bool(storageRow['rse_write']))
+  print('<tr><td>Delete</td><td>%s</td></tr>' % bool(storageRow['rse_delete']))
+  print('<tr><td>For output</td><td>%s</td></tr>' 
+        % bool(storageRow['use_for_output']))
+
+  print('</table>')
+
+  print("<h2>Sites by distance</h2>")
+
+  query = ('SELECT site_name,distance,enabled FROM sites '
+           'LEFT JOIN sites_storages ON sites_storages.site_id=sites.site_id '
+           'WHERE rse_id=%d '
+           'ORDER BY distance,site_name' % storageRow['rse_id'])
+
+  wfs.db.cur.execute(query)
+  siteRows = wfs.db.cur.fetchall()
+
+  print('<table>')
+  
+  print('<tr>'
+        '<th>Site name</th>'
+        '<th>Distance</th>'
+        '<th>Enabled</th>'
+        '</tr>')
+  
+  for siteRow in siteRows:  
+    print('<tr>'
+          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+          '<td>%d</td>'
+          '<td>%s</td>'
+          '</tr>' 
+          % (siteRow['site_name'], siteRow['site_name'],
+             int(siteRow['distance']),
+             bool(siteRow['enabled'])
+            )
+         )    
+
+  print("</table>")
+
+  footer()
+
 #
 # PROGRAM MAIN
 #
@@ -799,6 +1101,18 @@ if method == "show-job":
 
 if method == "list-jobs":
   listJobs(cgiValues)
+
+if method == "list-sites":
+  listSites(cgiValues)
+
+if method == "list-storages":
+  listStorages(cgiValues)
+
+if method == "show-site":
+  showSite(cgiValues)
+
+if method == "show-storage":
+  showStorage(cgiValues)
 
 print('Status: 400 Bad Request')
 print()

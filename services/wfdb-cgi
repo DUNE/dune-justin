@@ -441,7 +441,7 @@ def quickRequestCmd(jsonDict, userID):
   else:
     mql = ''
 
-  if 'max_distance' in jsonDict:
+  if 'max_distance' in jsonDict and jsonDict['max_distance']:
     try:
       maxDistance = float(jsonDict['max_distance'])
     except:
@@ -649,7 +649,7 @@ def createStageCmd(jsonDict):
   except:
     httpError('400 Bad Request', 'RSS MB must be given')
 
-  if 'max_distance' in jsonDict:
+  if 'max_distance' in jsonDict and jsonDict['max_distance']:
     try:
       maxDistance = float(jsonDict['max_distance'])
     except:

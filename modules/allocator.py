@@ -108,8 +108,8 @@ def makeSlotSizeDict(slotSizeID):
 
   try:
     query = ('SELECT '
-             'sites.site_id,'
              'sites.site_name,'
+             'slot_sizes.site_id,'
              'slot_sizes.min_processors,'
              'slot_sizes.max_processors,'
              'slot_sizes.min_rss_bytes,'
@@ -125,6 +125,7 @@ def makeSlotSizeDict(slotSizeID):
     return { "error_message": "Failed to find slot size from slotSizeID" }
 
   return { "error_message"   : None,
+           "site_id"         : slotSize['site_id'],
            "min_processors"  : slotSize['min_processors'],
            "max_processors"  : slotSize['max_processors'],
            "min_rss_bytes"   : slotSize['min_rss_bytes'],
@@ -147,18 +148,21 @@ def findStage(jobDict):
  "LEFT JOIN sites_storages ON replicas.rse_id=sites_storages.rse_id AND "
  "sites_storages.site_id=%d "
  "WHERE files.state='unallocated' AND " 
+ "replicas.accessible_until > NOW() AND "
  "requests.state='running' AND "
  "((%d < stages.processors AND stages.processors <= %d AND "
  "  stages.rss_bytes <= %d) OR "
  " (%d < stages.rss_bytes AND stages.rss_bytes <= %d AND "
  "  stages.processors <= %d)) AND "
- "stages.wall_seconds <= %d %s "
+ "stages.wall_seconds <= %d "
  "AND sites_storages.distance IS NOT NULL "
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rse_read "
  "ORDER BY sites_storages.distance,files.request_id,files.file_id "
  "LIMIT 1 FOR UPDATE" %
- (jobDict["min_processors"], jobDict["max_processors"], 
+ (
+  jobDict["site_id"],
+  jobDict["min_processors"], jobDict["max_processors"], 
   jobDict["max_rss_bytes"],
   jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
   jobDict["max_processors"],
@@ -195,9 +199,11 @@ def findFile(jobDict):
 "AND files.request_id=%d "
 "AND files.stage_id=%d AND storages.rse_NAME IS NOT NULL "
 "AND sites_storages.distance IS NOT NULL "
-"AND sites_storages.distance <= stages.max_distance "
+"AND sites_storages.distance <= %f "
+"AND replicas.accessible_until > NOW() "
 "ORDER BY sites_storages.distance,files.file_id LIMIT 1 FOR UPDATE" %
-(jobDict['request_id'], jobDict['stage_id'], jobDict['site_id'])
+(jobDict['site_id'], jobDict['request_id'], jobDict['stage_id'],
+ jobDict['max_distance'])
           )
       
   wfs.db.cur.execute(query)
@@ -248,9 +254,12 @@ def updateStageCounts(requestID, stageID):
              'num_allocated=(SELECT COUNT(*) FROM files'
              ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
              'num_processed=(SELECT COUNT(*) FROM files'
-             ' WHERE state="processed" AND request_id=%d AND stage_id=%d) '
+             ' WHERE state="processed" AND request_id=%d AND stage_id=%d),'
+             'num_notfound=(SELECT COUNT(*) FROM files'
+             ' WHERE state="notfound" AND request_id=%d AND stage_id=%d) '
              'WHERE request_id=%d AND stage_id=%d' % 
              (requestID, stageID,
+              requestID, stageID,
               requestID, stageID,
               requestID, stageID,
               requestID, stageID,

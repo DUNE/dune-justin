@@ -1,0 +1,398 @@
+#!/usr/bin/env python3
+#
+#  wfs-finder-fnal - WFS Finder agent for FNAL
+# 
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-22. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer.
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+import os
+import sys
+import ssl
+import stat
+import json
+import time
+import urllib.request
+import pathlib
+import tempfile
+import xml.dom.minidom
+
+# Only used for get-pfn-locality external script 
+import subprocess
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+# wfs/conf.py must define these variables in a way that is both
+# valid Python and valid Bash!
+#
+# mysqlUser='username'
+# mysqlPassword='PAsSWoRd'
+#
+import wfs
+
+maxFileFindsPerCycle = 10
+sleepSeconds         = 60
+
+class wfsError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+    
+def findReplicaFnalLocality(pfn):
+  # Use the dCache REST API to find the locality status of a given
+  # DUNE xroot PFN at FNAL. PFNs look something like this:
+  #
+  #     root://fndca1.fnal.gov:1094/pnfs/fnal.gov/usr/dune//tape_backed/
+  #           dunepro/protodune/np04/beam/detector/None/raw/07/44/75/71/
+  #           np04_raw_run005769_0001_dl10.root
+  #
+  # This is very DUNE and FNAL specific and should be generalised somehow
+  #  
+
+  fnalPrefix = 'root://fndca1.fnal.gov:1094/pnfs/fnal.gov/usr/dune/'
+
+  if not pfn.startswith(fnalPrefix):
+    logLine('PFN must start with "' + fnalPrefix + '" but is "' + pfn + '"')
+    return None
+    
+  restURL = ('https://fndca.fnal.gov:3880/api/v1/namespace/pnfs/fnal.gov'
+             '/usr/dune' + pfn[len(fnalPrefix):] + '?qos=true&locality=true')
+
+  if True:
+    # Use an external script until we get firewall issue resolved
+  
+    try: 
+      outcome = subprocess.run(['/var/lib/wfs/get-pfn-locality', restURL],
+                                stdin   = subprocess.DEVNULL,
+                                stderr  = subprocess.DEVNULL,
+                                stdout  = subprocess.PIPE,
+                                timeout = 60
+                              ) 
+
+      jsonDict = json.loads(outcome.stdout.decode())
+      print(jsonDict)
+    except Exception as e:
+      logLine("get-pfn-locality fails with error: " + str(e))
+      return None
+
+  else:
+    sslContext = ssl.SSLContext()
+    sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+    sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+    try:
+      response = urllib.request.urlopen(restURL, context = sslContext)
+
+      if response.status != 200:
+        logLine('Reading locality from dCache for ' + pfn + ' fails with ' + 
+                response.read().decode('utf-8'))
+        return None
+
+      jsonDict = json.load(reponse)
+
+    except Exception as e:
+      logLine("Reading QoS JSON from dCache fails with: " + str(e))
+      return None
+    
+  if 'fileLocality' in jsonDict and jsonDict['fileLocality']:
+    return jsonDict['fileLocality']
+    
+  logLine('json from dCache does not include fileLocality!')
+  return None
+
+def createReplicasPins(rseID):
+  # Find replicas which need to be pinned
+
+  # Make a list of up to maxFileFindsPerCycle replicas which have no
+  # row in replicas_pins table
+
+  query = ('SELECT replicas.replica_id FROM replicas '
+           'LEFT JOIN replicas_pins '
+           'ON replicas_pins.replica_id=replicas.replica_id '
+           'WHERE replicas_pins.replica_id IS NULL '
+           'AND replica.rse_id=' + str(rseID) + ' '
+           'ORDER BY replicas.replica_id LIMIT ' + str(maxFileFindsPerCycle))
+
+  try:
+    wfs.db.cur.execute(query)
+    replicas = wfs.db.cur.fetchall()
+  except Exception as e:
+    logLine('Reading list of replica_pins rows to create fails: '  + str(e))
+    return
+
+  for replica in replicas:
+    query = ('INSERT INTO replicas_pins SET replica_id=%d' % 
+             replica['replica_id'])
+             
+    try:
+      wfs.db.cur.execute(query)
+    except Exception as e:
+      logLine('Insert into replicas_pins fails: '  + str(e))
+      continue
+  
+def pinReplicas(rseID):
+  # Find replicas which need to be pinned
+
+  # Make a list of up to maxFileFindsPerCycle replicas to work on 
+
+  query = ('SELECT replicas_pins.replica_id,pfn '
+           'FROM replicas_pins '
+           'LEFT JOIN replicas ON replicas.replica_id=replicas.replica_id '
+           'LEFT JOIN files ON files.file_id=replicas.file_id '
+           'WHERE rse_id=' + str(rseID) + ' '
+           'AND accessible_until < NOW() '
+           'AND pin_retry_time < NOW() '
+           'AND file_state="unallocated" '
+           'ORDER BY replicas_pins.replica_id LIMIT ' + 
+           str(maxFileFindsPerCycle))
+
+  try:
+    wfs.db.cur.execute(query)
+    needsPinReplicas = wfs.db.cur.fetchall()
+  except Exception as e:
+    logLine('Reading list of FNAL replicas needing pinning fails with: ' 
+            + str(e))
+    return
+  
+  if not needsPinReplicas:
+    # Nothing to do
+    return
+ 
+  for replica in needsPinReplicas:
+
+##
+## complete from here...
+## 
+
+
+
+
+    pinURL = replica(replica['pfn'])
+    
+    
+
+         replicaInserts.append('INSERT INTO replicas SET '
+                               'rse_id=' + str(storagesDict[rseName]) + ','
+                               'file_id=' + str(fileRow['file_id']) + ',' 
+                               'pfn="' + 
+                                repsDict[fileRow['file_did']][rseName][0] + 
+                                '",'
+                                'state="' + replicaState + '"'
+                              )
+                              
+    if replicaInserts:
+      for query in replicaInserts:
+        try:
+          logLine('Inserting replica: ' + query)
+          wfs.db.cur.execute(query)
+        except Exception as e:
+          logLine('Failed inserting replica: ' + str(e))
+          # We give up if this happens, without the commit
+          return
+
+      # Found all the replicas for this file so update its state
+      try:
+        query = ('UPDATE files SET state="unallocated" WHERE file_id=' +
+                      str(fileRow['file_id']))
+
+        print(query)
+        wfs.db.cur.execute(query)
+      except Exception as e:
+        logLine('Failed updating file (' + 
+                str(fileRow['request_id']) + ',' + 
+                str(fileRow['stage_id']) +  ',' + 
+                fileRow['file_did'] + 
+                '): ' + str(e))
+        return
+
+      # Add request/stage to the list to have updated stats at the end
+      requestsStages.add((fileRow['request_id'],fileRow['stage_id']))
+
+    else:
+      # No usable RSE/PFN info for this file from Rucio!      
+      # Should protect against transient Rucio failures here...
+      try:
+        query = ('UPDATE files SET state="notfound" WHERE file_id=' +
+                 str(fileRow['file_id']))
+
+        wfs.db.cur.execute(query)
+      except Exception as e:
+        logLine('Failed updating file (' + 
+                str(fileRow['request_id']) + ',' + 
+                str(fileRow['stage_id']) +  ',' + 
+                fileRow['file_did'] + 
+                '): ' + str(e))
+
+  # Update all the stages for which we've updated a file
+  for (requestID, stageID) in requestsStages:
+    wfs.allocator.updateStageCounts(requestID, stageID)
+    
+  # All ok, so commit it all to the DB
+  wfs.db.conn.commit()
+
+def getRseID(rseName):
+
+  query = 'SELECT rse_id FROM storages WHERE rse_name="' + rseName + '"'
+  
+  try:
+    wfs.db.cur.execute(query)
+    row = wfs.db.cur.fetchone()
+    rseID = int(row['rse_id'])
+  except Exception as e:
+    logLine('Finding rse_id of ' + rseName + ' fails with : ' + str(e))
+    return None
+    
+  return rseID
+
+def oneCycle():
+
+  fnalRseID = getRseID('FNAL_DCACHE')
+
+  # Create rows for replicas absent from replicas_pins  
+  createReplicasPins(fnalRseID)
+  
+  # Try to create pins where needed
+  pinReplicas(fnalRseID)
+  
+  # Check for pinned files and update accessible_until
+  checkPins(fnalRseID)
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs('/var/run/wfs',         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open('/var/run/wfs/finder-fnal.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create /var/run/wfs/finder-fnal.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/wfs directory exists
+        try:
+          os.makedirs('/var/log/wfs', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/wfs/finder-fnal', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+          
+        se = open('/var/log/wfs/finder-fnal', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open('/var/run/wfs/finder-fnal.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new /var/run/wfs/finder-fnal.pid - exiting')
+            break
+
+        except:
+          print('no /var/run/wfs/finder-fnal.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          try:
+            wfs.db.conn = MySQLdb.connect(host="localhost", 
+                                  user=wfs.conf.mysqlUser,
+                                  passwd=wfs.conf.mysqlPassword, 
+                                  db='wfdb')
+            wfs.db.conn.autocommit(False)
+            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+

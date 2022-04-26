@@ -156,6 +156,7 @@ def processOneFileXML(sitesDict, fileName):
 
       siteName        = None
       jobsubSiteName  = None
+      wlcgSiteName    = ''
       voList          = []
       processors      = 1
       rssBytes        = 2147483648
@@ -178,6 +179,9 @@ def processOneFileXML(sitesDict, fileName):
 
               elif name == 'GLIDEIN_Site':
                 jobsubSiteName = xmlAttr.getAttribute('value')
+
+              elif name == 'GLIDEIN_ResourceName':
+                wlcgSiteName = xmlAttr.getAttribute('value')
 
               elif name == 'GLIDEIN_CPUS':
                 try:
@@ -208,6 +212,7 @@ def processOneFileXML(sitesDict, fileName):
                   (siteName, entryName, rssBytes, processors))
 
           sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
+                                  'wlcg_site_name'        : wlcgSiteName,
                                   'largest_rss_bytes'     : rssBytes,
                                   'largest_processors'    : processors,
                                   'smallest_wall_seconds' : wallSeconds
@@ -241,11 +246,15 @@ def updateSites():
 
   for siteName in sitesDict:
     # Ensure the sites exist
-    query = ('INSERT INTO sites SET site_name="%s",jobsub_site_name="%s" '
-             'ON DUPLICATE KEY UPDATE jobsub_site_name="%s"' 
+    query = ('INSERT INTO sites SET site_name="%s",'
+             'jobsub_site_name="%s",'
+             'wlcg_site_name="%s" '
+             'ON DUPLICATE KEY UPDATE jobsub_site_name="%s",wlcg_site_name="%s"'
              % (siteName, 
                 sitesDict[siteName]['jobsub_site_name'], 
-                sitesDict[siteName]['jobsub_site_name']
+                sitesDict[siteName]['wlcg_site_name'],
+                sitesDict[siteName]['jobsub_site_name'],
+                sitesDict[siteName]['wlcg_site_name']
                )
             )
 

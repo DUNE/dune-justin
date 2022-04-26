@@ -104,7 +104,6 @@ CREATE TABLE `files` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
   `state` enum('finding','unallocated','allocated','processed','notfound') NOT NULL DEFAULT 'finding',
-  `finding_retry_time` datetime NOT NULL DEFAULT '1970-01-01',
   `last_allocation_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`)
@@ -138,11 +137,31 @@ DROP TABLE IF EXISTS `replicas`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `replicas` (
+  `replica_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `rse_id` smallint(5) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL,
   `pfn` varchar(255) NOT NULL,
+  `accessible_until` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
+  PRIMARY KEY(`replica_id`),
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
   UNIQUE KEY `pfn` (`pfn`,`file_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `replicas_pins`
+--
+
+DROP TABLE IF EXISTS `replicas_pins`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `replicas_pins` (
+  `replica_id` int(10) unsigned NOT NULL,
+  `pin_expire_time` datetime NOT NULL DEFAULT '1971-01-01 00:00:00',
+  `pin_ref` varchar(255) NOT NULL DEFAULT '',
+  `pin_retry_time` datetime NOT NULL DEFAULT '1971-01-01 00:00:00',
+  `pin_recheck_time` datetime NOT NULL DEFAULT '1971-01-01 00:00:00',
+  PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -182,6 +201,7 @@ CREATE TABLE `sites` (
   `site_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_name` varchar(255) NOT NULL,
   `jobsub_site_name` varchar(255) NOT NULL,
+  `wlcg_site_name` varchar(255) NOT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
@@ -246,6 +266,7 @@ CREATE TABLE `stages` (
   `num_unallocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_allocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_processed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
+  `num_notfound` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -296,6 +317,7 @@ CREATE TABLE `storages` (
   `rse_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `rse_delete` tinyint(1) NOT NULL DEFAULT TRUE,
   `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
+  `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

@@ -31,6 +31,11 @@ option is only needed during development and testing.
 .SH SUBCOMMANDS
 
 .HP
+.B "version"
+.br
+Output the version number of the workflow command.
+
+.HP
 .B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-days DAYS --refind-limit-days DAYS]"
 .br
 Create a new, empty request in the database, optionally with the given 
@@ -76,14 +81,14 @@ Changes the state of the given request to "paused". This state temporarily
 excludes a request from the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N]
+.B "create-stage --request-id ID --stage-id ID --file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N]
 [--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-pattern-next-stage DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] [--output-rse NAME]" 
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
 one stage. Each stage must have a boostrap shell script associated with it,
 given by the
-.B --upload-file
+.B --file
 option which will be executed on worker nodes to process its files. 
 
 If the maximum wallclock time needed is not given by 
@@ -133,7 +138,7 @@ used, or none of the given RSEs are available, then the default algorithm for
 choosing the closest available RSE is used.
 
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --upload-file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] --file FILENAME [--wall-seconds N] [--rss-bytes N] [--processors N] [--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
 .br
 Combines the 
 .B create-request, create-stage
