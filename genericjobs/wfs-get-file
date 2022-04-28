@@ -22,6 +22,7 @@ fi
 GET_FILE_TMP=`mktemp /tmp/wfs_get_file_XXXXXX`
 
 http_code=`curl \
+--user-agent 'wfs-get-file' \
 --silent \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Accept: text/plain" \

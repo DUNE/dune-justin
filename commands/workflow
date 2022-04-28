@@ -200,6 +200,8 @@ else:
 
 httpRequest = urllib.request.Request(url,
                                      data = json.dumps(jsonDict).encode(),
+                                     headers = { 'User-Agent': 
+                                                 'workflow ' + versionNumber },
                                      method = 'POST')
 
 sslContext = ssl.SSLContext()

@@ -48,6 +48,7 @@ CREATE TABLE `jobs` (
   `allocation_state` enum('submitted','started','processing','finished','notused') NOT NULL DEFAULT 'submitted',
   `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
+  `allocation_error` varchar(255) NOT NULL DEFAULT '',
   `finished_time` datetime NOT NULL DEFAULT '1970-01-01',
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
