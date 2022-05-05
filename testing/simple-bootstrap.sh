@@ -22,7 +22,7 @@ rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
 # These files are found by the generic job using the --output-pattern
 # form given on the workflow command line (see above).
-xrdcp $pfn - | sha1sum >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
+xrdcp --silent $pfn - | sha1sum >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
 
 # We say we processed whatever we were given
 echo "$did" > wfs-processed-inputs.txt

@@ -321,7 +321,7 @@ def findReplicas():
            accessibleUntil = ''
              
          replicaInserts.append('INSERT INTO replicas SET '
-                               'rse_id=' + str(storagesDict[rseName]) + ','
+                               'rse_id=' + str(storagesDict[rseName]['rse_id']) + ','
                                'file_id=' + str(fileRow['file_id']) + ',' 
                                'pfn="' + 
                                 repsDict[fileRow['file_did']][rseName][0] + 
