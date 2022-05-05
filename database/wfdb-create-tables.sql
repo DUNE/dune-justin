@@ -59,7 +59,10 @@ CREATE TABLE `jobs` (
   `processors` tinyint unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `cookie` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`wfs_job_id`)
+  PRIMARY KEY (`wfs_job_id`),
+  KEY `jobsub_id` (`jobsub_id`),
+  KEY `jobsub_state` (`jobsub_state`,
+    `allocation_state`,`site_id`,`slot_site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -107,7 +110,8 @@ CREATE TABLE `files` (
   `state` enum('finding','unallocated','allocated','processed','notfound') NOT NULL DEFAULT 'finding',
   `last_allocation_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
-  UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`)
+  UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`),
+  KEY `state_file_id` (`state`,`file_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -187,7 +191,8 @@ CREATE TABLE `requests` (
   `find_last_time` datetime DEFAULT '1970-01-01 00:00:00',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
-  PRIMARY KEY (`request_id`)
+  PRIMARY KEY (`request_id`),
+  KEY `state` (`state`,`find_last_time`,`refind_seconds`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

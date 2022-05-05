@@ -315,6 +315,9 @@ cat wfs-return-results.json
 echo "=====End wfs-return-results.json=="
 
 http_code=`curl \
+--retry 5 \
+--retry-max-time 300 \
+--max-time 600 \
 --user-agent 'wfs-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
 --capath $X509_CERTIFICATES \
@@ -324,6 +327,11 @@ http_code=`curl \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
 
 echo "return_results returns HTTP code $http_code"
+
+echo "=====Start return-results.log=="
+touch return-results.log
+cat return-results.log
+echo "=====End return-results.log=="
 
 echo '====End of wfs-generic-job===='
 exit 0

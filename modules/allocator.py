@@ -73,7 +73,8 @@ def makeJobDict(jobsubID, cookie = None):
              'slot_sizes.max_rss_bytes,'
              'slot_sizes.max_wall_seconds '
              'FROM jobs '
-             'LEFT JOIN stages ON jobs.stage_id=stages.stage_id '
+             'LEFT JOIN stages ON jobs.request_id=stages.request_id '
+             'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN slot_sizes '
              'ON slot_sizes.slot_size_id=jobs.slot_size_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
