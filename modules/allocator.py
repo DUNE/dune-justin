@@ -136,7 +136,7 @@ def makeSlotSizeDict(slotSizeID):
 
 # Just in time decision making: identify the best request+stage combination
 # based on the immediate situation rather than trying to plan ahead
-def findStage(jobDict):
+def findStage(jobDict, limit=1):
 
   query = (
  "SELECT stages.request_id,stages.stage_id,stages.max_distance "
@@ -160,28 +160,28 @@ def findStage(jobDict):
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rse_read "
  "ORDER BY sites_storages.distance,files.request_id,files.file_id "
- "LIMIT 1 FOR UPDATE" %
+ "LIMIT %d FOR UPDATE" %
  (
   jobDict["site_id"],
   jobDict["min_processors"], jobDict["max_processors"], 
   jobDict["max_rss_bytes"],
   jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
   jobDict["max_processors"],
-  jobDict["max_wall_seconds"]
+  jobDict["max_wall_seconds"],
+  limit
  ))
-
-#  print(query, file=sys.stderr)
   
   wfs.db.cur.execute(query)
-  fileRow = wfs.db.cur.fetchone()
+  fileRows = wfs.db.cur.fetchall()
   
-  if not fileRow:
+  if len(fileRows) == 0:
     return None
 
   # The dictionary to return, with the highest priority result
-  stage = { 'request_id'  : fileRow['request_id'],
-            'stage_id'    : fileRow['stage_id'],
-            'max_distance': fileRow['max_distance'] }
+  stage = { 'request_id'  : fileRows[0]['request_id'],
+            'stage_id'    : fileRows[0]['stage_id'],
+            'max_distance': fileRows[0]['max_distance'],
+            'matches'     : len(fileRows) }
 
   return stage
 
@@ -227,7 +227,7 @@ def findFile(jobDict):
     allocationID = wfs.db.cur.lastrowid
 
     query = ("UPDATE files SET state='allocated',"
-             "last_allocation_id=" + str(allocationID) + " "
+             "wfs_job_id=" + str(jobDict['wfs_job_id']) + " "
              "WHERE file_id=" + str(fileRows[0]['file_id'])
             )
     wfs.db.cur.execute(query)
@@ -254,12 +254,15 @@ def updateStageCounts(requestID, stageID):
              ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
              'num_allocated=(SELECT COUNT(*) FROM files'
              ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
-             'num_processed=(SELECT COUNT(*) FROM files'
+             'num_uploading=(SELECT COUNT(*) FROM files'
+             ' WHERE state="uploading" AND request_id=%d AND stage_id=%d),'
+             'num_notfound=(SELECT COUNT(*) FROM files'
              ' WHERE state="processed" AND request_id=%d AND stage_id=%d),'
              'num_notfound=(SELECT COUNT(*) FROM files'
              ' WHERE state="notfound" AND request_id=%d AND stage_id=%d) '
              'WHERE request_id=%d AND stage_id=%d' % 
              (requestID, stageID,
+              requestID, stageID,
               requestID, stageID,
               requestID, stageID,
               requestID, stageID,

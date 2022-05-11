@@ -51,6 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds = 60
+jobsPerCycle = 5
 
 class wfsError(Exception):
   pass
@@ -214,18 +215,22 @@ def processSlotSize(slotSizeRow):
     # Really cautious for now: no submissions if any already waiting
     return
 
+  if slotSizeRow['number_at_site'] >= slotSizeRow['max_jobs']:
+    # Just check once, so we might go over a little bit for now ...
+    return
+
   try:
     jobDict = wfs.allocator.makeSlotSizeDict(slotSizeRow['slot_size_id'])
     print(jobDict)
-    stage = wfs.allocator.findStage(jobDict)
+    stage = wfs.allocator.findStage(jobDict, limit = jobsPerCycle)
     print(stage)
   except Exception as e:
-    logLine('Update makeQueryDict/findStage fails with: ' + str(e))
+    logLine('Update makeSlotSizeDict/findStage fails with: ' + str(e))
     stage = None
 
   if stage: 
     # Submit one job if none idle and at least one stage would match 
-    numberToSubmit = 1
+    numberToSubmit = stage['matches']
     logLine('Match found - submit %d job(s)' % numberToSubmit)
     submitToSlotSize(numberToSubmit, slotSizeRow)
   else:
@@ -250,6 +255,7 @@ def oneCycle():
                 'min_processors,'
                 'max_processors,'
                 'max_wall_seconds,'
+                'sites.max_jobs,'
                 'UNIX_TIMESTAMP(last_submitted_time) AS last_submitted_time,'
                 'UNIX_TIMESTAMP(last_allocation_time) AS last_allocation_time,'
                 '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="I" AND '
@@ -257,7 +263,10 @@ def oneCycle():
                 'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
                 '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="R" AND '
                 'jobs.site_id=sites.site_id AND '
-                'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_running '
+                'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_running,'
+                '(SELECT COUNT(*) FROM jobs WHERE'
+                ' (jobsub_state="I" OR jobsub_state="R") AND'
+                ' jobs.site_id=sites.site_id) AS number_at_site '
                 'FROM sites '
                 'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
                 'WHERE enabled '

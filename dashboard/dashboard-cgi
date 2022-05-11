@@ -141,7 +141,9 @@ def showRequest(cgiValues):
   query = ("SELECT requests.name,requests.state,"
            "users.username,"
            "requests.created,requests.submitted,requests.started,"
-           "requests.checking,requests.completed,mql "
+           "requests.checking,requests.completed,mql,"
+           "requests.refind_seconds,requests.refind_start_time,"
+           "requests.refind_end_time "
            "FROM requests "
            "LEFT JOIN users ON users.user_id=requests.user_id "
            "WHERE request_id=%d "
@@ -167,6 +169,15 @@ def showRequest(cgiValues):
 
   print('<tr><td>Created</td><td>%s</td></tr>' % requestRows[0]['created'])
 
+  if requestRows[0]['refind_seconds'] == 0:
+    print('<tr><td>Finding</td><td>Once</td></tr>')
+  else:
+    print('<tr><td>Finding</td><td>Every %d hour(s), %s to %s</td></tr>' %
+          (int(requestRows[0]['refind_seconds'] / 3600), 
+           requestRows[0]['refind_start_time'],
+           requestRows[0]['refind_end_time'])
+         )
+      
   print('<tr><td>Submitted</td>')
   if requestRows[0]['submitted']:
     print('<td>%s</td></tr>' % str(requestRows[0]['submitted']))
@@ -407,9 +418,9 @@ def listFiles(cgiValues):
            "storages.rse_name,jobs.jobsub_id,sites.site_name "
            "FROM files "
            "LEFT JOIN allocations"
-           " ON files.last_allocation_id=allocations.allocation_id "
+           " ON wfs_job_id=allocations.wfs_job_id "
            "LEFT JOIN storages ON allocations.rse_id=storages.rse_id "
-           "LEFT JOIN jobs ON jobs.wfs_job_id=allocations.wfs_job_id "
+           "LEFT JOIN jobs ON jobs.wfs_job_id=wfs_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id" % (requestID, stageID, stateFilter))
@@ -487,7 +498,7 @@ def showFile(cgiValues):
 
   fileID = int(filesRows[0]["file_id"])
 
-  query = ("SELECT jobsub_id,allocations.allocation_time,processed,processed_time,"
+  query = ("SELECT jobs.state,jobsub_id,allocations.allocation_time,"
            "rse_name FROM allocations "
            "LEFT JOIN storages ON storages.rse_id=allocations.rse_id "
            "LEFT JOIN jobs ON allocations.wfs_job_id=jobs.wfs_job_id "
@@ -530,14 +541,9 @@ def showFile(cgiValues):
   print('<tr><td>Jobs</td><td>')
   
   for jobRow in jobsRows:
-    if jobRow["processed"]:
-      processedState = " (processed)"
-    else:
-      processedState = ""
   
-    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">'
-          '%s</a>%s<br>' % 
-          (jobRow["jobsub_id"], jobRow["jobsub_id"], processedState))
+    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a><br>' % 
+          (jobRow["jobsub_id"], jobRow["jobsub_id"]))
 
   print('</td></tr>')
 
@@ -798,6 +804,7 @@ def listSites(cgiValues):
         '<th>Jobsub site name</th>'
         '<th>WLCG site name</th>'
         '<th>Enabled?</th>'
+        '<th>Max jobs</th>'
         '<th colspan=2>&nbsp;</th>'
         '</tr>')
   
@@ -807,6 +814,7 @@ def listSites(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
+          '<td>%d</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a></td>'
@@ -819,6 +827,7 @@ def listSites(cgiValues):
              siteRow['jobsub_site_name'],
              siteRow['wlcg_site_name'],
              bool(siteRow['enabled']),
+             siteRow['max_jobs'],
              siteRow['site_name'],
              siteRow['wlcg_site_name']
             )
@@ -900,6 +909,8 @@ def showSite(cgiValues):
   print('<tr><td>Enabled?</td><td>%s</td></tr>' 
         % bool(siteRow['enabled']))
 
+  print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
+  
   print('<tr><td>External info</td><td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a> '

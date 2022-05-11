@@ -110,13 +110,17 @@ parser.add_argument("--monte-carlo",
                     type = int,
                     help = "Monte Carlo count")
 
-parser.add_argument("--refind-days",
-                    type = float,
-                    help = "Refind interval in days")
+parser.add_argument("--refind-start",
+                    type = int,
+                    help = "Refind start day")
 
-parser.add_argument("--refind-limit-days",
-                    type = float,
-                    help = "Refind duration in days")
+parser.add_argument("--refind-end",
+                    type = int,
+                    help = "Refind end day")
+
+parser.add_argument("--refind-hours",
+                    type = int,
+                    help = "Refind frequency")
 
 parser.add_argument("--file",
                     type = str,

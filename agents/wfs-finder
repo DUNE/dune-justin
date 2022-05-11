@@ -79,7 +79,8 @@ def addFilesMonteCarlo(requestID, count):
 
       wfs.db.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting dummy Monte Carlo file')
+      logLine('Failed inserting dummy Monte Carlo file for request %d: %s' 
+              % (requestID, str(e)))
       return
 
     try:
@@ -89,11 +90,12 @@ def addFilesMonteCarlo(requestID, count):
 
       wfs.db.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting dummy Monte Carlo replica')
+      logLine('Failed inserting dummy Monte Carlo replica for request %d: %s' 
+               % (requestID, str(e)))
       return
-
+ 
   try:
-    query = ('UPDATE requests SET find_last_time=NOW() WHERE request_id=' +
+    query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
     wfs.db.cur.execute(query)
@@ -197,9 +199,12 @@ def findFiles():
 
   query = ('SELECT request_id,mql FROM requests '
            'WHERE state="running" AND '
-           '((refind_seconds=0 AND find_last_time="1970-01-01 00:00:00") OR '
-           ' (DATE_ADD(find_last_time, INTERVAL refind_seconds SECOND) '
-           ' < NOW() AND refind_end_time > NOW())) '
+           '((refind_seconds=0 AND refind_last_time="1970-01-01 00:00:00")'
+           ' OR '
+           ' (refind_seconds > 0 AND '
+           ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
+           ' < NOW() AND refind_start_time < NOW() AND '
+           'refind_end_time >= NOW())) '
            'ORDER BY request_id')
 
   wfs.db.cur.execute(query)
@@ -316,7 +321,7 @@ def findReplicas():
         if rseName in storagesDict and repsDict[fileRow['file_did']][rseName]:
 
          if storagesDict[rseName]['needs_pin']:
-           accessibleUntil = ',accessible_until="1971-01-01 00:00:00" '
+           accessibleUntil = ',accessible_until="1970-01-01 00:00:00" '
          else:
            accessibleUntil = ''
              

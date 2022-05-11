@@ -431,8 +431,8 @@ def checkPinRequests(rseID):
 
       try:
         query = ('UPDATE replicas_pins SET '
-                 'pin_retry_time="1971-01-01 00:00:00",'
-                 'pin_recheck_time="1971-01-01 00:00:00" '
+                 'pin_retry_time="1970-01-01 00:00:00",'
+                 'pin_recheck_time="1970-01-01 00:00:00" '
                  'WHERE replica_id=%d' % pin['replica_id'])
 
         wfs.db.cur.execute(query)

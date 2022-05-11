@@ -49,6 +49,7 @@ import uuid
 import json
 import string
 import MySQLdb
+import datetime
 
 # wfs/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!
@@ -392,38 +393,51 @@ def createRequestCmd(jsonDict, userID):
       httpError('400 Bad Request', 
                 'Monte Carlo option requires an integer count')
 
-  if 'refind_days' in jsonDict and jsonDict['refind_days']:
+  if 'refind_hours' in jsonDict and jsonDict['refind_hours']:
     try:
-      refindSeconds = int(jsonDict['refind_days'] * 86400)
+      refindSeconds = int(jsonDict['refind_hours'] * 3600)
     except:
-      httpError('400 Bad Request', '--refind-days requires a numeric argument')
+      httpError('400 Bad Request', '--refind-hours requires an integer argument')
   else:
     refindSeconds = 0
 
-  if 'refind_limit_days' in jsonDict and jsonDict['refind_limit_days']:
+  if 'refind_start' in jsonDict and jsonDict['refind_start']:
     try:
-      refindLimitSeconds = int(jsonDict['refind_limit_days'] * 86400)
+      yyyymmdd = str(int(jsonDict['refind_start']))
+      refindStart = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                           yyyymmdd[4:6], 
+                                           yyyymmdd[6:8])
     except:
       httpError('400 Bad Request', 
-                '--refind-limit-days requires a numeric argument')
+                '--refind-start requires a YYYYMMDD date')
   else:
-    refindLimitSeconds = 0
+    refindStart = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
 
-  if refindSeconds > 0 and refindLimitSeconds <= 0:
-    httpError('400 Bad Request', 
-              '--refind-limit-days must be given if --refind-days is given')
+  if 'refind_end' in jsonDict and jsonDict['refind_end']:
+    try:
+      yyyymmdd = str(int(jsonDict['refind_end']))
+      refindEnd = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                         yyyymmdd[4:6], 
+                                         yyyymmdd[6:8])
+    except:
+      httpError('400 Bad Request', 
+                '--refind-end requires a YYYYMMDD date')
+  else:
+    refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
         
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'
           'user_id=%d,'
           'refind_seconds=%d,'
-          'refind_end_time=DATE_ADD(NOW(),INTERVAL %d SECOND)' %
+          'refind_start_time="%s",'
+          'refind_end_time="%s"' %
           (name,
            mql,
            userID,
            refindSeconds,
-           refindLimitSeconds))
+           refindStart,
+           refindEnd))
 
   wfs.db.conn.commit()
 
@@ -456,26 +470,37 @@ def quickRequestCmd(jsonDict, userID):
     except:
       httpError('400 Bad Request', 'Monte Carlo option requires an integer count')
       
-  if 'refind_days' in jsonDict and jsonDict['refind_days']:
+  if 'refind_hours' in jsonDict and jsonDict['refind_hours']:
     try:
-      refindSeconds = int(jsonDict['refind_days'] * 86400)
+      refindSeconds = int(jsonDict['refind_hours'] * 3600)
     except:
-      httpError('400 Bad Request', '--refind-days requires a numeric argument')
+      httpError('400 Bad Request', '--refind-hours requires an integer argument')
   else:
     refindSeconds = 0
 
-  if 'refind_limit_days' in jsonDict and jsonDict['refind_limit_days']:
+  if 'refind_start' in jsonDict and jsonDict['refind_start']:
     try:
-      refindLimitSeconds = int(jsonDict['refind_limit_days'] * 86400)
+      yyyymmdd = str(int(jsonDict['refind_start']))
+      refindStart = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                           yyyymmdd[4:6], 
+                                           yyyymmdd[6:8])
     except:
       httpError('400 Bad Request', 
-                '--refind-limit-days requires a numeric argument')
+                '--refind-start requires a YYYYMMDD date')
   else:
-    refindLimitSeconds = 0
+    refindStart = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
 
-  if refindSeconds > 0 and refindLimitSeconds <= 0:
-    httpError('400 Bad Request', 
-              '--refind-limit-days must be given if --refind-days is given')
+  if 'refind_end' in jsonDict and jsonDict['refind_end']:
+    try:
+      yyyymmdd = str(int(jsonDict['refind_end']))
+      refindEnd = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                         yyyymmdd[4:6], 
+                                         yyyymmdd[6:8])
+    except:
+      httpError('400 Bad Request', 
+                '--refind-end requires a YYYYMMDD date')
+  else:
+    refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
         
   doQuery('INSERT INTO requests SET created=NOW(),'
           'state="running",'
@@ -483,12 +508,14 @@ def quickRequestCmd(jsonDict, userID):
           'mql="%s",'
           'user_id=%d,'
           'refind_seconds=%d,'
-          'refind_end_time=DATE_ADD(NOW(),INTERVAL %d SECOND)' %
+          'refind_start_time="%s",'
+          'refind_end_time="%s"' %
           (name,
            mql,
            userID,
            refindSeconds,
-           refindLimitSeconds))
+           refindStart,
+           refindEnd))
 
   requestID = wfs.db.cur.lastrowid
 

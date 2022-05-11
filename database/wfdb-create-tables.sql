@@ -40,16 +40,19 @@ DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE `jobs` (
   `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
-  `submitted_time` datetime NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
   `site_id` smallint(5) unsigned NOT NULL,
   `slot_size_id` smallint(5) unsigned NOT NULL,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
-  `allocation_state` enum('submitted','started','processing','finished','notused') NOT NULL DEFAULT 'submitted',
-  `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `allocation_state` enum('submitted','started','processing','uploading',
+                          'finished','notused') NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
+  `submitted_time` datetime NOT NULL,
+  `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `uploading_time` datetime NOT NULL DEFAULT '1970-01-01',
   `finished_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `heartbeat_time` datetime NOT NULL DEFAULT '1970-01-01',
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `hostname` varchar(255) NOT NULL DEFAULT '',
@@ -61,8 +64,8 @@ CREATE TABLE `jobs` (
   `cookie` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`wfs_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
-  KEY `jobsub_state` (`jobsub_state`,
-    `allocation_state`,`site_id`,`slot_site_id`)
+  INDEX `jobsub_state` (`jobsub_state`,
+    `allocation_state`,`site_id`,`slot_size_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -107,16 +110,22 @@ CREATE TABLE `files` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
-  `state` enum('finding','unallocated','allocated','processed','notfound') NOT NULL DEFAULT 'finding',
-  `last_allocation_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `state` enum('recorded','finding','unallocated','allocated',
+               'uploading',
+               'processed','notfound') NOT NULL DEFAULT 'finding',
+  `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `creator_wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`),
-  KEY `state_file_id` (`state`,`file_id`)
+  INDEX `request_stage_state_id` (`request_id`,`stage_id`,`state`),
+  KEY `state_file_id` (`state`,`file_id`),
+  INDEX `creator_wfs_job_id` (`creator_wfs_job_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `files`
+-- Table structure for table `allocations`
 --
 
 DROP TABLE IF EXISTS `allocations`;
@@ -128,8 +137,6 @@ CREATE TABLE `allocations` (
   `wfs_job_id` int(10) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
   `allocation_time` datetime NOT NULL,
-  `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `processed` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY(`allocation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -162,10 +169,10 @@ DROP TABLE IF EXISTS `replicas_pins`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `replicas_pins` (
   `replica_id` int(10) unsigned NOT NULL,
-  `pin_expire_time` datetime NOT NULL DEFAULT '1971-01-01 00:00:00',
+  `pin_expire_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `pin_ref` varchar(255) NOT NULL DEFAULT '',
-  `pin_retry_time` datetime NOT NULL DEFAULT '1971-01-01 00:00:00',
-  `pin_recheck_time` datetime NOT NULL DEFAULT '1971-01-01 00:00:00',
+  `pin_retry_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `pin_recheck_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -186,13 +193,14 @@ CREATE TABLE `requests` (
   `started` datetime DEFAULT NULL,
   `checking` datetime DEFAULT NULL,
   `completed` datetime DEFAULT NULL,
-  `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `refind_end_time` datetime DEFAULT '1970-01-01 00:00:00',
-  `find_last_time` datetime DEFAULT '1970-01-01 00:00:00',
+  `refind_start_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `refind_end_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `refind_last_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT '0',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
   PRIMARY KEY (`request_id`),
-  KEY `state` (`state`,`find_last_time`,`refind_seconds`)
+  INDEX `state` (`state`,`refind_last_time`,`refind_seconds`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -209,6 +217,7 @@ CREATE TABLE `sites` (
   `jobsub_site_name` varchar(255) NOT NULL,
   `wlcg_site_name` varchar(255) NOT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -271,6 +280,7 @@ CREATE TABLE `stages` (
   `num_finding` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_unallocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `num_allocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `num_uploading` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   `num_processed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   `num_notfound` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)

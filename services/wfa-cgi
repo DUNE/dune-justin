@@ -240,6 +240,7 @@ def getStageMethod(jsonDict):
   try:
     query = ('UPDATE jobs SET '
              'allocation_time=NOW(),' 
+             'heartbeat_time=NOW(),' 
              'allocation_state="started",'
              'allocator_name="' + allocatorName + '",' 
              'request_id=' + str(stage['request_id']) + ','
@@ -291,6 +292,30 @@ def getStageMethod(jsonDict):
   sys.stdout.buffer.write(tarFile)
   sys.exit(0)
    
+# Record heartbeats from generic jobs
+def sendHeartbeatMethod(jsonDict):
+
+  if 'jobsub_id' not in jsonDict or \
+     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+
+  try:
+    query = ('UPDATE jobs SET heartbeat_time=NOW() ' 
+             'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
+            )
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    httpError('500 Internal Server Error', 
+              'Workflow allocator failed: ' + str(e))
+
+  # All done so commit the job details.
+  wfs.db.conn.commit()
+
+  # Return the script to the workflow job 
+  print('Status: 200 OK')
+  print()
+  sys.exit(0)
+   
 # Get an unallocated file from the given request+stage
 def getFileMethod(jsonDict):
 
@@ -323,7 +348,7 @@ def getFileMethod(jsonDict):
   if oneFile['file_did']:
     if jobDict['allocation_state'] == 'started':
       try:
-        query = ('UPDATE jobs SET allocation_state="processing" ' +
+        query = ('UPDATE jobs SET allocation_state="processing" '
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                 )
         wfs.db.cur.execute(query)
@@ -365,7 +390,7 @@ def updateFileProcessing(fileList, state, wfsJobID, requestID, stageID):
 
       processedList.append('files.file_did="' + str(fileDid) + '"')
   except:
-    return
+    return 
 
   # Update the files the job did or did not manage to process
   if processedList:
@@ -379,23 +404,23 @@ def updateFileProcessing(fileList, state, wfsJobID, requestID, stageID):
     except:
       pass
 
-    if state == 'processed':
-      try:
-        query = ('UPDATE allocations SET processed=TRUE,'
-                 'processed_time=NOW() '
-                 'WHERE wfs_job_id=%d AND '
-                 'allocations.file_id IN (SELECT files.file_id FROM files '
-                 'WHERE files.request_id=%d AND files.stage_id=%d '
-                 'AND (%s)) '
-                 'ORDER BY allocation_id DESC LIMIT 1'
-                 % (wfsJobID, 
-                    requestID,
-                    stageID,
-                    ' OR '.join(processedList)))
-
-        wfs.db.cur.execute(query)
-      except:
-        pass
+#    if state == 'processed':
+#      try:
+#        query = ('UPDATE allocations SET processed=TRUE,'
+#                 'processed_time=NOW() '
+#                 'WHERE wfs_job_id=%d AND '
+#                 'allocations.file_id IN (SELECT files.file_id FROM files '
+#                 'WHERE files.request_id=%d AND files.stage_id=%d '
+#                 'AND (%s)) '
+#                 'ORDER BY allocation_id DESC LIMIT 1'
+#                 % (wfsJobID, 
+#                    requestID,
+#                    stageID,
+#                    ' OR '.join(processedList)))
+#
+#        wfs.db.cur.execute(query)
+#      except:
+#        pass
     
 # Deal with the output files needed by the next stage
 def processNextStageOutputs(nextStageOutputs, requestID, stageID):
@@ -407,7 +432,7 @@ def processNextStageOutputs(nextStageOutputs, requestID, stageID):
         continue
 
       try:
-        query = ('INSERT INTO files SET state="find_replicas",'
+        query = ('INSERT INTO files SET state="recorded",'
                  'file_did="'  + str(outputDid) + '",'
                  'request_id=' + str(requestID) + ','
                  'stage_id='   + str(stageID + 1)
@@ -420,18 +445,17 @@ def processNextStageOutputs(nextStageOutputs, requestID, stageID):
 
   except:
     return
-                
-def resultsMethod(jsonDict):
+
+# Before doing uploading output files the generic jobs record any results from 
+# the bootstrap script, but just puts them in the "uploading" (input files) or 
+# "recorded" (output files for next stage)
+def recordResultsMethod(jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
-  if 'cookie' not in jsonDict or \
-     not wfs.db.stringNoQuotes(jsonDict['cookie']):
-    httpError('400 Bad Request', 'Missing/invalid cookie in JSON')
-
-  # Check jsonDict contains required values (eg cookie)
+  # Check jsonDict contains required values
   for name in ['processed_inputs', 
                'unprocessed_inputs', 'next_stage_outputs']:
     if name not in jsonDict:
@@ -443,7 +467,7 @@ def resultsMethod(jsonDict):
 
 
   try:
-    query = ('SELECT wfs_job_id, request_id, stage_id, cookie '
+    query = ('SELECT wfs_job_id, request_id, stage_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     wfs.db.cur.execute(query)
@@ -455,12 +479,13 @@ def resultsMethod(jsonDict):
   except:
     httpError('500 Internal Server Error', 'Failed finding job')
 
-  if not row['cookie'] or row['cookie'] != jsonDict['cookie']:
-    httpError('403 Forbidden', 'Cookie mismatch')
-    
-  updateFileProcessing(jsonDict['processed_inputs'], 'processed',
+  # For processed inputs, we just record they got as far as uploading
+  # the corresponding outputs, for now 
+  updateFileProcessing(jsonDict['processed_inputs'], 'uploading',
                        wfsJobID, requestID, stageID)
 
+  # For unprocessed inputs, we can put them straight back into the 
+  # unprocessed state
   updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed',
                        wfsJobID, requestID, stageID)
 
@@ -469,8 +494,8 @@ def resultsMethod(jsonDict):
   wfs.allocator.updateStageCounts(requestID, stageID)
 
   try:
-    query = ('UPDATE jobs SET allocation_state="finished",'
-             'finished_time=NOW() '
+    query = ('UPDATE jobs SET allocation_state="uploading",'
+             'uploading_time=NOW(),heartbeat_time=NOW() '
              'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     wfs.db.cur.execute(query)
@@ -485,6 +510,62 @@ def resultsMethod(jsonDict):
     wfs.db.cur.execute(query)
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))
+
+  # Commit everything, before we return OK to the job
+  wfs.db.conn.commit()
+
+  # Return OK to the job
+  print('Status: 200 OK')
+  print()
+  sys.exit(0)
+
+# After the output files have been successfully uploaded, the generic job
+# comes back with this method which changes the state of input files from
+# uploading to processed, and of output files from recorded to finding.
+def confirmResultsMethod(jsonDict):
+
+  if 'jobsub_id' not in jsonDict or \
+     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+
+  try:
+    query = ('SELECT wfs_job_id '
+             'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+
+    wfs.db.cur.execute(query)
+    row = wfs.db.cur.fetchone()
+
+    wfsJobID  = int(row['wfs_job_id'])
+  except:
+    httpError('500 Internal Server Error', 'Failed finding job')
+
+  try:
+    query = ('UPDATE files SET state="processed" WHERE '
+             'state="uploading" AND wfs_job_id=%d' % wfsJobID)
+
+    wfs.db.cur.execute(query)
+  except:
+    httpError('500 Internal Server Error', 'Updating processed input files')
+
+  try:
+    query = ('UPDATE files SET state="finding" WHERE '
+             'state="recorded" AND creator_wfs_job_id=%d' % wfsJobID)
+
+    wfs.db.cur.execute(query)
+  except:
+    httpError('500 Internal Server Error', 'Updating uploading output files')
+  
+  try:
+    query = ('UPDATE jobs SET allocation_state="finished",'
+             'finished_time=NOW(),heartbeat_time=NOW() '
+             'WHERE wfs_job_id=%d AND allocation_state="uploading"'
+             % wfsJobID)
+
+    wfs.db.cur.execute(query)
+  except:
+    httpError('500 Internal Server Error', 'Updating uploading output files')
+  
+  wfs.allocator.updateStageCounts(requestID, stageID)
 
   # Commit everything, before we return OK to the job
   wfs.db.conn.commit()
@@ -552,16 +633,29 @@ except:
 if jsonDict['method'] == 'get_stage':
   # Fails with an HTTP error and exit if authorized ID not given
   checkJobUser()
-
   getStageMethod(jsonDict)
+
+# Record heartbeats from the generic jobs
+elif jsonDict['method'] == 'send_heartbeat':
+  # Fails with an HTTP error and exit if authorized ID not given
+  checkJobUser()
+  sendHeartbeatMethod(jsonDict)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':
   getFileMethod(jsonDict)
   
-# Return results of processing files
-elif jsonDict['method'] == 'return_results':
-  resultsMethod(jsonDict)
+# Record results of processing files
+elif jsonDict['method'] == 'record_results':
+  # Fails with an HTTP error and exit if authorized ID not given
+  checkJobUser()
+  recordResultsMethod(jsonDict)
+
+# Confirm that uploads went ok
+elif jsonDict['method'] == 'confirm_results':
+  # Fails with an HTTP error and exit if authorized ID not given
+  checkJobUser()
+  confirmResultsMethod(jsonDict)
 
 else:
   httpError('400 Bad Request', 'Method in JSON not recognised')

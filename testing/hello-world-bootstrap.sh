@@ -3,7 +3,7 @@
 # Submit with something like this:
 #
 # ./workflow quick-request --monte-carlo 1 \
-# --upload-file hello-world-bootstrap.sh 
+# --file hello-world-bootstrap.sh 
 #
 # Then monitor with dashboard or ./workflow show-jobs --request-id ID
 # where ID is the value printed by the first command

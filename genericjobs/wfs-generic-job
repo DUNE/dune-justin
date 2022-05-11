@@ -105,6 +105,38 @@ if [ $? -ne 0 ] ; then
  exit
 fi
 
+cat <<EOF >wfs-send-heartbeat.json
+{
+  "method"       : "send_heartbeat",
+  "jobsub_id"    : "$JOBSUBJOBID"
+}
+EOF
+
+(
+# Subprocess to send regular heartbeats
+
+while :
+do
+  # Stop if proxy file is missing or deleted
+  if [ ! -r wfs-send-heartbeat.json ] ; then
+    exit 1
+  fi
+
+  curl \
+     --user-agent 'wfs-generic-job' \
+     --header "X-Jobid: $JOBSUBJOBID" \
+     --key $X509_USER_PROXY \
+     --cert $X509_USER_PROXY \
+     --cacert $X509_USER_PROXY \
+     --capath $X509_CERTIFICATES \
+     --data @wfs-send-heartbeat.json \
+     https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
+
+  sleep 600
+done
+
+) >wfs-heartbeat.log 2>&1 &
+
 # Install a private version of the Rucio client
 # Will be removed once we can get Rucio entirely from cvmfs
 (
@@ -263,27 +295,6 @@ echo '####'
 
 next_stage_outputs=`echo \`sed 's/.*/"&"/' wfs-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
-# Just try the first RSE for now; eventually will do failovers on errors
-output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
-
-cat $WFS_PATH/wfs-outputs.txt | (
-
-while read dataset scope fn
-do
-  echo "Upload $scope:$fn"
-  $WFS_PATH/wfs-rucio --verbose -a test upload --rse "$output_rse" --lifetime 3600 --scope "$scope" "workspace/$fn" 
-  echo "wfs-rucio returns $?"
-
-  if [ $? = 0 ] ; then
-    echo "Add $scope:$fn to $dataset"
-    $WFS_PATH/wfs-rucio --verbose -a test attach "$dataset" "$scope:$fn"
-  fi
- 
-  echo "Metadata too? $fn.json"
-  echo
-done
-
-)
 
 # wfs-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
@@ -295,24 +306,82 @@ if [ -f workspace/wfs-unprocessed-inputs.txt ] ; then
   unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\`|sed 's/ /,/g'`
 fi
 
-cat <<EOF >wfs-return-results.json
+cat <<EOF >wfs-record-results.json
 {
-  "method": "return_results",
+  "method": "record_results",
   "jobsub_id": "$JOBSUBJOBID",
-  "cookie": "$WFS_COOKIE",
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
   "next_stage_outputs": [$next_stage_outputs],
   "bootstrap_log": "
 EOF
 
-tail -c 10000 wfs-bootstrap.log | sed 's/"/\\\"/g' >>wfs-return-results.json
+tail -c 10000 wfs-bootstrap.log | sed 's/"/\\\"/g' >>wfs-record-results.json
   
-echo '"}' >>wfs-return-results.json
+echo '"}' >>wfs-record-results.json
 
-echo "=====Start wfs-return-results.json=="
-cat wfs-return-results.json
-echo "=====End wfs-return-results.json=="
+echo "=====Start wfs-record-results.json=="
+cat wfs-record-results.json
+echo "=====End wfs-record-results.json=="
+
+http_code=`curl \
+--retry 5 \
+--retry-max-time 300 \
+--max-time 600 \
+--user-agent 'wfs-generic-job' \
+--key $X509_USER_PROXY \
+--cert $X509_USER_PROXY \
+--cacert $X509_USER_PROXY \
+--header "X-Jobid: $JOBSUBJOBID" \
+--capath $X509_CERTIFICATES \
+--data @wfs-record-results.json \
+--output record-results.log \
+--write-out "%{http_code}\n" \
+https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
+
+echo "record_results returns HTTP code $http_code"
+
+echo "=====Start record-results.log=="
+touch record-results.log
+cat record-results.log
+echo "=====End record-results.log=="
+
+# Just try the first RSE for now; eventually will do failovers on errors
+output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
+
+cat $WFS_PATH/wfs-outputs.txt | (
+
+while read dataset scope fn
+do
+  echo "Metadata first? Would be $fn.json"
+  echo
+
+  echo "Upload $scope:$fn"
+  $WFS_PATH/wfs-rucio --verbose -a test upload --rse "$output_rse" \
+    --lifetime 3600 --scope "$scope" "workspace/$fn" 
+  echo "wfs-rucio returns $?"
+
+  if [ $? = 0 ] ; then
+    echo "Add $scope:$fn to $dataset"
+    $WFS_PATH/wfs-rucio --verbose -a test attach "$dataset" "$scope:$fn"
+  fi
+ 
+done
+
+)
+
+# If all ok, then confirm that to the Workflow Allocator
+
+cat <<EOF >wfs-confirm-results.json
+{
+  "method": "record_results",
+  "jobsub_id": "$JOBSUBJOBID"
+}
+EOF
+
+echo "=====Start wfs-confirm-results.json=="
+cat wfs-confirm-results.json
+echo "=====End wfs-confirm-results.json=="
 
 http_code=`curl \
 --retry 5 \
@@ -320,18 +389,21 @@ http_code=`curl \
 --max-time 600 \
 --user-agent 'wfs-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
+--key $X509_USER_PROXY \
+--cert $X509_USER_PROXY \
+--cacert $X509_USER_PROXY \
 --capath $X509_CERTIFICATES \
---data @wfs-return-results.json \
---output return-results.log \
+--data @wfs-confirm-results.json \
+--output confirm-results.log \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi`
 
-echo "return_results returns HTTP code $http_code"
+echo "confirm_results returns HTTP code $http_code"
 
-echo "=====Start return-results.log=="
-touch return-results.log
-cat return-results.log
-echo "=====End return-results.log=="
+echo "=====Start confirm-results.log=="
+touch confirm-results.log
+cat confirm-results.log
+echo "=====End confirm-results.log=="
 
 echo '====End of wfs-generic-job===='
 exit 0
