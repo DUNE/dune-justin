@@ -656,6 +656,21 @@ def pauseRequestCmd(jsonDict):
 
   httpError('200 OK', None)
 
+def finishRequestCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+# change to handle errors properly eg no such request
+  doQuery("UPDATE requests SET state='finished' WHERE request_id=%d "
+          "AND state<>'deleted'" % requestID)
+
+  wfs.db.conn.commit()
+
+  httpError('200 OK', None)
+
 def createStageCmd(jsonDict):
 
   try:
@@ -972,6 +987,9 @@ if jsonDict['command'] == 'start-request':
 
 if jsonDict['command'] == 'pause-request':
   pauseRequestCmd(jsonDict)
+
+if jsonDict['command'] == 'finish-request':
+  finishRequestCmd(jsonDict)
 
 if jsonDict['command'] == 'create-stage':
   createStageCmd(jsonDict)

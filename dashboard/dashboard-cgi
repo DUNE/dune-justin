@@ -762,9 +762,47 @@ def showJob(cgiValues):
 
 def listJobs(cgiValues, pageNumber, pageLength):
       
-  header("WFS: Jobs")
+  urlTemplate = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
+  filters     = []
+  titleSuffix = ''
 
-  print("<h1>Jobs</h1>")
+  try:
+    requestID    = int(cgiValues.getfirst("request_id"))
+    urlTemplate += ('&request_id=%d' % requestID)
+    titleSuffix += ('Request %d ' % requestID) 
+    filters.append('jobs.request_id=%d' % requestID)
+  except:
+    pass
+  
+  try:
+    stageID      = int(cgiValues.getfirst("stage_id"))
+    urlTemplate += '&stage_id=' + str(stageID)
+    titleSuffix += ('Stage %d ' % stageID) 
+    filters.append('jobs.stage_id=%d' % stageID)
+  except:
+    pass
+
+  allocationState = str(cgiValues.getfirst("allocation_state"))
+
+  if allocationState in ['submitted','started','processing','uploading',
+                         'finished', 'notused','failed']:
+    filters.append('jobs.allocation_state="%s"' % allocationState)
+    urlTemplate += '&allocation_state=' + allocationState
+    titleSuffix += ('Allocation State %s' % allocationState)
+  else:
+    allocationState = ''
+
+  filter = ' AND '.join(filters)
+
+  if filter:
+    filter = 'WHERE ' + filter
+    
+  if titleSuffix:
+    titleSuffix = ' for ' + titleSuffix
+    
+  header("WFS: Jobs" + titleSuffix)
+
+  print("<h1>Jobs" + titleSuffix + "</h1>")
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
@@ -773,15 +811,15 @@ def listJobs(cgiValues, pageNumber, pageLength):
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "%s "
            "ORDER BY jobs.wfs_job_id DESC LIMIT %d,%d" %
-           (pageNumber * pageLength, pageLength + 1)
+           (filter, pageNumber * pageLength, pageLength + 1)
           )
 
   wfs.db.cur.execute(query)
   jobRows = wfs.db.cur.fetchall()
 
-  printPager(pageNumber, pageLength, len(jobRows), 
-             "/dashboard/?method=list-jobs&page_number=%d&page_length=%d")
+  printPager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   print('<p><table>')
   
@@ -846,8 +884,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
 
   print("</table>")
 
-  printPager(pageNumber, pageLength, len(jobRows), 
-             "/dashboard/?method=list-jobs&page_number=%d&page_length=%d")
+  printPager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   footer()
 

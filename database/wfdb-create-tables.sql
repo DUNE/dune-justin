@@ -187,13 +187,13 @@ DROP TABLE IF EXISTS `requests`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-  `state` enum('draft','submitted','running','paused','checking','completed','deleted') NOT NULL,
+  `state` enum('draft','submitted','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `name` varchar(255) NOT NULL,
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `submitted` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `started` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `checking` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `completed` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `finished` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `refind_start_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `refind_end_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `refind_last_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
