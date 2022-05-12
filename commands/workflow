@@ -202,7 +202,7 @@ if jsonDict['url']:
 else:
   url = 'https://wfs-pro.dune.hep.ac.uk/wfdb-cgi'
 
-httpRequest = urllib.request.Request(url,
+httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),
                                      headers = { 'User-Agent': 
                                                  'workflow ' + versionNumber },

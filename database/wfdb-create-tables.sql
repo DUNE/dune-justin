@@ -45,7 +45,7 @@ CREATE TABLE `jobs` (
   `slot_size_id` smallint(5) unsigned NOT NULL,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','uploading',
-                          'finished','notused') NOT NULL DEFAULT 'submitted',
+                  'finished','notused','failed') NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
   `submitted_time` datetime NOT NULL,
@@ -156,7 +156,8 @@ CREATE TABLE `replicas` (
   `accessible_until` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY(`replica_id`),
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
-  UNIQUE KEY `pfn` (`pfn`,`file_id`)
+  UNIQUE KEY `pfn` (`pfn`,`file_id`),
+  INDEX `file_id` (`file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -283,7 +284,7 @@ CREATE TABLE `stages` (
   `num_uploading` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   `num_processed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   `num_notfound` mediumint(8) unsigned NOT NULL DEFAUlT 0,
-  UNIQUE KEY `request_id` (`request_id`,`stage_id`)
+  UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

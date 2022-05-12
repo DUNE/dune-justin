@@ -161,7 +161,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
                 jobDict['site_id']                
                )
             )
-    print(query,file=sys.stderr)
+#    print(query,file=sys.stderr)
 
     wfs.db.cur.execute(query)
     rseRows = wfs.db.cur.fetchall()
@@ -221,7 +221,11 @@ def getStageMethod(jsonDict):
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
-  stage = wfs.allocator.findStage(jobDict)
+  try:
+    stage = wfs.allocator.findStage(jobDict)
+  except Exception as e:
+    httpError('500 Internal Server Error', 
+              'Workflow allocator fails finding stage: ' + str(e))
 
   if not stage:
     # No stages/files eligible to be processed by this job
@@ -282,8 +286,12 @@ def getStageMethod(jsonDict):
   # We do this before the HTTP response in case
   # it is received ok by the job and run 
   # but times out and fails here on the server side
-  wfs.db.conn.commit()
-
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    httpError('500 Internal Server Error',
+              'Workflow allocator get_stage commit failed: ' + str(e))
+  
   # Return the script to the workflow job 
   print('Status: 200 OK')
   print('Content-Type: application/x-tar')
@@ -309,9 +317,54 @@ def sendHeartbeatMethod(jsonDict):
               'Workflow allocator failed: ' + str(e))
 
   # All done so commit the job details.
-  wfs.db.conn.commit()
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    httpError('500 Internal Server Error',
+              'Workflow allocator send_heartbeat commit failed: ' + str(e))
 
-  # Return the script to the workflow job 
+  print('Status: 200 OK')
+  print()
+  sys.exit(0)
+   
+# Job aborted 
+def jobAbortedMethod(jsonDict):
+
+  if 'jobsub_id' not in jsonDict or \
+     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+
+  try:
+    httpCode = int(jsonDict['http_code'])
+  except:
+    httpError('400 Bad Request', 'Missing/invalid http_code in JSON')
+
+  if 'aborted_method' not in jsonDict or \
+     not wfs.db.stringNoQuotes(jsonDict['aborted_method']):
+    httpError('400 Bad Request', 'Missing/invalid aborted_method in JSON')
+
+  if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
+    state = 'notused'
+  else:
+    state = 'failed'
+
+  try:
+    query = ('UPDATE jobs SET heartbeat_time=NOW(),allocation_state="%s",'
+             'finished_time=NOW() '
+             'WHERE jobsub_id="%s"' %
+             (state, jsonDict['jobsub_id']))
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    httpError('500 Internal Server Error', 
+              'Workflow allocator job_aborted failed: ' + str(e))
+
+  # All done so commit the job details.
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    httpError('500 Internal Server Error',
+              'Workflow allocator job_aborted commit failed: ' + str(e))
+
   print('Status: 200 OK')
   print()
   sys.exit(0)
@@ -352,6 +405,7 @@ def getFileMethod(jsonDict):
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                 )
         wfs.db.cur.execute(query)
+
         wfs.allocator.updateStageCounts(jobDict['request_id'], 
                                         jobDict['stage_id'])
 
@@ -364,7 +418,11 @@ def getFileMethod(jsonDict):
     # We do this before the HTTP response in case
     # it is received ok by the job and processed
     # but times out and fails here on the server side
-    wfs.db.conn.commit()
+    try:
+      wfs.db.conn.commit()
+    except Exception as e:
+      httpError('500 Internal Server Error',
+                'Workflow allocator get_file commit failed: ' + str(e))
 
     # Now tell the job what file to process and where it is
     print('Status: 200 OK')
@@ -465,7 +523,6 @@ def recordResultsMethod(jsonDict):
       if not wfs.db.stringNoQuotes(fileDID):    
         httpError('400 Bad Request', ('Invalid DID in ' + name))
 
-
   try:
     query = ('SELECT wfs_job_id, request_id, stage_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
@@ -491,8 +548,6 @@ def recordResultsMethod(jsonDict):
 
   processNextStageOutputs(jsonDict['next_stage_outputs'], requestID, stageID)
   
-  wfs.allocator.updateStageCounts(requestID, stageID)
-
   try:
     query = ('UPDATE jobs SET allocation_state="uploading",'
              'uploading_time=NOW(),heartbeat_time=NOW() '
@@ -511,8 +566,15 @@ def recordResultsMethod(jsonDict):
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))
 
+  # Update counts for this stage
+  wfs.allocator.updateStageCounts(requestID, stageID)
+
   # Commit everything, before we return OK to the job
-  wfs.db.conn.commit()
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    httpError('500 Internal Server Error',
+              'Workflow allocator record_results commit failed: ' + str(e))
 
   # Return OK to the job
   print('Status: 200 OK')
@@ -529,13 +591,15 @@ def confirmResultsMethod(jsonDict):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   try:
-    query = ('SELECT wfs_job_id '
+    query = ('SELECT wfs_job_id,request_id,stage_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     wfs.db.cur.execute(query)
     row = wfs.db.cur.fetchone()
 
     wfsJobID  = int(row['wfs_job_id'])
+    requestID = int(row['request_id'])
+    stageID   = int(row['stage_id'])
   except:
     httpError('500 Internal Server Error', 'Failed finding job')
 
@@ -568,7 +632,11 @@ def confirmResultsMethod(jsonDict):
   wfs.allocator.updateStageCounts(requestID, stageID)
 
   # Commit everything, before we return OK to the job
-  wfs.db.conn.commit()
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    httpError('500 Internal Server Error',
+              'Workflow allocator confirm_results commit failed: ' + str(e))
 
   # Return OK to the job
   print('Status: 200 OK')
@@ -640,6 +708,12 @@ elif jsonDict['method'] == 'send_heartbeat':
   # Fails with an HTTP error and exit if authorized ID not given
   checkJobUser()
   sendHeartbeatMethod(jsonDict)
+
+# Job aborted
+elif jsonDict['method'] == 'job_aborted':
+  # Fails with an HTTP error and exit if authorized ID not given
+  checkJobUser()
+  jobAbortedMethod(jsonDict)
 
 # Get one or more files to process  
 elif jsonDict['method'] == 'get_file':

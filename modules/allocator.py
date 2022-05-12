@@ -243,26 +243,62 @@ def findFile(jobDict):
          }
 
 def updateStageCounts(requestID, stageID):
+# Do a brute force recount of everything for this stage rather than try 
+# to use increments
+
+# DEADLOCKS!!!
+#  try:
+#    # Use a brute force recount of everything for this 
+#    # stage rather than try to use increments
+#    query = ('UPDATE stages SET '
+#             'num_finding=(SELECT COUNT(*) FROM files'
+#             ' WHERE state="finding" AND request_id=%d AND stage_id=%d),'
+#             'num_unallocated=(SELECT COUNT(*) FROM files'
+#             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
+#             'num_allocated=(SELECT COUNT(*) FROM files'
+#             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
+#             'num_uploading=(SELECT COUNT(*) FROM files'
+#             ' WHERE state="uploading" AND request_id=%d AND stage_id=%d),'
+#             'num_notfound=(SELECT COUNT(*) FROM files'
+#             ' WHERE state="processed" AND request_id=%d AND stage_id=%d),'
+#             'num_notfound=(SELECT COUNT(*) FROM files'
+#             ' WHERE state="notfound" AND request_id=%d AND stage_id=%d) '
+#             'WHERE request_id=%d AND stage_id=%d' % 
+#             (requestID, stageID,
+#              requestID, stageID,
+#              requestID, stageID,
+#              requestID, stageID,
+#              requestID, stageID,
+#              requestID, stageID,
+#              requestID, stageID)
+#            )
+#    wfs.db.cur.execute(query)
+#  except:
+#    pass
 
   try:
-    # Use a brute force recount of everything for this 
-    # stage rather than try to use increments
-    query = ('UPDATE stages SET '
-             'num_finding=(SELECT COUNT(*) FROM files'
-             ' WHERE state="finding" AND request_id=%d AND stage_id=%d),'
-             'num_unallocated=(SELECT COUNT(*) FROM files'
-             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
-             'num_allocated=(SELECT COUNT(*) FROM files'
-             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
-             'num_uploading=(SELECT COUNT(*) FROM files'
-             ' WHERE state="uploading" AND request_id=%d AND stage_id=%d),'
-             'num_notfound=(SELECT COUNT(*) FROM files'
-             ' WHERE state="processed" AND request_id=%d AND stage_id=%d),'
-             'num_notfound=(SELECT COUNT(*) FROM files'
+    # Get the counts
+    query = ('SELECT '
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE state="finding" AND request_id=%d AND stage_id=%d) '
+             ' AS num_finding,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d) '
+             ' AS num_unallocated,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d) '
+             ' AS num_allocated,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE state="uploading" AND request_id=%d AND stage_id=%d) '
+             ' AS num_uploading,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE state="processed" AND request_id=%d AND stage_id=%d) '
+             ' AS num_processed,'
+             '(SELECT COUNT(*) FROM files'
              ' WHERE state="notfound" AND request_id=%d AND stage_id=%d) '
-             'WHERE request_id=%d AND stage_id=%d' % 
+             ' AS num_notfound'
+             % 
              (requestID, stageID,
-              requestID, stageID,
               requestID, stageID,
               requestID, stageID,
               requestID, stageID,
@@ -270,5 +306,27 @@ def updateStageCounts(requestID, stageID):
               requestID, stageID)
             )
     wfs.db.cur.execute(query)
+    row = wfs.db.cur.fetchone()
+
+    # Update the stage
+    query = ('UPDATE stages SET '
+             'num_finding=%d,'
+             'num_unallocated=%d,'
+             'num_allocated=%d,'
+             'num_uploading=%d,'
+             'num_processed=%d,'
+             'num_notfound=%d '
+             'WHERE request_id=%d AND stage_id=%d' %
+             (row['num_finding'],
+              row['num_unallocated'],
+              row['num_allocated'],
+              row['num_uploading'],
+              row['num_processed'],
+              row['num_notfound'],
+              requestID, stageID))
+             
+    wfs.db.cur.execute(query)
+
   except:
     pass
+
