@@ -84,6 +84,28 @@ def errorPage(message):
   print("<h1>Error</h1>")
   print("<p>%s</p>" % message)
   footer()
+
+def spaceForUnixEpoch(s):
+  print('<!-- %s %s -->' % (wfs.db.unixEpoch, s))
+  if str(s) == wfs.db.unixEpoch:
+    return '&nbsp;'
+  else:
+    return str(s)
+
+def printPager(pageNumber, pageLength, rowsLen, urlTemplate):
+
+  print('<p>Page: ')
+
+  for pageno in range(pageNumber + 1):
+    if pageno == pageNumber:
+      print(' %d ' % (pageno + 1))
+    else:
+      print((' <a href="' + urlTemplate + '">%d</a> ') % 
+            (pageno, pageLength, pageno + 1))
+            
+  if rowsLen > pageLength:
+    print((' <a href="' + urlTemplate + '">Next</a> ') % 
+          (pageNumber + 1, pageLength))
   
 def mainPage():
   header("WFS: Dashboard")
@@ -99,35 +121,50 @@ def mainPage():
   
   footer()
 
-def listRequests(cgiValues):
+def listRequests(cgiValues, pageNumber, pageLength):
   header("WFS: Requests")
 
   print("<h1>Requests</h1>")
   
-  query = ('SELECT request_id,name,username,state,mql FROM requests '
+  query = ('SELECT request_id,name,username,state,mql,created,submitted,'
+           'started,finished '
+           'FROM requests '
            'LEFT JOIN users ON requests.user_id=users.user_id '
-           'ORDER BY request_id DESC')
+           'ORDER BY request_id DESC LIMIT %d,%d' %
+           (pageNumber * pageLength, pageLength + 1))
 
   wfs.db.cur.execute(query)
   rows = wfs.db.cur.fetchall()
 
-  print('<table')
+  printPager(pageNumber, pageLength, len(rows), 
+             "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
+             
+  print('<p><table')
   print('<tr><th>Request ID</th><th>Name</th><th>User</th><th>State</th>'
-        '<th>MQL</th><tr>')
+        '<th>MQL</th><th>Created</th><th>Submitted</th><th>Started</th>'
+        '<th>Finished</th><tr>')
 
-  for row in rows:
+  for row in rows[:pageLength]:
     print('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
-          '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
+          '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
+          '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
+          '</tr>' % 
           (row["request_id"], row["request_id"],
            html.escape(row["name"], quote=True),
            row["username"],
            row["state"],
-           html.escape(row["mql"], quote=True)
+           html.escape(row["mql"], quote=True),
+           spaceForUnixEpoch(row['created']),
+           spaceForUnixEpoch(row['submitted']),
+           spaceForUnixEpoch(row['started']),
+           spaceForUnixEpoch(row['finished'])
           )
          )
 
   print("</table>")
   
+  printPager(pageNumber, pageLength, len(rows), 
+             "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
   footer()
 
 def showRequest(cgiValues):
@@ -141,7 +178,7 @@ def showRequest(cgiValues):
   query = ("SELECT requests.name,requests.state,"
            "users.username,"
            "requests.created,requests.submitted,requests.started,"
-           "requests.checking,requests.completed,mql,"
+           "requests.checking,requests.finished,mql,"
            "requests.refind_seconds,requests.refind_start_time,"
            "requests.refind_end_time "
            "FROM requests "
@@ -150,57 +187,46 @@ def showRequest(cgiValues):
            "ORDER BY request_id" % requestID)
 
   wfs.db.cur.execute(query)
-  requestRows = wfs.db.cur.fetchall()
+  requestRow = wfs.db.cur.fetchone()
   
-  state = requestRows[0]['state']
+  state = requestRow['state']
 
   print("<h1>Request %d</h1>" % requestID)
   
   print('<table')
 
   print('<tr><td>Name</td><td>%s</td></tr>' % 
-        html.escape(requestRows[0]['name'], quote=True))
+        html.escape(requestRow['name'], quote=True))
   print('<tr><td>State</td><td>%s</td></tr>' % state)
   print('<tr><td>MQL</td><td>%s</td></tr>' % 
-        html.escape(requestRows[0]['mql'], quote=True))
+        html.escape(requestRow['mql'], quote=True))
 
-  print('<tr><td>Created by</td><td>%s</td></tr>' % 
-        requestRows[0]['username'])
-
-  print('<tr><td>Created</td><td>%s</td></tr>' % requestRows[0]['created'])
-
-  if requestRows[0]['refind_seconds'] == 0:
+  if requestRow['refind_seconds'] == 0:
     print('<tr><td>Finding</td><td>Once</td></tr>')
   else:
     print('<tr><td>Finding</td><td>Every %d hour(s), %s to %s</td></tr>' %
-          (int(requestRows[0]['refind_seconds'] / 3600), 
-           requestRows[0]['refind_start_time'],
-           requestRows[0]['refind_end_time'])
+          (int(requestRow['refind_seconds'] / 3600), 
+           requestRow['refind_start_time'],
+           requestRow['refind_end_time'])
          )
       
-  print('<tr><td>Submitted</td>')
-  if requestRows[0]['submitted']:
-    print('<td>%s</td></tr>' % str(requestRows[0]['submitted']))
-  else:
-    print('<td>-</td></tr>')
+  print('<tr><td>Created by</td><td>%s</td></tr>' % 
+        requestRow['username'])
 
-  print('<tr><td>Started</td>')
-  if requestRows[0]['started']:
-    print('<td>%s</td></tr>' % str(requestRows[0]['started']))
-  else:
-    print('<td>-</td></tr>')
-    
-  print('<tr><td>Checking</td>')
-  if requestRows[0]['checking']:
-    print('<td>%s</td></tr>' % str(requestRows[0]['checking']))
-  else:
-    print('<td>-</td></tr>')
+  print('<tr><td>Created</td><td>%s</td></tr>' % 
+        spaceForUnixEpoch(requestRow['created']))
 
-  print('<tr><td>Completed</td>') 
-  if requestRows[0]['completed']:
-    print('<td>%s</td></tr>' % str(requestRows[0]['completed']))
-  else:
-    print('<td>-</td></tr>')
+  print('<tr><td>Submitted</td><td>%s</td></tr>' % 
+        spaceForUnixEpoch(requestRow['submitted']))
+
+  print('<tr><td>Started</td><td>%s</td></tr>' % 
+        spaceForUnixEpoch(requestRow['started']))
+
+  print('<tr><td>Checking</td><td>%s</td></tr>' % 
+        spaceForUnixEpoch(requestRow['checking']))
+
+  print('<tr><td>Finished</td><td>%s</td></tr>' % 
+        spaceForUnixEpoch(requestRow['finished']))
   
   print("</table>")
   
@@ -396,7 +422,8 @@ def showStage(cgiValues):
 
   footer()
 
-def listFiles(cgiValues):
+def listFiles(cgiValues, pageNumber, pageLength):
+
   try:
     requestID = int(cgiValues.getfirst("request_id"))
   except:
@@ -416,6 +443,7 @@ def listFiles(cgiValues):
   else:
     stateFilter = ''
     stateText = ''
+    state = ''
     
   header("WFS: Files for Request %d, Stage %d%s" 
          % (requestID, stageID, stateText))
@@ -432,17 +460,25 @@ def listFiles(cgiValues):
            "LEFT JOIN jobs ON jobs.wfs_job_id=files.wfs_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
-           "ORDER BY files.file_id" % (requestID, stageID, stateFilter))
+           "ORDER BY files.file_id LIMIT %d,%d" % 
+           (requestID, stageID, stateFilter, 
+           pageNumber * pageLength, pageLength + 1))
 
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
 
+  printPager(pageNumber, pageLength, len(filesRows),
+             '/dashboard/?method=list-files&page_number=%d&page_length=%d'
+             '&request_id=' + str(requestID) + 
+             '&stage_id=' + str(stageID) + 
+             '&state=' + state)
+
   print(
-"""<table>
+"""<p><table>
 <tr><th rowspan="2">DID</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
-  for fileRow in filesRows:
+  for fileRow in filesRows[:pageLength]:
     print('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%s</td>' % 
           (requestID, 
@@ -469,6 +505,12 @@ def listFiles(cgiValues):
       
   print("</table>")
   
+  printPager(pageNumber, pageLength, len(filesRows),
+             '/dashboard/?method=list-files&page_number=%d&page_length=%d'
+             '&request_id=' + str(requestID) + 
+             '&stage_id=' + str(stageID) + 
+             '&state=' + state)
+
   footer()
 
 def showFile(cgiValues):
@@ -718,7 +760,7 @@ def showJob(cgiValues):
 
   footer()
 
-def listJobs(cgiValues):
+def listJobs(cgiValues, pageNumber, pageLength):
       
   header("WFS: Jobs")
 
@@ -731,13 +773,17 @@ def listJobs(cgiValues):
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
-           "ORDER BY jobs.wfs_job_id DESC"
+           "ORDER BY jobs.wfs_job_id DESC LIMIT %d,%d" %
+           (pageNumber * pageLength, pageLength + 1)
           )
 
   wfs.db.cur.execute(query)
   jobRows = wfs.db.cur.fetchall()
 
-  print('<table>')
+  printPager(pageNumber, pageLength, len(jobRows), 
+             "/dashboard/?method=list-jobs&page_number=%d&page_length=%d")
+
+  print('<p><table>')
   
   print('<tr>'
         '<th>Jobsub ID</th>'
@@ -752,7 +798,7 @@ def listJobs(cgiValues):
         '<th>Finished</th>'
         '</tr>')
   
-  for jobRow in jobRows:
+  for jobRow in jobRows[:pageLength]:
     if jobRow['username']:
       usernameStr = jobRow["username"]
     else:
@@ -792,13 +838,17 @@ def listJobs(cgiValues):
              usernameStr,
              requestIdStr,
              stageIdStr,
-             jobRow["submitted_time"],
-             jobRow["allocation_time"],
-             jobRow["finished_time"]             
+             spaceForUnixEpoch(jobRow["submitted_time"]),
+             spaceForUnixEpoch(jobRow["allocation_time"]),
+             spaceForUnixEpoch(jobRow["finished_time"])
             )
          )    
 
   print("</table>")
+
+  printPager(pageNumber, pageLength, len(jobRows), 
+             "/dashboard/?method=list-jobs&page_number=%d&page_length=%d")
+
   footer()
 
 def listSites(cgiValues):
@@ -1109,8 +1159,18 @@ method = cgiValues.getfirst("method")
 if method is None:
   mainPage()
   
+try:
+  pageNumber = int(cgiValues.getfirst("page_number"))
+except:
+  pageNumber = 0
+    
+try:
+  pageLength = int(cgiValues.getfirst("page_length"))
+except:
+  pageLength = 30
+
 if method == "list-requests":
-  listRequests(cgiValues)
+  listRequests(cgiValues, pageNumber, pageLength)
 
 if method == "show-request":
   showRequest(cgiValues)
@@ -1119,7 +1179,7 @@ if method == "show-stage":
   showStage(cgiValues)
 
 if method == "list-files":
-  listFiles(cgiValues)
+  listFiles(cgiValues, pageNumber, pageLength)
 
 if method == "show-file":
   showFile(cgiValues)
@@ -1128,7 +1188,7 @@ if method == "show-job":
   showJob(cgiValues)
 
 if method == "list-jobs":
-  listJobs(cgiValues)
+  listJobs(cgiValues, pageNumber, pageLength)
 
 if method == "list-sites":
   listSites(cgiValues)

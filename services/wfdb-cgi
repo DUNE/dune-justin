@@ -503,6 +503,8 @@ def quickRequestCmd(jsonDict, userID):
     refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
         
   doQuery('INSERT INTO requests SET created=NOW(),'
+          'submitted=NOW(),'
+          'started=NOW(),'
           'state="running",'
           'name="%s",'
           'mql="%s",'
@@ -625,7 +627,12 @@ def startRequestCmd(jsonDict):
 
 # change to handle errors properly eg no such request
 # or not in draft or submitted states
-  doQuery("UPDATE requests SET state='running',started=NOW() "
+  doQuery("UPDATE requests SET started=NOW() "
+          "WHERE request_id=%d AND "
+          "(state='draft' OR state='submitted'"
+          % requestID)
+
+  doQuery("UPDATE requests SET state='running' "
           "WHERE request_id=%d AND "
           "(state='draft' OR state='submitted' OR state='paused')"
           % requestID)

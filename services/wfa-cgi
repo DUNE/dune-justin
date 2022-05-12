@@ -234,6 +234,7 @@ def getStageMethod(jsonDict):
                'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
              
       wfs.db.cur.execute(query)    
+      wfs.db.conn.commit()
     except Exception as e:
       pass
 

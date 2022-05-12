@@ -199,13 +199,13 @@ def findFiles():
 
   query = ('SELECT request_id,mql FROM requests '
            'WHERE state="running" AND '
-           '((refind_seconds=0 AND refind_last_time="1970-01-01 00:00:00")'
+           '((refind_seconds=0 AND refind_last_time="%s")'
            ' OR '
            ' (refind_seconds > 0 AND '
            ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
            ' < NOW() AND refind_start_time < NOW() AND '
            'refind_end_time >= NOW())) '
-           'ORDER BY request_id')
+           'ORDER BY request_id' % wfs.db.unixEpoch)
 
   wfs.db.cur.execute(query)
 
@@ -321,7 +321,7 @@ def findReplicas():
         if rseName in storagesDict and repsDict[fileRow['file_did']][rseName]:
 
          if storagesDict[rseName]['needs_pin']:
-           accessibleUntil = ',accessible_until="1970-01-01 00:00:00" '
+           accessibleUntil = ',accessible_until="%s" ' %s wfs.db.unixEpoch
          else:
            accessibleUntil = ''
              

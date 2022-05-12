@@ -81,7 +81,10 @@ def makeJobDict(jobsubID, cookie = None):
 
     wfs.db.cur.execute(query)
     job = wfs.db.cur.fetchone()
-  except:
+  except Exception as e:
+    return { "error_message": "Error finding job from jobsubID: " + str(e) }
+
+  if not job:
     return { "error_message": "Failed to find job from jobsubID" }
 
   if job['allocation_state'] != 'submitted' and \
