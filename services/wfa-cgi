@@ -47,6 +47,7 @@ import sys
 import time
 import json
 import uuid
+import base64
 import string
 import tarfile
 import MySQLdb
@@ -532,7 +533,7 @@ def recordResultsMethod(jsonDict):
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Failed recording next stage outputs: ' + str(e))
-                
+
   try:
     query = ('UPDATE jobs SET allocation_state="uploading",'
              'uploading_time=NOW(),heartbeat_time=NOW() '
@@ -544,9 +545,13 @@ def recordResultsMethod(jsonDict):
 
   try:
     query = ('INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
-             'bootstrap_log="' +
-             jsonDict['bootstrap_log'].replace('"', '_') + '"')
+             'bootstrap_log="%s"' %
+        base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
+            )
 
+#    print(str(jsonDict),file=sys.stderr)
+#    print(query,file=sys.stderr)
+    
     wfs.db.cur.execute(query)
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))

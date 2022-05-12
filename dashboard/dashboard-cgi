@@ -491,12 +491,12 @@ def listFiles(cgiValues, pageNumber, pageLength):
          
     if fileRow["state"] == 'allocated' or fileRow["state"] == 'processed':
       print('<td>%s</td>'
-            '<td>%s</td>'
-            '<td>%s</td>'
+            '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+            '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
             (str(fileRow["allocation_time"]),
-             str(fileRow["rse_name"]),
-             str(fileRow["site_name"]),
+             str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
+             str(fileRow["site_name"]), str(fileRow["site_name"]),
              str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
             )
            )
@@ -608,16 +608,16 @@ def showJob(cgiValues):
   except:
     errorPage("jobsub_id must be given")
       
-  header("WFS: Jobsub %s" % jobsubID)
+  header("WFS: Jobsub ID %s" % jobsubID)
 
-  print("<h1>Jobsub %s</h1>" % jobsubID)
+  print("<h1>Jobsub ID %s</h1>" % jobsubID)
   
   query = ("SELECT jobs.wfs_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,username,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
-           "jobs.heartbeat_time,"
+           "jobs.heartbeat_time,jobs.uploading_time,"
            "slot_sizes.max_processors,slot_sizes.min_processors,"
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
            "slot_sizes.max_wall_seconds,bootstrap_log "
@@ -630,12 +630,12 @@ def showJob(cgiValues):
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   wfs.db.cur.execute(query)
-  jobRows = wfs.db.cur.fetchall()
+  jobRow = wfs.db.cur.fetchone()
 
   query = ("SELECT file_did FROM allocations "
            "LEFT JOIN files ON allocations.file_id=files.file_id "
            "WHERE allocations.wfs_job_id=%d ORDER BY allocation_id" % 
-           jobRows[0]['wfs_job_id'])
+           jobRow['wfs_job_id'])
 
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
@@ -644,11 +644,11 @@ def showJob(cgiValues):
   
   print('<tr><td>Jobsub state</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["jobsub_state"])
+        % jobRow["jobsub_state"])
       
   print('<tr><td>Allocation state</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["allocation_state"])
+        % jobRow["allocation_state"])
       
   print('<tr><td>Jobsub ID</td>'
         '<td>%s</td></tr>'
@@ -656,91 +656,110 @@ def showJob(cgiValues):
 
   print('<tr><td>Submitted time</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["submitted_time"])
+        % jobRow["submitted_time"])
       
   print('<tr><td>Last heartbeat</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["heartbeat_time"])
+        % spaceForUnixEpoch(jobRow["heartbeat_time"]))
       
   print('<tr><td>Allocator name</td>'
         '<td>%s</td></tr>'
-        % html.escape(jobRows[0]["allocator_name"], quote=True))
+        % html.escape(jobRow["allocator_name"], quote=True))
 
-  if jobRows[0]["site_name"]:
+  if jobRow["site_name"]:
     print('<tr><td>Site</td>'
-          '<td>%s</td></tr>'
-          % html.escape(jobRows[0]["site_name"], quote=True))
+          '<td><a href="/dashboard/?method=show-site&site_name=%s">'
+          '%s</a></td></tr>'
+          % (jobRow["site_name"], jobRow["site_name"]))
 
   print('<tr><td>Slot</td><td>'
         '%d &lt; processors &le; %d<br>'
         '%d &lt; rss bytes &le; %d<br>'
         'wall seconds &le; %d</td></tr>'
-        % (jobRows[0]["min_processors"], jobRows[0]["max_processors"],
-           jobRows[0]["min_rss_bytes"], jobRows[0]["max_rss_bytes"],
-           jobRows[0]["max_wall_seconds"]
+        % (jobRow["min_processors"], jobRow["max_processors"],
+           jobRow["min_rss_bytes"], jobRow["max_rss_bytes"],
+           jobRow["max_wall_seconds"]
           )
        )
 
-  if jobRows[0]["hostname"]:
+  if jobRow["hostname"]:
     print('<tr><td>Hostname</td>'
           '<td>%s</td></tr>'
-          % html.escape(jobRows[0]["hostname"], quote=True))
+          % html.escape(jobRow["hostname"], quote=True))
   
-  if jobRows[0]["cpuinfo"]:
+  if jobRow["cpuinfo"]:
     print('<tr><td>cpuinfo</td>'
           '<td>%s</td></tr>'
-          % html.escape(jobRows[0]["cpuinfo"], quote=True))
+          % html.escape(jobRow["cpuinfo"], quote=True))
 
-  if jobRows[0]["os_release"]:
+  if jobRow["os_release"]:
     print('<tr><td>OS release</td>'
           '<td>%s</td></tr>'
-          % html.escape(jobRows[0]["os_release"], quote=True))
+          % html.escape(jobRow["os_release"], quote=True))
 
-  if jobRows[0]["rss_bytes"]:
+  if jobRow["rss_bytes"]:
     print('<tr><td>RSS bytes</td>'
           '<td>%s (%d MB)</td></tr>' % 
-          (jobRows[0]["rss_bytes"], 
-           int(jobRows[0]["rss_bytes"]) / 1048576))
+          (jobRow["rss_bytes"], 
+           int(jobRow["rss_bytes"]) / 1048576))
 
-  if jobRows[0]["processors"]:
+  if jobRow["processors"]:
     print('<tr><td>Processors</td>'
           '<td>%s</td></tr>'
-          % jobRows[0]["processors"])
+          % jobRow["processors"])
 
-  if jobRows[0]["wall_seconds"]:
+  if jobRow["wall_seconds"]:
     print('<tr><td>Wall seconds limit</td>'
           '<td>%s (%d hours)</td></tr>'
-          % (jobRows[0]["wall_seconds"],
-             int(jobRows[0]["wall_seconds"]) / 3600))
+          % (jobRow["wall_seconds"],
+             int(jobRow["wall_seconds"]) / 3600))
 
-  print('<tr><td>Request by</td><td>%s</td></tr>' 
-        % jobRows[0]['username'])
+  print('<tr><td>Request by</td>')
+  
+  if jobRow['username']:
+    print('<td>%s</td></tr>' % jobRow['username'])
+  else:
+    print('<td>&nbsp;</td></tr>')
 
-  print('<tr><td>Request ID</td>'
-        '<td><a href="/dashboard/?method=show-request&request_id=%s">%s</a></td></tr>'
-        % (jobRows[0]["request_id"],
-           jobRows[0]["request_id"]))
+  print('<tr><td>Request ID</td>')
+  
+  if jobRow['request_id']:
+    print('<td><a href="/dashboard/?method=show-request&request_id=%s">'
+          '%s</a></td></tr>'
+           % (jobRow["request_id"],
+              jobRow["request_id"]))
+  else:
+    print('<td>&nbsp;</td></tr>')
         
-  print('<tr><td>Stage ID</td>'
-        '<td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">%s</a></td></tr>'
-        % (jobRows[0]["request_id"], jobRows[0]["stage_id"],
-           jobRows[0]["stage_id"]))
+  print('<tr><td>Stage ID</td>')
+  
+  if jobRow['stage_id']:
+    print('<td><a href="/dashboard/?method=show-stage&request_id=%s&'
+          'stage_id=%s">%s</a></td></tr>'
+          % (jobRow["request_id"], jobRow["stage_id"],
+             jobRow["stage_id"]))
+  else:
+    print('<td>&nbsp;</td></tr>')
         
   print('<tr><td>Started</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["allocation_time"])
+        % spaceForUnixEpoch(jobRow["allocation_time"]))
+
+  print('<tr><td>Uploading started</td>'
+        '<td>%s</td></tr>'
+        % spaceForUnixEpoch(jobRow["uploading_time"]))
 
   print('<tr><td>Finished</td>'
         '<td>%s</td></tr>'
-        % jobRows[0]["finished_time"])
+        % spaceForUnixEpoch(jobRow["finished_time"]))
 
   print('<tr><td>Files</td><td>')
   
   for fileRow in filesRows:
     print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a><br>' % 
-          (jobRows[0]["request_id"], 
-           jobRows[0]["stage_id"],
+          (jobRow["request_id"], 
+           jobRow["stage_id"],
            urllib.parse.quote(fileRow["file_did"], safe=''),
            html.escape(fileRow["file_did"], quote=True)
           )
@@ -749,11 +768,11 @@ def showJob(cgiValues):
 
   print("</table>")
 
-  if jobRows[0]['bootstrap_log']:
+  if jobRow['bootstrap_log']:
     print("<h2>Bootstrap log</h2>")
     print('<table><tr><td><pre>') 
  
-    print(html.escape(jobRows[0]["bootstrap_log"], 
+    print(html.escape(jobRow["bootstrap_log"].strip(), 
           quote=True))
   
     print('</pre></td></tr></table>') 
@@ -762,14 +781,14 @@ def showJob(cgiValues):
 
 def listJobs(cgiValues, pageNumber, pageLength):
       
-  urlTemplate = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
-  filters     = []
-  titleSuffix = ''
+  urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
+  filters       = []
+  titleSuffixes = []
 
   try:
     requestID    = int(cgiValues.getfirst("request_id"))
     urlTemplate += ('&request_id=%d' % requestID)
-    titleSuffix += ('Request %d ' % requestID) 
+    titleSuffixes.append('Request %d' % requestID) 
     filters.append('jobs.request_id=%d' % requestID)
   except:
     pass
@@ -777,7 +796,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
   try:
     stageID      = int(cgiValues.getfirst("stage_id"))
     urlTemplate += '&stage_id=' + str(stageID)
-    titleSuffix += ('Stage %d ' % stageID) 
+    titleSuffixes.append('Stage %d' % stageID) 
     filters.append('jobs.stage_id=%d' % stageID)
   except:
     pass
@@ -788,21 +807,31 @@ def listJobs(cgiValues, pageNumber, pageLength):
                          'finished', 'notused','failed']:
     filters.append('jobs.allocation_state="%s"' % allocationState)
     urlTemplate += '&allocation_state=' + allocationState
-    titleSuffix += ('Allocation State %s' % allocationState)
+    titleSuffixes.append('Allocation State %s' % allocationState)
   else:
-    allocationState = ''
+    pass
+
+  siteName = cgiValues.getfirst("site_name")
+  if siteName and wfs.db.stringIsSite(siteName):
+    filters.append('sites.site_name="%s"' % siteName)
+    urlTemplate += '&site_name=' + siteName
+    titleSuffixes.append('Site %s' % siteName)
 
   filter = ' AND '.join(filters)
 
   if filter:
     filter = 'WHERE ' + filter
+  else:
+    filter = ''
     
-  if titleSuffix:
-    titleSuffix = ' for ' + titleSuffix
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
+  else:
+    titleSuffix = ''
     
   header("WFS: Jobs" + titleSuffix)
 
-  print("<h1>Jobs" + titleSuffix + "</h1>")
+  print("<h1>Jobs%s</h1>" % titleSuffix)
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
@@ -861,7 +890,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
           '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          '<td>%s</td>'          
+          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'          
           '<td>%s</td>'          
           '<td>%s</td>'
           '<td>%s</td>'
@@ -872,7 +901,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
           % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
              jobRow['jobsub_state'],
              jobRow['allocation_state'],
-             jobRow['site_name'],
+             jobRow['site_name'], jobRow['site_name'],
              usernameStr,
              requestIdStr,
              stageIdStr,
@@ -1014,6 +1043,17 @@ def showSite(cgiValues):
         % bool(siteRow['enabled']))
 
   print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
+
+  print('<tr><td>Jobs</td><td>'
+        '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ')
+        
+  for state in ['submitted', 'started', 'processing', 'uploading',
+                'finished', 'notused', 'failed']:
+    print('<a href="/dashboard/?method=list-jobs&allocation_state=%s&'
+          'site_name=%s">%s</a> ' %
+          (state, siteName, state.capitalize()))
+
+  print('</td></tr>')
   
   print('<tr><td>External info</td><td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'

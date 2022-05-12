@@ -251,6 +251,8 @@ if [ -f workspace/wfs-unprocessed-inputs.txt ] ; then
   unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\`|sed 's/ /,/g'`
 fi
 
+tail -c 10000 wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
+
 cat <<EOF >wfs-record-results.json
 {
   "method": "record_results",
@@ -258,12 +260,9 @@ cat <<EOF >wfs-record-results.json
   "processed_inputs": [$processed_inputs],
   "unprocessed_inputs": [$unprocessed_inputs],
   "next_stage_outputs": [$next_stage_outputs],
-  "bootstrap_log": "
+  "bootstrap_log": "`cat wfs-bootstrap.log.b64`"
+}
 EOF
-
-tail -c 10000 wfs-bootstrap.log | sed 's/"/\\\"/g' >>wfs-record-results.json
-  
-echo '"}' >>wfs-record-results.json
 
 echo "=====Start wfs-record-results.json=="
 cat wfs-record-results.json
