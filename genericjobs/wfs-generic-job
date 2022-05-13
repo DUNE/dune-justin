@@ -240,15 +240,22 @@ echo '####'
 
 next_stage_outputs=`echo \`sed 's/.*/"&"/' wfs-next-stage-outputs.txt\`|sed 's/ /,/g'`
 
-
 # wfs-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
-if [ -f workspace/wfs-processed-inputs.txt ] ; then
-  processed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-inputs.txt\`|sed 's/ /,/g'`
+if [ -f workspace/wfs-processed-dids.txt ] ; then
+  processed_dids=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-dids.txt\`|sed 's/ /,/g'`
 fi
 
-if [ -f workspace/wfs-unprocessed-inputs.txt ] ; then
-  unprocessed_inputs=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-inputs.txt\`|sed 's/ /,/g'`
+if [ -f workspace/wfs-unprocessed-dids.txt ] ; then
+  unprocessed_dids=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-dids.txt\`|sed 's/ /,/g'`
+fi
+
+if [ -f workspace/wfs-processed-pfns.txt ] ; then
+  processed_pfns=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-pfns.txt\`|sed 's/ /,/g'`
+fi
+
+if [ -f workspace/wfs-unprocessed-pfns.txt ] ; then
+  unprocessed_pfns=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
 tail -c 10000 wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
@@ -257,8 +264,10 @@ cat <<EOF >wfs-record-results.json
 {
   "method": "record_results",
   "jobsub_id": "$JOBSUBJOBID",
-  "processed_inputs": [$processed_inputs],
-  "unprocessed_inputs": [$unprocessed_inputs],
+  "processed_dids": [$processed_dids],
+  "unprocessed_dids": [$unprocessed_dids],
+  "processed_pfns": [$processed_pfns],
+  "unprocessed_pfns": [$unprocessed_pfns],
   "next_stage_outputs": [$next_stage_outputs],
   "bootstrap_log": "`cat wfs-bootstrap.log.b64`"
 }

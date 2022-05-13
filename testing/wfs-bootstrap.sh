@@ -76,8 +76,8 @@ pandora_metadata.py \
 sed -i -e "/file_name/ a     \"parents\": [\"$(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root)\"]," $(ls *_michelremoving.root).json
 
 # Record that we processed the input file ok (did we???)
-echo "$input_file_did" >> wfa-processed-inputs.txt
-touch wfa-unprocessed-inputs.txt
+echo "$input_file_did" >> wfa-processed-dids.txt
+touch wfa-unprocessed-dids.txt
 
 # Patterns to put in stage outputs definition:
 # np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root

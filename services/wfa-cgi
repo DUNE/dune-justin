@@ -488,8 +488,8 @@ def recordResultsMethod(jsonDict):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required values
-  for name in ['processed_inputs', 
-               'unprocessed_inputs', 'next_stage_outputs']:
+  for name in ['processed_dids', 
+               'unprocessed_dids', 'next_stage_outputs']:
     if name not in jsonDict:
       httpError('400 Bad Request','Missing value (%s) in JSON' % name)
       
@@ -513,7 +513,7 @@ def recordResultsMethod(jsonDict):
   # For processed inputs, we just record they got as far as uploading
   # the corresponding outputs, for now 
   try:
-    updateFileProcessing(jsonDict['processed_inputs'], 'uploading',
+    updateFileProcessing(jsonDict['processed_dids'], 'uploading',
                          wfsJobID, requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 
@@ -522,7 +522,7 @@ def recordResultsMethod(jsonDict):
   # For unprocessed inputs, we can put them straight back into the 
   # unprocessed state
   try:
-    updateFileProcessing(jsonDict['unprocessed_inputs'], 'unprocessed',
+    updateFileProcessing(jsonDict['unprocessed_dids'], 'unprocessed',
                          wfsJobID, requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 

@@ -25,10 +25,10 @@ rse=`echo $did_pfn_rse | cut -f3 -d' '`
 xrdcp --silent $pfn - | sha1sum >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
 
 # We say we processed whatever we were given
-echo "$did" > wfs-processed-inputs.txt
+echo "$did" > wfs-processed-dids.txt
 
 # Nothing unprocessed
-echo > wfs-unprocessed-inputs.txt
+echo > wfs-unprocessed-dids.txt
 
 # Log what we did
 echo "Processed $did at $pfn for Request $WFS_REQUEST_ID, Stage $WFS_STAGE_ID"

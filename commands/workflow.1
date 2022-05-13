@@ -232,11 +232,63 @@ Show jobs identified by Jobsub ID or Request ID (and optionally Stage ID). Job
 state can also be given to further filter the jobs listed. For each job,
 the Jobsub ID, Request ID, Stage ID, State, and creation time are shown.
 
+.SH BOOTSTRAP SCRIPTS
+
+The bootstrap scripts supplied when creating a stage are shell scripts
+which the generic jobs execute on the worker nodes matched to that stage.
+They are started in an empty workspace directory.
+Several environment variables are made available to the
+scripts, all prefixed with WFS_, including $WFS_REQUEST_ID, $WFS_STAGE_ID and
+$WFS_COOKIE which allows the bootstrap script to authenticate to the 
+Workflow Allocator. $WFS_PATH is used to reference files and scripts 
+provided by the Workflow System. 
+
+To get the details of an input file to work on, the command 
+$WFS_PATH/wfs-get-file is executed by the bootstrap script.
+This produces a single line of output with the Rucio DID of the chosen file,
+its PFN on the optimal RSE, and the name of that RSE, all separated by
+spaces. This code fragment shows how the DID, PFN and RSE can be put into
+shell variables:
+
+  did_pfn_rse=`$WFS_PATH/wfs-get-file`
+  did=`echo $did_pfn_rse | cut -f1 -d' '`
+  pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+  rse=`echo $did_pfn_rse | cut -f3 -d' '`
+
+If no file is available to be processed, then wfs-get-file produces no
+output to stdout, which should also be checked for. wfs-get-file logs errors
+to stderr.
+
+wfs-get-file is itself a simple wrapper around the curl command and it would
+also be possible to access the Workflow Allocator's REST API directly from
+an application.
+
+wfs-get-file can be called multiple times to process more than one file in
+the same bootstrap script. This can be done all at the start or repeatedly
+during the lifetime of the job. Each file returned by wfs-get-file is 
+marked as allocated and will not be processed by any other jobs. When the
+bootstrap script finishes, it 
+.B must
+leave two files, wfs-processed-dids.txt and wfs-unprocessed-dids.txt,
+in its workspace directory. These are sent to the Workflow Allocator by
+the generic job, which either marks input files as being successfully processed
+or resets their state to unallocated, ready for matching by another job. Each
+file takes the form of a series of zero or more Rucio DIDs, one per line.
+
+Output files which are to be uploaded with Rucio by the generic job must be 
+created in the bootstrap's workspace directory and have filenames matching
+the patterns given by
+.B --output-pattern
+or
+.B --output-pattern-next-stage
+when the stage was created. The suffixed .json is appended to find the
+corresponding metadata files for MetaCat.
+
 .SH REQUEST PROCESSING
 
 Once a request enters the running state, it is processed by the Workflow 
 System's Finder agent. Usually this is just done once, but it can be
-repeated if the --refind-days option is given when creating the request.
+repeated if the --refind-hours option is given when creating the request.
 When the request is processed, the Finder uses the requests's MQL 
 expression to create a list of input files for the first stage. Work is only
 assigned to jobs when a matching file is found and so these lists of files 

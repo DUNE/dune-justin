@@ -3,11 +3,15 @@
 # Submit with something like this:
 #
 # ./workflow quick-request --monte-carlo 1 \
-# --file hello-world-bootstrap.sh 
+# --file sleep-bootstrap.sh 
 #
 # Then monitor with dashboard or ./workflow show-jobs --request-id ID
 # where ID is the value printed by the first command
 #
+
+date
+sleep 1800
+date
 
 # Get an unprocessed file from this stage
 did_pfn_rse=`$WFS_PATH/wfs-get-file`
@@ -20,9 +24,5 @@ echo "$did" > wfs-processed-dids.txt
 
 # Nothing unprocessed
 echo > wfs-unprocessed-dids.txt
-
-# Hello world
-echo "Hello world $pfn" 
-echo "Hello world $pfn" >hello-world-$(date -u +%Y%m%dT%H%M%SZ).txt
 
 exit 0
