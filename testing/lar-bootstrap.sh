@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Example bootstrap script that runs lar  of all the files
+# Example bootstrap script that runs lar for all the files
 # referred to by the MQL expression give on the workflow command line.
 #
 # Submit with something like this:
@@ -43,6 +43,14 @@ lar --nevts 3 \
     -o %ifb_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root \
     $pfn
 
+larReturnCode=$?
+
+echo "lar returns $larReturnCode"
+if [ "$larReturnCode" != 0 ] ; then
+  echo $pfn > wfs-unprocessed-pfns.txt
+  exit $larReturnCode
+fi
+
 lar -c michelremoving.fcl -s *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root
 
 cp ${JSB_TMP}/JOBSUB_LOG_FILE \
@@ -53,30 +61,27 @@ cp ${JSB_TMP}/JOBSUB_ERR_FILE \
 extractor_prod.py \
  --infile $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root) \
  --appfamily art --appname reco --appversion v09_09_01 \
- --campaign WFATest1 --no_crc --data_stream physics \
+ --campaign "WFS-$WFS_REQUEST_ID" --no_crc --data_stream physics \
  > $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root).json
 
 mv michelremoving.root \
-  $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root \
-  | sed -e "s/\.root/_michelremoving.root/")
+  $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root | sed -e "s/\.root/_michelremoving.root/")
 
 mv Pandora_Events.pndr \
-  $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root \
-  | sed -e "s/\.root/_Pandora_Events\.pndr/")
-
-mv $(ls hist_*reco.root) \
-  $(ls hist_*_reco.root | sed -e "s/\.root/_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}\.root/")
+  $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root | sed -e "s/\.root/_Pandora_Events\.pndr/")
 
 pandora_metadata.py \
  --infile $(ls *_Pandora_Events.pndr)  \
  --appfamily art --appname reco \
- --appversion v09_09_01 --campaign WFATest1 --no_crc --data_stream physics \
+ --appversion v09_09_01 --campaign "WFS-$WFS_REQUEST_ID" \
+ --no_crc --data_stream physics \
  --input_json $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root.json) \
  > $(ls *_Pandora_Events.pndr).json
 
 pandora_metadata.py \
  --infile $(ls *_michelremoving.root)  \
- --appfamily art --appname calana --appversion v09_09_01 --campaign WFATest1 \
+ --appfamily art --appname calana --appversion v09_09_01 \
+ --campaign "WFS-$WFS_REQUEST_ID" \
  --no_crc --data_stream physics \
  --input_json $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root.json) \
  --data_tier root-tuple --file_format rootntuple --strip_parents \
@@ -85,8 +90,7 @@ pandora_metadata.py \
 sed -i -e "/file_name/ a     \"parents\": [\"$(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root)\"]," $(ls *_michelremoving.root).json
 
 # Record that we processed the input file ok (did we???)
-echo "$pfn" >> wfa-processed-pfns.txt
-touch wfa-unprocessed-pfns.txt
+echo "$pfn" > wfs-processed-pfns.txt
 
 # Patterns to put in stage outputs definition:
 # np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root

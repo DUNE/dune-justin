@@ -1045,7 +1045,8 @@ def showSite(cgiValues):
   print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 
   print('<tr><td>Jobs</td><td>'
-        '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ')
+        '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' %
+        siteName)
         
   for state in ['submitted', 'started', 'processing', 'uploading',
                 'finished', 'notused', 'failed']:

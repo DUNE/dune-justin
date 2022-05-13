@@ -129,7 +129,7 @@ def findFilesRucio(didClient, requestID, scope, name):
 
   # All files found for this request so update its state
   try:
-    query = ('UPDATE requests SET find_last_time=NOW() WHERE request_id=' +
+    query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
     wfs.db.cur.execute(query)
@@ -182,7 +182,7 @@ def findFilesMetaCat(requestID, mql):
 
   # All files found for this request so update its state
   try:
-    query = ('UPDATE requests SET find_last_time=NOW() WHERE request_id=' +
+    query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
     wfs.db.cur.execute(query)
@@ -261,8 +261,10 @@ def findReplicas():
   # Make a list of up to maxFileFindsPerCycle files to work on 
   # but only for Rucio DIDs in scope:name format
   didsList = []
-  query = ('SELECT request_id,stage_id,file_id,file_did FROM files '
-           'WHERE state="finding" '
+  query = ('SELECT files.request_id,files.stage_id,file_id,file_did FROM files '
+           'LEFT JOIN requests ON requests.request_id=files.request_id '
+           'WHERE files.state="finding" '
+           'AND requests.state="running" '
            'AND file_did LIKE "%:%" '
            'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
   
@@ -321,7 +323,7 @@ def findReplicas():
         if rseName in storagesDict and repsDict[fileRow['file_did']][rseName]:
 
          if storagesDict[rseName]['needs_pin']:
-           accessibleUntil = ',accessible_until="%s" ' %s wfs.db.unixEpoch
+           accessibleUntil = ',accessible_until="%s" ' % wfs.db.unixEpoch
          else:
            accessibleUntil = ''
              

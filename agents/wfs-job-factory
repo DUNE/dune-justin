@@ -259,6 +259,7 @@ def oneCycle():
                 'UNIX_TIMESTAMP(last_submitted_time) AS last_submitted_time,'
                 'UNIX_TIMESTAMP(last_allocation_time) AS last_allocation_time,'
                 '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="I" AND '
+                'jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 2 HOUR) AND '
                 'allocation_state<>"finished" AND jobs.site_id=sites.site_id AND '
                 'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
                 '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="R" AND '
