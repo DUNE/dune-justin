@@ -439,24 +439,40 @@ def getFileMethod(jsonDict):
   # No file eligible to be processed by this job
   httpError('404 Not Found', 'No eligible file found')
 
-def updateFileProcessing(fileList, state, wfsJobID, requestID, stageID):
+def updateFileProcessing(didList, pfnList, 
+                         state, wfsJobID, requestID, stageID):
+  # Exceptions in this function must by handled by the caller!
 
-  processedList = []
+  # Use a set rather than a list to remove duplicates
+  testDids = set()
 
-  try:
-    for fileDid in fileList:
-      if '"' in fileDid or "'" in fileDid:
-        continue
+  if pfnList:
+    # Add DIDs from PFNs if we're given any PFNs
+    testPfns = set()
 
-      processedList.append('files.file_did="' + str(fileDid) + '"')
-  except:
-    return 
+    for filePfn in pfnList:
+      testPfns.add('pfn="' + str(filePfn) + '"')
+    
+    query = (('SELECT files.file_did FROM files '
+              'LEFT JOIN replicas ON files.file_id=replicas.file_id '
+              'WHERE wfs_job_id=%d AND request_id=%d AND stage_id=%d AND '
+              '(' + ' OR '.join(testPfns) + ')') % 
+             (wfsJobID, requestID, stageID))
+
+    wfs.db.cur.execute(query)
+    rows = wfs.db.cur.fetchall()
+    
+    for row in rows:
+      testDids.add('file_did="' + str(row['file_did']) + '"')
+
+  for fileDid in didList:
+    testDids.add('file_did="' + str(fileDid) + '"')
 
   # Update the files the job did or did not manage to process
-  # Exceptions must by trapped by the caller!
-  if processedList:
+  if testDids:
     query = ('UPDATE files SET state="' + state + '" '
-               'WHERE (' + ' OR '.join(processedList) + ') '
+               'WHERE (' + ' OR '.join(testDids) + ') '
+               'AND wfs_job_id=' + str(wfsJobID) + ' '
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
@@ -487,16 +503,17 @@ def recordResultsMethod(jsonDict):
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
-  # Check jsonDict contains required values
-  for name in ['processed_dids', 
-               'unprocessed_dids', 'next_stage_outputs']:
+  # Check jsonDict contains required lists (can be empty)
+  for name in ['processed_dids', 'unprocessed_dids', 
+               'processed_pfns', 'unprocessed_pfns',
+               'next_stage_outputs']:
     if name not in jsonDict:
-      httpError('400 Bad Request','Missing value (%s) in JSON' % name)
-      
+      httpError('400 Bad Request', 'Missing value (%s) in JSON' % name)
+
     for fileDID in jsonDict[name]:
       if not wfs.db.stringNoQuotes(fileDID):    
-        httpError('400 Bad Request', ('Invalid DID in ' + name))
-
+        httpError('400 Bad Request', 'Invalid DID or PFN in ' + name)
+      
   try:
     query = ('SELECT wfs_job_id, request_id, stage_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
@@ -513,7 +530,9 @@ def recordResultsMethod(jsonDict):
   # For processed inputs, we just record they got as far as uploading
   # the corresponding outputs, for now 
   try:
-    updateFileProcessing(jsonDict['processed_dids'], 'uploading',
+    updateFileProcessing(jsonDict['processed_dids'], 
+                         jsonDict['processed_pfns'], 
+                         'uploading',
                          wfsJobID, requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 
@@ -522,7 +541,9 @@ def recordResultsMethod(jsonDict):
   # For unprocessed inputs, we can put them straight back into the 
   # unprocessed state
   try:
-    updateFileProcessing(jsonDict['unprocessed_dids'], 'unprocessed',
+    updateFileProcessing(jsonDict['unprocessed_dids'], 
+                         jsonDict['unprocessed_pfns'], 
+                         'unprocessed',
                          wfsJobID, requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 

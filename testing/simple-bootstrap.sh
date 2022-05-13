@@ -6,7 +6,7 @@
 # Submit with something like this:
 #
 # ./workflow quick-request \
-#  --mql "files from protodune-sp:np04_raw_run_number_5769" \
+#  --mql "rucio-dataset protodune-sp:np04_raw_run_number_5769" \
 #  --output-pattern 'sha1sum-*.txt' \
 #  --file simple-bootstrap.sh 
 #

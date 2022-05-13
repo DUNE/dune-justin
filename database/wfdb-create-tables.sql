@@ -118,6 +118,7 @@ CREATE TABLE `files` (
   `creator_wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`),
+  INDEX `wfs_job_id` (`wfs_job_id`,`request_id`,`stage_id`),
   INDEX `request_stage_state_id` (`request_id`,`stage_id`,`state`),
   KEY `state_file_id` (`state`,`file_id`),
   INDEX `creator_wfs_job_id` (`creator_wfs_job_id`)

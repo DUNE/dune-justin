@@ -243,19 +243,19 @@ next_stage_outputs=`echo \`sed 's/.*/"&"/' wfs-next-stage-outputs.txt\`|sed 's/ 
 # wfs-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
 if [ -f workspace/wfs-processed-dids.txt ] ; then
-  processed_dids=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-dids.txt\`|sed 's/ /,/g'`
+  processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-dids.txt\`|sed 's/ /,/g'`
 fi
 
 if [ -f workspace/wfs-unprocessed-dids.txt ] ; then
-  unprocessed_dids=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-dids.txt\`|sed 's/ /,/g'`
+  unprocessed_dids=`echo \`sed -r 's/.+/"&"/' workspace/wfs-unprocessed-dids.txt\`|sed 's/ /,/g'`
 fi
 
 if [ -f workspace/wfs-processed-pfns.txt ] ; then
-  processed_pfns=`echo \`sed 's/.*/"&"/' workspace/wfs-processed-pfns.txt\`|sed 's/ /,/g'`
+  processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
 if [ -f workspace/wfs-unprocessed-pfns.txt ] ; then
-  unprocessed_pfns=`echo \`sed 's/.*/"&"/' workspace/wfs-unprocessed-pfns.txt\`|sed 's/ /,/g'`
+  unprocessed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/wfs-unprocessed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
 tail -c 10000 wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
@@ -293,14 +293,14 @@ http_code=`curl \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi/record_results`
 
 echo "record_results returns HTTP code $http_code"
-if [ "$http_code" != 200 ] ; then
-  job_aborted $http_code record_results
-fi
-
 echo "=====Start record-results.log=="
 touch record-results.log
 cat record-results.log
 echo "=====End record-results.log=="
+
+if [ "$http_code" != 200 ] ; then
+  job_aborted $http_code record_results
+fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
 output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
@@ -355,14 +355,14 @@ http_code=`curl \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi/confirm_results`
 
 echo "confirm_results returns HTTP code $http_code"
-if [ "$http_code" != 200 ] ; then
-  job_aborted $http_code confirm_results
-fi
-
 echo "=====Start confirm-results.log=="
 touch confirm-results.log
 cat confirm-results.log
 echo "=====End confirm-results.log=="
+
+if [ "$http_code" != 200 ] ; then
+  job_aborted $http_code confirm_results
+fi
 
 echo '====End of wfs-generic-job===='
 exit 0

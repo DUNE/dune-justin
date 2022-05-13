@@ -259,21 +259,31 @@ If no file is available to be processed, then wfs-get-file produces no
 output to stdout, which should also be checked for. wfs-get-file logs errors
 to stderr.
 
-wfs-get-file is itself a simple wrapper around the curl command and it would
-also be possible to access the Workflow Allocator's REST API directly from
-an application.
-
 wfs-get-file can be called multiple times to process more than one file in
 the same bootstrap script. This can be done all at the start or repeatedly
-during the lifetime of the job. Each file returned by wfs-get-file is 
-marked as allocated and will not be processed by any other jobs. When the
-bootstrap script finishes, it 
+during the lifetime of the job. wfs-get-file is itself a simple wrapper around
+the curl command and it would also be possible to access the Workflow 
+Allocator's REST API directly from an application.
+
+Each file returned by wfs-get-file is marked as allocated and will not be 
+processed by any other jobs. When the bootstrap script finishes, it 
 .B must
-leave two files, wfs-processed-dids.txt and wfs-unprocessed-dids.txt,
-in its workspace directory. These are sent to the Workflow Allocator by
-the generic job, which either marks input files as being successfully processed
-or resets their state to unallocated, ready for matching by another job. Each
-file takes the form of a series of zero or more Rucio DIDs, one per line.
+leave files with lists of the processed and unprocessed files in its
+workspace directory. These lists are sent to the Workflow Allocator by
+the generic job, which either marks input files as being successfully 
+processed or resets their state to unallocated, ready for matching by another
+job. 
+
+Files can be referred to either by DID or PFN, one
+per line, in the appropriate list file:  
+  wfs-processed-dids.txt
+  wfs-processed-pfns.txt
+  wfs-unprocessed-dids.txt
+  wfs-unprocessed-pfns.txt
+
+It is not necessary to create list files which would otherwise be empty. You 
+can use a mix of DIDs and PFNs, as long as each appears in the correct list
+file.
 
 Output files which are to be uploaded with Rucio by the generic job must be 
 created in the bootstrap's workspace directory and have filenames matching
