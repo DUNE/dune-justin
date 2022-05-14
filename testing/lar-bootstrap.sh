@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Example bootstrap script that runs lar for all the files
-# referred to by the MQL expression give on the workflow command line.
+# referred to by the MQL expression given on the workflow command line.
 #
 # Submit with something like this:
 #
