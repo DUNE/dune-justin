@@ -1,4 +1,4 @@
-.TH WORKFLOW  "2021" "workflow" "WFS Manual"
+.TH WORKFLOW  "2022" "workflow" "WFS Manual"
 .SH NAME
 .B workflow
 \- Workflow System utility command
@@ -36,7 +36,7 @@ option is only needed during development and testing.
 Output the version number of the workflow command.
 
 .HP
-.B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start YYYYMMDD] [--refind-end YYYYMMDD] [--refind-hours HOURS]"
+.B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
 .br
 Create a new, empty request in the database, optionally with the given 
 human-readable name and either a MetaCat Query Language expression or
@@ -46,13 +46,13 @@ Requests are created in the state "draft" and the command returns the new
 request's ID number.
 Once the request is in the running state, the Workflow System will use the 
 MQL expression to find the list of input files from MetaCat. If 
-.B --refind-hours
+.B --refind-interval-hours
 is given, the MQL query will be resubmitted at that interval to add any
 new matching files from the start of the day given by
-.B --refind-start
-(default: today in UTC) to the end of the day given by
-.B --refind-end
-(default: today in UTC).
+.B --refind-start-date
+(default: today in UTC) for the number of days given by
+.B --refind-duration-days
+(default: 1).
 
 .HP
 .B "show-requests [--request-id ID]"
@@ -145,7 +145,7 @@ distance. If this option is not used, or none of the given RSEs are available,
 then the default algorithm for choosing the closest available RSE is used.
 
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start YYYYMMDD] [--refind-end YYYYMMDD] [--refind-hours HOURS] --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS] --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern DATASET-SCOPE:DATASET-NAME:SCOPE:PATTERN] --output-rse NAME"
 .br
 Combines the 
 .B create-request, create-stage
@@ -298,8 +298,8 @@ corresponding metadata files for MetaCat.
 
 Once a request enters the running state, it is processed by the Workflow 
 System's Finder agent. Usually this is just done once, but it can be
-repeated if the --refind-hours option is given when creating the request.
-When the request is processed, the Finder uses the requests's MQL 
+repeated if the --refind-interval-hours option is given when creating the 
+request. When the request is processed, the Finder uses the requests's MQL 
 expression to create a list of input files for the first stage. Work is only
 assigned to jobs when a matching file is found and so these lists of files 
 are essential.

@@ -393,37 +393,39 @@ def createRequestCmd(jsonDict, userID):
       httpError('400 Bad Request', 
                 'Monte Carlo option requires an integer count')
 
-  if 'refind_hours' in jsonDict and jsonDict['refind_hours']:
+  if 'refind_interval_hours' in jsonDict and jsonDict['refind_interval_hours']:
     try:
-      refindSeconds = int(jsonDict['refind_hours'] * 3600)
-    except:
-      httpError('400 Bad Request', '--refind-hours requires an integer argument')
-  else:
-    refindSeconds = 0
-
-  if 'refind_start' in jsonDict and jsonDict['refind_start']:
-    try:
-      yyyymmdd = str(int(jsonDict['refind_start']))
-      refindStart = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
-                                           yyyymmdd[4:6], 
-                                           yyyymmdd[6:8])
+      refindIntervalSeconds = int(jsonDict['refind_interval_hours'] * 3600)
     except:
       httpError('400 Bad Request', 
-                '--refind-start requires a YYYYMMDD date')
+                '--refind-interval-hours requires an integer argument')
   else:
-    refindStart = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
+    refindIntervalSeconds = 0
 
-  if 'refind_end' in jsonDict and jsonDict['refind_end']:
+  if 'refind_start_date' in jsonDict and jsonDict['refind_start_date']:
     try:
-      yyyymmdd = str(int(jsonDict['refind_end']))
-      refindEnd = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
-                                         yyyymmdd[4:6], 
-                                         yyyymmdd[6:8])
+      yyyymmdd = str(int(jsonDict['refind_start_date']))
+      refindStartDate = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                               yyyymmdd[4:6], 
+                                               yyyymmdd[6:8])
     except:
       httpError('400 Bad Request', 
-                '--refind-end requires a YYYYMMDD date')
+                '--refind-start-date requires a YYYYMMDD date')
   else:
-    refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
+    refindStartDate = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
+
+  if 'refind_duration_days' in jsonDict and jsonDict['refind_duration_days']:
+    try:
+      refindDurationDays = int(jsonDict['refind_duration_days'])
+      refindFinishDate = (
+                          datetime.datetime.today() +
+                          datetime.timedelta(refindDurationDays)
+                         ).strftime('%Y-%m-%d 23:59:59')
+    except:
+      httpError('400 Bad Request', 
+                '--refind-duration-days requires an integeer')
+  else:
+    refindDurationDays = 1
         
   doQuery('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
@@ -435,9 +437,9 @@ def createRequestCmd(jsonDict, userID):
           (name,
            mql,
            userID,
-           refindSeconds,
-           refindStart,
-           refindEnd))
+           refindIntervalSeconds,
+           refindStartDate,
+           refindFinishDate))
 
   wfs.db.conn.commit()
 
@@ -793,7 +795,7 @@ def createStageCmd(jsonDict):
       doQuery('INSERT INTO stages_output_storages SET '
               'request_id=%d,'
               'stage_id=%d,'
-              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")'
+              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
               (requestID, stageID, rseName))
 
   wfs.db.conn.commit()
