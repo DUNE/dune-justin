@@ -230,6 +230,7 @@ def findFile(jobDict):
     allocationID = wfs.db.cur.lastrowid
 
     query = ("UPDATE files SET state='allocated',"
+             "allocations=allocations+1,"
              "wfs_job_id=" + str(jobDict['wfs_job_id']) + " "
              "WHERE file_id=" + str(fileRows[0]['file_id'])
             )

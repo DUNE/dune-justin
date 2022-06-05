@@ -43,6 +43,13 @@ rseAvailabilityRead   = 4
 
 unixEpoch = '1970-01-01 00:00:00'
 
+jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled' ]
+
+jobStatesAll = [ 'submitted', 'started', 'processing', 'uploading' ] \
+               + jobStatesTerminal
+
+maxAllocations = 6
+
 def stringIsJobsubID(s):
   return re.search('[^A-Z,a-z,0-9,_,.,@,-]', s) is None
 

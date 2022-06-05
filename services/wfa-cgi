@@ -348,8 +348,8 @@ def jobAbortedMethod(jsonDict):
   if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
     state = 'notused'
   else:
-    state = 'failed'
-
+    state = 'aborted'
+ 
   try:
     query = ('UPDATE jobs SET heartbeat_time=NOW(),allocation_state="%s",'
              'finished_time=NOW() '
@@ -470,12 +470,27 @@ def updateFileProcessing(didList, pfnList,
 
   # Update the files the job did or did not manage to process
   if testDids:
-    query = ('UPDATE files SET state="' + state + '" '
+
+    if state == 'unallocated':
+      # If already at max allocations, go to failed rather than unallocated!
+      query = ('UPDATE files SET '
+               'state=IF(allocations < ' + str(wfs.db.maxAllocations) + ','
+               '"unallocated","failed") '
+               'WHERE (' + ' OR '.join(testDids) + ') '
+               'AND allocations < ' + str(wfs.db.maxAllocations) + ' '
+               'AND wfs_job_id=' + str(wfsJobID) + ' '
+               'AND request_id=' + str(requestID) + ' '
+               'AND stage_id=' + str(stageID) + ' '
+               'AND state="allocated"')
+    
+    else:
+      query = ('UPDATE files SET state="' + state + '" '
                'WHERE (' + ' OR '.join(testDids) + ') '
                'AND wfs_job_id=' + str(wfsJobID) + ' '
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
+
     wfs.db.cur.execute(query)
     
 # Deal with the output files needed by the next stage
@@ -541,7 +556,7 @@ def recordResultsMethod(jsonDict):
   # For unprocessed inputs, we can put them straight back into the 
   # unprocessed state
   try:
-    updateFileProcessing(jsonDict['unprocessed_dids'], 
+    updateFileProcessing(jsonDict['unprocessed_dids'],
                          jsonDict['unprocessed_pfns'], 
                          'unprocessed',
                          wfsJobID, requestID, stageID)

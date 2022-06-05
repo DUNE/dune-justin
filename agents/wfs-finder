@@ -389,6 +389,8 @@ def oneCycle():
 
   findFiles()
   findReplicas()
+#  findFinishedRequests
+#  findStalledJobs
 
 #
 # PROGRAM MAIN
