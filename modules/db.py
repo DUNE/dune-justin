@@ -62,3 +62,33 @@ def stringIsSite(s):
 def stringNoQuotes(s):
   return re.search('[",`,\']', s) is None
 
+# Log an event to the database, returning an error message or None if no
+# errors. You must ensure events are committed along with anything else
+# you are writing to the database!!!
+def logEvent(requestID = 0,
+             stageID = 0,
+             fileID = 0,
+             wfsJobID = 0,
+             siteID = 0,
+             rseID = 0):
+
+  try:
+    query = ('INSERT INTO events SET '
+             'request_id=%d,'
+             'stage_id=%d,'
+             'file_id=%d,'
+             'wfs_job_id=%d,'
+             'site_id=%d,'
+             'rse_id=%d,'
+             'event_time=NOW()' %
+             requestID,
+             stageID,
+             fileID,
+             wfsJobID,
+             siteID,
+             rseID)
+
+    cur.execute(query)
+    return None
+  except Exception as e:
+    return "Error logging event: " + str(e)

@@ -385,12 +385,71 @@ def findReplicas():
   # All ok, so commit it all to the DB
   wfs.db.conn.commit()
 
+def findFinishedRequests():
+  # Find requests with all files in terminal states and set to finished
+
+  try:
+    query = ('SELECT request_id FROM requests '
+             'WHERE state="running" AND '
+             '((refind_seconds = 0) OR (refind_end_time < NOW())) '
+             'ORDER BY request_id')
+
+    wfs.db.cur.execute(query)
+
+    findingRequests = wfs.db.cur.fetchall()
+  except:
+    logLine('Failed to get list of running requests')
+    return
+    
+  if not findingRequests:
+    logLine('No running requests to check')
+    return
+
+  for request in findingRequests:
+
+    try:
+      query = ('SELECT COUNT(*) AS count FROM files '
+               'WHERE request_id=%d AND '
+               'state <> "processed" AND '
+               'state <> "notfound" AND '
+               'state <> "failed" AND ' 
+               'state <> "output"' %
+               int(request['request_id']))
+             
+      wfs.db.cur.execute(query)
+      count = int(wfs.db.cur.fetchone()['count'])
+    except Exception as e:
+      logLine('Failed to count non-terminal files for Request ID %d: %s' % 
+              (request['request_id'], str(e)))
+      continue
+
+    if count > 0:
+      # Some files have not reached terminal states
+#      logLine('Still non-terminal files for Request ID %d' % 
+#              request['request_id'])
+      continue
+    
+    try:
+      query = ('UPDATE requests SET state="finished",finished=NOW() '
+               'WHERE request_id=%d' % int(request['request_id']))
+    
+      wfs.db.cur.execute(query)
+    except:
+      logLine('Failed to update state to finished for Request ID %d' % 
+              request['request_id'])
+      continue
+
+    logLine('Request ID %d set to finished' % request['request_id'])
+    
+  wfs.db.conn.commit()
+
 def oneCycle():
 
   findFiles()
   findReplicas()
-#  findFinishedRequests
-#  findStalledJobs
+  findFinishedRequests()
+
+#  findStalledJobs()
 
 #
 # PROGRAM MAIN

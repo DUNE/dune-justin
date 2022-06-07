@@ -248,8 +248,10 @@ def updateSites():
     # Ensure the sites exist
     query = ('INSERT INTO sites SET site_name="%s",'
              'jobsub_site_name="%s",'
-             'wlcg_site_name="%s" '
-             'ON DUPLICATE KEY UPDATE jobsub_site_name="%s",wlcg_site_name="%s"'
+             'wlcg_site_name="%s",'
+             'last_seen_time=NOW() '
+             'ON DUPLICATE KEY UPDATE '
+             'jobsub_site_name="%s",wlcg_site_name="%s",last_seen_time=NOW()'
              % (siteName, 
                 sitesDict[siteName]['jobsub_site_name'], 
                 sitesDict[siteName]['wlcg_site_name'],

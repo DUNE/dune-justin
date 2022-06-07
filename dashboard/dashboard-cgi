@@ -934,16 +934,23 @@ def listSites(cgiValues):
   
   print('<tr>'
         '<th>Site name</th>'
+        '<th>Enabled?</th>'
+        '<th>Last job</th>'
         '<th>Jobsub site name</th>'
         '<th>WLCG site name</th>'
-        '<th>Enabled?</th>'
         '<th>Max jobs</th>'
         '<th colspan=2>&nbsp;</th>'
         '</tr>')
   
   for siteRow in siteRows:  
+    if str(siteRow['last_get_stage_time']) == wfs.db.unixEpoch:
+      lastGetStageStr = '&nbsp;'
+    else:
+      lastGetStageStr = str(siteRow['last_get_stage_time'])
+  
     print('<tr>'
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+          '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
@@ -957,9 +964,10 @@ def listSites(cgiValues):
           '<input type="submit" value="GOCDB"></form></td>'
           '</tr>'
           % (siteRow['site_name'], siteRow['site_name'],
+             bool(siteRow['enabled']),
+             lastGetStageStr,
              siteRow['jobsub_site_name'],
              siteRow['wlcg_site_name'],
-             bool(siteRow['enabled']),
              siteRow['max_jobs'],
              siteRow['site_name'],
              siteRow['wlcg_site_name']
@@ -1041,6 +1049,16 @@ def showSite(cgiValues):
 
   print('<tr><td>Enabled?</td><td>%s</td></tr>' 
         % bool(siteRow['enabled']))
+
+  print('<tr><td>Last submitted</td><td>%s</td></tr>' 
+        % siteRow['last_submitted_time'])
+
+  if str(siteRow['last_get_stage_time']) == wfs.db.unixEpoch:
+    lastGetStageStr = '&nbsp;'
+  else:
+    lastGetStageStr = str(siteRow['last_get_stage_time'])
+
+  print('<tr><td>Last job started</td><td>%s</td></tr>' % lastGetStageStr)
 
   print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 

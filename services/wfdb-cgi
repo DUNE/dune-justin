@@ -567,9 +567,8 @@ def quickRequestCmd(jsonDict, userID):
       if len(splitList) < 4:
         continue
     
-      datasetScope = splitList[0]
+      scope        = splitList[0]
       datasetName  = splitList[1]
-      scope        = splitList[2]
       pattern      = ':'.join(splitList[3:])
     
       doQuery('INSERT INTO stages_outputs SET '
@@ -580,7 +579,7 @@ def quickRequestCmd(jsonDict, userID):
               'file_pattern="%s",'
               'for_next_stage=FALSE' % 
               (requestID,
-               datasetScope.replace('\\','\\\\').replace('"','\\"'),
+               scope.replace('\\','\\\\').replace('"','\\"'),
                datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"')
@@ -735,13 +734,12 @@ def createStageCmd(jsonDict):
     
       splitList = i.split(':')
        
-      if len(splitList) < 4:
+      if len(splitList) < 3:
         continue
     
-      datasetScope = splitList[0]
-      datasetName  = splitList[1]
-      scope        = splitList[2]
-      pattern      = ':'.join(splitList[3:])
+      scope       = splitList[0]
+      datasetName = splitList[1]
+      pattern     = ':'.join(splitList[2:])
         
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
@@ -751,7 +749,7 @@ def createStageCmd(jsonDict):
               'file_pattern="%s",'
               'for_next_stage=FALSE' % 
               (requestID, stageID,
-               datasetScope.replace('\\','\\\\').replace('"','\\"'),
+               scope.replace('\\','\\\\').replace('"','\\"'),
                datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"')
@@ -766,10 +764,9 @@ def createStageCmd(jsonDict):
       if len(splitList) < 4:
         continue
     
-      datasetScope = splitList[0]
+      scope        = splitList[0]
       datasetName  = splitList[1]
-      scope        = splitList[2]
-      pattern      = ':'.join(splitList[3:])
+      pattern      = ':'.join(splitList[2:])
         
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
@@ -779,7 +776,7 @@ def createStageCmd(jsonDict):
               'file_pattern="%s",'
               'for_next_stage=TRUE' % 
               (requestID, stageID,
-               datasetScope.replace('\\','\\\\').replace('"','\\"'),
+               scope.replace('\\','\\\\').replace('"','\\"'),
                datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"')

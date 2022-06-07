@@ -194,6 +194,10 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
 
   # Record that we've done a submission for this slot size
   try:
+    wfs.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
+                'WHERE site_id=%d' % slotSizeRow['site_id']
+               )
+
     wfs.db.cur.execute('UPDATE slot_sizes SET last_submitted_time=NOW() '
                 'WHERE slot_size_id=%d' % slotSizeRow['slot_size_id']
                )
@@ -211,10 +215,6 @@ def processSlotSize(slotSizeRow):
 
   logLine(str(slotSizeRow))
 
-  if slotSizeRow['number_idle'] > 0:
-    # Really cautious for now: no submissions if any already waiting
-    return
-
   if slotSizeRow['number_at_site'] >= slotSizeRow['max_jobs']:
     # Just check once, so we might go over a little bit for now ...
     return
@@ -224,15 +224,20 @@ def processSlotSize(slotSizeRow):
     print(jobDict)
     stage = wfs.allocator.findStage(jobDict, limit = jobsPerCycle)
     print(stage)
+    print(slotSizeRow)
   except Exception as e:
     logLine('Update makeSlotSizeDict/findStage fails with: ' + str(e))
     stage = None
 
-  if stage: 
-    # Submit one job if none idle and at least one stage would match 
+  if stage and (slotSizeRow['number_idle'] == 0):
+    # Submit job(s) if at least one stage would match and none idle
     numberToSubmit = stage['matches']
     logLine('Match found - submit %d job(s)' % numberToSubmit)
     submitToSlotSize(numberToSubmit, slotSizeRow)
+  elif not slotSizeRow['site_submitted_recently'] and \
+       (slotSizeRow['min_processors'] == 0):
+    logLine('Nothing matched but time to submit again anyway')
+    submitToSlotSize(1, slotSizeRow)
   else:
     logLine('No match found')
 
@@ -247,32 +252,31 @@ def oneCycle():
   
   try:
     wfs.db.cur.execute('SELECT sites.site_id,'
-                'site_name,'
-                'jobsub_site_name,'
-                'slot_size_id,'
-                'min_rss_bytes,'
-                'max_rss_bytes,'
-                'min_processors,'
-                'max_processors,'
-                'max_wall_seconds,'
-                'sites.max_jobs,'
-                'UNIX_TIMESTAMP(last_submitted_time) AS last_submitted_time,'
-                'UNIX_TIMESTAMP(last_allocation_time) AS last_allocation_time,'
-                '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="I" AND '
-                'jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 2 HOUR) AND '
-                'allocation_state<>"finished" AND jobs.site_id=sites.site_id AND '
-                'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
-                '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="R" AND '
-                'jobs.site_id=sites.site_id AND '
-                'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_running,'
-                '(SELECT COUNT(*) FROM jobs WHERE'
-                ' (jobsub_state="I" OR jobsub_state="R") AND'
-                ' jobs.site_id=sites.site_id) AS number_at_site '
-                'FROM sites '
-                'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
-                'WHERE enabled '
-                'ORDER BY site_name'
-                # Should change this to random order
+      'site_name,'
+      'jobsub_site_name,'
+      'slot_size_id,'
+      'min_rss_bytes,'
+      'max_rss_bytes,'
+      'min_processors,'
+      'max_processors,'
+      'max_wall_seconds,'
+      'sites.max_jobs,'
+      'UNIX_TIMESTAMP(slot_sizes.last_submitted_time) AS last_submitted_time,'
+      'UNIX_TIMESTAMP(slot_sizes.last_allocation_time) AS last_allocation_time,'
+      '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="I" AND '
+      'jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 2 HOUR) AND '
+      'allocation_state<>"finished" AND jobs.site_id=sites.site_id AND '
+      'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
+      '(SELECT COUNT(*) FROM jobs WHERE'
+      ' (jobsub_state="I" OR jobsub_state="R") AND'
+      ' jobs.site_id=sites.site_id) AS number_at_site,'
+      '(sites.last_submitted_time > '
+      'DATE_SUB(NOW(),INTERVAL 1 DAY)) AS site_submitted_recently '
+      'FROM sites '
+      'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
+      'WHERE enabled '
+      'ORDER BY site_name,min_processors'
+      # Should change this to random order
                )
 
     slotSizesRows = wfs.db.cur.fetchall()

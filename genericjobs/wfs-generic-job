@@ -207,7 +207,8 @@ echo '####'
 
 # Make the lists of output files and files for the next stage
 echo -n > wfs-outputs.txt
-echo -n > wfs-next-stage-outputs.txt
+echo -n > wfs-output-dids.txt
+echo -n > wfs-next-stage-dids.txt
 
 cat wfs-output-patterns.txt | (
 while read for_next_stage dataset scope pattern
@@ -220,9 +221,13 @@ do
       if [ -r "$fn" ] ; then
         # wfs-outputs.txt gets DATASET SCOPE FILENAME on each line
         echo "$dataset $scope $fn" >> $WFS_PATH/wfs-outputs.txt
+
         if [ "$for_next_stage" = "True" ] ; then
-          # wfs-next-stage-outputs gets a list of DIDs
-          echo "$scope:$fn" >> $WFS_PATH/wfs-next-stage-outputs.txt    
+          # wfs-next-stage-dids gets a list of DIDs
+          echo "$scope:$fn" >> $WFS_PATH/wfs-next-stage-dids.txt
+        else
+          # wfs-output-dids.txt gets DID = SCOPE:FILENAME
+          echo "$scope:$fn" >> $WFS_PATH/wfs-output-dids.txt
         fi
       fi
     done
@@ -234,11 +239,17 @@ echo '#### wfs-outputs.txt'
 cat $WFS_PATH/wfs-outputs.txt
 echo '####'
 echo
-echo '#### wfs-next-stage-outputs.txt'
-cat $WFS_PATH/wfs-next-stage-outputs.txt
+echo '#### wfs-output-dids.txt'
+cat $WFS_PATH/wfs-output-dids.txt
+echo '####'
+echo
+echo '#### wfs-next-stage-dids.txt'
+cat $WFS_PATH/wfs-next-stage-dids.txt
 echo '####'
 
-next_stage_outputs=`echo \`sed 's/.*/"&"/' wfs-next-stage-outputs.txt\`|sed 's/ /,/g'`
+output_dids=`echo \`sed 's/.*/"&"/' wfs-output-dids.txt\`|sed 's/ /,/g'`
+
+next_stage_dids=`echo \`sed 's/.*/"&"/' wfs-next-stage-dids.txt\`|sed 's/ /,/g'`
 
 # wfs-bootstrap.sh should produce a list of successfully processed input files
 # and a list of files which still need to be processed by another job
@@ -268,7 +279,8 @@ cat <<EOF >wfs-record-results.json
   "unprocessed_dids": [$unprocessed_dids],
   "processed_pfns": [$processed_pfns],
   "unprocessed_pfns": [$unprocessed_pfns],
-  "next_stage_outputs": [$next_stage_outputs],
+  "output_dids": [$output_dids],
+  "next_stage_dids": [$next_stage_dids],
   "bootstrap_log": "`cat wfs-bootstrap.log.b64`"
 }
 EOF

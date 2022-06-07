@@ -162,7 +162,6 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
                 jobDict['site_id']                
                )
             )
-#    print(query,file=sys.stderr)
 
     wfs.db.cur.execute(query)
     rseRows = wfs.db.cur.fetchall()
@@ -219,6 +218,15 @@ def getStageMethod(jsonDict):
 
   if jobDict['error_message']:
     httpError('400 Bad Request', jobDict['error_message'])
+
+  try:
+    query = ('UPDATE sites SET last_get_stage_time=NOW() '
+             'WHERE site_id=%d' % jobDict['site_id'])
+             
+    wfs.db.cur.execute(query)
+  except:
+    httpError('500 Internal Server Error',
+              'Workflow allocator fails to record get_stage time')
 
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
@@ -495,9 +503,9 @@ def updateFileProcessing(didList, pfnList,
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
-def processNextStageOutputs(nextStageOutputs, requestID, stageID):
+def processOutputDids(outputDids, requestID, stageID):
 
-  for outputDid in nextStageOutputs:
+  for outputDid in outputDids:
       
     if '"' in outputDid or "'" in outputDid:
       continue
@@ -521,7 +529,7 @@ def recordResultsMethod(jsonDict):
   # Check jsonDict contains required lists (can be empty)
   for name in ['processed_dids', 'unprocessed_dids', 
                'processed_pfns', 'unprocessed_pfns',
-               'next_stage_outputs']:
+               'output_dids', 'next_stage_dids']:
     if name not in jsonDict:
       httpError('400 Bad Request', 'Missing value (%s) in JSON' % name)
 
@@ -565,10 +573,18 @@ def recordResultsMethod(jsonDict):
               'Failed updating file statuses: ' + str(e))
           
   try:
-    processNextStageOutputs(jsonDict['next_stage_outputs'], requestID, stageID)
+    processOutputDids(jsonDict['next_stage_dids'], requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Failed recording next stage outputs: ' + str(e))
+
+  try:
+    # We set stageID=-1 so that when 1 is added, the output only 
+    # StageID of 0 is recorded
+    processOutputDids(jsonDict['output_dids'], requestID, -1)
+  except Exception as e:
+    httpError('500 Internal Server Error', 
+              'Failed recording outputs: ' + str(e))
 
   try:
     query = ('UPDATE jobs SET allocation_state="uploading",'
@@ -638,8 +654,11 @@ def confirmResultsMethod(jsonDict):
     httpError('500 Internal Server Error', 'Updating processed input files')
 
   try:
-    query = ('UPDATE files SET state="finding" WHERE '
-             'state="recorded" AND creator_wfs_job_id=%d' % wfsJobID)
+    query = ('UPDATE files SET '
+             'state=IF(stage_id > 0, "finding", "output") '
+             'WHERE '
+             'state = "recorded" AND '
+             'creator_wfs_job_id=%d' % wfsJobID)
 
     wfs.db.cur.execute(query)
   except:

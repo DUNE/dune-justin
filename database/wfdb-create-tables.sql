@@ -85,18 +85,28 @@ CREATE TABLE `jobs_logs` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `jobs_outputs`
+-- Table structure for table `events`
 --
 
-DROP TABLE IF EXISTS `jobs_outputs`;
+DROP TABLE IF EXISTS `events`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobs_outputs` (
-  `wfs_job_id` int(10) unsigned NOT NULL,
-  `file_did` varchar(255) NOT NULL,
-  `rse_id` smallint(5) unsigned NOT NULL,
-  `upload_time` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE `events` (
+  `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `file_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `rse_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  PRIMARY KEY (`event_id`),
+  INDEX `request_id` (`request_id`,`stage_id`),
+  INDEX `file_id` (`file_id`),
+  INDEX `wfs_job_id` (`wfs_job_id`),
+  INDEX `site_id` (`site_id`),
+  INDEX `rse_id` (`rse_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -112,8 +122,8 @@ CREATE TABLE `files` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
   `state` enum('recorded','finding','unallocated','allocated',
-               'uploading',
-               'processed','notfound','failed') NOT NULL DEFAULT 'finding',
+               'uploading','processed','notfound','failed',
+               'output') NOT NULL DEFAULT 'finding',
   `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `creator_wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
@@ -222,6 +232,9 @@ CREATE TABLE `sites` (
   `wlcg_site_name` varchar(255) NOT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
   `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
+  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_get_stage_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
