@@ -9,6 +9,11 @@
 
 {% seo %}
     {% include head-custom.html %}
+    <style type="text/css">
+    body { background: #7CAED5; }
+    #header_wrap { background: #7CAED5; }
+    #footer_wrap { background:#7CAED5; }
+    </style>
   </head>
 
   <body>
@@ -23,7 +28,12 @@
           <h1 id="project_title">{{ site.title | default: site.github.repository_name }}</h1>
           <h2 id="project_tagline">{{ site.description | default: site.github.project_tagline }}</h2>
 
-          <p><a href="./">Documentation main index</a></p>
+          <p>
+          <a style="text-decoration:underline" 
+           href="./">Documentation main index</a> . 
+          <a style="text-decoration:underline" 
+           href="https://github.com/DUNE/dune-wfs">GitHub dune-wfs repo</a>
+          </p>
 
           {% if site.show_downloads %}
             <section id="downloads">
