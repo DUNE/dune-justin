@@ -10,7 +10,8 @@ anywhere on the grid, and others require files to be at a "nearby" site.
 Replicas are prioritized based on whether the worker node and replica are 
 at the same site, "nearby", or elsewhere but still eligible.
 
-The bootstrap script to run and details of the request and stage are 
+The [bootstrap script](bootstrap-scripts.md) 
+to run and details of the request and stage are 
 returned to the generic job. The script can use these details to request a 
 series of files to process with the application it invokes. Each input 
 file successfully processed by the application is reported to the Workflow 

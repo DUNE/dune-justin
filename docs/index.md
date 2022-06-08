@@ -13,7 +13,9 @@ current release branch is available as GitHub pages at
 
 ### User Guides
 
-- [workflow command](workflow-command.md)
+- [Workflow command](workflow-command.md)
+- [Monte Carlo requests](monte-carlo.md)
+- [Bootstrap scripts](bootstrap-scripts.md)
 
 ### System Components
 
