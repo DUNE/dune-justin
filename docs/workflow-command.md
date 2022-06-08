@@ -1,4 +1,4 @@
-## workflow command
+## Workflow command
 
 The workflow command allows the creation and monitoring of requests, and 
 various queries of the [Workflow Database](database.md)'s knowledge of

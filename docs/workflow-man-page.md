@@ -1,4 +1,4 @@
-## workflow command man page
+## Workflow command man page
 This man page is distributed along with the 
 [workflow command](workflow-command.md) itself.
 ```
