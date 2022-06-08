@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Convert the workflow.1 man page to Markdown formatted file
+# Convert the workflow.1 man page to a Markdown formatted file
 #
 
 if [ ! -r ../commands/workflow.1 ] ; then
