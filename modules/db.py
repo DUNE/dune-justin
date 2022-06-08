@@ -67,8 +67,18 @@ eventTypes = {
  event_UNDEFINED       : ['UNDEFINED',       'Undefined'],
 
  # Workflow Allocator events
- event_STAGE_ALLOCATED : ['STAGE_ALLOCATED', 'Stage allocated to job'],
- event_FILE_ALLOCATED  : ['FILE_ALLOCATED',  'File allocated to job']
+ event_HEARTBEAT_RECEIVED : ['HEARTBEAT_RECEIVED', 
+                             'Heartbeat received by allocator'],
+ event_GET_STAGE_RECEIVED : ['GET_STAGE_RECEIVED', 
+                             'get_stage received from job by allocator'],
+ event_STAGE_ALLOCATED    : ['STAGE_ALLOCATED', 
+                             'Stage allocated to job'],
+ event_FILE_ALLOCATED     : ['FILE_ALLOCATED',  
+                             'File allocated to job'],
+ event_UPLOADING_RECEIVED : ['UPLOADING_RECEIVED',
+                             'Uploading state received from job by allocator'],
+ event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
+                             'Confirmation received from job by allocator']
                
              }
 
