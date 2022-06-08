@@ -9,7 +9,7 @@ current release branch is available as GitHub pages at
 [https://dune.github.io/dune-wfs/]
 (https://dune.github.io/dune-wfs/).
 
-### User Guide
+### User Guides
 
 - [workflow command](workflow-command.md)
 
