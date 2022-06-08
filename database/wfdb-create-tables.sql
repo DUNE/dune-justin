@@ -138,23 +138,6 @@ CREATE TABLE `files` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `allocations`
---
-
-DROP TABLE IF EXISTS `allocations`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `allocations` (
-  `allocation_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `file_id` int(10) unsigned NOT NULL,
-  `wfs_job_id` int(10) unsigned NOT NULL,
-  `rse_id` smallint(5) unsigned NOT NULL,
-  `allocation_time` datetime NOT NULL,
-  PRIMARY KEY(`allocation_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `replicas`
 --
 

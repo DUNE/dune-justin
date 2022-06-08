@@ -220,15 +220,6 @@ def findFile(jobDict):
            }
 
   try: 
-    query = ("INSERT INTO allocations SET allocation_time=NOW(),"
-             "rse_id=" + str(fileRows[0]['rse_id']) + ","
-             "wfs_job_id=" + str(jobDict['wfs_job_id']) + ","
-             "file_id=" + str(fileRows[0]['file_id'])
-            )
-    wfs.db.cur.execute(query)
-
-    allocationID = wfs.db.cur.lastrowid
-
     query = ("UPDATE files SET state='allocated',"
              "allocations=allocations+1,"
              "wfs_job_id=" + str(jobDict['wfs_job_id']) + " "
@@ -238,6 +229,10 @@ def findFile(jobDict):
   except Exception as e:
     # If anything goes wrong, we stop straightaway
     return { 'error_message': 'Failed recording state change: ' + str(e) }
+
+  wfs.db.logEvent(rseID    = fileRows[0]['rse_id'],
+                  wfsJobID = jobDict['wfs_job_id'],
+                  fileID   = fileRows[0]['file_id'])
 
   # The dictionary to return
   return { 'error_message': None,

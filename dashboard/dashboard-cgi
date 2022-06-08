@@ -451,12 +451,12 @@ def listFiles(cgiValues, pageNumber, pageLength):
   print("<h1>Files  for Request %d, Stage %d%s</h1>" 
          % (requestID, stageID, stateText))
   
-  query = ("SELECT files.file_did,files.state,allocations.allocation_time,"
+  query = ("SELECT files.file_did,files.state,event_time,"
            "storages.rse_name,jobs.jobsub_id,sites.site_name "
            "FROM files "
-           "LEFT JOIN allocations"
-           " ON files.wfs_job_id=allocations.wfs_job_id "
-           "LEFT JOIN storages ON allocations.rse_id=storages.rse_id "
+           "LEFT JOIN events"
+           " ON files.wfs_job_id=events.wfs_job_id "
+           "LEFT JOIN storages ON events.rse_id=storages.rse_id "
            "LEFT JOIN jobs ON jobs.wfs_job_id=files.wfs_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
@@ -494,7 +494,7 @@ def listFiles(cgiValues, pageNumber, pageLength):
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
-            (str(fileRow["allocation_time"]),
+            (str(fileRow["event_time"]),
              str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
              str(fileRow["site_name"]), str(fileRow["site_name"]),
              str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
@@ -549,11 +549,11 @@ def showFile(cgiValues):
 
   fileID = int(filesRows[0]["file_id"])
 
-  query = ("SELECT allocation_state,jobsub_id,allocations.allocation_time,"
-           "rse_name FROM allocations "
-           "LEFT JOIN storages ON storages.rse_id=allocations.rse_id "
-           "LEFT JOIN jobs ON allocations.wfs_job_id=jobs.wfs_job_id "
-           "WHERE file_id=%d ORDER BY allocation_id" % fileID)
+  query = ("SELECT allocation_state,jobsub_id,event_time,"
+           "rse_name FROM events "
+           "LEFT JOIN storages ON storages.rse_id=events.rse_id "
+           "LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id "
+           "WHERE file_id=%d ORDER BY event_id" % fileID)
 
   wfs.db.cur.execute(query)
   jobsRows = wfs.db.cur.fetchall()
@@ -632,9 +632,9 @@ def showJob(cgiValues):
   wfs.db.cur.execute(query)
   jobRow = wfs.db.cur.fetchone()
 
-  query = ("SELECT file_did FROM allocations "
-           "LEFT JOIN files ON allocations.file_id=files.file_id "
-           "WHERE allocations.wfs_job_id=%d ORDER BY allocation_id" % 
+  query = ("SELECT file_did FROM events "
+           "LEFT JOIN files ON events.file_id=files.file_id "
+           "WHERE events.wfs_job_id=%d ORDER BY event_id" % 
            jobRow['wfs_job_id'])
 
   wfs.db.cur.execute(query)
