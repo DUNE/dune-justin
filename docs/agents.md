@@ -8,7 +8,7 @@ systemd service file provided for each agent, and each agent writes to a log
 file in /var/log/wfs/ . 
 For example, wfs-finder's log file is /var/log/wfs/finder .
  
-- wfs-info-collector - collects information about sites, storages, and users
+- [wfs-info-collector](info-collector.md) - collects information about sites, storages, and users
 - wfs-finder - queries MetaCat for the list of files needed by a request and Rucio for the locations of each file's replicas
 - wfs-job-factory - submits generic jobs with jobsub, which query the Workflow Allocator to be allocated work
 
