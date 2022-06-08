@@ -10,8 +10,6 @@ Certificates, and this allows
 clients to authenticate using X.509 certificates or grid style X.509
 proxies of users or grid jobs. 
 
-### Agents
-
 - wfa-cgi - Workflow Allocator, which responds to queries from generic jobs
 - wfdb-cgi - Workflow Database API, which responds to queries from the [workflow command](workflow-command.md)
 
