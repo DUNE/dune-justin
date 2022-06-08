@@ -22,7 +22,8 @@ Request ID number assigned by the Workflow System and XXXXXX is a number
 between 000001 and NNNNNN. Each file has a single replica on the virtual RSE
 MONTE-CARLO, with PFN consisting just of its XXXXXX number. These file and
 replica names are readily accessible within the 
-[bootstrap scripts](bootstrap-scripts.md) can be
-used to derive unique names for the output files which can be easily cross
-referenced with jobs for debugging purposes. 
+[bootstrap scripts](bootstrap-scripts.md) and so can be
+used to derive unique names for the output files, which may be useful for
+debugging purposes.
+
 
