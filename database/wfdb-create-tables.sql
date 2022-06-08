@@ -93,6 +93,7 @@ DROP TABLE IF EXISTS `events`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `events` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `event_type_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,

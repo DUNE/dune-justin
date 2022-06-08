@@ -230,9 +230,10 @@ def findFile(jobDict):
     # If anything goes wrong, we stop straightaway
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
-  wfs.db.logEvent(rseID    = fileRows[0]['rse_id'],
-                  wfsJobID = jobDict['wfs_job_id'],
-                  fileID   = fileRows[0]['file_id'])
+  wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATED,
+                  rseID       = fileRows[0]['rse_id'],
+                  wfsJobID    = jobDict['wfs_job_id'],
+                  fileID      = fileRows[0]['file_id'])
 
   # The dictionary to return
   return { 'error_message': None,

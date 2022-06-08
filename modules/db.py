@@ -50,6 +50,28 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'uploading' ] \
 
 maxAllocations = 6
 
+# Catch all events
+event_UNDEFINED = 0
+
+# Workflow Allocator events
+event_HEARTBEAT_RECEIVED = 100
+event_GET_STAGE_RECEIVED = 101
+event_STAGE_ALLOCATED    = 102
+event_FILE_ALLOCATED     = 103
+event_UPLOADING_RECEIVED = 104
+event_CONFIRM_RECEIVED   = 105
+
+eventTypes = { 
+ 
+ # Catch all events
+ event_UNDEFINED       : ['UNDEFINED',       'Undefined'],
+
+ # Workflow Allocator events
+ event_STAGE_ALLOCATED : ['STAGE_ALLOCATED', 'Stage allocated to job'],
+ event_FILE_ALLOCATED  : ['FILE_ALLOCATED',  'File allocated to job']
+               
+             }
+
 def stringIsJobsubID(s):
   return re.search('[^A-Z,a-z,0-9,_,.,@,-]', s) is None
 
@@ -65,7 +87,8 @@ def stringNoQuotes(s):
 # Log an event to the database, returning an error message or None if no
 # errors. You must ensure events are committed along with anything else
 # you are writing to the database!!!
-def logEvent(requestID = 0,
+def logEvent(eventTypeID = event_UNDEFINED,
+             requestID = 0,
              stageID = 0,
              fileID = 0,
              wfsJobID = 0,
@@ -74,6 +97,7 @@ def logEvent(requestID = 0,
 
   try:
     query = ('INSERT INTO events SET '
+             'event_type_id=%d,'
              'request_id=%d,'
              'stage_id=%d,'
              'file_id=%d,'
@@ -81,6 +105,7 @@ def logEvent(requestID = 0,
              'site_id=%d,'
              'rse_id=%d,'
              'event_time=NOW()' %
+             eventTypeID,
              requestID,
              stageID,
              fileID,
