@@ -231,9 +231,12 @@ def findFile(jobDict):
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
   wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATED,
-                  rseID       = fileRows[0]['rse_id'],
+                  requestID   = jobDict['request_id'],
+                  stageID     = jobDict['stage_id'],
+                  fileID      = fileRows[0]['file_id'],
                   wfsJobID    = jobDict['wfs_job_id'],
-                  fileID      = fileRows[0]['file_id'])
+                  siteID      = jobDict['site_id'],
+                  rseID       = fileRows[0]['rse_id'])
 
   # The dictionary to return
   return { 'error_message': None,

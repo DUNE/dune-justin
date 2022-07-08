@@ -138,7 +138,16 @@ def cleanupNodeXML(node):
     cleanupNodeXML(childNode)
 
 def processOneFileXML(sitesDict, fileName):
-  xmlDocument = xml.dom.minidom.parse(fileName)
+
+  try:
+#    xmlStr = open(fileName).read()
+# NASTY HACKY FIX FOR BAD XML FROM OSG!!!
+    xmlStr = open(fileName).read().replace('comment"','comment="')
+    xmlDocument = xml.dom.minidom.parseString(xmlStr)
+  except Exception as e:
+    logLine('Parsing XML file %s fails with: %s' % (fileName, str(e)))
+    return
+
   cleanupNodeXML(xmlDocument)
   xmlDocument.normalize()
 
@@ -219,8 +228,8 @@ def processOneFileXML(sitesDict, fileName):
                                 }
 
         if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
-          logLine("Update maxima for %s:%s to %d bytes, %d processors" %
-                  (siteName, entryName, rssBytes, processors))
+          logLine("Update maxima for %s:%s to %d bytes, %d processors from %s"
+                  % (siteName, entryName, rssBytes, processors, fileName))
           sitesDict[siteName]['largest_rss_bytes']    = rssBytes
           sitesDict[siteName]['largest_processors']   = processors
           
@@ -235,6 +244,7 @@ def buildSites(sitesDict):
 
   for fileName in os.listdir(tmpDir.name):
     if fileName[-4:] == '.xml':
+      logLine('Process XML file: %s' % fileName)
       processOneFileXML(sitesDict, tmpDir.name + '/' + fileName)
 
 def updateSites():

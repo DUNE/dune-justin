@@ -41,9 +41,6 @@ import time
 import urllib.request
 import tempfile
 
-# Only used for get-pfn-locality external script 
-import subprocess
-
 # Needs MySQL-python RPM
 import MySQLdb
 
@@ -86,31 +83,14 @@ def findReplicaFnalLocality(pfn):
     logLine('PFN must start with "' + fnalPrefix + '" but is "' + pfn + '"')
     return None
     
-  restURL = ('https://fndca.fnal.gov:3880/api/v1/namespace/pnfs/fnal.gov'
+  restURL = ('https://fndca1.fnal.gov:3880/api/v1/namespace/pnfs/fnal.gov'
              '/usr/dune' + pfn[len(fnalPrefix):] + '?qos=true&locality=true')
 
-  if True:
-    # Use an external script until we get firewall issue resolved
-  
-    try: 
-      outcome = subprocess.run(['/var/lib/wfs/get-pfn-locality', restURL],
-                                stdin   = subprocess.DEVNULL,
-                                stderr  = subprocess.DEVNULL,
-                                stdout  = subprocess.PIPE,
-                                timeout = 60
-                              ) 
+  sslContext = ssl.SSLContext()
+  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
-      jsonDict = json.loads(outcome.stdout.decode())
-    except Exception as e:
-      logLine("get-pfn-locality fails with error: " + str(e))
-      return None
-
-  else:
-    sslContext = ssl.SSLContext()
-    sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
-    sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
-
-    try:
+  try:
       response = urllib.request.urlopen(restURL, context = sslContext)
 
       if response.status != 200:
@@ -120,7 +100,7 @@ def findReplicaFnalLocality(pfn):
 
       jsonDict = json.load(response)
 
-    except Exception as e:
+  except Exception as e:
       logLine("Reading QoS JSON from dCache fails with: " + str(e))
       return None
     
@@ -137,7 +117,7 @@ def createReplicasPins(rseID):
   # Make a list of up to maxFileFindsPerCycle replicas which have no
   # row in replicas_pins table but are at FNAL
 
-  query = ('SELECT replicas.replica_id,pfn FROM replicas '
+  query = ('SELECT replicas.replica_id,pfn,files.file_id FROM replicas '
            'LEFT JOIN files ON files.file_id=replicas.file_id '
            'LEFT JOIN replicas_pins '
            'ON replicas_pins.replica_id=replicas.replica_id '
@@ -164,30 +144,16 @@ def createReplicasPins(rseID):
       logLine('Insert into replicas_pins fails: '  + str(e))
       continue
       
-    logLine('Created %s entry in replicas_pins' % replica['pfn'])
+#    wfs.db.logEvent(eventTypeID = wfs.db.event_REPLICA_STAGING_REQUESTED,
+#                    fild_id = replica['file_id'])
+ 
+     logLine('Created %s entry in replicas_pins' % replica['pfn'])
 
   # All ok, so commit it all to the DB
   wfs.db.conn.commit()
 
 def sendPinRequest(pfnsPath):
   # Send a pin request to FNAL dCache using the bulk API
-
-  # WE USE AN EXTERNAL SCRIPT AS A WORKAROUND UNTIL WE CAN ACCESS THE ENDPOINT
-  # FROM OUTSIDE FNAL
-
-  try: 
-    outcome = subprocess.run(['/var/lib/wfs/send-pin-request', pfnsPath],
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.DEVNULL,
-                             stdout  = subprocess.PIPE,
-                             timeout = 60
-                            ) 
-
-    return outcome.stdout.decode()
-  except Exception as e:
-    logLine("send-pin-request fails with error: " + str(e))
-    return None
-
   #
   # See https://indico.cern.ch/event/1006673/contributions/4225445/attachments/2188118/3697487/bulk-request.pdf
   # and https://docs.google.com/document/d/14sdrRmJts5JYBFKSvedKCxT1tcrWtWchR-PJhxdunT8/
@@ -200,7 +166,7 @@ def sendPinRequest(pfnsPath):
                                "lifetime-unit" : "SECONDS" } }
 
   httpRequest = urllib.request.Request(
-                   'https://fndca.fnal.gov:3880/api/v1/bulk-requests',
+                   'https://fndca1.fnal.gov:3880/api/v1/bulk-requests',
                    data = json.dumps(jsonDict).encode(),
                    headers = { 'User-Agent' : 'wfs-finder-fnal' },
                    method = 'POST')
@@ -342,23 +308,6 @@ def pinReplicas(rseID):
 
 def checkPinRequest(pinURL):
   # Send a pin request to FNAL dCache using the bulk API
-
-  # WE USE AN EXTERNAL SCRIPT AS A WORKAROUND UNTIL WE CAN ACCESS THE ENDPOINT
-  # FROM OUTSIDE FNAL
-
-  try: 
-    outcome = subprocess.run(['/var/lib/wfs/check-pin-request', pinURL],
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.DEVNULL,
-                             stdout  = subprocess.PIPE,
-                             timeout = 60
-                            ) 
-
-    return json.loads(outcome.stdout.decode())
-  except Exception as e:
-    logLine("check-pin-request fails with error: " + str(e))
-    return None
-
   #
   # See https://indico.cern.ch/event/1006673/contributions/4225445/attachments/2188118/3697487/bulk-request.pdf
   # and https://docs.google.com/document/d/14sdrRmJts5JYBFKSvedKCxT1tcrWtWchR-PJhxdunT8/

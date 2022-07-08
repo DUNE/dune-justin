@@ -61,6 +61,13 @@ event_FILE_ALLOCATED     = 103
 event_UPLOADING_RECEIVED = 104
 event_CONFIRM_RECEIVED   = 105
 
+# Finder events
+event_FILE_ADDED                = 201
+event_REPLICA_ADDED             = 202
+event_REPLICA_STAGING_REQUESTED = 203
+event_REPLICA_STAGING_DONE      = 204
+event_REQUEST_FINISHED          = 206
+
 eventTypes = { 
  
  # Catch all events
@@ -78,7 +85,19 @@ eventTypes = {
  event_UPLOADING_RECEIVED : ['UPLOADING_RECEIVED',
                              'Uploading state received from job by allocator'],
  event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
-                             'Confirmation received from job by allocator']
+                             'Confirmation received from job by allocator'],
+
+ # Finder events
+ event_FILE_ADDED                : ['FILE_ADDED',
+                                    'File added to first stage by finder'],
+ event_REPLICA_ADDED             : ['REPLICA_ADDED',
+                                    'Replica added for file by finder'],
+ event_REPLICA_STAGING_REQUESTED : ['REPLICA_STAGING_REQUESTED',
+                                    'Finder requests replica staging'],
+ event_REPLICA_STAGING_DONE      : ['REPLICA_STAGING_DONE',
+                                    'Replica staging requestrd by finder done'],
+ event_REQUEST_FINISHED          : ['REQUEST_FINISHED',
+                                    'Finder identifies request as finished']
                
              }
 
@@ -115,15 +134,15 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'site_id=%d,'
              'rse_id=%d,'
              'event_time=NOW()' %
-             eventTypeID,
-             requestID,
-             stageID,
-             fileID,
-             wfsJobID,
-             siteID,
-             rseID)
+             (eventTypeID,
+              requestID,
+              stageID,
+              fileID,
+              wfsJobID,
+              siteID,
+              rseID))
 
     cur.execute(query)
     return None
   except Exception as e:
-    return "Error logging event: " + str(e)
+    return 'Error logging event: ' + str(e)

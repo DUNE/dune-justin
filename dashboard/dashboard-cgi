@@ -69,6 +69,7 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="/dashboard/">Dashboard</a> . 
 <a href="/dashboard/?method=list-requests">Requests</a> . 
 <a href="/dashboard/?method=list-jobs">Jobs</a> . 
+<a href="/dashboard/?method=list-events">Events</a> . 
 <a href="/dashboard/?method=list-sites">Sites</a> . 
 <a href="/dashboard/?method=list-storages">Storages</a>
 </p>
@@ -115,6 +116,7 @@ def mainPage():
   print('<ul>')
   print('<li><a href="/dashboard/?method=list-requests">Requests</a></li>')
   print('<li><a href="/dashboard/?method=list-jobs">Jobs</a></li>')
+  print('<li><a href="/dashboard/?method=list-events">Events</a></li>')
   print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
   print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
   print('</ul>')
@@ -202,9 +204,9 @@ def showRequest(cgiValues):
         html.escape(requestRow['mql'], quote=True))
 
   if requestRow['refind_seconds'] == 0:
-    print('<tr><td>Finding</td><td>Once</td></tr>')
+    print('<tr><td>Finding</td><td>once</td></tr>')
   else:
-    print('<tr><td>Finding</td><td>Every %d hour(s), %s to %s</td></tr>' %
+    print('<tr><td>Finding</td><td>every %d hour(s), %s to %s</td></tr>' %
           (int(requestRow['refind_seconds'] / 3600), 
            requestRow['refind_start_time'],
            requestRow['refind_end_time'])
@@ -1233,6 +1235,113 @@ def showStorage(cgiValues):
 
   footer()
 
+def listEvents(cgiValues, pageNumber, pageLength):
+
+
+#  state = str(cgiValues.getfirst("state"))
+#
+#  if state == 'finding' or state == 'unallocated' or state == 'allocated' \
+#     or state == 'uploading' or state == 'processed' or state == 'notfound':
+#    stateFilter = 'AND files.state="' + state + '"'
+#    stateText = ' (state = ' + state + ')'
+#  else:
+#    stateFilter = ''
+#    stateText = ''
+#    state = ''
+    
+  header("WFS: Events")
+
+  print("<h1>Events</h1>")
+  
+  query = ("SELECT event_id,event_type_id,events.request_id,events.stage_id,"
+           "file_did,jobsub_id,site_name,rse_name,event_time "
+           "FROM events "
+           "LEFT JOIN files ON events.file_id=files.file_id "
+           "LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id "
+           "LEFT JOIN sites ON events.site_id=sites.site_id "
+           "LEFT JOIN storages ON events.rse_id=storages.rse_id "
+           "ORDER BY event_id DESC LIMIT %d,%d" % 
+           (pageNumber * pageLength, pageLength + 1))
+
+  wfs.db.cur.execute(query)
+  eventsRows = wfs.db.cur.fetchall()
+
+  printPager(pageNumber, pageLength, len(eventsRows),
+             '/dashboard/?method=list-events&page_number=%d&page_length=%d')
+
+  print(
+"""<p><table>
+<tr>
+<th>Event</th><th>Type</th><th>Time</th>
+<th>Request</th><th>Stage</th>
+<th>File DID</th>
+<th>Jobsub ID</th>
+<th>Site</th>
+<th>RSE</th>
+</tr>""")
+
+  for eventRow in eventsRows[:pageLength]:
+    print('<tr><td>%d</td><td>%s</td><td>%s</td>' %
+           (eventRow['event_id'], 
+            wfs.db.eventTypes[eventRow['event_type_id']][0],
+            eventRow['event_time']
+          )          
+         )
+
+    if eventRow['request_id']: 
+      print('<td><a href="/dashboard/?method=show-request&request_id=%d">'
+            '%d</a></td>' 
+            % (eventRow['request_id'], 
+               eventRow['request_id']))
+    else:
+      print('<td>&nbsp;</td>')
+         
+    if eventRow['stage_id']: 
+      print('<td><a href="/dashboard/?method=show-stage&request_id=%d'
+            '&stage_id=%d">%d</a></td>' 
+            % (eventRow['request_id'], 
+               eventRow['stage_id'], 
+               eventRow['stage_id']))
+    else:
+      print('<td>&nbsp;</td>')
+         
+    if eventRow['file_did']:
+      print('<td><a href="/dashboard/?method=show-file&request_id=%d'
+            '&stage_id=%d&file_did=%s">%s</td>' 
+            % (eventRow['request_id'], 
+               eventRow['stage_id'], 
+               eventRow['file_did'], 
+               eventRow['file_did']))
+    else:
+      print('<td>&nbsp;</td>')
+         
+    if eventRow['jobsub_id']: 
+      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
+            % (eventRow['jobsub_id'], eventRow['jobsub_id']))
+    else:
+      print('<td>&nbsp;</td>')
+         
+    if eventRow['site_name']: 
+      print('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+            % (eventRow['site_name'], eventRow['site_name']))
+    else:
+      print('<td>&nbsp;</td>')
+         
+    if eventRow['rse_name']: 
+      print('<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+            % (eventRow['rse_name'], eventRow['rse_name']))
+    else:
+      print('<td>&nbsp;</td>')
+
+    print('</tr>')
+               
+  print("</table>")
+  
+  printPager(pageNumber, pageLength, len(eventsRows),
+             '/dashboard/?method=list-events&page_number=%d&page_length=%d')
+
+  footer()
+
 #
 # PROGRAM MAIN
 #
@@ -1297,6 +1406,9 @@ if method == "show-site":
 
 if method == "show-storage":
   showStorage(cgiValues)
+
+if method == "list-events":
+  listEvents(cgiValues, pageNumber, pageLength)
 
 print('Status: 400 Bad Request')
 print()

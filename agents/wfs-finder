@@ -93,7 +93,13 @@ def addFilesMonteCarlo(requestID, count):
       logLine('Failed inserting dummy Monte Carlo replica for request %d: %s' 
                % (requestID, str(e)))
       return
- 
+
+    wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
+                    request_id = requestID,
+                    stage_id = 1,
+                    fild_id = wfs.db.cur.lastrowid)
+
+
   try:
     query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
@@ -126,6 +132,11 @@ def findFilesRucio(didClient, requestID, scope, name):
     except Exception as e:
       logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
       return
+
+    wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
+                    request_id = requestID,
+                    stage_id = 1,
+                    fild_id = wfs.db.cur.lastrowid)
 
   # All files found for this request so update its state
   try:
@@ -175,10 +186,16 @@ def findFilesMetaCat(requestID, mql):
               )
 
       wfs.db.cur.execute(query)
+      
     except Exception as e:
       logLine('Failed inserting DID %:%s' % 
               ( fileDict['namespace'], fileDict['name'] ))
       return
+
+    wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
+                    request_id = requestID,
+                    stage_id = 1,
+                    fild_id = wfs.db.cur.lastrowid)
 
   # All files found for this request so update its state
   try:
