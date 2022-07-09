@@ -1,4 +1,4 @@
-##Files
+## Files
 
 The Workflow System keeps track of files within the context of a
 request/stage. The same file may exist within multiple requests and stages
