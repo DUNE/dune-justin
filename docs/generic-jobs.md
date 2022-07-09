@@ -1,4 +1,4 @@
-##Generic jobs
+##  Generic jobs
 
 Generic jobs in the Workflow System are extensions of the jobsub/glideInWMS jobs
 developed at Fermilab and inherit their properties. There is a one to one
