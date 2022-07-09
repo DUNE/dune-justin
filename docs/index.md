@@ -28,3 +28,4 @@ current release branch is available as GitHub pages at
 
 - [Event types](event-types.md)
 - [Generic jobs](generic-jobs.md)
+- [Files](files.md)
