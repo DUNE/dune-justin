@@ -23,3 +23,7 @@ current release branch is available as GitHub pages at
 - [Agents](agents.md)
 - [Services](services.md)
 - [Dashboard](dashboard.md)
+
+### Reference 
+
+- [Event types](event-types.md)

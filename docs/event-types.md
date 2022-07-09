@@ -1,9 +1,10 @@
 ## Event types
 
 These event types are used by the Workflow System to record state transitions
-and can be viewed in the Dashboard. These are especially useful for cross
+and can be viewed in the [Dashboard](dashboard.md). They are especially useful
+for cross
 referencing requests, files, jobs, sites and storages, as the identity of
-each component involve in the transition is recorded in the event and visible 
+each component involved in the transition is recorded in the event and visible 
 in the Dashboard.
 
 |Number|Name|Description|
