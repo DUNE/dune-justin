@@ -45,7 +45,7 @@ unixEpoch = '1970-01-01 00:00:00'
 
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled' ]
 
-jobStatesAll = [ 'submitted', 'started', 'processing', 'uploading' ] \
+jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
 maxAllocations = 6
@@ -54,12 +54,12 @@ maxAllocations = 6
 event_UNDEFINED = 0
 
 # Workflow Allocator events
-event_HEARTBEAT_RECEIVED = 100
-event_GET_STAGE_RECEIVED = 101
-event_STAGE_ALLOCATED    = 102
-event_FILE_ALLOCATED     = 103
-event_UPLOADING_RECEIVED = 104
-event_CONFIRM_RECEIVED   = 105
+event_HEARTBEAT_RECEIVED  = 100
+event_GET_STAGE_RECEIVED  = 101
+event_STAGE_ALLOCATED     = 102
+event_FILE_ALLOCATED      = 103
+event_OUTPUTTING_RECEIVED = 104
+event_CONFIRM_RECEIVED    = 105
 
 # Finder events
 event_FILE_ADDED                = 201
@@ -82,8 +82,8 @@ eventTypes = {
                              'Stage allocated to job'],
  event_FILE_ALLOCATED     : ['FILE_ALLOCATED',  
                              'File allocated to job'],
- event_UPLOADING_RECEIVED : ['UPLOADING_RECEIVED',
-                             'Uploading state received from job by allocator'],
+ event_OUTPUTTING_RECEIVED : ['OUTPUTTING_RECEIVED',
+                             'Outputting state received from job by allocator'],
  event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
                              'Confirmation received from job by allocator'],
 

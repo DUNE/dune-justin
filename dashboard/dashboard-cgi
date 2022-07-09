@@ -243,18 +243,18 @@ def showRequest(cgiValues):
   print('<h2>Stages</h2>')
   print('<table')
   print("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
-        "<th>Unallocated</th><th>Allocated</th><th>Uploading</th>"
+        "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><tr>")
 
   for stageRow in stagesRows:
-    numFinding     = int(stageRow["num_finding"])
-    numUnallocated = int(stageRow["num_unallocated"])
-    numAllocated   = int(stageRow["num_allocated"])
-    numUploading   = int(stageRow["num_uploading"])
-    numProcessed   = int(stageRow["num_processed"])
-    numNotfound    = int(stageRow["num_notfound"])
-    numFiles       = (numFinding + numUnallocated + numAllocated + 
-                      numUploading + numProcessed + numNotfound)
+    numFinding      = int(stageRow["num_finding"])
+    numUnallocated  = int(stageRow["num_unallocated"])
+    numAllocated    = int(stageRow["num_allocated"])
+    numOutputting   = int(stageRow["num_outputting"])
+    numProcessed    = int(stageRow["num_processed"])
+    numNotfound     = int(stageRow["num_notfound"])
+    numFiles        = (numFinding + numUnallocated + numAllocated + 
+                      numOutputting + numProcessed + numNotfound)
     
     print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%s</a></td>'
@@ -262,7 +262,7 @@ def showRequest(cgiValues):
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=uploading">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
           '</tr>' % 
@@ -271,7 +271,7 @@ def showRequest(cgiValues):
            stageRow["request_id"], stageRow["stage_id"], numFinding, 
            stageRow["request_id"], stageRow["stage_id"], numUnallocated, 
            stageRow["request_id"], stageRow["stage_id"], numAllocated, 
-           stageRow["request_id"], stageRow["stage_id"], numUploading, 
+           stageRow["request_id"], stageRow["stage_id"], numOutputting, 
            stageRow["request_id"], stageRow["stage_id"], numProcessed,
            stageRow["request_id"], stageRow["stage_id"], numNotfound))
 
@@ -300,7 +300,7 @@ def showStage(cgiValues):
            "stages.num_finding,"
            "stages.num_unallocated,"
            "stages.num_allocated,"
-           "stages.num_uploading,"
+           "stages.num_outputting,"
            "stages.num_processed,"
            "stages.num_notfound,"
            "bootstraps.bootstrap "
@@ -352,13 +352,13 @@ def showStage(cgiValues):
         
   print('</td></tr>')
 
-  numFinding     = int(stageRows[0]["num_finding"])
-  numUnallocated = int(stageRows[0]["num_unallocated"])
-  numAllocated   = int(stageRows[0]["num_allocated"])
-  numUploading   = int(stageRows[0]["num_uploading"])
-  numProcessed   = int(stageRows[0]["num_processed"])
-  numNotfound    = int(stageRows[0]["num_notfound"])
-  numFiles       = (numFinding + numUnallocated + numAllocated + 
+  numFinding      = int(stageRows[0]["num_finding"])
+  numUnallocated  = int(stageRows[0]["num_unallocated"])
+  numAllocated    = int(stageRows[0]["num_allocated"])
+  numOutputting   = int(stageRows[0]["num_outputting"])
+  numProcessed    = int(stageRows[0]["num_processed"])
+  numNotfound     = int(stageRows[0]["num_notfound"])
+  numFiles        = (numFinding + numUnallocated + numAllocated + 
                     numProcessed + numNotfound)
 
   print('<tr><td>Total files</td>'
@@ -377,9 +377,9 @@ def showStage(cgiValues):
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=allocated">%d</a></td></tr>'
         % (requestID, stageID, numAllocated))
     
-  print('<tr><td>Uploading</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=uploading">%d</a></td></tr>'
-        % (requestID, stageID, numUploading))
+  print('<tr><td>Outputting</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=outputting">%d</a></td></tr>'
+        % (requestID, stageID, numOutputting))
         
   print('<tr><td>Processed</td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=processed">%d</a></td></tr>'
@@ -439,7 +439,7 @@ def listFiles(cgiValues, pageNumber, pageLength):
   state = str(cgiValues.getfirst("state"))
 
   if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-     or state == 'uploading' or state == 'processed' or state == 'notfound':
+     or state == 'outputting' or state == 'processed' or state == 'notfound':
     stateFilter = 'AND files.state="' + state + '"'
     stateText = ' (state = ' + state + ')'
   else:
@@ -555,7 +555,8 @@ def showFile(cgiValues):
            "rse_name FROM events "
            "LEFT JOIN storages ON storages.rse_id=events.rse_id "
            "LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id "
-           "WHERE file_id=%d ORDER BY event_id" % fileID)
+           "WHERE event_type_id=%d AND file_id=%d ORDER BY event_id" 
+           % (wfs.db.event_FILE_ALLOCATED, fileID))
 
   wfs.db.cur.execute(query)
   jobsRows = wfs.db.cur.fetchall()
@@ -619,7 +620,7 @@ def showJob(cgiValues):
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
-           "jobs.heartbeat_time,jobs.uploading_time,"
+           "jobs.heartbeat_time,jobs.outputting_time,"
            "slot_sizes.max_processors,slot_sizes.min_processors,"
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
            "slot_sizes.max_wall_seconds,bootstrap_log "
@@ -747,9 +748,9 @@ def showJob(cgiValues):
         '<td>%s</td></tr>'
         % spaceForUnixEpoch(jobRow["allocation_time"]))
 
-  print('<tr><td>Uploading started</td>'
+  print('<tr><td>Outputting started</td>'
         '<td>%s</td></tr>'
-        % spaceForUnixEpoch(jobRow["uploading_time"]))
+        % spaceForUnixEpoch(jobRow["Outputting_time"]))
 
   print('<tr><td>Finished</td>'
         '<td>%s</td></tr>'
@@ -805,7 +806,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
 
   allocationState = str(cgiValues.getfirst("allocation_state"))
 
-  if allocationState in ['submitted','started','processing','uploading',
+  if allocationState in ['submitted','started','processing','outputting',
                          'finished', 'notused','failed']:
     filters.append('jobs.allocation_state="%s"' % allocationState)
     urlTemplate += '&allocation_state=' + allocationState
@@ -1068,7 +1069,7 @@ def showSite(cgiValues):
         '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' %
         siteName)
         
-  for state in ['submitted', 'started', 'processing', 'uploading',
+  for state in ['submitted', 'started', 'processing', 'outputting',
                 'finished', 'notused', 'failed']:
     print('<a href="/dashboard/?method=list-jobs&allocation_state=%s&'
           'site_name=%s">%s</a> ' %
@@ -1241,7 +1242,7 @@ def listEvents(cgiValues, pageNumber, pageLength):
 #  state = str(cgiValues.getfirst("state"))
 #
 #  if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-#     or state == 'uploading' or state == 'processed' or state == 'notfound':
+#     or state == 'outputting' or state == 'processed' or state == 'notfound':
 #    stateFilter = 'AND files.state="' + state + '"'
 #    stateText = ' (state = ' + state + ')'
 #  else:

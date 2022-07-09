@@ -60,6 +60,9 @@ import datetime
 import wfs
 
 def httpError(code, message):
+  if code[:3] != '200':
+    print('wfdb-cgi fails with %s (%s)' % (code, str(message)), file=sys.stderr)
+
   print('Status: ' + code)
   print('Content-Type: text/plain')
   print()

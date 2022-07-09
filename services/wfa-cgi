@@ -61,6 +61,9 @@ import MySQLdb
 import wfs
 
 def httpError(code, message = None):
+  if code[:3] != '200':
+    print('WFA fails with %s (%s)' % (code, str(message)), file=sys.stderr)
+    
   print('Status: ' + code)
   print('Content-Type: text/plain')
   print()
@@ -231,7 +234,7 @@ def getStageMethod(jsonDict):
   # Use the Just In Time decision making: identify the best request+stage 
   # candidate combination at this moment
   try:
-    stage = wfs.allocator.findStage(jobDict)
+    stage = wfs.allocator.findStage(jobDict, forUpdate = True)
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Workflow allocator fails finding stage: ' + str(e))
@@ -517,9 +520,8 @@ def processOutputDids(outputDids, requestID, stageID):
             )
     wfs.db.cur.execute(query)
 
-# Before doing uploading output files the generic jobs record any results from 
-# the bootstrap script, but just puts them in the "uploading" (input files) or 
-# "recorded" (output files for next stage)
+# Before uploading output files the generic jobs record any results from 
+# the bootstrap script, but just puts them in the "outputting" state
 def recordResultsMethod(jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
@@ -550,12 +552,12 @@ def recordResultsMethod(jsonDict):
   except:
     httpError('500 Internal Server Error', 'Failed finding job')
 
-  # For processed inputs, we just record they got as far as uploading
-  # the corresponding outputs, for now 
+  # For processed inputs, we just record they got as far as outputting
+  # the corresponding output files, for now 
   try:
     updateFileProcessing(jsonDict['processed_dids'], 
                          jsonDict['processed_pfns'], 
-                         'uploading',
+                         'outputting',
                          wfsJobID, requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 
@@ -587,8 +589,8 @@ def recordResultsMethod(jsonDict):
               'Failed recording outputs: ' + str(e))
 
   try:
-    query = ('UPDATE jobs SET allocation_state="uploading",'
-             'uploading_time=NOW(),heartbeat_time=NOW() '
+    query = ('UPDATE jobs SET allocation_state="outputting",'
+             'outputting_time=NOW(),heartbeat_time=NOW() '
              'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     wfs.db.cur.execute(query)
@@ -647,7 +649,7 @@ def confirmResultsMethod(jsonDict):
 
   try:
     query = ('UPDATE files SET state="processed" WHERE '
-             'state="uploading" AND wfs_job_id=%d' % wfsJobID)
+             'state="outputting" AND wfs_job_id=%d' % wfsJobID)
 
     wfs.db.cur.execute(query)
   except:
@@ -662,17 +664,17 @@ def confirmResultsMethod(jsonDict):
 
     wfs.db.cur.execute(query)
   except:
-    httpError('500 Internal Server Error', 'Updating uploading output files')
+    httpError('500 Internal Server Error', 'Updating output files')
   
   try:
     query = ('UPDATE jobs SET allocation_state="finished",'
              'finished_time=NOW(),heartbeat_time=NOW() '
-             'WHERE wfs_job_id=%d AND allocation_state="uploading"'
+             'WHERE wfs_job_id=%d AND allocation_state="outputting"'
              % wfsJobID)
 
     wfs.db.cur.execute(query)
   except:
-    httpError('500 Internal Server Error', 'Updating uploading output files')
+    httpError('500 Internal Server Error', 'Updating job state to finished')
   
   wfs.allocator.updateStageCounts(requestID, stageID)
 

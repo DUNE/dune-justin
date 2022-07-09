@@ -95,9 +95,9 @@ def addFilesMonteCarlo(requestID, count):
       return
 
     wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
-                    request_id = requestID,
-                    stage_id = 1,
-                    fild_id = wfs.db.cur.lastrowid)
+                    requestID = requestID,
+                    stageID = 1,
+                    fileID = wfs.db.cur.lastrowid)
 
 
   try:
@@ -134,9 +134,9 @@ def findFilesRucio(didClient, requestID, scope, name):
       return
 
     wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
-                    request_id = requestID,
-                    stage_id = 1,
-                    fild_id = wfs.db.cur.lastrowid)
+                    requestID = requestID,
+                    stageID = 1,
+                    fileID = wfs.db.cur.lastrowid)
 
   # All files found for this request so update its state
   try:
@@ -193,9 +193,9 @@ def findFilesMetaCat(requestID, mql):
       return
 
     wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
-                    request_id = requestID,
-                    stage_id = 1,
-                    fild_id = wfs.db.cur.lastrowid)
+                    requestID = requestID,
+                    stageID = 1,
+                    fileID = wfs.db.cur.lastrowid)
 
   # All files found for this request so update its state
   try:
@@ -234,6 +234,10 @@ def findFiles():
   didClient = None
 
   for request in findingRequests:
+  
+    logLine('Finding files for Request %d with MQL %s' %
+            (request['request_id'], request['mql']))
+  
     mqlSplit = request['mql'].split()
 
     # Request for a Rucio dataset: "rucio-dataset SCOPE:NAME"
@@ -306,7 +310,7 @@ def findReplicas():
     logLine("Connect to Rucio fails with: " + str(e))
     return
 
-  print(didsList)
+#  print(didsList)
   try:
     # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
     repsList = repClient.list_replicas(didsList, schemes=['root'])
@@ -351,6 +355,13 @@ def findReplicas():
                                 repsDict[fileRow['file_did']][rseName][0] + 
                                 '"' + accessibleUntil
                               )
+                              
+         logLine('Will add replica %s for file %s on RSE %s' %
+                 (repsDict[fileRow['file_did']][rseName][0],
+                  fileRow['file_did'],
+                  rseName
+                 )
+                )
                               
     if replicaInserts:
       for query in replicaInserts:

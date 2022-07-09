@@ -222,7 +222,9 @@ def processSlotSize(slotSizeRow):
   try:
     jobDict = wfs.allocator.makeSlotSizeDict(slotSizeRow['slot_size_id'])
     print(jobDict)
-    stage = wfs.allocator.findStage(jobDict, limit = jobsPerCycle)
+    stage = wfs.allocator.findStage(jobDict, 
+                                    limit = jobsPerCycle, 
+                                    forUpdate = False)
     print(stage)
     print(slotSizeRow)
   except Exception as e:

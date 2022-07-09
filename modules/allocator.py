@@ -139,7 +139,7 @@ def makeSlotSizeDict(slotSizeID):
 
 # Just in time decision making: identify the best request+stage combination
 # based on the immediate situation rather than trying to plan ahead
-def findStage(jobDict, limit=1):
+def findStage(jobDict, limit=1, forUpdate = True):
 
   query = (
  "SELECT stages.request_id,stages.stage_id,stages.max_distance "
@@ -163,7 +163,7 @@ def findStage(jobDict, limit=1):
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rse_read "
  "ORDER BY sites_storages.distance,files.request_id,files.file_id "
- "LIMIT %d FOR UPDATE" %
+ "LIMIT %d %s" %
  (
   jobDict["site_id"],
   jobDict["min_processors"], jobDict["max_processors"], 
@@ -171,7 +171,8 @@ def findStage(jobDict, limit=1):
   jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
   jobDict["max_processors"],
   jobDict["max_wall_seconds"],
-  limit
+  limit,
+  'FOR UPDATE' if forUpdate else ''
  ))
   
   wfs.db.cur.execute(query)
@@ -188,7 +189,8 @@ def findStage(jobDict, limit=1):
 
   return stage
 
-# Make a dictionary containing one file's information
+# Make a dictionary containing information about the most suitable file
+# for a particular job to process given the contents of jobDict
 def findFile(jobDict):
 
   query = (
@@ -249,36 +251,6 @@ def updateStageCounts(requestID, stageID):
 # Do a brute force recount of everything for this stage rather than try 
 # to use increments
 
-# DEADLOCKS!!!
-#  try:
-#    # Use a brute force recount of everything for this 
-#    # stage rather than try to use increments
-#    query = ('UPDATE stages SET '
-#             'num_finding=(SELECT COUNT(*) FROM files'
-#             ' WHERE state="finding" AND request_id=%d AND stage_id=%d),'
-#             'num_unallocated=(SELECT COUNT(*) FROM files'
-#             ' WHERE state="unallocated" AND request_id=%d AND stage_id=%d),'
-#             'num_allocated=(SELECT COUNT(*) FROM files'
-#             ' WHERE state="allocated" AND request_id=%d AND stage_id=%d),'
-#             'num_uploading=(SELECT COUNT(*) FROM files'
-#             ' WHERE state="uploading" AND request_id=%d AND stage_id=%d),'
-#             'num_notfound=(SELECT COUNT(*) FROM files'
-#             ' WHERE state="processed" AND request_id=%d AND stage_id=%d),'
-#             'num_notfound=(SELECT COUNT(*) FROM files'
-#             ' WHERE state="notfound" AND request_id=%d AND stage_id=%d) '
-#             'WHERE request_id=%d AND stage_id=%d' % 
-#             (requestID, stageID,
-#              requestID, stageID,
-#              requestID, stageID,
-#              requestID, stageID,
-#              requestID, stageID,
-#              requestID, stageID,
-#              requestID, stageID)
-#            )
-#    wfs.db.cur.execute(query)
-#  except:
-#    pass
-
   try:
     # Get the counts
     query = ('SELECT '
@@ -292,8 +264,8 @@ def updateStageCounts(requestID, stageID):
              ' WHERE state="allocated" AND request_id=%d AND stage_id=%d) '
              ' AS num_allocated,'
              '(SELECT COUNT(*) FROM files'
-             ' WHERE state="uploading" AND request_id=%d AND stage_id=%d) '
-             ' AS num_uploading,'
+             ' WHERE state="outputting" AND request_id=%d AND stage_id=%d) '
+             ' AS num_outputting,'
              '(SELECT COUNT(*) FROM files'
              ' WHERE state="processed" AND request_id=%d AND stage_id=%d) '
              ' AS num_processed,'
@@ -316,14 +288,14 @@ def updateStageCounts(requestID, stageID):
              'num_finding=%d,'
              'num_unallocated=%d,'
              'num_allocated=%d,'
-             'num_uploading=%d,'
+             'num_outputting=%d,'
              'num_processed=%d,'
              'num_notfound=%d '
              'WHERE request_id=%d AND stage_id=%d' %
              (row['num_finding'],
               row['num_unallocated'],
               row['num_allocated'],
-              row['num_uploading'],
+              row['num_outputting'],
               row['num_processed'],
               row['num_notfound'],
               requestID, stageID))
