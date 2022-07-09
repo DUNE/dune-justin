@@ -1,0 +1,9 @@
+/var/log/wfs/info-collector
+/var/log/wfs/finder
+/var/log/wfs/finder-fnal
+/var/log/wfs/job-factory
+{
+  daily
+  missingok
+  rotate 3
+}

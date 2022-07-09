@@ -71,7 +71,8 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="/dashboard/?method=list-jobs">Jobs</a> . 
 <a href="/dashboard/?method=list-events">Events</a> . 
 <a href="/dashboard/?method=list-sites">Sites</a> . 
-<a href="/dashboard/?method=list-storages">Storages</a>
+<a href="/dashboard/?method=list-storages">Storages</a> .
+<a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
 """)
 
@@ -119,6 +120,7 @@ def mainPage():
   print('<li><a href="/dashboard/?method=list-events">Events</a></li>')
   print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
   print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
+  print('<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>')
   print('</ul>')
   
   footer()
