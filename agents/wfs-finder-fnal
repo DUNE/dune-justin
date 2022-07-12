@@ -111,6 +111,9 @@ def findReplicaFnalLocality(pfn):
   return None
 
 def createReplicasPins(rseID):
+  # Create EMPTY rows in replicas_pins for replicas that will need pins
+  # pinReplicas() below manages when to (re)try the real pin requests
+
   # Find replicas at an RSE where pinning is necessary
   logLine('Look for replicas needing rows in replicas_pins')
 
@@ -143,11 +146,8 @@ def createReplicasPins(rseID):
     except Exception as e:
       logLine('Insert into replicas_pins fails: '  + str(e))
       continue
-      
-#    wfs.db.logEvent(eventTypeID = wfs.db.event_REPLICA_STAGING_REQUESTED,
-#                    fild_id = replica['file_id'])
- 
-     logLine('Created %s entry in replicas_pins' % replica['pfn'])
+        
+    logLine('Created %s entry in replicas_pins' % replica['pfn'])
 
   # All ok, so commit it all to the DB
   wfs.db.conn.commit()
@@ -168,7 +168,8 @@ def sendPinRequest(pfnsPath):
   httpRequest = urllib.request.Request(
                    'https://fndca1.fnal.gov:3880/api/v1/bulk-requests',
                    data = json.dumps(jsonDict).encode(),
-                   headers = { 'User-Agent' : 'wfs-finder-fnal' },
+                   headers = { 'User-Agent' : 'wfs-finder-fnal',
+                               'Content-Type' : 'application/json' },
                    method = 'POST')
 
   sslContext = ssl.SSLContext()
@@ -178,9 +179,9 @@ def sendPinRequest(pfnsPath):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
 
-    if response.status != 200:
-      logLine('Bulk request to dCache fails with HTTP error: ' + 
-              response.read().decode('utf-8'))
+    if response.status != 201:
+      logLine('Bulk request to dCache fails with HTTP code %d and error: %s' 
+              % (response.status, response.read().decode('utf-8')) )
       return None
 
   except Exception as e:
@@ -209,7 +210,7 @@ def countPins(rseID):
 
   query = ('SELECT COUNT(*) AS count '
            'FROM replicas_pins '
-           'LEFT JOIN replicas ON replicas.replica_id=replicas.replica_id '
+           'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
            'WHERE replicas.rse_id=' + str(rseID) + ' '
            'AND pin_expire_time > NOW() '
            'AND pin_ref<>""')
@@ -238,9 +239,9 @@ def pinReplicas(rseID):
   if oldPins is None:
     return
   
-  if oldPins > maxPins:
-    # Bail out if we are over the limit before we even start
-    logLine('Do not request any pins: %d exceeds limit of %d' %
+  if oldPins >= maxPins:
+    # Bail out if we are at the limit before we even start
+    logLine('Do not request any more pins: %d now and limit is %d' %
               (oldPins, maxPins))
     return
 
@@ -248,7 +249,7 @@ def pinReplicas(rseID):
 
   query = ('SELECT replicas_pins.replica_id,pfn '
            'FROM replicas_pins '
-           'LEFT JOIN replicas ON replicas.replica_id=replicas.replica_id '
+           'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
            'LEFT JOIN files ON files.file_id=replicas.file_id '
            'WHERE rse_id=' + str(rseID) + ' '
            'AND accessible_until < NOW() '
@@ -273,8 +274,8 @@ def pinReplicas(rseID):
   for replica in needsPinReplicas:
   
     # Do not create too many pins overall!
-    if oldPins + newPins > maxPins:
-      logLine('Stop requesting pins: %d exceeds limit of %d' %
+    if oldPins + newPins >= maxPins:
+      logLine('Stop requesting pins: %d now and limit is %d' %
               (oldPins + newPins, maxPins))
       break
   
@@ -322,8 +323,8 @@ def checkPinRequest(pinURL):
     response = urllib.request.urlopen(pinURL, context = sslContext)
 
     if response.status != 200:
-      logLine('Bulk request to dCache fails with HTTP error: ' + 
-              response.read().decode('utf-8'))
+      logLine('Bulk request to dCache fails with HTTP code %d and error: %s' 
+              % (reponse.status, response.read().decode('utf-8')) )
       return None
 
   except Exception as e:
@@ -345,7 +346,7 @@ def checkPinRequests(rseID):
   query = ('SELECT replicas_pins.replica_id,pfn,pin_ref,pin_expire_time,'
            'UNIX_TIMESTAMP(pin_expire_time) AS pin_expire_unixtime '
            'FROM replicas_pins '
-           'LEFT JOIN replicas ON replicas.replica_id=replicas.replica_id '
+           'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
            'WHERE rse_id=' + str(rseID) + ' '
            'AND accessible_until < NOW() '
            'AND pin_expire_time > NOW() '

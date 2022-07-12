@@ -162,7 +162,8 @@ def findStage(jobDict, limit=1, forUpdate = True):
  "AND sites_storages.distance IS NOT NULL "
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rse_read "
- "ORDER BY sites_storages.distance,files.request_id,files.file_id "
+ "ORDER BY stage_rank DESC,sites_storages.distance,"
+ "files.request_id,files.file_id "
  "LIMIT %d %s" %
  (
   jobDict["site_id"],

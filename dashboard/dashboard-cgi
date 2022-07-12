@@ -244,7 +244,7 @@ def showRequest(cgiValues):
   
   print('<h2>Stages</h2>')
   print('<table')
-  print("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
+  print("<tr><th>Stage ID</th><th>Rank</th><th>Files</th><th>Finding</th>"
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><tr>")
 
@@ -260,6 +260,7 @@ def showRequest(cgiValues):
     
     print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%s</a></td>'
+          '<td>%d</td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
@@ -269,6 +270,7 @@ def showRequest(cgiValues):
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
           '</tr>' % 
           (stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
+           stageRow["stage_rank"],
            stageRow["request_id"], stageRow["stage_id"], numFiles, 
            stageRow["request_id"], stageRow["stage_id"], numFinding, 
            stageRow["request_id"], stageRow["stage_id"], numUnallocated, 
@@ -295,6 +297,7 @@ def showStage(cgiValues):
   header("WFS: Request %d, Stage %d" % (requestID, stageID))
 
   query = ("SELECT "
+           "stages.stage_rank,"
            "stages.processors,"
            "stages.wall_seconds,"
            "stages.rss_bytes,"
@@ -313,25 +316,28 @@ def showStage(cgiValues):
            (requestID, stageID))
 
   wfs.db.cur.execute(query)
-  stageRows = wfs.db.cur.fetchall()
+  stageRow = wfs.db.cur.fetchone()
   
   print("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
   
   print('<table')
 
+  print('<tr><td>Rank</td>'
+        '<td>%d</td></tr>' % stageRow["stage_rank"])
+
   print('<tr><td>Processors</td>'
-        '<td>%s</td></tr>' % stageRows[0]["processors"])
+        '<td>%s</td></tr>' % stageRow["processors"])
 
   print('<tr><td>Wall seconds</td>'
-        '<td>%s</td></tr>' % stageRows[0]["wall_seconds"])
+        '<td>%s</td></tr>' % stageRow["wall_seconds"])
 
   print('<tr><td>RSS bytes</td>'
         '<td>%s (%d MB)</td></tr>' % 
-        (stageRows[0]["rss_bytes"], 
-         int(stageRows[0]["rss_bytes"]) / 1048576))
+        (stageRow["rss_bytes"], 
+         int(stageRow["rss_bytes"]) / 1048576))
 
   print('<tr><td>Max distance for inputs</td>'
-        '<td>%.1f</td></tr>' % stageRows[0]["max_distance"])
+        '<td>%.1f</td></tr>' % stageRow["max_distance"])
 
   print('<tr><td>Output RSEs</td>'
         '<td>')
@@ -354,12 +360,12 @@ def showStage(cgiValues):
         
   print('</td></tr>')
 
-  numFinding      = int(stageRows[0]["num_finding"])
-  numUnallocated  = int(stageRows[0]["num_unallocated"])
-  numAllocated    = int(stageRows[0]["num_allocated"])
-  numOutputting   = int(stageRows[0]["num_outputting"])
-  numProcessed    = int(stageRows[0]["num_processed"])
-  numNotfound     = int(stageRows[0]["num_notfound"])
+  numFinding      = int(stageRow["num_finding"])
+  numUnallocated  = int(stageRow["num_unallocated"])
+  numAllocated    = int(stageRow["num_allocated"])
+  numOutputting   = int(stageRow["num_outputting"])
+  numProcessed    = int(stageRow["num_processed"])
+  numNotfound     = int(stageRow["num_notfound"])
   numFiles        = (numFinding + numUnallocated + numAllocated + 
                     numProcessed + numNotfound)
 
@@ -419,7 +425,7 @@ def showStage(cgiValues):
   print('<table><tr><td><pre>') 
 
   print(html.escape(
-   stageRows[0]["bootstrap"].encode('ascii',errors='ignore').decode(), 
+   stageRow["bootstrap"].encode('ascii',errors='ignore').decode(), 
    quote=True))
   
   print('</pre></td></tr></table>') 

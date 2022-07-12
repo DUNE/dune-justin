@@ -274,6 +274,7 @@ DROP TABLE IF EXISTS `stages`;
 CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
+  `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
