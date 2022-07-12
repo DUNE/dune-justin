@@ -56,7 +56,7 @@ maxFileFindsPerCycle = 10
 sleepSeconds         = 60
 maxPins              = 10
 pinSeconds           = 3600
-pinRecheckSeconds    = 300
+pinRecheckSeconds    = 1800
 
 class wfsError(Exception):
   pass
@@ -284,6 +284,9 @@ def pinReplicas(rseID):
     
     if pinURL:
       try:
+        # Record the pin ref and set the delay until the first check of
+        # its status to one finder cycle in case it is already pinned and
+        # online - in which case we don't need to wait
         query = ('UPDATE replicas_pins SET '
                  'pin_expire_time=DATE_ADD(NOW(),INTERVAL %d SECOND),'
                  'pin_ref="%s",'
@@ -291,7 +294,7 @@ def pinReplicas(rseID):
                  'WHERE replica_id=%d' % 
                  (pinSeconds, 
                   pinURL, 
-                  pinRecheckSeconds, 
+                  sleepSeconds,
                   replica['replica_id']))
 
         print(query)
@@ -403,12 +406,23 @@ def checkPinRequests(rseID):
               (pin['pfn'], pin['pfn_expire_time']))
 
     else:
-# WE NEED TO UPDATE THE pin_recheck_time HERE ONCE THE ABOVE HAS BEEN 
-# VALIDATED AS WORKING RELIABLY SO WE CHECK AGAIN IF QUEUED/STARTED.
 # THE CANCELLED STATE ALSO NEEDS TO BE HANDLED.
       logLine('Request %s for pfn %s is still in state %s' %
               (pin['pin_ref'], pin['pfn'], jsonDict['status']))
+
+      try:
+        query = ('UPDATE replicas_pins SET '
+               'pin_recheck_time=DATE_ADD(NOW(),INTERVAL %d SECOND) '
+               'WHERE replica_id=%d' % 
+               (pinRecheckSeconds, 
+                pin['replica_id']))
         
+        wfs.db.cur.execute(query)
+
+      except Exception as e:
+        logLine('Failed updating recheck time for %s: %s' %
+                (pin['pfn'], str(e)))
+       
   # All ok, so commit it all to the DB
   wfs.db.conn.commit()
 
