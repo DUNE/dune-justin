@@ -1,0 +1,83 @@
+#!/bin/bash
+#
+# To use this bootstrap to process 10 files from the dc4-vd-coldbox-top
+# data use this command to create the request:
+#
+#  workflow quick-request \
+#    --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+#    --file dc4-vd-coldbox-top.bootstrap --max-distance 100
+#
+
+# fcl file to be used
+fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
+
+# number of events to process from the input file
+nEvts=2
+
+# First get an unprocessed file from this stage
+did_pfn_rse=`$WFS_PATH/wfs-get-file`
+
+# rawpfn is also needed when creating wfs-processed-pfns.txt
+rawpfn=`echo $did_pfn_rse | cut -f2 -d' '`
+
+# Nasty sed fix for bad URLs in Rucio!
+pfn=`echo $rawpfn | sed 's:ch/eos:ch//eos:'`
+echo "Input PFN = $pfn"
+
+source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+
+# the xroot lib for streaming non-root files is in testproducts, 
+# so add it to the start of the path
+export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRODUCTS}
+
+export DUNEVERSION=v09_44_00_02
+export DUNEQUALIFIER="e20:prof"
+setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
+
+now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
+
+# extract filename from $pfn 
+Ffname=`echo $pfn | awk -F/ '{print $NF}'`
+fname=`echo $Ffname | awk -F. '{print $1}'`
+
+# define output filename
+outFile=${fname}_reco_${now}.root
+echo $Ffname $fname $outFile
+
+# put here the right value, this is just an example 
+campaign="WFS.Request-${WFS_REQUEST_ID}.Stage-${WFS_STAGE_ID}"
+
+# assume things fail but change on success
+echo "$rawpfn" > wfs-unprocessed-pfns.txt
+
+(
+# Do the scary preload stuff in a subshell!
+export LD_PRELOAD=${XROOTD_LIB}/libXrdPosixPreload.so
+echo "$LD_PRELOAD"
+
+# to test with only 2 events
+lar -c $fclFile "$pfn"  -n $nEvts -o $outFile  > ${fname}_reco_${now}.log 2>&1
+)
+
+# Subshell exits with exit code of last command
+larExit=$?
+echo "lar exit code $larExit"
+
+if [ $larExit -eq 0 ] ; then
+  # write metadata file if lar succeeded
+  extractor_prod.py --infile "$outFile" --no_crc --appname reco \
+    --appversion ${DUNEVERSION} --appfamily art \
+    --campaign ${campaign} > $outFile.json  
+  extractorExit=$?
+  echo "extractor_prod.py exit code $extractorExit"
+
+  if [ $extractorExit -eq 0 ] ; then
+    echo "extractor succeeds"
+    mv -f wfs-unprocessed-pfns.txt wfs-processed-pfns.txt
+  fi
+fi
+
+# Output to stdout for now
+ls -lS
+echo
+cat $outFile.json

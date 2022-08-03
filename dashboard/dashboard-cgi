@@ -88,7 +88,7 @@ def errorPage(message):
   footer()
 
 def spaceForUnixEpoch(s):
-  print('<!-- %s %s -->' % (wfs.db.unixEpoch, s))
+#  print('<!-- %s %s -->' % (wfs.db.unixEpoch, s))
   if str(s) == wfs.db.unixEpoch:
     return '&nbsp;'
   else:
@@ -465,14 +465,14 @@ def listFiles(cgiValues, pageNumber, pageLength):
            "storages.rse_name,jobs.jobsub_id,sites.site_name "
            "FROM files "
            "LEFT JOIN events"
-           " ON files.wfs_job_id=events.wfs_job_id "
+           " ON files.wfs_job_id=events.wfs_job_id AND events.event_type_id=%d "
            "LEFT JOIN storages ON events.rse_id=storages.rse_id "
            "LEFT JOIN jobs ON jobs.wfs_job_id=files.wfs_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id LIMIT %d,%d" % 
-           (requestID, stageID, stateFilter, 
-           pageNumber * pageLength, pageLength + 1))
+           (wfs.db.event_FILE_ALLOCATED, requestID, stageID, stateFilter,
+            pageNumber * pageLength, pageLength + 1))
 
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
@@ -758,7 +758,7 @@ def showJob(cgiValues):
 
   print('<tr><td>Outputting started</td>'
         '<td>%s</td></tr>'
-        % spaceForUnixEpoch(jobRow["Outputting_time"]))
+        % spaceForUnixEpoch(jobRow["outputting_time"]))
 
   print('<tr><td>Finished</td>'
         '<td>%s</td></tr>'

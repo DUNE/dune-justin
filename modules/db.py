@@ -66,6 +66,7 @@ event_FILE_ADDED                = 201
 event_REPLICA_ADDED             = 202
 event_REPLICA_STAGING_REQUESTED = 203
 event_REPLICA_STAGING_DONE      = 204
+event_REPLICA_STAGING_CANCELLED = 205
 event_REQUEST_FINISHED          = 206
 
 eventTypes = { 
@@ -95,7 +96,9 @@ eventTypes = {
  event_REPLICA_STAGING_REQUESTED : ['REPLICA_STAGING_REQUESTED',
                                     'Finder requests replica staging'],
  event_REPLICA_STAGING_DONE      : ['REPLICA_STAGING_DONE',
-                                    'Replica staging requestrd by finder done'],
+                                    'Replica staging requested by finder done'],
+ event_REPLICA_STAGING_CANCELLED : ['REPLICA_STAGING_CANCELLED',
+                                    'Replica staging cancelled by finder'],
  event_REQUEST_FINISHED          : ['REQUEST_FINISHED',
                                     'Finder identifies request as finished']
                

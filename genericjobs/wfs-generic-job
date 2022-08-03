@@ -34,6 +34,10 @@ date
 pwd
 printenv
 
+echo '### ls -lt ###'
+ls -lt
+echo '##############'
+
 # Used by bootstrap script to find files from this generic job
 export WFS_PATH=`pwd`
 
