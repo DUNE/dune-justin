@@ -246,7 +246,7 @@ def showRequest(cgiValues):
   print('<table')
   print("<tr><th>Stage ID</th><th>Rank</th><th>Files</th><th>Finding</th>"
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
-        "<th>Processed</th><th>Not found</th><tr>")
+        "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stagesRows:
     numFinding      = int(stageRow["num_finding"])
@@ -255,8 +255,9 @@ def showRequest(cgiValues):
     numOutputting   = int(stageRow["num_outputting"])
     numProcessed    = int(stageRow["num_processed"])
     numNotfound     = int(stageRow["num_notfound"])
+    numFailed       = int(stageRow["num_failed"])
     numFiles        = (numFinding + numUnallocated + numAllocated + 
-                      numOutputting + numProcessed + numNotfound)
+                      numOutputting + numProcessed + numNotfound + numFailed)
     
     print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%s</a></td>'
@@ -268,6 +269,7 @@ def showRequest(cgiValues):
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
           '</tr>' % 
           (stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
            stageRow["stage_rank"],
@@ -277,7 +279,8 @@ def showRequest(cgiValues):
            stageRow["request_id"], stageRow["stage_id"], numAllocated, 
            stageRow["request_id"], stageRow["stage_id"], numOutputting, 
            stageRow["request_id"], stageRow["stage_id"], numProcessed,
-           stageRow["request_id"], stageRow["stage_id"], numNotfound))
+           stageRow["request_id"], stageRow["stage_id"], numNotfound,
+           stageRow["request_id"], stageRow["stage_id"], numFailed))
 
   print("</table>")
 
@@ -308,6 +311,7 @@ def showStage(cgiValues):
            "stages.num_outputting,"
            "stages.num_processed,"
            "stages.num_notfound,"
+           "stages.num_failed,"
            "bootstraps.bootstrap "
            "FROM stages "
            "LEFT JOIN bootstraps ON bootstraps.request_id=stages.request_id"
@@ -366,8 +370,9 @@ def showStage(cgiValues):
   numOutputting   = int(stageRow["num_outputting"])
   numProcessed    = int(stageRow["num_processed"])
   numNotfound     = int(stageRow["num_notfound"])
+  numFailed       = int(stageRow["num_failed"])
   numFiles        = (numFinding + numUnallocated + numAllocated + 
-                    numProcessed + numNotfound)
+                    numProcessed + numNotfound + numFailed)
 
   print('<tr><td>Total files</td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d">%d</a></td></tr>'
@@ -396,6 +401,10 @@ def showStage(cgiValues):
   print('<tr><td>Not found</td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=notfound">%d</a></td></tr>'
         % (requestID, stageID, numNotfound))
+        
+  print('<tr><td>Failed</td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=failed">%d</a></td></tr>'
+        % (requestID, stageID, numFailed))
         
   print('</table>')
     
@@ -447,7 +456,8 @@ def listFiles(cgiValues, pageNumber, pageLength):
   state = str(cgiValues.getfirst("state"))
 
   if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-     or state == 'outputting' or state == 'processed' or state == 'notfound':
+     or state == 'outputting' or state == 'processed' or state == 'notfound' \
+     or state == 'failed':
     stateFilter = 'AND files.state="' + state + '"'
     stateText = ' (state = ' + state + ')'
   else:
@@ -604,8 +614,8 @@ def showFile(cgiValues):
   
   for jobRow in jobsRows:
   
-    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a><br>' % 
-          (jobRow["jobsub_id"], jobRow["jobsub_id"]))
+    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> (%s)<br>' % 
+          (jobRow["jobsub_id"], jobRow["jobsub_id"], jobRow["allocation_state"]))
 
   print('</td></tr>')
 

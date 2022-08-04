@@ -450,53 +450,32 @@ def getFileMethod(jsonDict):
   # No file eligible to be processed by this job
   httpError('404 Not Found', 'No eligible file found')
 
-def updateFileProcessing(didList, pfnList, 
+def updateFileProcessing(fileIDList,
                          state, wfsJobID, requestID, stageID):
   # Exceptions in this function must by handled by the caller!
 
-  # Use a set rather than a list to remove duplicates
-  testDids = set()
+  testFileIDs = []
 
-  if pfnList:
-    # Add DIDs from PFNs if we're given any PFNs
-    testPfns = set()
-
-    for filePfn in pfnList:
-      testPfns.add('pfn="' + str(filePfn) + '"')
-    
-    query = (('SELECT files.file_did FROM files '
-              'LEFT JOIN replicas ON files.file_id=replicas.file_id '
-              'WHERE wfs_job_id=%d AND request_id=%d AND stage_id=%d AND '
-              '(' + ' OR '.join(testPfns) + ')') % 
-             (wfsJobID, requestID, stageID))
-
-    wfs.db.cur.execute(query)
-    rows = wfs.db.cur.fetchall()
-    
-    for row in rows:
-      testDids.add('file_did="' + str(row['file_did']) + '"')
-
-  for fileDid in didList:
-    testDids.add('file_did="' + str(fileDid) + '"')
+  for fileID in fileIDList:
+    testFileIDs.append('file_id=%d' % fileID)
 
   # Update the files the job did or did not manage to process
-  if testDids:
+  if testFileIDs:
 
-    if state == 'unallocated':
+    if state == 'unprocessed':
       # If already at max allocations, go to failed rather than unallocated!
       query = ('UPDATE files SET '
                'state=IF(allocations < ' + str(wfs.db.maxAllocations) + ','
                '"unallocated","failed") '
-               'WHERE (' + ' OR '.join(testDids) + ') '
-               'AND allocations < ' + str(wfs.db.maxAllocations) + ' '
+               'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND wfs_job_id=' + str(wfsJobID) + ' '
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
     
     else:
-      query = ('UPDATE files SET state="' + state + '" '
-               'WHERE (' + ' OR '.join(testDids) + ') '
+      query = ('UPDATE files SET state="outputting" '
+               'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND wfs_job_id=' + str(wfsJobID) + ' '
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
@@ -529,8 +508,7 @@ def recordResultsMethod(jsonDict):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required lists (can be empty)
-  for name in ['processed_dids', 'unprocessed_dids', 
-               'processed_pfns', 'unprocessed_pfns',
+  for name in ['processed_dids', 'processed_pfns', 
                'output_dids', 'next_stage_dids']:
     if name not in jsonDict:
       httpError('400 Bad Request', 'Missing value (%s) in JSON' % name)
@@ -552,22 +530,46 @@ def recordResultsMethod(jsonDict):
   except:
     httpError('500 Internal Server Error', 'Failed finding job')
 
+  try:
+    # Use the event records to find the right replicas for this job
+    query = ('SELECT events.file_id,file_did,pfn '
+             'FROM events '
+             'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
+             'replicas.rse_id=events.rse_id) '
+             'LEFT JOIN files ON events.file_id=files.file_id '
+             'WHERE events.wfs_job_id=%d AND events.event_type_id=%d'
+             % (wfsJobID, wfs.db.event_FILE_ALLOCATED))
+             
+    wfs.db.cur.execute(query)
+    jobFiles = wfs.db.cur.fetchall()
+  except Exception as e:
+    httpError('500 Internal Server Error', 
+              'Failed getting files for the job: ' + str(e))
+
+  processedFileIDs   = []
+  unprocessedFileIDs = []
+
+  for jobFile in jobFiles:
+    if jobFile['file_did'] in jsonDict['processed_dids'] or \
+       jobFile['pfn'] in jsonDict['processed_pfns']:
+      processedFileIDs.append(jobFile['file_id'])
+    else:
+      unprocessedFileIDs.append(jobFile['file_id'])
+
   # For processed inputs, we just record they got as far as outputting
   # the corresponding output files, for now 
   try:
-    updateFileProcessing(jsonDict['processed_dids'], 
-                         jsonDict['processed_pfns'], 
+    updateFileProcessing(processedFileIDs,
                          'outputting',
                          wfsJobID, requestID, stageID)
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Failed updating file statuses: ' + str(e))
 
-  # For unprocessed inputs, we can put them straight back into the 
-  # unprocessed state
+  # For unprocessed inputs, we can put them straight back into the
+  # unprocessed states (unallocated or failed)
   try:
-    updateFileProcessing(jsonDict['unprocessed_dids'],
-                         jsonDict['unprocessed_pfns'], 
+    updateFileProcessing(unprocessedFileIDs,
                          'unprocessed',
                          wfsJobID, requestID, stageID)
   except Exception as e:

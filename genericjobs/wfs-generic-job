@@ -261,16 +261,8 @@ if [ -f workspace/wfs-processed-dids.txt ] ; then
   processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-dids.txt\`|sed 's/ /,/g'`
 fi
 
-if [ -f workspace/wfs-unprocessed-dids.txt ] ; then
-  unprocessed_dids=`echo \`sed -r 's/.+/"&"/' workspace/wfs-unprocessed-dids.txt\`|sed 's/ /,/g'`
-fi
-
 if [ -f workspace/wfs-processed-pfns.txt ] ; then
   processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-pfns.txt\`|sed 's/ /,/g'`
-fi
-
-if [ -f workspace/wfs-unprocessed-pfns.txt ] ; then
-  unprocessed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/wfs-unprocessed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
 tail -c 10000 wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
@@ -280,9 +272,7 @@ cat <<EOF >wfs-record-results.json
   "method": "record_results",
   "jobsub_id": "$JOBSUBJOBID",
   "processed_dids": [$processed_dids],
-  "unprocessed_dids": [$unprocessed_dids],
   "processed_pfns": [$processed_pfns],
-  "unprocessed_pfns": [$unprocessed_pfns],
   "output_dids": [$output_dids],
   "next_stage_dids": [$next_stage_dids],
   "bootstrap_log": "`cat wfs-bootstrap.log.b64`"

@@ -471,13 +471,110 @@ def findFinishedRequests():
     
   wfs.db.conn.commit()
 
+def findStalledJobs():
+  # Find jobs which have not sent a heartbeat in jobStalledSeconds
+
+  try:
+    query = ('SELECT request_id,stage_id,wfs_job_id,jobsub_id,site_id '
+             'FROM jobs '
+             'WHERE (allocation_state="started" OR '
+             'allocation_state="processing" OR '
+             'allocation_state="outputting") AND '             
+             '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND)) '
+             'ORDER BY wfs_job_id' % wfs.db.jobStallSeconds)
+
+    wfs.db.cur.execute(query)
+
+    jobRows = wfs.db.cur.fetchall()
+  except Exception as e:
+    logLine('Failed to get list of stalled jobs: ' + str(e))
+    return
+    
+  if not jobRows:
+    logLine('No stalled jobs to process')
+    return
+
+  for jobRow in jobRows:
+
+    # First we mark the job itself as stalled
+    try:
+      query = ('UPDATE jobs SET state="stalled",finished=NOW() '
+               'WHERE wfs_job_id=%d' % jobRow['wfs_job_id'])
+    
+      wfs.db.cur.execute(query)
+    except:
+      logLine('Failed to set job %s to stalled' 
+              % jobRow['jobsub_id'])
+      continue
+
+    logLine('Job %s set to stalled' % jobRow['jobsub_id'])
+    
+    wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_STALLED,
+                    requestID = jobRow['request_id'],
+                    stageID = jobRow['stage_id'],
+                    siteID = jobRow['site_id'])
+
+    # Then find the file(s) allocated to this stalled job 
+    # (IGNORE FILES IN THE outputting STATE NOW - THESE COULD BE UPLOADED...)
+    try:
+      query = ('SELECT file_id,allocations,file_did '
+               'FROM files '
+               'WHERE state="allocated" AND wfs_job_id=%d '
+               'ORDER BY file_id' % jobRow['wfs_job_id'])
+
+      wfs.db.cur.execute(query)
+
+      fileRows = wfs.db.cur.fetchall()
+    except:
+      logLine('Failed to get list of files of the stalled job')
+      # We should give up at this point rather than commit a mess?
+      sys.exit(0)
+    
+    for fileRow in fileRows: 
+    
+      if fileRow['allocations'] >= wfs.db.maxAllocations:
+        # Reached max allocations allowed per file
+        # Mark file as failed in case it is the file causing the problem
+        # (eg pathological file causes memory to balloon leading to the site
+        # killing the job, and to us the job just appears stalled.)
+
+        try:
+          query = ('UPDATE files SET state="failed" '
+                   'WHERE file_id=%d' % fileRow['file_id'])
+
+          wfs.db.cur.execute(query)
+        except:
+          logLine('Failed to set file %s to failed in '
+                  'request %d, stage %d after job %s' 
+                  % (fileRow['file_did'], jobRow['request_id'], 
+                     jobRow['stage_id'], jobRow['jobsub_id']))
+          # Again, just stop for now on errors
+          sys.exit(0)
+            
+      else:
+      
+        try:
+          query = ('UPDATE files SET state="unallocated" '
+                   'WHERE file_id=%d' % fileRow['file_id'])
+
+          wfs.db.cur.execute(query)
+        except:
+          logLine('Failed to set file %s to unallocated in '
+                  'request %d, stage %d after job %s' 
+                  % (fileRow['file_did'], jobRow['request_id'], 
+                     jobRow['stage_id'], jobRow['jobsub_id']))
+          # Again, just stop for now on errors
+          sys.exit(0)
+
+  # Everything went ok so commit
+  wfs.db.conn.commit()
+
 def oneCycle():
 
   findFiles()
   findReplicas()
   findFinishedRequests()
-
-#  findStalledJobs()
+  findStalledJobs()
 
 #
 # PROGRAM MAIN

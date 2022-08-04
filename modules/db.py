@@ -48,6 +48,9 @@ jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled' ]
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
+# 300 for testing; should be more like 3600
+jobStallSeconds = 300
+
 maxAllocations = 6
 
 # Catch all events
@@ -68,6 +71,16 @@ event_REPLICA_STAGING_REQUESTED = 203
 event_REPLICA_STAGING_DONE      = 204
 event_REPLICA_STAGING_CANCELLED = 205
 event_REQUEST_FINISHED          = 206
+
+# Job events
+event_JOB_SUBMITTED		= 301
+event_JOB_STARTED		= 302
+event_JOB_PROCESSING		= 303
+event_JOB_OUTPUTTING		= 304
+event_JOB_FINISHED		= 305
+event_JOB_NOTUSED		= 306
+event_JOB_ABORTED		= 307
+event_JOB_STALLED		= 308
 
 eventTypes = { 
  
@@ -100,8 +113,26 @@ eventTypes = {
  event_REPLICA_STAGING_CANCELLED : ['REPLICA_STAGING_CANCELLED',
                                     'Replica staging cancelled by finder'],
  event_REQUEST_FINISHED          : ['REQUEST_FINISHED',
-                                    'Finder identifies request as finished']
-               
+                                    'Finder identifies request as finished'],
+
+ # Job events               
+ event_JOB_SUBMITTED  : ['JOB_SUBMITTED',
+                         'Job submitted by factory'],
+ event_JOB_STARTED    : ['JOB_STARTED',
+                         'Job started running at site'],
+ event_JOB_PROCESSING : ['JOB_PROCESSING',
+                         'Job began processing files'],
+ event_JOB_OUTPUTTING : ['JOB_OUTPUTTING',
+                         'Job began outputting files to storage'],
+ event_JOB_FINISHED   : ['JOB_FINISHED',
+                         'Job finished'],
+ event_JOB_NOTUSED    : ['JOB_NOTUSED',
+                         'Job was not allocated a stage'],
+ event_JOB_ABORTED    : ['JOB_ABORTED',
+                         'Job aborted'],
+ event_JOB_STALLED    : ['JOB_STALLED',
+                         'Job identified as stalled by Finder']                         
+                         
              }
 
 def stringIsJobsubID(s):

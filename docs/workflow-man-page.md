@@ -264,57 +264,56 @@ BOOTSTRAP SCRIPTS
 
        Each file returned by wfs-get-file is marked as allocated and will  not
        be  processed by any other jobs. When the bootstrap script finishes, it
-       must leave files with lists of the processed and unprocessed  files  in
-       its workspace directory. These lists are sent to the Workflow Allocator
-       by the generic job, which either marks input files  as  being  success-
-       fully  processed or resets their state to unallocated, ready for match-
-       ing by another job.
+       must leave files with lists of the processed  files  in  its  workspace
+       directory.  These  lists  are  sent  to  the  Workflow Allocator by the
+       generic job, which either marks input files as being successfully  pro-
+       cessed  or  resets  their  state  to unallocated, ready for matching by
+       another job.
 
        Files can be referred to either by DID or PFN, one  per  line,  in  the
        appropriate list file:
          wfs-processed-dids.txt
          wfs-processed-pfns.txt
-         wfs-unprocessed-dids.txt
-         wfs-unprocessed-pfns.txt
 
        It  is  not  necessary  to  create  list files which would otherwise be
        empty. You can use a mix of DIDs and PFNs, as long as each  appears  in
-       the correct list file.
+       the correct list file. Any files not represented in either file will be
+       treated as unprocessed and made available for other jobs to process.
 
-       Output  files  which  are  to be uploaded with Rucio by the generic job
-       must be created in the bootstrap's workspace directory and  have  file-
-       names  matching the patterns given by --output-pattern or --output-pat-
-       tern-next-stage when the stage  was  created.  The  suffixed  .json  is
+       Output files which are to be uploaded with Rucio  by  the  generic  job
+       must  be  created in the bootstrap's workspace directory and have file-
+       names matching the patterns given by --output-pattern or  --output-pat-
+       tern-next-stage  when  the  stage  was  created.  The suffixed .json is
        appended to find the corresponding metadata files for MetaCat.
 
 
 REQUEST PROCESSING
-       Once  a  request enters the running state, it is processed by the Work-
-       flow System's Finder agent. Usually this is just done once, but it  can
-       be  repeated if the --refind-interval-hours option is given when creat-
-       ing the request. When the request is processed,  the  Finder  uses  the
+       Once a request enters the running state, it is processed by  the  Work-
+       flow  System's Finder agent. Usually this is just done once, but it can
+       be repeated if the --refind-interval-hours option is given when  creat-
+       ing  the  request.  When  the request is processed, the Finder uses the
        requests's MQL expression to create a list of input files for the first
-       stage. Work is only assigned to jobs when a matching file is found  and
+       stage.  Work is only assigned to jobs when a matching file is found and
        so these lists of files are essential.
 
-       In  most  cases,  the MQL query is a MetaCat Query Language expression,
+       In most cases, the MQL query is a MetaCat  Query  Language  expression,
        which the Finder sends to the MetaCat service to get a list of matching
-       file  DIDs.   However,  if  the  query  is  of  the form "rucio-dataset
+       file DIDs.  However,  if  the  query  is  of  the  form  "rucio-dataset
        SCOPE:NAME" then the query is sent directly to Rucio to get the list of
        file DIDs contained in the given Rucio dataset. Finally if the --monte-
-       carlo COUNT option is used when creating the request, then  an  MQL  of
-       the  form  "monte-carlo COUNT" is stored. This causes the Finder itself
+       carlo  COUNT  option  is used when creating the request, then an MQL of
+       the form "monte-carlo COUNT" is stored. This causes the  Finder  itself
        to create a series of COUNT placeholder files which can be used to keep
-       track  of Monte Carlo processing without a distinct input file for each
-       of the COUNT jobs.  Each of these placeholder files has a  DID  of  the
-       form  monte-carlo-REQUEST_ID-NUMBER  where  NUMBER is in the range 1 to
+       track of Monte Carlo processing without a distinct input file for  each
+       of  the  COUNT  jobs.  Each of these placeholder files has a DID of the
+       form monte-carlo-REQUEST_ID-NUMBER where NUMBER is in the  range  1  to
        COUNT, and REQUEST_ID is the assigned request ID number.
 
 
 FILES
-       An X.509 user proxy file is currently needed to  contact  the  Workflow
-       Service,    which    is    either    given   by   $X509_USER_PROXY   or
-       /tmp/x509up_uUSERID where USERID is the numeric Unix user id, given  by
+       An  X.509  user  proxy file is currently needed to contact the Workflow
+       Service,   which   is   either    given    by    $X509_USER_PROXY    or
+       /tmp/x509up_uUSERID  where USERID is the numeric Unix user id, given by
        id -u
 
 

@@ -633,7 +633,7 @@ def startRequestCmd(jsonDict):
 # or not in draft or submitted states
   doQuery("UPDATE requests SET started=NOW() "
           "WHERE request_id=%d AND "
-          "(state='draft' OR state='submitted'"
+          "(state='draft' OR state='submitted')"
           % requestID)
 
   doQuery("UPDATE requests SET state='running' "

@@ -285,6 +285,7 @@ CREATE TABLE `stages` (
   `num_outputting` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   `num_processed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   `num_notfound` mediumint(8) unsigned NOT NULL DEFAUlT 0,
+  `num_failed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

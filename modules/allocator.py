@@ -272,9 +272,13 @@ def updateStageCounts(requestID, stageID):
              ' AS num_processed,'
              '(SELECT COUNT(*) FROM files'
              ' WHERE state="notfound" AND request_id=%d AND stage_id=%d) '
-             ' AS num_notfound'
+             ' AS num_notfound,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE state="failed" AND request_id=%d AND stage_id=%d) '
+             ' AS num_failed'
              % 
              (requestID, stageID,
+              requestID, stageID,
               requestID, stageID,
               requestID, stageID,
               requestID, stageID,
@@ -291,7 +295,8 @@ def updateStageCounts(requestID, stageID):
              'num_allocated=%d,'
              'num_outputting=%d,'
              'num_processed=%d,'
-             'num_notfound=%d '
+             'num_notfound=%d,'
+             'num_failed=%d '
              'WHERE request_id=%d AND stage_id=%d' %
              (row['num_finding'],
               row['num_unallocated'],
@@ -299,6 +304,7 @@ def updateStageCounts(requestID, stageID):
               row['num_outputting'],
               row['num_processed'],
               row['num_notfound'],
+              row['num_failed'],
               requestID, stageID))
              
     wfs.db.cur.execute(query)
