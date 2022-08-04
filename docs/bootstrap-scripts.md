@@ -35,24 +35,23 @@ Workflow Allocator's REST API directly from an application.
 
 Each file returned by wfs-get-file is marked as allocated and will not be 
 processed by any other jobs. When the bootstrap script finishes, it must 
-leave files with lists of the processed and unprocessed files in its 
+leave files with lists of the files it processed in its 
 workspace directory. These lists are sent to the Workflow Allocator by the 
-generic job, which either marks input files as being successfully 
-processed or resets their state to unallocated, ready for matching by 
-another job.
+generic job which marks those input files as being successfully 
+processed. Any allocated files which are not listed are treated as
+unprocessed, and the Workflow Allocator resets their state to unallocated, 
+ready for matching by another job.
 
 Files can be referred to either by DID or PFN, one  per  line,  in  the
 appropriate list file:
 ```
 wfs-processed-dids.txt
 wfs-processed-pfns.txt
-wfs-unprocessed-dids.txt
-wfs-unprocessed-pfns.txt
 ```
 
 It is not necessary to create list files which would otherwise be empty. 
-You can use a mix of DIDs and PFNs, as long as each appears in the correct 
-list file.
+You can refer to each processed file either by its DID or PFN (or both!) as
+long as they are put in the correct list file. 
 
 Output files which are to be uploaded with Rucio by the generic job must 
 be created in the bootstrap's workspace directory and have filenames 

@@ -2,8 +2,7 @@
 #
 # Submit with something like this:
 #
-# ./workflow quick-request --monte-carlo 1 \
-# --file sleep-bootstrap.sh 
+# ./workflow quick-request --monte-carlo 1 --file sleep.bootstrap
 #
 # Then monitor with dashboard or ./workflow show-jobs --request-id ID
 # where ID is the value printed by the first command
@@ -21,8 +20,5 @@ rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
 # We say we processed whatever we were given
 echo "$did" > wfs-processed-dids.txt
-
-# Nothing unprocessed
-echo > wfs-unprocessed-dids.txt
 
 exit 0

@@ -47,9 +47,6 @@ echo $Ffname $fname $outFile
 # put here the right value, this is just an example 
 campaign="WFS.Request-${WFS_REQUEST_ID}.Stage-${WFS_STAGE_ID}"
 
-# assume things fail but change on success
-echo "$rawpfn" > wfs-unprocessed-pfns.txt
-
 (
 # Do the scary preload stuff in a subshell!
 export LD_PRELOAD=${XROOTD_LIB}/libXrdPosixPreload.so
@@ -73,7 +70,7 @@ if [ $larExit -eq 0 ] ; then
 
   if [ $extractorExit -eq 0 ] ; then
     echo "extractor succeeds"
-    mv -f wfs-unprocessed-pfns.txt wfs-processed-pfns.txt
+    echo "$rawpfn" > wfs-processed-pfns.txt
   fi
 fi
 
