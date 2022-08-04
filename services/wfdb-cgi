@@ -929,10 +929,14 @@ def getUserID():
 if os.environ['REQUEST_METHOD'] != 'POST':
   httpError('405 Method not allowed', 'We only support POST')
 
+wfs.conf.readConf()
+
 # Do as many checks as we can before connecting to the database here
 try:
-  wfs.db.conn = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
-                        passwd=wfs.conf.mysqlPassword, db='wfdb')
+  wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname,
+                                user=wfs.conf.mysqlUsername,
+                                passwd=wfs.conf.mysqlPassword,
+                                db=wfs.conf.mysqlDbName)
   wfs.db.conn.autocommit(False)
   wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
 except:

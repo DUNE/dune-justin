@@ -727,6 +727,9 @@ if os.environ['REQUEST_METHOD'] != 'POST':
 # Create a unique ID string for this instance that may also help in debugging
 allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
 
+# Get the WFS configuration
+wfs.conf.readConf()
+
 # Get the JSON document POSTed to us
 try:
   jsonDict = json.load(sys.stdin)
@@ -739,8 +742,10 @@ if 'method' not in jsonDict:
 
 # Do as many checks as we can before connecting to the database here
 try:
-  wfs.db.conn = MySQLdb.connect(host="localhost", user=wfs.conf.mysqlUser, 
-                                passwd=wfs.conf.mysqlPassword, db='wfdb')
+  wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
+                                user=wfs.conf.mysqlUsername, 
+                                passwd=wfs.conf.mysqlPassword, 
+                                db=wfs.conf.mysqlDbName)
   wfs.db.conn.autocommit(False)
   wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
 except:

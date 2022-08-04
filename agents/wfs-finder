@@ -660,11 +660,13 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
+          wfs.conf.readConf()
+          
           try:
-            wfs.db.conn = MySQLdb.connect(host="localhost", 
-                                  user=wfs.conf.mysqlUser,
+            wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
+                                  user=wfs.conf.mysqlUsername,
                                   passwd=wfs.conf.mysqlPassword, 
-                                  db='wfdb')
+                                  db=wfs.conf.mysqlDbName)
             wfs.db.conn.autocommit(False)
             wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
