@@ -145,7 +145,7 @@ SUBCOMMANDS
               [--refind-start-date   YYYYMMDD]  [--refind-duration-days  DAYS]
               [--refind-interval-hours HOURS] --file FILENAME  [--wall-seconds
               N]  [--rss-mb  N] [--processors N] [--max-distance DIST] [--out-
-              put-pattern SCOPE:DATASET:PATTERN] --output-rse NAME
+              put-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME]
               Combines the create-request, create-stage and start-request sub-
               commands  into  a  single  operation,  for use with single-stage
               requests.
