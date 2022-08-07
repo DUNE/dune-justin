@@ -471,51 +471,57 @@ def findFinishedRequests():
     
   wfs.db.conn.commit()
 
-def findStalledJobs():
+def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
+  # or which have reported they are stalled
 
   try:
-    query = ('SELECT request_id,stage_id,wfs_job_id,jobsub_id,site_id '
+    query = ('SELECT request_id,stage_id,wfs_job_id,jobsub_id,site_id,'
+             'allocation_state '
              'FROM jobs '
-             'WHERE (allocation_state="started" OR '
+             'WHERE ((allocation_state="started" OR '
              'allocation_state="processing" OR '
-             'allocation_state="outputting") AND '             
-             '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND)) '
+             'allocation_state="outputting") AND '
+             '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) '
+             'OR allocation_state="aborted" '
              'ORDER BY wfs_job_id' % wfs.db.jobStallSeconds)
 
     wfs.db.cur.execute(query)
 
     jobRows = wfs.db.cur.fetchall()
   except Exception as e:
-    logLine('Failed to get list of stalled jobs: ' + str(e))
+    logLine('Failed to get list of stalled or aborted jobs: ' + str(e))
     return
     
   if not jobRows:
-    logLine('No stalled jobs to process')
+    logLine('No stalled or aborted jobs to process')
     return
 
   for jobRow in jobRows:
 
-    # First we mark the job itself as stalled
-    try:
-      query = ('UPDATE jobs SET state="stalled",finished=NOW() '
+    if jobRow['allocation_state'] != 'aborted':
+      # If not here due to 'aborted', we mark the job as stalled
+      try:
+        query = ('UPDATE jobs SET state="stalled",finished=NOW() '
                'WHERE wfs_job_id=%d' % jobRow['wfs_job_id'])
     
-      wfs.db.cur.execute(query)
-    except:
-      logLine('Failed to set job %s to stalled' 
+        wfs.db.cur.execute(query)
+      except:
+        logLine('Failed to set job %s to stalled' 
               % jobRow['jobsub_id'])
-      continue
+        continue
 
-    logLine('Job %s set to stalled' % jobRow['jobsub_id'])
+      logLine('Job %s set to stalled' % jobRow['jobsub_id'])
     
-    wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_STALLED,
-                    requestID = jobRow['request_id'],
-                    stageID = jobRow['stage_id'],
-                    siteID = jobRow['site_id'])
+      wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_STALLED,
+                      requestID = jobRow['request_id'],
+                      stageID = jobRow['stage_id'],
+                      siteID = jobRow['site_id'])
 
-    # Then find the file(s) allocated to this stalled job 
-    # (IGNORE FILES IN THE outputting STATE NOW - THESE COULD BE UPLOADED...)
+    # Then find the file(s) allocated to this stalled or aborted job 
+    # (IGNORE FILES IN THE outputting STATE NOW - THESE COULD BE UPLOADED...
+    #  IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
+    #  CHECKS HERE?)
     try:
       query = ('SELECT file_id,allocations,file_did '
                'FROM files '
@@ -526,7 +532,7 @@ def findStalledJobs():
 
       fileRows = wfs.db.cur.fetchall()
     except:
-      logLine('Failed to get list of files of the stalled job')
+      logLine('Failed to get list of files of the stalled or aborted job')
       # We should give up at this point rather than commit a mess?
       sys.exit(0)
     
@@ -574,7 +580,7 @@ def oneCycle():
   findFiles()
   findReplicas()
   findFinishedRequests()
-  findStalledJobs()
+  findStalledAbortedJobs()
 
 #
 # PROGRAM MAIN
