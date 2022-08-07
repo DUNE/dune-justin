@@ -557,6 +557,11 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
             
+        wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_SET_TO_FAILED,
+                        requestID = jobRow['request_id'],
+                        stageID = jobRow['stage_id'],
+                        fileID = fileRow['file_id'],
+                        siteID = jobRow['site_id'])
       else:
       
         try:
@@ -571,6 +576,12 @@ def findStalledAbortedJobs():
                      jobRow['stage_id'], jobRow['jobsub_id']))
           # Again, just stop for now on errors
           sys.exit(0)
+
+        wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATION_RESET,
+                        requestID = jobRow['request_id'],
+                        stageID = jobRow['stage_id'],
+                        fileID = fileRow['file_id'],
+                        siteID = jobRow['site_id'])
 
   # Everything went ok so commit
   wfs.db.conn.commit()
@@ -602,18 +613,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs('/var/run/wfs',         
+        os.makedirs(wfs.conf.wfsRunDir,         
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
         pass
         
       try:
-        f = open('/var/run/wfs/finder.pid', 'w')
+        f = open(wfs.conf.wfsRunDir + '/finder.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/wfs/finder.pid - exiting')
+        print('Failed to create '+wfs.conf.wfsRunDir+'/finder.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -648,16 +659,16 @@ if __name__ == '__main__':
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/wfs/finder.pid', 'r')
+          pf = open(wfs.conf.wfsRunDir + '/finder.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new /var/run/wfs/finder.pid - exiting')
+            print('new ' + wfs.conf.wfsRunDir + '/finder.pid - exiting')
             break
 
         except:
-          print('no /var/run/wfs/finder.pid - exiting')
+          print('no ' + wfs.conf.wfsRunDir + '/finder.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle

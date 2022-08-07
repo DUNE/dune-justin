@@ -3,21 +3,19 @@ import configparser
 # Constants
 MonteCarloRseID = 1
 
+wfsLibDir     = None
+wfsLogDir     = None
+wfsRunDir     = None
+
 mysqlUsername = None
 mysqlPassword = None
 mysqlHostname = None
 mysqlDbName   = None
 
 def readConf():
-  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName
+  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName,
+         wfsLibDir, wfsLogDir, wfsRunDir
 
-  try:
-    f = open('/var/lib/wfs/VERSION', 'r')
-    wfsVersion = f.readline().split('=',1)[1].strip()
-    f.close()
-  except:
-    pass
-    
   parser = configparser.RawConfigParser()
 
   # Look for configuration files in /etc/wfs.d
@@ -32,6 +30,32 @@ def readConf():
 
   # Standalone configuration file, read after wfs.d in case of manual overrides
   parser.read('/etc/wfs.conf')
+
+  # Options for the [shared] section
+
+  try:
+    wfsLibDir = parser.get('shared','wfs_lib_dir').strip()
+  except:
+    wfsLibDir = '/var/lib/wfs'
+
+  try:
+    f = open(wfsLibDir + '/VERSION', 'r')
+    wfsVersion = f.readline().split('=',1)[1].strip()
+    f.close()
+  except:
+    wfsVersion = '00.00.00'
+
+  try:
+    wfsLogDir = parser.get('shared','wfs_log_dir').strip()
+  except:
+    wfsLogDir = '/var/log/wfs'
+
+  try:
+    wfsRunDir = parser.get('shared','wfs_run_dir').strip()
+  except:
+    wfsRunDir = '/var/run/wfs'
+
+  # Options for the [database section]
 
   try:
     mysqlUsername = parser.get('database','username').strip()
@@ -53,3 +77,4 @@ def readConf():
   except:
     mysqlDbName = 'wfdb'
 
+    

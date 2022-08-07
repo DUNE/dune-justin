@@ -82,6 +82,11 @@ event_JOB_NOTUSED		= 306
 event_JOB_ABORTED		= 307
 event_JOB_STALLED		= 308
 
+# File events
+#event_FILE_ALLOCATED           = 401
+event_FILE_ALLOCATION_RESET     = 402
+event_FILE_SET_TO_FAILED        = 403
+
 eventTypes = { 
  
  # Catch all events
@@ -131,8 +136,13 @@ eventTypes = {
  event_JOB_ABORTED    : ['JOB_ABORTED',
                          'Job aborted'],
  event_JOB_STALLED    : ['JOB_STALLED',
-                         'Job identified as stalled by Finder']                         
-                         
+                         'Job identified as stalled by Finder'],
+
+ # File events
+ event_FILE_ALLOCATION_RESET : ['FILE_ALLOCATION_RESET',
+                                'File set back to unallocated'],
+ event_FILE_SET_TO_FAILED    : ['FILE_SET_TO_FAILED',
+                                'Too many attempts to process file: failed']
              }
 
 def stringIsJobsubID(s):

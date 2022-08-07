@@ -472,7 +472,8 @@ def listFiles(cgiValues, pageNumber, pageLength):
          % (requestID, stageID, stateText))
   
   query = ("SELECT files.file_did,files.state,event_time,"
-           "storages.rse_name,jobs.jobsub_id,sites.site_name "
+           "storages.rse_name,jobs.jobsub_id,sites.site_name,"
+           "allocations "
            "FROM files "
            "LEFT JOIN events"
            " ON files.wfs_job_id=events.wfs_job_id AND events.event_type_id=%d "
@@ -495,17 +496,17 @@ def listFiles(cgiValues, pageNumber, pageLength):
 
   print(
 """<p><table>
-<tr><th rowspan="2">DID</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
+<tr><th rowspan="2">DID</th><th rowspan="2">Attempts</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows[:pageLength]:
     print('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
-          '%s</a></td><td>%s</td>' % 
+          '%s</a></td><td>%d</td><td>%s</td>' % 
           (requestID, 
            stageID, 
            urllib.parse.quote(fileRow["file_did"], safe=''),
            html.escape(fileRow["file_did"], quote=True),
-           fileRow["state"],
+           fileRow["allocations"], fileRow["state"]
           )
          )
          
