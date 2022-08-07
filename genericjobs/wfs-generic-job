@@ -172,6 +172,41 @@ if [ "$http_code" != "200" ] ; then
   job_aborted $http_code get_stage
 fi
 
+## Start of temporary Rucio client install. Eventually this
+## section can be removed once we can get Rucio from cvmfs
+(
+## These three lines can be used to use the installed Rucio client
+export RUCIO_HOME=$PWD/rucio-local
+export PATH="$RUCIO_HOME/bin:$PATH"
+export PYTHONPATH="$RUCIO_HOME/lib/python3.6/site-packages:/usr/lib64/python3.6/site-packages"
+##
+
+mkdir -p $RUCIO_HOME/bin $RUCIO_HOME/etc
+pip3 install --no-cache-dir --prefix $RUCIO_HOME \
+             --ignore-installed rucio-clients==1.26.9
+
+cat <<EOF > $RUCIO_HOME/etc/rucio.cfg
+[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://auth-dune-rucio.fnal.gov
+account = amcnab
+auth_type = x509_proxy
+request_retries = 3
+EOF
+
+echo '====Start rucio.cfg===='
+cat $RUCIO_HOME/etc/rucio.cfg
+echo '====End rucio.cfg===='
+
+rucio --version
+if [ $? != 0 ] ; then
+  job_aborted 900 'Rucio install fails'
+fi
+)
+## End of Rucio install section
+
+#
+
 tar xvf wfs-files.tar
 
 if [ -r wfs-env.sh ] ; then
@@ -255,8 +290,7 @@ output_dids=`echo \`sed 's/.*/"&"/' wfs-output-dids.txt\`|sed 's/ /,/g'`
 
 next_stage_dids=`echo \`sed 's/.*/"&"/' wfs-next-stage-dids.txt\`|sed 's/ /,/g'`
 
-# wfs-bootstrap.sh should produce a list of successfully processed input files
-# and a list of files which still need to be processed by another job
+# wfs-bootstrap.sh should produce lists of successfully processed input files
 if [ -f workspace/wfs-processed-dids.txt ] ; then
   processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-dids.txt\`|sed 's/ /,/g'`
 fi
@@ -310,8 +344,14 @@ fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
 output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
+echo "Using $output_rse for output, out of $WFS_OUTPUT_RSE_LIST"
 
 cat $WFS_PATH/wfs-outputs.txt | (
+
+# Because in a subshell, we can change paths to use temporary Rucio install
+export RUCIO_HOME=$PWD/rucio-local
+export PATH="$RUCIO_HOME/bin:$PATH"
+export PYTHONPATH="$RUCIO_HOME/lib/python3.6/site-packages:/usr/lib64/python3.6/site-packages"
 
 while read dataset scope fn
 do
@@ -319,16 +359,19 @@ do
   echo
 
   echo "Upload $scope:$fn"
-  echo rucio --verbose -a test upload --rse "$output_rse" \
-    --lifetime 3600 --scope "$scope" "workspace/$fn" 
-  echo "rucio returns $?"
+  rucio --verbose -a test upload --rse "$output_rse" \
+        --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn" 
+  echo "rucio upload returns $?"
 
   if [ $? = 0 ] ; then
     echo "Add $scope:$fn to $dataset"
-    echo rucio --verbose -a test attach "$dataset" "$scope:$fn"
+    rucio --verbose -a test attach "$dataset" "$scope:$fn"
+    echo "rucio attach returns $?"
   fi
  
 done
+
+
 
 )
 

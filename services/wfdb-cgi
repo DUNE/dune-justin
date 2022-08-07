@@ -567,12 +567,12 @@ def quickRequestCmd(jsonDict, userID):
     for i in jsonDict['output_pattern']:
       splitList = i.split(':')
        
-      if len(splitList) < 4:
+      if len(splitList) < 3:
         continue
     
       scope        = splitList[0]
       datasetName  = splitList[1]
-      pattern      = ':'.join(splitList[3:])
+      pattern      = ':'.join(splitList[2:])
     
       doQuery('INSERT INTO stages_outputs SET '
               'request_id=%d,'
@@ -764,7 +764,7 @@ def createStageCmd(jsonDict):
     
       splitList = i.split(':')
        
-      if len(splitList) < 4:
+      if len(splitList) < 3:
         continue
     
       scope        = splitList[0]

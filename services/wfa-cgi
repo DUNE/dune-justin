@@ -152,7 +152,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
              'AND stages_output_storages.request_id=%d '
              'AND stages_output_storages.stage_id=%d) '
              'LEFT JOIN sites_storages '
-             'ON (stages_output_storages.rse_id=sites_storages.rse_id '
+             'ON (storages.rse_id=sites_storages.rse_id '
              'AND sites_storages.site_id=%d) '
              'WHERE (use_for_output OR '
              'stages_output_storages.rse_id IS NOT NULL) AND '

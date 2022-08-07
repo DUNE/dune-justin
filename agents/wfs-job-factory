@@ -126,7 +126,7 @@ def parseJobsubHistory():
 
       except Exception as e:
         # But try to keep going
-        logLine('INSERT INTO jobs fails with: ' + str(e))
+        logLine('Update jobs fails with: ' + str(e))
 
   # Commit whatever we found - no rush
   wfs.db.conn.commit()

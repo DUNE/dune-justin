@@ -1,11 +1,14 @@
 #!/bin/bash
 #
 # To use this bootstrap to process 10 files from the dc4-vd-coldbox-top
-# data use this command to create the request:
+# data and put the output in the test scope and the test:amcnab-test02 dataset,
+# use this command to create the request:
 #
-#  workflow quick-request \
-#    --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-#    --file dc4-vd-coldbox-top.bootstrap --max-distance 100
+# workflow quick-request \
+# --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+# --file dc4-vd-coldbox-top.bootstrap --max-distance 100 \
+# --output-pattern 'test:amcnab-test02:*_reco_*.root' \
+# --output-rse FNAL_DCACHE_TEST
 #
 
 # fcl file to be used

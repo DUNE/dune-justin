@@ -19,6 +19,6 @@ echo "$did" > wfs-processed-dids.txt
 
 # Hello world
 echo "Hello world $pfn" 
-echo "Hello world $pfn" >hello-world-$(date -u +%Y%m%dT%H%M%SZ).txt
+echo "Hello world $pfn" >hello-world-$(date -u +%Y%m%dT%H%M%SZ-%N).txt
 
 exit 0
