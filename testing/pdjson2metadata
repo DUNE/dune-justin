@@ -1,0 +1,65 @@
+#!/usr/bin/env python3 
+#
+# Convert protoDUNE metadata to JSON suitable to be the value of the "metadata" key in the 
+# JSON sent to MetaCat
+#
+# Adapted from https://github.com/ivmfnal/protodune/blob/main/tools/declare_meta.py
+# to write out modified JSON rather than uploading it. 
+# This allows the script to be run inside bootstrap scripts supplied by users.
+#
+# This script must be converted to base64 with something like the following 
+# and included in the here document near the start of the bootstrap scripts :
+#
+# (macOS) base64 -b 76 pdjson2metadata > pdjson2metadata.b64
+# (Linux) base64       pdjson2metadata > pdjson2metadata.b64
+#
+
+import sys, json
+
+coreAttributes = {
+    "event_count":  "core.event_count",
+    "file_type":    "core.file_type", 
+    "file_format":  "core.file_format",
+    "data_tier":    "core.data_tier", 
+    "data_stream":  "core.data_stream", 
+    "events":       "core.events",
+    "first_event":  "core.first_event_number",
+    "last_event":   "core.last_event_number",
+    "event_count":  "core.event_count"
+}
+   
+try:
+  inputMetadata = json.load(open(sys.argv[1], "r"))
+except Exception as e:
+  print("Error reading metadata from file: " + str(e), file=sys.stderr)
+  sys.exit(1)
+
+inputMetadata.pop("file_size", None)
+inputMetadata.pop("checksum", None)
+inputMetadata.pop("file_name", None)
+
+outputMetadata = {}
+runsSubruns = set()
+runType = None
+runs = set()
+for run, subrun, rtype in inputMetadata.pop("runs", []):
+  runType = rtype
+  runs.add(run)
+  runsSubruns.add(100000 * run + subrun)
+
+outputMetadata["core.runs_subruns"] = sorted(list(runsSubruns))
+outputMetadata["core.runs"] = sorted(list(runs))
+outputMetadata["core.run_type"] = runType
+
+for name, value in inputMetadata.items():
+  if '.' not in name:
+    if name in coreAttributes:
+      name = coreAttributes[name]
+    else:
+      name = 'x.' + name
+            
+  outputMetadata[name] = value
+    
+outputMetadata.setdefault("core.event_count", len(outputMetadata.get("core.events", [])))
+ 
+json.dump(outputMetadata, sys.stdout, indent=4, sort_keys=True)
