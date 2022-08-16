@@ -71,12 +71,15 @@ def makeJobDict(jobsubID, cookie = None):
              'slot_sizes.max_processors,'
              'slot_sizes.min_rss_bytes,'
              'slot_sizes.max_rss_bytes,'
-             'slot_sizes.max_wall_seconds '
+             'slot_sizes.max_wall_seconds,'
+             'sites.site_name '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.request_id=stages.request_id '
              'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN slot_sizes '
              'ON slot_sizes.slot_size_id=jobs.slot_size_id '
+             'LEFT JOIN sites '
+             'ON jobs.site_id=sites.site_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
 
     wfs.db.cur.execute(query)
@@ -95,6 +98,7 @@ def makeJobDict(jobsubID, cookie = None):
            "request_id"       : job['request_id'],
            "stage_id"         : job['stage_id'],
            "site_id"          : job['site_id'],
+           "site_name"        : job['site_name'],
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
            "slot_size_id"     : job['slot_size_id'],
@@ -130,6 +134,7 @@ def makeSlotSizeDict(slotSizeID):
 
   return { "error_message"   : None,
            "site_id"         : slotSize['site_id'],
+           "site_name"       : slotSize['site_name'],
            "min_processors"  : slotSize['min_processors'],
            "max_processors"  : slotSize['max_processors'],
            "min_rss_bytes"   : slotSize['min_rss_bytes'],

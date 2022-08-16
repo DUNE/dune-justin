@@ -3,9 +3,9 @@ import configparser
 # Constants
 MonteCarloRseID = 1
 
-wfsLibDir     = None
-wfsLogDir     = None
-wfsRunDir     = None
+wfsLibDir     = '/var/lib/wfs'
+wfsLogDir     = '/var/log/wfs'
+wfsRunDir     = '/var/run/wfs'
 
 mysqlUsername = None
 mysqlPassword = None
@@ -13,7 +13,7 @@ mysqlHostname = None
 mysqlDbName   = None
 
 def readConf():
-  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName,
+  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          wfsLibDir, wfsLogDir, wfsRunDir
 
   parser = configparser.RawConfigParser()

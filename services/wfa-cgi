@@ -177,6 +177,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
       
   addFileToTarFile(tar, 'wfs-env.sh', 
        (
+         'export WFS_SITE_NAME=' + str(jobDict['site_name']) + '\n' +
          'export WFS_REQUEST_ID=' + str(stage['request_id']) + '\n' +
          'export WFS_STAGE_ID=' + str(stage['stage_id']) + '\n' +
          'export WFS_COOKIE="' + cookie + '"\n' +
@@ -402,7 +403,8 @@ def getFileMethod(jsonDict):
 
   if jobDict['allocation_state'] != 'started' and \
      jobDict['allocation_state'] != 'processing':
-    httpError('403 Forbidden', 'Job in wrong state to find file')
+    httpError('403 Forbidden', 
+         'Job in wrong state to find file (%s)' % jobDict['allocation_state'])
     
   # Create a stage dictionary with the next file in this stage  
   oneFile = wfs.allocator.findFile(jobDict)

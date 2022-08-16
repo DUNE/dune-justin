@@ -473,7 +473,7 @@ def findFinishedRequests():
 
 def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
-  # or which have reported they are stalled
+  # or which have reported they have aborted
 
   try:
     query = ('SELECT request_id,stage_id,wfs_job_id,jobsub_id,site_id,'

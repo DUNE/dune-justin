@@ -276,7 +276,8 @@ def oneCycle():
       'DATE_SUB(NOW(),INTERVAL 1 DAY)) AS site_submitted_recently '
       'FROM sites '
       'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
-      'WHERE enabled '
+      'WHERE enabled OR (sites.last_submitted_time < '
+      'DATE_SUB(NOW(),INTERVAL 1 DAY)) '
       'ORDER BY site_name,min_processors'
       # Should change this to random order
                )
