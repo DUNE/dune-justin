@@ -1,15 +1,57 @@
 #!/bin/bash
 #
 # To use this bootstrap to process 10 files from the dc4-vd-coldbox-top
-# data and put the output in the test scope and the test:amcnab-test02 dataset,
-# use this command to create the request:
+# data and put the output in the dc4-test namespace (MetaCat) and scope (Rucio),
+# and in the dc4-test:amcnab-01 dataset in MetaCat and Rucio, use this command to 
+# create the request:
 #
 # workflow quick-request \
 # --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
 # --file dc4-vd-coldbox-top.bootstrap --max-distance 100 \
-# --output-pattern 'test:amcnab-test02:*_reco_*.root' \
+# --output-pattern 'dc4-test:amcnab-01:*_reco_data_*.root' \
 # --output-rse FNAL_DCACHE_TEST
 #
+
+base64 -d <<EOF >pdjson2metadata
+IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMyAKIwojIENvbnZlcnQgcHJvdG9EVU5FIG1ldGFkYXRhIHRv
+IEpTT04gc3VpdGFibGUgdG8gYmUgdGhlIHZhbHVlIG9mIHRoZSAibWV0YWRhdGEiIGtleSBpbiB0
+aGUgCiMgSlNPTiBzZW50IHRvIE1ldGFDYXQKIwojIEFkYXB0ZWQgZnJvbSBodHRwczovL2dpdGh1
+Yi5jb20vaXZtZm5hbC9wcm90b2R1bmUvYmxvYi9tYWluL3Rvb2xzL2RlY2xhcmVfbWV0YS5weQoj
+IHRvIHdyaXRlIG91dCBtb2RpZmllZCBKU09OIHJhdGhlciB0aGFuIHVwbG9hZGluZyBpdC4gCiMg
+VGhpcyBhbGxvd3MgdGhlIHNjcmlwdCB0byBiZSBydW4gaW5zaWRlIGJvb3RzdHJhcCBzY3JpcHRz
+IHN1cHBsaWVkIGJ5IHVzZXJzLgojCiMgVGhpcyBzY3JpcHQgbXVzdCBiZSBjb252ZXJ0ZWQgdG8g
+YmFzZTY0IHdpdGggc29tZXRoaW5nIGxpa2UgdGhlIGZvbGxvd2luZyAKIyBhbmQgaW5jbHVkZWQg
+aW4gdGhlIGhlcmUgZG9jdW1lbnQgbmVhciB0aGUgc3RhcnQgb2YgdGhlIGJvb3RzdHJhcCBzY3Jp
+cHRzIDoKIwojIChtYWNPUykgYmFzZTY0IC1iIDc2IHBkanNvbjJtZXRhZGF0YSA+IHBkanNvbjJt
+ZXRhZGF0YS5iNjQKIyAoTGludXgpIGJhc2U2NCAgICAgICBwZGpzb24ybWV0YWRhdGEgPiBwZGpz
+b24ybWV0YWRhdGEuYjY0CiMKCmltcG9ydCBzeXMsIGpzb24KCmNvcmVBdHRyaWJ1dGVzID0gewog
+ICAgImV2ZW50X2NvdW50IjogICJjb3JlLmV2ZW50X2NvdW50IiwKICAgICJmaWxlX3R5cGUiOiAg
+ICAiY29yZS5maWxlX3R5cGUiLCAKICAgICJmaWxlX2Zvcm1hdCI6ICAiY29yZS5maWxlX2Zvcm1h
+dCIsCiAgICAiZGF0YV90aWVyIjogICAgImNvcmUuZGF0YV90aWVyIiwgCiAgICAiZGF0YV9zdHJl
+YW0iOiAgImNvcmUuZGF0YV9zdHJlYW0iLCAKICAgICJldmVudHMiOiAgICAgICAiY29yZS5ldmVu
+dHMiLAogICAgImZpcnN0X2V2ZW50IjogICJjb3JlLmZpcnN0X2V2ZW50X251bWJlciIsCiAgICAi
+bGFzdF9ldmVudCI6ICAgImNvcmUubGFzdF9ldmVudF9udW1iZXIiLAogICAgImV2ZW50X2NvdW50
+IjogICJjb3JlLmV2ZW50X2NvdW50Igp9CiAgIAp0cnk6CiAgaW5wdXRNZXRhZGF0YSA9IGpzb24u
+bG9hZChvcGVuKHN5cy5hcmd2WzFdLCAiciIpKQpleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgcHJp
+bnQoIkVycm9yIHJlYWRpbmcgbWV0YWRhdGEgZnJvbSBmaWxlOiAiICsgc3RyKGUpLCBmaWxlPXN5
+cy5zdGRlcnIpCiAgc3lzLmV4aXQoMSkKCmlucHV0TWV0YWRhdGEucG9wKCJmaWxlX3NpemUiLCBO
+b25lKQppbnB1dE1ldGFkYXRhLnBvcCgiY2hlY2tzdW0iLCBOb25lKQppbnB1dE1ldGFkYXRhLnBv
+cCgiZmlsZV9uYW1lIiwgTm9uZSkKCm91dHB1dE1ldGFkYXRhID0ge30KcnVuc1N1YnJ1bnMgPSBz
+ZXQoKQpydW5UeXBlID0gTm9uZQpydW5zID0gc2V0KCkKZm9yIHJ1biwgc3VicnVuLCBydHlwZSBp
+biBpbnB1dE1ldGFkYXRhLnBvcCgicnVucyIsIFtdKToKICBydW5UeXBlID0gcnR5cGUKICBydW5z
+LmFkZChydW4pCiAgcnVuc1N1YnJ1bnMuYWRkKDEwMDAwMCAqIHJ1biArIHN1YnJ1bikKCm91dHB1
+dE1ldGFkYXRhWyJjb3JlLnJ1bnNfc3VicnVucyJdID0gc29ydGVkKGxpc3QocnVuc1N1YnJ1bnMp
+KQpvdXRwdXRNZXRhZGF0YVsiY29yZS5ydW5zIl0gPSBzb3J0ZWQobGlzdChydW5zKSkKb3V0cHV0
+TWV0YWRhdGFbImNvcmUucnVuX3R5cGUiXSA9IHJ1blR5cGUKCmZvciBuYW1lLCB2YWx1ZSBpbiBp
+bnB1dE1ldGFkYXRhLml0ZW1zKCk6CiAgaWYgJy4nIG5vdCBpbiBuYW1lOgogICAgaWYgbmFtZSBp
+biBjb3JlQXR0cmlidXRlczoKICAgICAgbmFtZSA9IGNvcmVBdHRyaWJ1dGVzW25hbWVdCiAgICBl
+bHNlOgogICAgICBuYW1lID0gJ3guJyArIG5hbWUKICAgICAgICAgICAgCiAgb3V0cHV0TWV0YWRh
+dGFbbmFtZV0gPSB2YWx1ZQogICAgCm91dHB1dE1ldGFkYXRhLnNldGRlZmF1bHQoImNvcmUuZXZl
+bnRfY291bnQiLCBsZW4ob3V0cHV0TWV0YWRhdGEuZ2V0KCJjb3JlLmV2ZW50cyIsIFtdKSkpCiAK
+anNvbi5kdW1wKG91dHB1dE1ldGFkYXRhLCBzeXMuc3Rkb3V0LCBpbmRlbnQ9NCwgc29ydF9rZXlz
+PVRydWUpCg==
+EOF
+chmod +x pdjson2metadata
 
 # fcl file to be used
 fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
@@ -44,7 +86,7 @@ Ffname=`echo $pfn | awk -F/ '{print $NF}'`
 fname=`echo $Ffname | awk -F. '{print $1}'`
 
 # define output filename
-outFile=${fname}_reco_${now}.root
+outFile=${fname}_reco_data_${now}.root
 echo $Ffname $fname $outFile
 
 # put here the right value, this is just an example 
@@ -67,12 +109,16 @@ if [ $larExit -eq 0 ] ; then
   # write metadata file if lar succeeded
   extractor_prod.py --infile "$outFile" --no_crc --appname reco \
     --appversion ${DUNEVERSION} --appfamily art \
-    --campaign ${campaign} > $outFile.json  
+    --campaign ${campaign} > $outFile.ext.json  
   extractorExit=$?
   echo "extractor_prod.py exit code $extractorExit"
 
-  if [ $extractorExit -eq 0 ] ; then
-    echo "extractor succeeds"
+  pdjson2metadata $outFile.ext.json > $outFile.json
+  p2mExit=$?
+  echo "pdjson2metadata exit code $p2mExit"
+
+  if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
+    echo "Metadata extraction succeeds"
     echo "$rawpfn" > wfs-processed-pfns.txt
   fi
 fi

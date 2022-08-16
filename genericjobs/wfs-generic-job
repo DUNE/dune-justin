@@ -408,33 +408,23 @@ do
   file_size=`wc --bytes "workspace/$fn" | cut -f1 -d' '`
 
   # Make the JSON to send, including the file's JSON
-  echo '{ "workflow" : {' > tmp.json
-
+  echo '{' > tmp.json
+  echo "\"size\" : $file_size," >> tmp.json
+  echo "\"namespace\" : \"$scope\"," >> tmp.json
+  echo "\"name\" : \"$fn\"," >> tmp.json
+  echo "\"metadata\" : {" >> tmp.json
+  echo "\"DUNE.workflow\" : {" >> tmp.json
   echo "\"site_name\" : \"$WFS_SITE_NAME\"," >> tmp.json
   echo "\"request_id\" : $WFS_REQUEST_ID," >> tmp.json
   echo "\"stage_id\" : $WFS_STAGE_ID," >> tmp.json
-  echo "\"hostname\" : \"$HOSTNAME\" }," >> tmp.json
+  echo "\"hostname\" : \"$HOSTNAME\" }" >> tmp.json
 
-  echo "\"size\" : $file_size," >> tmp.json
-  echo "\"namespace\" : \"$scope\"," >> tmp.json
-  echo "\"name\" : \"$fn\"" >> tmp.json
-
-# TEMP STUFF WHILE MetaCat REQUIRES DOTS IN metadata KEYS
   if [ -r "workspace/$fn.json" ] ; then  
-    echo ', "Xmetadata" : ' >> tmp.json  
-    cat "workspace/$fn.json" >> tmp.json
+    echo ',' >> tmp.json
+    tail --bytes +2 "workspace/$fn.json" >> tmp.json
+  else
+    echo '}' >> tmp.json
   fi
-  # This optional key is not currently optional ...
-  echo ', "metadata" : { "dum.my" : "placeholder" } ' >> tmp.json
-# END TEMP STUFF
-
-#  if [ -r "workspace/$fn.json" ] ; then  
-#    echo ', "metadata" : ' >> tmp.json  
-#    cat "workspace/$fn.json" >> tmp.json
-#  else
-#    # This optional key is not currently optional ...
-#    echo ', "metadata" : { "dum.my" : "placeholder" } ' >> tmp.json
-#  fi
 
   echo '}' >> tmp.json
 
@@ -447,11 +437,11 @@ do
   metacat file declare --json tmp.json "$dataset"
   if [ $? = 0 ] ; then
     echo "Upload $scope:$fn"
-    rucio --verbose upload --rse "$output_rse" \
+    rucio --verbose -a test upload --rse "$output_rse" \
           --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
     if [ $? = 0 ] ; then
       echo "Add $scope:$fn to $dataset"
-      rucio --verbose attach "$dataset" "$scope:$fn"
+      rucio --verbose -a test attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         echo "rucio attach fails"
         job_aborted 900 "rucio attach error"      
