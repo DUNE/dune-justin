@@ -54,7 +54,7 @@ EOF
 chmod +x pdjson2metadata
 
 # fcl file to be used
-fclFile=standard_reco_vdcb_48deg_bot.fcl
+fclFile=vdcoldbox_raw_dataprep_reco.fcl
 
 # number of events to process from the input file
 nEvts=2
@@ -75,7 +75,7 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 # so add it to the start of the path
 export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRODUCTS}
 
-export DUNEVERSION=v09_44_00_02
+export DUNEVERSION=v09_49_00d00
 export DUNEQUALIFIER="e20:prof"
 setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
 

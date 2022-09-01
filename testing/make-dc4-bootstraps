@@ -4,7 +4,8 @@
 #
 
 sed -e 's/top/bottom/g' \
-    -e 's/^fclFile.*/fclFile=standard_reco_vdcb_48deg_bot.fcl/' \
+    -e 's/^fclFile.*/fclFile=vdcoldbox_raw_dataprep_reco.fcl/' \
+    -e 's/^export DUNEVERSION=.*/export DUNEVERSION=v09_49_00d00/' \
  dc4-vd-coldbox-top.bootstrap > dc4-vd-coldbox-bottom.bootstrap
 
 sed -e 's/dc4-vd-coldbox-top/dc4-hd-protodune/g' \
