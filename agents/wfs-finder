@@ -441,6 +441,7 @@ def findFinishedRequests():
                'state <> "processed" AND '
                'state <> "notfound" AND '
                'state <> "failed" AND ' 
+               'state <> "recorded" AND '
                'state <> "output"' %
                int(request['request_id']))
              
@@ -453,8 +454,8 @@ def findFinishedRequests():
 
     if count > 0:
       # Some files have not reached terminal states
-#      logLine('Still non-terminal files for Request ID %d' % 
-#              request['request_id'])
+      logLine('Still non-terminal files for Request ID %d (%d)' % 
+              (request['request_id'], count))
       continue
     
     try:
@@ -502,13 +503,13 @@ def findStalledAbortedJobs():
     if jobRow['allocation_state'] != 'aborted':
       # If not here due to 'aborted', we mark the job as stalled
       try:
-        query = ('UPDATE jobs SET state="stalled",finished=NOW() '
+        query = ('UPDATE jobs SET allocation_state="stalled",finished_time=NOW() '
                'WHERE wfs_job_id=%d' % jobRow['wfs_job_id'])
     
         wfs.db.cur.execute(query)
-      except:
-        logLine('Failed to set job %s to stalled' 
-              % jobRow['jobsub_id'])
+      except Exception as e: 
+        logLine('Failed to set job %s to stalled: %s' 
+              % (jobRow['jobsub_id'], str(e)))
         continue
 
       logLine('Job %s set to stalled' % jobRow['jobsub_id'])
