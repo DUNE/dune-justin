@@ -656,8 +656,9 @@ def showJob(cgiValues):
 
   query = ("SELECT file_did FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
-           "WHERE events.wfs_job_id=%d ORDER BY event_id" % 
-           jobRow['wfs_job_id'])
+           "WHERE events.wfs_job_id=%d AND event_type_id=%d "
+           "ORDER BY event_id" % 
+           (jobRow['wfs_job_id'], wfs.db.event_FILE_ALLOCATED))
 
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
@@ -778,15 +779,24 @@ def showJob(cgiValues):
   print('<tr><td>Files</td><td>')
   
   for fileRow in filesRows:
-    print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+    try:
+      print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a><br>' % 
           (jobRow["request_id"], 
            jobRow["stage_id"],
-           urllib.parse.quote(fileRow["file_did"], safe=''),
+           urllib.parse.quote(str(fileRow["file_did"]), safe=''),
            html.escape(fileRow["file_did"], quote=True)
           )
-       )
+         )
+    except Exception as e:
+      print('<!-- %s -->' % str(e))
+      
   print('</td></tr>')
+
+  print('<tr><td colspan=2><a '
+        'href="/dashboard/?method=list-events&jobsub_id=%s">List job events'
+        '</a></td></tr>'
+        % jobsubID)
 
   print("</table>")
 
@@ -1257,37 +1267,41 @@ def showStorage(cgiValues):
 
 def listEvents(cgiValues, pageNumber, pageLength):
 
+  whereList = []
+  queryList = ''
 
-#  state = str(cgiValues.getfirst("state"))
-#
-#  if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-#     or state == 'outputting' or state == 'processed' or state == 'notfound':
-#    stateFilter = 'AND files.state="' + state + '"'
-#    stateText = ' (state = ' + state + ')'
-#  else:
-#    stateFilter = ''
-#    stateText = ''
-#    state = ''
+  jobsubID = cgiValues.getfirst("jobsub_id")
+  
+  if jobsubID:
+    whereList.append('jobsub_id="%s"' % jobsubID)
+    queryList += '&jobsub_id=' + jobsubID
+
+  if whereList:
+    whereString = ' WHERE ' + 'AND'.join(whereList)
+  else:
+    whereString = ''
     
   header("WFS: Events")
 
   print("<h1>Events</h1>")
   
-  query = ("SELECT event_id,event_type_id,events.request_id,events.stage_id,"
-           "file_did,jobsub_id,site_name,rse_name,event_time "
-           "FROM events "
-           "LEFT JOIN files ON events.file_id=files.file_id "
-           "LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id "
-           "LEFT JOIN sites ON events.site_id=sites.site_id "
-           "LEFT JOIN storages ON events.rse_id=storages.rse_id "
-           "ORDER BY event_id DESC LIMIT %d,%d" % 
-           (pageNumber * pageLength, pageLength + 1))
+  query = ('SELECT event_id,event_type_id,events.request_id,events.stage_id,'
+           'file_did,jobsub_id,site_name,rse_name,event_time '
+           'FROM events '
+           'LEFT JOIN files ON events.file_id=files.file_id '
+           'LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id '
+           'LEFT JOIN sites ON events.site_id=sites.site_id '
+           'LEFT JOIN storages ON events.rse_id=storages.rse_id '
+           '%s '
+           'ORDER BY event_id DESC LIMIT %d,%d' % 
+           (whereString, pageNumber * pageLength, pageLength + 1))
 
   wfs.db.cur.execute(query)
   eventsRows = wfs.db.cur.fetchall()
 
   printPager(pageNumber, pageLength, len(eventsRows),
-             '/dashboard/?method=list-events&page_number=%d&page_length=%d')
+             '/dashboard/?method=list-events&page_number=%d&page_length=%d'
+             + queryList)
 
   print(
 """<p><table>
@@ -1358,7 +1372,8 @@ def listEvents(cgiValues, pageNumber, pageLength):
   print("</table>")
   
   printPager(pageNumber, pageLength, len(eventsRows),
-             '/dashboard/?method=list-events&page_number=%d&page_length=%d')
+             '/dashboard/?method=list-events&page_number=%d&page_length=%d'
+             + queryList)
 
   footer()
 

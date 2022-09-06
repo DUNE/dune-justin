@@ -517,6 +517,7 @@ def findStalledAbortedJobs():
       wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_STALLED,
                       requestID = jobRow['request_id'],
                       stageID = jobRow['stage_id'],
+                      wfsJobID = jobRow['wfs_job_id'],
                       siteID = jobRow['site_id'])
 
     # Then find the file(s) allocated to this stalled or aborted job 
@@ -562,6 +563,7 @@ def findStalledAbortedJobs():
                         requestID = jobRow['request_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
+                        wfsJobID = jobRow['wfs_job_id'],
                         siteID = jobRow['site_id'])
       else:
       
@@ -582,6 +584,7 @@ def findStalledAbortedJobs():
                         requestID = jobRow['request_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
+                        wfsJobID = jobRow['wfs_job_id'],
                         siteID = jobRow['site_id'])
 
   # Everything went ok so commit

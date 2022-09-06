@@ -48,8 +48,7 @@ jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled' ]
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
-# 300 for testing; should be more like 3600
-jobStallSeconds = 300
+jobStallSeconds = 3600
 
 maxAllocations = 6
 
