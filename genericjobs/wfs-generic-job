@@ -276,7 +276,7 @@ if [ -f wfs-bootstrap.sh ] ; then
 
   mkdir workspace
   echo '====Run wfs-bootstrap.sh===='
-  ( cd workspace ; $WFS_PATH/wfs-bootstrap.sh ) >wfs-bootstrap.log 2>&1
+  ( cd workspace ; stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) > workspace/wfs-bootstrap.log 2>&1
   retval=$?
   echo '====After wfs-bootstrap.sh===='
 else
@@ -286,13 +286,17 @@ else
 fi
 
 echo '#### wfs-bootstrap.log'
-cat wfs-bootstrap.log
+cat workspace/wfs-bootstrap.log
 echo '####'
 
 # Make the lists of output files and files for the next stage
 echo -n > wfs-outputs.txt
 echo -n > wfs-output-dids.txt
 echo -n > wfs-next-stage-dids.txt
+
+echo '### Contents of workspace directory ###'
+ls -lR workspace
+echo '###'
 
 cat wfs-output-patterns.txt | (
 while read for_next_stage dataset scope pattern
@@ -330,6 +334,10 @@ echo
 echo '#### wfs-next-stage-dids.txt'
 cat $WFS_PATH/wfs-next-stage-dids.txt
 echo '####'
+echo
+echo '#### wfs-output-rse-list.txt'
+cat $WFS_PATH/wfs-output-rse-list.txt
+echo '####'
 
 output_dids=`echo \`sed 's/.*/"&"/' wfs-output-dids.txt\`|sed 's/ /,/g'`
 
@@ -344,7 +352,7 @@ if [ -f workspace/wfs-processed-pfns.txt ] ; then
   processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
-tail -c 10000 wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
+tail -c 10000 workspace/wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
 
 cat <<EOF >wfs-record-results.json
 {
@@ -388,8 +396,9 @@ if [ "$http_code" != 200 ] ; then
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
-output_rse=`echo $WFS_OUTPUT_RSE_LIST | cut -f1 -d' '`
-echo "Using $output_rse for output, out of $WFS_OUTPUT_RSE_LIST"
+export OUTPUT_RSE=`head -1 wfs-output-rse-list.txt | cut -f1 -d' '`
+export PFN_PREFIX=`head -1 wfs-output-rse-list.txt | cut -f2 -d' '`
+echo "Using $OUTPUT_RSE for output"
 
 cat $WFS_PATH/wfs-outputs.txt | (
 
@@ -403,6 +412,8 @@ export PATH="$METACAT_HOME/bin:$PATH"
 export PYTHONPATH="$METACAT_HOME/lib/python3.6/site-packages:$PYTHONPATH"
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
+
+touch wfs-output-dids-rses.txt
 
 while read dataset scope fn
 do
@@ -437,19 +448,27 @@ do
   echo "metacat file declare --json tmp.json $dataset"
   metacat file declare --json tmp.json "$dataset"
   if [ $? = 0 ] ; then
-    echo "Upload $scope:$fn"
-    rucio --verbose upload --rse "$output_rse" \
-          --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
+    if [ "$pfn_prefix" != "" ] ; then
+      echo "Upload $scope:$fn to $OUTPUT_RSE ($PFN_PREFIX)"
+      rucio --verbose upload --rse "$OUTPUT_RSE" --pfn "$PFN_PREFIX/$fn" \
+            --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
+    else
+      echo "Upload $scope:$fn to $OUTPUT_RSE"
+      rucio --verbose upload --rse "$OUTPUT_RSE" \
+            --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
+    fi
+
     if [ $? = 0 ] ; then
       echo "Add $scope:$fn to $dataset"
       rucio --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         echo "rucio attach fails"
         job_aborted 900 "rucio attach error"      
-      fi      
+      fi
+      echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> wfs-output-dids-rses.txt
     else
       echo "rucio upload fails"
-      job_aborted 900 "rucio upload error"      
+      job_aborted 900 "rucio upload error"
     fi
   else
     echo "metacat file declare fails"
@@ -457,18 +476,25 @@ do
   fi 
 done
 
-
-
 )
+if [ $? != 0 ] ; then
+  # Exit/aborts inside subshell just exit the subshell with a non-zero code
+  # So we exit the generic job script properly here
+  exit 1
+fi
 
 # If all ok, then confirm that to the Workflow Allocator
 
 cat <<EOF >wfs-confirm-results.json
 {
   "method": "confirm_results",
-  "jobsub_id": "$JOBSUBJOBID"
-}
+  "jobsub_id": "$JOBSUBJOBID",
+  "output_dids": {
 EOF
+
+echo `cat wfs-output-dids-rses.txt` | sed 's/ /,/g' >>wfs-confirm-results.json
+
+echo '} }' >>wfs-confirm-results.json
 
 echo "=====Start wfs-confirm-results.json=="
 cat wfs-confirm-results.json

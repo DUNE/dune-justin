@@ -56,5 +56,5 @@ long as they are put in the correct list file.
 Output files which are to be uploaded with Rucio by the generic job must 
 be created in the bootstrap's workspace directory and have filenames 
 matching the patterns given by --output-pattern or 
---output-pattern-next-stage when the stage was created.  The suffixed 
+--output-pattern-next-stage when the stage was created.  The suffix 
 .json is appended to find the corresponding metadata files for MetaCat.

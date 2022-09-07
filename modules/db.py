@@ -85,6 +85,7 @@ event_JOB_STALLED		= 308
 #event_FILE_ALLOCATED           = 401
 event_FILE_ALLOCATION_RESET     = 402
 event_FILE_SET_TO_FAILED        = 403
+event_FILE_CREATED              = 404
 
 eventTypes = { 
  
@@ -141,7 +142,9 @@ eventTypes = {
  event_FILE_ALLOCATION_RESET : ['FILE_ALLOCATION_RESET',
                                 'File set back to unallocated'],
  event_FILE_SET_TO_FAILED    : ['FILE_SET_TO_FAILED',
-                                'Too many attempts to process file: failed']
+                                'Too many attempts to process file: failed'],
+ event_FILE_CREATED          : ['FILE_CREATED',
+                                'Output file created in job']
              }
 
 def stringIsJobsubID(s):
@@ -165,7 +168,21 @@ def logEvent(eventTypeID = event_UNDEFINED,
              fileID = 0,
              wfsJobID = 0,
              siteID = 0,
-             rseID = 0):
+             siteName = None,
+             rseID = 0,
+             rseName = None):
+
+  if siteName:
+    siteExpr = ('(SELECT site_id FROM sites WHERE sites.site_name="%s")' 
+                % siteName)
+  else:
+    siteExpr = str(siteID)
+
+  if rseName:
+    rseExpr = ('(SELECT rse_id FROM storages WHERE storages.rse_name="%s")' 
+                % rseName)  
+  else:
+    rseExpr = str(rseID)
 
   try:
     query = ('INSERT INTO events SET '
@@ -174,16 +191,16 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'stage_id=%d,'
              'file_id=%d,'
              'wfs_job_id=%d,'
-             'site_id=%d,'
-             'rse_id=%d,'
+             'site_id=%s,'
+             'rse_id=%s,'
              'event_time=NOW()' %
              (eventTypeID,
               requestID,
               stageID,
               fileID,
               wfsJobID,
-              siteID,
-              rseID))
+              siteExpr,
+              rseExpr))
 
     cur.execute(query)
     return None

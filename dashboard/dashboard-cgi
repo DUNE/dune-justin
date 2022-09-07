@@ -661,7 +661,16 @@ def showJob(cgiValues):
            (jobRow['wfs_job_id'], wfs.db.event_FILE_ALLOCATED))
 
   wfs.db.cur.execute(query)
-  filesRows = wfs.db.cur.fetchall()
+  inputFilesRows = wfs.db.cur.fetchall()
+
+  query = ("SELECT file_did,files.stage_id FROM events "
+           "LEFT JOIN files ON events.file_id=files.file_id "
+           "WHERE events.wfs_job_id=%d AND event_type_id=%d "
+           "ORDER BY event_id" % 
+           (jobRow['wfs_job_id'], wfs.db.event_FILE_CREATED))
+
+  wfs.db.cur.execute(query)
+  outputFilesRows = wfs.db.cur.fetchall()
 
   print('<table>')
   
@@ -776,16 +785,33 @@ def showJob(cgiValues):
         '<td>%s</td></tr>'
         % spaceForUnixEpoch(jobRow["finished_time"]))
 
-  print('<tr><td>Files</td><td>')
+  print('<tr><td>Input files</td><td>')
   
-  for fileRow in filesRows:
+  for inputFileRow in inputFilesRows:
     try:
       print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a><br>' % 
           (jobRow["request_id"], 
            jobRow["stage_id"],
-           urllib.parse.quote(str(fileRow["file_did"]), safe=''),
-           html.escape(fileRow["file_did"], quote=True)
+           urllib.parse.quote(str(inputFileRow["file_did"]), safe=''),
+           html.escape(inputFileRow["file_did"], quote=True)
+          )
+         )
+    except Exception as e:
+      print('<!-- %s -->' % str(e))
+      
+  print('</td></tr>')
+
+  print('<tr><td>Output files</td><td>')
+  
+  for outputFileRow in outputFilesRows:
+    try:
+      print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+          '%s</a><br>' % 
+          (jobRow["request_id"], 
+           outputFileRow["stage_id"],
+           urllib.parse.quote(str(outputFileRow["file_did"]), safe=''),
+           html.escape(outputFileRow["file_did"], quote=True)
           )
          )
     except Exception as e:
@@ -1028,6 +1054,7 @@ def listStorages(cgiValues):
         '<th>Write</th>'
         '<th>Delete</th>'
         '<th>For output</th>'
+        '<th>Deterministic</th>'
         '</tr>')
   
   for storageRow in storageRows:  
@@ -1038,13 +1065,15 @@ def listStorages(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
+          '<td>%s</td>'
           '</tr>' 
           % (storageRow['rse_name'], storageRow['rse_name'],
              storageRow['occupancy'],
              bool(storageRow['rse_read']),
              bool(storageRow['rse_write']),
              bool(storageRow['rse_delete']),
-             bool(storageRow['use_for_output'])
+             bool(storageRow['use_for_output']),
+             bool(storageRow['deterministic_rse'])
             )
          )    
 
@@ -1228,6 +1257,11 @@ def showStorage(cgiValues):
   print('<tr><td>Delete</td><td>%s</td></tr>' % bool(storageRow['rse_delete']))
   print('<tr><td>For output</td><td>%s</td></tr>' 
         % bool(storageRow['use_for_output']))
+  print('<tr><td>Deterministic</td><td>%s</td></tr>' 
+        % bool(storageRow['deterministic_rse']))
+
+  print('<tr><td>PFN prefix</td><td>%s</td></tr>' 
+        % storageRow['pfn_prefix'])
 
   print('</table>')
 

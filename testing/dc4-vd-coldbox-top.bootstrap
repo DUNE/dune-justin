@@ -62,6 +62,11 @@ fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
 # First get an unprocessed file from this stage
 did_pfn_rse=`$WFS_PATH/wfs-get-file`
 
+if [ "$did_pfn_rse" = "" ] ; then
+  echo "Nothing to process - exit bootstrap"
+  exit 1
+fi
+
 # rawpfn is also needed when creating wfs-processed-pfns.txt
 rawpfn=`echo $did_pfn_rse | cut -f2 -d' '`
 
@@ -121,10 +126,14 @@ if [ $larExit -eq 0 ] ; then
   if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
     echo "Metadata extraction succeeds"
     echo "$rawpfn" > wfs-processed-pfns.txt
+    echo "===Metadata JSON==="
+    cat $outFile.json
+    echo
+    echo "==================="
   fi
 fi
 
-# Output to stdout for now
-ls -lS
-echo
-cat $outFile.json
+ls -lRS
+
+# Create compressed tar file with all log files including the bootstrap.log
+tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log

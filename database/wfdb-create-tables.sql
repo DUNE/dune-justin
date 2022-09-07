@@ -337,6 +337,8 @@ CREATE TABLE `storages` (
   `rse_delete` tinyint(1) NOT NULL DEFAULT TRUE,
   `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
+  `deterministic_rse` tinyint(1) NOT NULL DEFAULT TRUE,
+  `pfn_prefix` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

@@ -145,7 +145,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
   #  'storages.occupancy < 1.0 AND ' added to WHERE and 
   #  storages.occupancy added to ORDER BY
   try:
-    query = ('SELECT rse_name '
+    query = ('SELECT rse_name,deterministic_rse,pfn_prefix '
              'FROM storages '
              'LEFT JOIN stages_output_storages '
              'ON (storages.rse_id=stages_output_storages.rse_id '
@@ -171,20 +171,23 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
   except:
     return None
 
-  outputRseList = []
+  outputRseFile = ''
   for rseRow in rseRows:
-    outputRseList.append(rseRow['rse_name'])
+    if rseRow['deterministic_rse']:
+      outputRseFile += rseRow['rse_name'] + ' \n' 
+    else:
+      outputRseFile += rseRow['rse_name'] + ' ' + rseRow['pfn_prefix'] + '\n'
       
+  addFileToTarFile(tar, 'wfs-output-rse-list.txt', outputRseFile)
+                  
   addFileToTarFile(tar, 'wfs-env.sh', 
        (
          'export WFS_SITE_NAME=' + str(jobDict['site_name']) + '\n' +
          'export WFS_REQUEST_ID=' + str(stage['request_id']) + '\n' +
          'export WFS_STAGE_ID=' + str(stage['stage_id']) + '\n' +
-         'export WFS_COOKIE="' + cookie + '"\n' +
-         'export WFS_OUTPUT_RSE_LIST="' + ' '.join(outputRseList) + '"\n'
+         'export WFS_COOKIE="' + cookie + '"\n' 
        )  
                   )
-                  
   addFileToTarFile(tar, 'wfs-get-file.json', 
        (
          '{\n' +
@@ -487,7 +490,7 @@ def updateFileProcessing(fileIDList,
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
-def processOutputDids(outputDids, requestID, stageID):
+def processOutputDids(outputDids, requestID, stageID, wfsJobID):
 
   for outputDid in outputDids:
       
@@ -495,9 +498,10 @@ def processOutputDids(outputDids, requestID, stageID):
       continue
 
     query = ('INSERT INTO files SET state="recorded",'
-             'file_did="'  + str(outputDid) + '",'
-             'request_id=' + str(requestID) + ','
-             'stage_id='   + str(stageID + 1)
+             'file_did="'          + str(outputDid) + '",'
+             'creator_wfs_job_id=' + str(wfsJobID)  + ','
+             'request_id='         + str(requestID) + ','
+             'stage_id='           + str(stageID + 1)
             )
     wfs.db.cur.execute(query)
 
@@ -544,6 +548,7 @@ def recordResultsMethod(jsonDict):
              
     wfs.db.cur.execute(query)
     jobFiles = wfs.db.cur.fetchall()
+    
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Failed getting files for the job: ' + str(e))
@@ -579,7 +584,8 @@ def recordResultsMethod(jsonDict):
               'Failed updating file statuses: ' + str(e))
           
   try:
-    processOutputDids(jsonDict['next_stage_dids'], requestID, stageID)
+    processOutputDids(jsonDict['next_stage_dids'],
+                      requestID, stageID, wfsJobID)
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Failed recording next stage outputs: ' + str(e))
@@ -587,7 +593,7 @@ def recordResultsMethod(jsonDict):
   try:
     # We set stageID=-1 so that when 1 is added, the output only 
     # StageID of 0 is recorded
-    processOutputDids(jsonDict['output_dids'], requestID, -1)
+    processOutputDids(jsonDict['output_dids'], requestID, -1, wfsJobID)
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Failed recording outputs: ' + str(e))
@@ -639,7 +645,7 @@ def confirmResultsMethod(jsonDict):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   try:
-    query = ('SELECT wfs_job_id,request_id,stage_id '
+    query = ('SELECT wfs_job_id,request_id,stage_id,site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     wfs.db.cur.execute(query)
@@ -648,6 +654,7 @@ def confirmResultsMethod(jsonDict):
     wfsJobID  = int(row['wfs_job_id'])
     requestID = int(row['request_id'])
     stageID   = int(row['stage_id'])
+    siteID    = int(row['site_id'])
   except:
     httpError('500 Internal Server Error', 'Failed finding job')
 
@@ -660,15 +667,35 @@ def confirmResultsMethod(jsonDict):
     httpError('500 Internal Server Error', 'Updating processed input files')
 
   try:
-    query = ('UPDATE files SET '
-             'state=IF(stage_id > 0, "finding", "output") '
-             'WHERE '
-             'state = "recorded" AND '
+    query = ('SELECT file_did,file_id,stage_id FROM files '
+             'WHERE state="recorded" AND '
              'creator_wfs_job_id=%d' % wfsJobID)
 
     wfs.db.cur.execute(query)
+    fileRows = wfs.db.cur.fetchall()
   except:
-    httpError('500 Internal Server Error', 'Updating output files')
+    httpError('500 Internal Server Error', 'Getting recorded output files')
+
+  for fileRow in fileRows:
+  
+    try:
+      query = ('UPDATE files SET state="%s" WHERE file_id=%d' %
+               ('finding' if (fileRow['stage_id'] > 0) else 'output', 
+                fileRow['file_id']))
+               
+      wfs.db.cur.execute(query)
+      
+      wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_CREATED,
+                      requestID = requestID,
+                      stageID = fileRow['stage_id'],
+                      fileID = fileRow['file_id'],
+                      wfsJobID = wfsJobID,
+                      siteID = siteID,
+                      rseName = jsonDict['output_dids'][fileRow['file_did']]
+                     )
+    except Exception as e:
+      httpError('500 Internal Server Error', 
+                'Updating recorded output file: ' + str(e))
   
   try:
     query = ('UPDATE jobs SET allocation_state="finished",'
@@ -677,6 +704,13 @@ def confirmResultsMethod(jsonDict):
              % wfsJobID)
 
     wfs.db.cur.execute(query)
+
+    wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_FINISHED,
+                    requestID = requestID,
+                    stageID = stageID,
+                    wfsJobID = wfsJobID,
+                    siteID = siteID
+                   )
   except:
     httpError('500 Internal Server Error', 'Updating job state to finished')
   
