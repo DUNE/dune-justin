@@ -521,13 +521,13 @@ def findStalledAbortedJobs():
                       siteID = jobRow['site_id'])
 
     # Then find the file(s) allocated to this stalled or aborted job 
-    # (IGNORE FILES IN THE outputting STATE NOW - THESE COULD BE UPLOADED...
-    #  IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
-    #  CHECKS HERE?)
+    # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
+    #  CHECKS FOR FILE IN THE outputting STATE)
     try:
       query = ('SELECT file_id,allocations,file_did '
                'FROM files '
-               'WHERE state="allocated" AND wfs_job_id=%d '
+               'WHERE (state="allocated" OR state="outputting") '
+               'AND wfs_job_id=%d '
                'ORDER BY file_id' % jobRow['wfs_job_id'])
 
       wfs.db.cur.execute(query)

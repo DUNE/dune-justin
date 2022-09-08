@@ -173,6 +173,85 @@ if [ "$http_code" != "200" ] ; then
   job_aborted $http_code get_stage
 fi
 
+## Start of temporary Rucio/MetaCat client install. Eventually this
+## section can be removed once we can get Rucio and MetaCat from cvmfs
+(
+
+#
+# Rucio install
+#
+## These three lines can be used to use the installed Rucio client
+export RUCIO_HOME=$PWD/rucio-home
+export PATH="$RUCIO_HOME/bin:$PATH"
+export PYTHONPATH="$RUCIO_HOME/lib/python3.6/site-packages:/usr/lib64/python3.6/site-packages"
+##
+
+mkdir -p $RUCIO_HOME/bin $RUCIO_HOME/etc
+pip3 install --no-cache-dir --prefix $RUCIO_HOME \
+             --ignore-installed rucio-clients==1.26.9
+
+cat <<EOF > $RUCIO_HOME/etc/rucio.cfg
+[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://auth-dune-rucio.fnal.gov
+account = dunepro
+auth_type = x509_proxy
+request_retries = 3
+EOF
+
+echo '====Start rucio.cfg===='
+cat $RUCIO_HOME/etc/rucio.cfg
+echo '====End rucio.cfg===='
+
+rucio --version
+if [ $? != 0 ] ; then
+  job_aborted 900 'Rucio install fails'
+fi
+
+#
+# MetaCat install
+#
+## These five lines can be used to use the installed MetaCat client
+export METACAT_HOME=$PWD/metacat-home
+export PATH="$METACAT_HOME/bin:$PATH"
+export PYTHONPATH="$METACAT_HOME/lib/python3.6/site-packages:$PYTHONPATH"
+export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
+export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
+##
+
+mkdir -p $METACAT_HOME
+#git clone https://github.com/ivmfnal/metacat.git
+mkdir -p metacat-github
+( 
+  cd metacat-github 
+  #curl --location https://github.com/ivmfnal/metacat/tarball/main \
+  curl --location https://github.com/ivmfnal/metacat/tarball/60eb2236bc732cfde3d1c533e76a4b85422d7d52 \
+    | tar -xz --strip-components 1 
+  python3 setup.py install --prefix=$METACAT_HOME 
+)
+metacat version
+if [ $? != 0 ] ; then
+  job_aborted 900 'MetaCat install fails'
+fi
+
+# This requires $X509_USER_PROXY is set already
+echo "X509_USER_PROXY=$X509_USER_PROXY"
+ls -lt $X509_USER_PROXY
+# Login puts a token in $HOME/.token_library (what if shared between jobs???)
+metacat auth login -m x509 dunepro
+metacat auth whoami
+if [ $? != 0 ] ; then
+  job_aborted 900 'MetaCat whoami fails'
+fi
+
+)
+if [ $? != 0 ] ; then
+  # Exit/aborts inside subshell just exit the subshell with a non-zero code
+  # So we exit the generic job script properly here
+  exit 1
+fi
+## End of Rucio / MetaCat install section
+
 tar xvf wfs-files.tar
 
 if [ -r wfs-env.sh ] ; then
@@ -323,36 +402,16 @@ echo "Using $OUTPUT_RSE for output"
 
 cat $WFS_PATH/wfs-outputs.txt | (
 
-cat <<EOF >$WFS_PATH/rucio.cfg
-[client]
-rucio_host = https://dune-rucio.fnal.gov
-auth_host = https://auth-dune-rucio.fnal.gov
-account = dunepro
-auth_type = x509_proxy
-request_retries = 3
-EOF
-
-echo '====Start rucio.cfg===='
-cat $WFS_PATH/rucio.cfg
-echo '====End rucio.cfg===='
-
-source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
-setup rucio
-setup metacat
-
+# Because in a subshell, we can change paths to use temporary Rucio install
+export RUCIO_HOME=$PWD/rucio-home
+export PATH="$RUCIO_HOME/bin:$PATH"
+export PYTHONPATH="$RUCIO_HOME/lib/python3.6/site-packages:/usr/lib64/python3.6/site-packages"
+# and add MetaCat
+export METACAT_HOME=$PWD/metacat-home
+export PATH="$METACAT_HOME/bin:$PATH"
+export PYTHONPATH="$METACAT_HOME/lib/python3.6/site-packages:$PYTHONPATH"
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
-
-rucio --config $WFS_PATH/rucio.cfg --version
-if [ $? != 0 ] ; then
-  job_aborted 900 'Rucio test fails'
-fi
-
-metacat auth login -m x509 dunepro
-metacat auth whoami
-if [ $? != 0 ] ; then
-  job_aborted 900 'MetaCat whoami fails'
-fi
 
 touch wfs-output-dids-rses.txt
 
@@ -391,20 +450,17 @@ do
   if [ $? = 0 ] ; then
     if [ "$pfn_prefix" != "" ] ; then
       echo "Upload $scope:$fn to $OUTPUT_RSE ($PFN_PREFIX)"
-      rucio --config $WFS_PATH/rucio.cfg \
-            --verbose upload --rse "$OUTPUT_RSE" --pfn "$PFN_PREFIX/$fn" \
+      rucio --verbose upload --rse "$OUTPUT_RSE" --pfn "$PFN_PREFIX/$fn" \
             --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
     else
       echo "Upload $scope:$fn to $OUTPUT_RSE"
-      rucio --config $WFS_PATH/rucio.cfg \
-            --verbose upload --rse "$OUTPUT_RSE" \
+      rucio --verbose upload --rse "$OUTPUT_RSE" \
             --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
     fi
 
     if [ $? = 0 ] ; then
       echo "Add $scope:$fn to $dataset"
-      rucio --config $WFS_PATH/rucio.cfg \
-            --verbose attach "$dataset" "$scope:$fn"
+      rucio --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         echo "rucio attach fails"
         job_aborted 900 "rucio attach error"      

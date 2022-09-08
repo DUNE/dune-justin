@@ -50,8 +50,9 @@ import MySQLdb
 #
 import wfs
 
-sleepSeconds = 60
-jobsPerCycle = 5
+sleepSeconds     = 60
+jobsPerCycle     = 10
+maxSubmittedJobs = 10
 
 class wfsError(Exception):
   pass
@@ -130,6 +131,22 @@ def parseJobsubHistory():
 
   # Commit whatever we found - no rush
   wfs.db.conn.commit()
+
+def updateSiteCounts():
+
+  try:
+    wfs.db.cur.execute('UPDATE sites SET '
+        'submitted_jobs='
+        '(SELECT COUNT(*) FROM jobs WHERE '
+         'sites.site_id=jobs.site_id AND allocation_state="submitted"),'
+        'running_jobs='
+        '(SELECT COUNT(*) FROM jobs WHERE '
+         'sites.site_id=jobs.site_id AND allocation_state '
+         'IN ("started","processing","outputting"))')
+  except Exception as e:
+    logLine('Update site counts fails with: ' + str(e))
+  else:
+    wfs.db.conn.commit()
    
 def submitToSlotSize(numberToSubmit, slotSizeRow):
 
@@ -215,7 +232,8 @@ def processSlotSize(slotSizeRow):
 
   logLine(str(slotSizeRow))
 
-  if slotSizeRow['number_at_site'] >= slotSizeRow['max_jobs']:
+  if slotSizeRow['submitted_jobs'] + slotSizeRow['running_jobs'] \
+       >= slotSizeRow['max_jobs']:
     # Just check once, so we might go over a little bit for now ...
     return
 
@@ -231,7 +249,7 @@ def processSlotSize(slotSizeRow):
     logLine('Update makeSlotSizeDict/findStage fails with: ' + str(e))
     stage = None
 
-  if stage and (slotSizeRow['number_idle'] == 0):
+  if stage and (slotSizeRow['submitted_jobs'] < maxSubmittedJobs):
     # Submit job(s) if at least one stage would match and none idle
     numberToSubmit = stage['matches']
     logLine('Match found - submit %d job(s)' % numberToSubmit)
@@ -241,7 +259,7 @@ def processSlotSize(slotSizeRow):
     logLine('Nothing matched but time to submit again anyway')
     submitToSlotSize(1, slotSizeRow)
   else:
-    logLine('No match found')
+    logLine('No match found or none allowed by limits')
 
 def oneCycle():
 
@@ -249,6 +267,7 @@ def oneCycle():
 
   parseJobsubQ()
   parseJobsubHistory()
+  updateSiteCounts()
 
   # Go through the sites / slot sizes, deciding what to submit
   
@@ -263,15 +282,17 @@ def oneCycle():
       'max_processors,'
       'max_wall_seconds,'
       'sites.max_jobs,'
+      'sites.submitted_jobs,'
+      'sites.running_jobs,'
       'UNIX_TIMESTAMP(slot_sizes.last_submitted_time) AS last_submitted_time,'
       'UNIX_TIMESTAMP(slot_sizes.last_allocation_time) AS last_allocation_time,'
-      '(SELECT COUNT(*) FROM jobs WHERE jobsub_state="I" AND '
+      '(SELECT COUNT(*) FROM jobs WHERE '
       'jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 2 HOUR) AND '
       'allocation_state="submitted" AND jobs.site_id=sites.site_id AND '
       'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
       '(SELECT COUNT(*) FROM jobs WHERE'
-      ' (jobsub_state="I" OR jobsub_state="R") AND'
-      ' jobs.site_id=sites.site_id) AS number_at_site,'
+      ' allocation_state IN ("submitted","starting","processing","outputting") '
+      ' AND jobs.site_id=sites.site_id) AS number_at_site,'
       '(sites.last_submitted_time > '
       'DATE_SUB(NOW(),INTERVAL 1 DAY)) AS site_submitted_recently '
       'FROM sites '

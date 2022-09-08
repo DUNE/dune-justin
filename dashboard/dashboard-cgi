@@ -510,7 +510,7 @@ def listFiles(cgiValues, pageNumber, pageLength):
           )
          )
          
-    if fileRow["state"] == 'allocated' or fileRow["state"] == 'processed':
+    if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
       print('<td>%s</td>'
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
@@ -996,6 +996,8 @@ def listSites(cgiValues):
         '<th>Last job</th>'
         '<th>Jobsub site name</th>'
         '<th>WLCG site name</th>'
+        '<th>Submitted jobs</th>'
+        '<th>Running jobs</th>'
         '<th>Max jobs</th>'
         '<th colspan=2>&nbsp;</th>'
         '</tr>')
@@ -1013,6 +1015,8 @@ def listSites(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%d</td>'
+          '<td>%d</td>'
+          '<td>%d</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a></td>'
@@ -1026,6 +1030,8 @@ def listSites(cgiValues):
              lastGetStageStr,
              siteRow['jobsub_site_name'],
              siteRow['wlcg_site_name'],
+             siteRow['submitted_jobs'],
+             siteRow['running_jobs'],
              siteRow['max_jobs'],
              siteRow['site_name'],
              siteRow['wlcg_site_name']
@@ -1120,6 +1126,10 @@ def showSite(cgiValues):
     lastGetStageStr = str(siteRow['last_get_stage_time'])
 
   print('<tr><td>Last job started</td><td>%s</td></tr>' % lastGetStageStr)
+
+  print('<tr><td>Submitted jobs</td><td>%d</td></tr>' % siteRow['submitted_jobs'])
+
+  print('<tr><td>Running jobs</td><td>%d</td></tr>' % siteRow['running_jobs'])
 
   print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 

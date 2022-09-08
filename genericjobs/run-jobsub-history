@@ -5,4 +5,4 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup jobsub_client
 setup cigetcert
 
-jobsub_history --user amcnab
+jobsub_history --user dunepro

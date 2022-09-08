@@ -226,6 +226,10 @@ def getStageMethod(jsonDict):
   if jobDict['error_message']:
     httpError('400 Bad Request', jobDict['error_message'])
 
+  # Soem kind of mismatch. Maybe the idle job was marked as stalled.
+  if jobDict['allocation_state'] != 'submitted':
+    httpError('410 Gone', 'Job now unavailable for allocation')
+
   try:
     query = ('UPDATE sites SET last_get_stage_time=NOW() '
              'WHERE site_id=%d' % jobDict['site_id'])

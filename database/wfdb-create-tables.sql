@@ -184,7 +184,7 @@ DROP TABLE IF EXISTS `requests`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-  `state` enum('draft','submitted','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
+  `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `name` varchar(255) NOT NULL,
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `submitted` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -216,6 +216,8 @@ CREATE TABLE `sites` (
   `wlcg_site_name` varchar(255) NOT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
   `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
+  `submitted_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `running_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_get_stage_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
