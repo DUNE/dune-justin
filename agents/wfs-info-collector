@@ -381,7 +381,8 @@ def updateStorages():
       else:
         occupancy = float(usage['used']) / usage['total']
 
-    pfnPrefix = ''
+    rootPrefix  = ""
+    httpsPrefix = ""
 
     try:
       protocols = rseClient.get_protocols(rse['rse'])
@@ -392,28 +393,39 @@ def updateStorages():
       for protocol in protocols:
         if protocol['scheme'] == 'root':
           if protocol['port'] == 0:
-            pfnPrefix = 'root://%s%s' % (
+            rootPrefix = 'root://%s%s' % (
                protocol['hostname'], protocol['prefix'])
           else:          
-            pfnPrefix = 'root://%s:%d%s' % (
+            rootPrefix = 'root://%s:%d%s' % (
                protocol['hostname'], protocol['port'], protocol['prefix'])
          
-          break
+        elif protocol['scheme'] == 'https':
+          if protocol['port'] == 0:
+            httpsPrefix = 'https://%s%s' % (
+               protocol['hostname'], protocol['prefix'])
+          else:          
+            httpsPrefix = 'https://%s:%d%s' % (
+               protocol['hostname'], protocol['port'], protocol['prefix'])
+         
            
-    # The FIRST time these are seen, they get set to ignore  
-    if rse['rse'] in ['FNAL_DCACHE_TEST', 'SCRATCH_DCACHE', 'T3_US_NERSC']:
-      useForOutput = False
-    else:
-      useForOutput = True
+#    # The FIRST time these are seen, they get set to ignore  
+#    if rse['rse'] in ['FNAL_DCACHE_TEST', 'SCRATCH_DCACHE', 'T3_US_NERSC']:
+#      useForOutput = False
+#    else:
+#      useForOutput = True
+
+    # Explicitly check and enable RSEs for output
+    useForOutput = False
 
     try:
       # We should sanitise this name just in case...
       query = ('INSERT INTO storages SET rse_name="%s",'
                'occupancy=%f,rse_write=%d,rse_read=%d,rse_delete=%d,'
-               'use_for_output=%d,deterministic_rse=%d,pfn_prefix="%s" '
+               'use_for_output=%d,deterministic_rse=%d,'
+               'root_prefix="%s",https_prefix="%s" '
                'ON DUPLICATE KEY UPDATE occupancy=%f,rse_write=%d,'
                'rse_read=%d,rse_delete=%d,deterministic_rse=%d,'
-               'pfn_prefix="%s" '
+               'root_prefix="%s",https_prefix="%s" '
                % (rse['rse'], 
                   occupancy, 
                   ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
@@ -421,13 +433,13 @@ def updateStorages():
                   ((availability & wfs.db.rseAvailabilityDelete) != 0),
                   useForOutput,
                   int(rse['deterministic']),
-                  pfnPrefix,
+                  rootPrefix, httpsPrefix,
                   occupancy,
                   ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
                   ((availability & wfs.db.rseAvailabilityRead)   != 0), 
                   ((availability & wfs.db.rseAvailabilityDelete) != 0),
                   int(rse['deterministic']),
-                  pfnPrefix
+                  rootPrefix, httpsPrefix
                  )
               )
       print(query)

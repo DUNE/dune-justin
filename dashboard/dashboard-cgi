@@ -430,6 +430,55 @@ def showStage(cgiValues):
 
   print('</table>') 
 
+  # RSE counts
+
+  rseCounts = {}
+
+  query = ('SELECT rse_name,COUNT(*) AS file_count FROM events '
+           'LEFT JOIN storages ON storages.rse_id=events.rse_id '
+           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'GROUP BY rse_name ORDER BY file_count DESC' %
+           (requestID, stageID, wfs.db.event_FILE_ALLOCATED))
+
+  wfs.db.cur.execute(query)
+  rseRows = wfs.db.cur.fetchall()
+  
+  for rseRow in rseRows:
+  
+    if rseRow['rse_name'] not in rseCounts:
+      rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
+
+    rseCounts[rseRow['rse_name']]['inputs'] = rseRow['file_count']
+
+  query = ('SELECT rse_name,COUNT(*) AS file_count FROM events '
+           'LEFT JOIN storages ON storages.rse_id=events.rse_id '
+           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'GROUP BY rse_name ORDER BY file_count DESC' %
+           (requestID, stageID, wfs.db.event_FILE_CREATED))
+
+  wfs.db.cur.execute(query)
+  rseRows = wfs.db.cur.fetchall()
+  
+  for rseRow in rseRows:
+  
+    if rseRow['rse_name'] not in rseCounts:
+      rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
+
+    rseCounts[rseRow['rse_name']]['outputs'] = rseRow['file_count']
+    
+  if rseCounts:
+    print("<h2>RSEs used</h2>")
+    print('<table><tr><th>Name</th><th>Inputs</th><th>Outputs</th></tr>')
+
+    for rseName in rseCounts:
+      print("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
+            (rseName,
+             rseCounts[rseName]['inputs'],
+             rseCounts[rseName]['outputs']
+            ))
+
+    print('</table>') 
+
   print("<h2>Bootstrap script</h2>")
   print('<table><tr><td><pre>') 
 
@@ -1010,7 +1059,7 @@ def listSites(cgiValues):
   
     print('<tr>'
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
-          '<td>%s</td>'
+          '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
@@ -1026,7 +1075,8 @@ def listSites(cgiValues):
           '<input type="submit" value="GOCDB"></form></td>'
           '</tr>'
           % (siteRow['site_name'], siteRow['site_name'],
-             bool(siteRow['enabled']),
+             'bold' if siteRow['enabled'] else 'normal',
+             'TRUE' if siteRow['enabled'] else 'False',
              lastGetStageStr,
              siteRow['jobsub_site_name'],
              siteRow['wlcg_site_name'],
@@ -1060,6 +1110,7 @@ def listStorages(cgiValues):
         '<th>Write</th>'
         '<th>Delete</th>'
         '<th>For output</th>'
+        '<th>Write protcol</th>'
         '<th>Deterministic</th>'
         '</tr>')
   
@@ -1070,6 +1121,7 @@ def listStorages(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
+          '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
@@ -1078,7 +1130,9 @@ def listStorages(cgiValues):
              bool(storageRow['rse_read']),
              bool(storageRow['rse_write']),
              bool(storageRow['rse_delete']),
-             bool(storageRow['use_for_output']),
+             'bold' if storageRow['use_for_output'] else 'normal',
+             'TRUE' if storageRow['use_for_output'] else 'False',
+             storageRow['write_protocol'],
              bool(storageRow['deterministic_rse'])
             )
          )    
@@ -1269,9 +1323,15 @@ def showStorage(cgiValues):
         % bool(storageRow['use_for_output']))
   print('<tr><td>Deterministic</td><td>%s</td></tr>' 
         % bool(storageRow['deterministic_rse']))
+  print('<tr><td>Write protocol</td><td>%s</td></tr>' 
+        % storageRow['write_protocol'])
 
-  print('<tr><td>PFN prefix</td><td>%s</td></tr>' 
-        % storageRow['pfn_prefix'])
+  if storageRow['write_protocol'] == 'root':
+    print('<tr><td>PFN prefix</td><td>%s</td></tr>' 
+          % storageRow['root_prefix'])
+  elif storageRow['write_protocol'] == 'https':
+    print('<tr><td>PFN prefix</td><td>%s</td></tr>' 
+          % storageRow['https_prefix'])
 
   print('</table>')
 

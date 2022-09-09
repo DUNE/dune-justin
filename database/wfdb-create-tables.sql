@@ -340,7 +340,9 @@ CREATE TABLE `storages` (
   `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
   `deterministic_rse` tinyint(1) NOT NULL DEFAULT TRUE,
-  `pfn_prefix` varchar(255) NOT NULL DEFAULT '',
+  `root_prefix` varchar(255) NOT NULL DEFAULT '',
+  `https_prefix` varchar(255) NOT NULL DEFAULT '',
+  `write_protocol` varchar(255) NOT NULL DEFAULT 'root',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

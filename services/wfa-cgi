@@ -145,7 +145,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
   #  'storages.occupancy < 1.0 AND ' added to WHERE and 
   #  storages.occupancy added to ORDER BY
   try:
-    query = ('SELECT rse_name,deterministic_rse,pfn_prefix '
+    query = ('SELECT rse_name,'
+             'deterministic_rse,write_protocol,root_prefix,https_prefix '
              'FROM storages '
              'LEFT JOIN stages_output_storages '
              'ON (storages.rse_id=stages_output_storages.rse_id '
@@ -174,9 +175,16 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
   outputRseFile = ''
   for rseRow in rseRows:
     if rseRow['deterministic_rse']:
-      outputRseFile += rseRow['rse_name'] + ' \n' 
+      outputRseFile += '%s %s \n' % (rseRow['rse_name'], 
+                                     rseRow['write_protocol'])
+    elif rseRow['write_protocol'] == 'https':
+      outputRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
+                                       rseRow['write_protocol'],
+                                       rseRow['https_prefix'])
     else:
-      outputRseFile += rseRow['rse_name'] + ' ' + rseRow['pfn_prefix'] + '\n'
+      outputRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
+                                       rseRow['write_protocol'],
+                                       rseRow['root_prefix'])
       
   addFileToTarFile(tar, 'wfs-output-rse-list.txt', outputRseFile)
                   
@@ -691,7 +699,7 @@ def confirmResultsMethod(jsonDict):
       
       wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_CREATED,
                       requestID = requestID,
-                      stageID = fileRow['stage_id'],
+                      stageID = stageID,
                       fileID = fileRow['file_id'],
                       wfsJobID = wfsJobID,
                       siteID = siteID,

@@ -322,7 +322,8 @@ fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
 export OUTPUT_RSE=`head -1 wfs-output-rse-list.txt | cut -f1 -d' '`
-export PFN_PREFIX=`head -1 wfs-output-rse-list.txt | cut -f2 -d' '`
+export OUTPUT_PROTOCOL=`head -1 wfs-output-rse-list.txt | cut -f2 -d' '`
+export OUTPUT_PREFIX=`head -1 wfs-output-rse-list.txt | cut -f3 -d' '`
 log_line "Using $OUTPUT_RSE for output"
 
 cat $WFS_PATH/wfs-outputs.txt | (
@@ -392,18 +393,21 @@ do
   log_line "Declare file in MetaCat"
   metacat file declare --json tmp.json "$dataset"
   if [ $? = 0 ] ; then
-    if [ "$pfn_prefix" != "" ] ; then
-      log_line "Upload $scope:$fn to $OUTPUT_RSE ($PFN_PREFIX)"
-      rucio --config $WFS_PATH/rucio.cfg \
-            --transfer-timeout 600 \
-            --verbose upload --rse "$OUTPUT_RSE" --pfn "$PFN_PREFIX/$fn" \
-            --scope "$scope" --name "$fn" "workspace/$fn"
+    if [ "$OUTPUT_PREFIX" != "" ] ; then
+      log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL ($OUTPUT_PREFIX)"
+      rucio --config $WFS_PATH/rucio.cfg --verbose \
+            upload --rse "$OUTPUT_RSE" \
+             --transfer-timeout 600 \
+             --pfn "$OUTPUT_PREFIX/$fn" \
+             --protocol "$OUTPUT_PROTOCOL" \
+             --scope "$scope" --name "$fn" "workspace/$fn"
     else
-      log_line "Upload $scope:$fn to $OUTPUT_RSE"
-      rucio --config $WFS_PATH/rucio.cfg \
-            --transfer-timeout 600 \
-            --verbose upload --rse "$OUTPUT_RSE" \
-            --scope "$scope" --name "$fn" "workspace/$fn"
+      log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
+      rucio --config $WFS_PATH/rucio.cfg --verbose \
+            upload --rse "$OUTPUT_RSE" \
+             --transfer-timeout 600 \
+             --protocol "$OUTPUT_PROTOCOL" \
+             --scope "$scope" --name "$fn" "workspace/$fn"
     fi
 
     if [ $? = 0 ] ; then
