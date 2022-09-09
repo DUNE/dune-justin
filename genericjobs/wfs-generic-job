@@ -4,7 +4,11 @@
 # Workflow Allocator
 #
 
-echo '====Start of wfs-generic-job===='
+function log_line() {
+echo `date -u +'%Y-%m-%d %H:%M:%S '`$1
+}
+
+log_line '====Start of wfs-generic-job===='
 
 function job_aborted() {
   cat <<EOF >wfs-job-aborted.json
@@ -91,13 +95,13 @@ export X509_CERTIFICATES=${X509_CERTIFICATES:-/etc/grid-security/certificates/}
 
 if [ ! -r "$X509_USER_PROXY" ] ; then
  # Stop if proxy file is missing or deleted
- echo "Cannot read X509_USER_PROXY file = $X509_USER_PROXY"
+ log_line "Cannot read X509_USER_PROXY file = $X509_USER_PROXY"
  exit 1
 fi
 
 curl --version
 if [ $? -ne 0 ] ; then
- echo Failed running curl
+ log_line Failed running curl
  exit 1
 fi
 
@@ -165,10 +169,10 @@ http_code=`curl \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi/get_stage`
 
-echo curl returns HTTP code $http_code
+log_line curl returns HTTP code $http_code
 
 if [ "$http_code" != "200" ] ; then
-  echo "curl call to WFA fails with code $http_code"
+  log_line "curl call to WFA fails with code $http_code"
   cat wfs-files.tar
   job_aborted $http_code get_stage
 fi
@@ -202,7 +206,7 @@ if [ -f wfs-bootstrap.sh ] ; then
   echo '====After wfs-bootstrap.sh===='
 else
   # How can this happen???
-  echo No wfs-bootstrap.sh found
+  log_line No wfs-bootstrap.sh found
   exit 1
 fi
 
@@ -306,7 +310,7 @@ http_code=`curl \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi/record_results`
 
-echo "record_results returns HTTP code $http_code"
+log_line "record_results returns HTTP code $http_code"
 echo "=====Start record-results.log=="
 touch record-results.log
 cat record-results.log
@@ -319,7 +323,7 @@ fi
 # Just try the first RSE for now; eventually will do failovers on errors
 export OUTPUT_RSE=`head -1 wfs-output-rse-list.txt | cut -f1 -d' '`
 export PFN_PREFIX=`head -1 wfs-output-rse-list.txt | cut -f2 -d' '`
-echo "Using $OUTPUT_RSE for output"
+log_line "Using $OUTPUT_RSE for output"
 
 cat $WFS_PATH/wfs-outputs.txt | (
 
@@ -385,37 +389,38 @@ do
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="
 
-  echo "Declare file in MetaCat"
-  echo "metacat file declare --json tmp.json $dataset"
+  log_line "Declare file in MetaCat"
   metacat file declare --json tmp.json "$dataset"
   if [ $? = 0 ] ; then
     if [ "$pfn_prefix" != "" ] ; then
-      echo "Upload $scope:$fn to $OUTPUT_RSE ($PFN_PREFIX)"
+      log_line "Upload $scope:$fn to $OUTPUT_RSE ($PFN_PREFIX)"
       rucio --config $WFS_PATH/rucio.cfg \
+            --transfer-timeout 600 \
             --verbose upload --rse "$OUTPUT_RSE" --pfn "$PFN_PREFIX/$fn" \
-            --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
+            --scope "$scope" --name "$fn" "workspace/$fn"
     else
-      echo "Upload $scope:$fn to $OUTPUT_RSE"
+      log_line "Upload $scope:$fn to $OUTPUT_RSE"
       rucio --config $WFS_PATH/rucio.cfg \
+            --transfer-timeout 600 \
             --verbose upload --rse "$OUTPUT_RSE" \
-            --lifetime 86400 --scope "$scope" --name "$fn" "workspace/$fn"
+            --scope "$scope" --name "$fn" "workspace/$fn"
     fi
 
     if [ $? = 0 ] ; then
-      echo "Add $scope:$fn to $dataset"
+      log_line "Add $scope:$fn to $dataset"
       rucio --config $WFS_PATH/rucio.cfg \
             --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
-        echo "rucio attach fails"
+        log_line "rucio attach fails"
         job_aborted 900 "rucio attach error"      
       fi
       echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> wfs-output-dids-rses.txt
     else
-      echo "rucio upload fails"
+      log_line "rucio upload fails"
       job_aborted 900 "rucio upload error"
     fi
   else
-    echo "metacat file declare fails"
+    log_line "metacat file declare fails"
     job_aborted 900 "metacat file declare error"
   fi 
 done
@@ -459,7 +464,7 @@ http_code=`curl \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi/confirm_results`
 
-echo "confirm_results returns HTTP code $http_code"
+log_line "confirm_results returns HTTP code $http_code"
 echo "=====Start confirm-results.log=="
 touch confirm-results.log
 cat confirm-results.log
@@ -469,6 +474,6 @@ if [ "$http_code" != 200 ] ; then
   job_aborted $http_code confirm_results
 fi
 
-echo '====End of wfs-generic-job===='
+log_line '====End of wfs-generic-job===='
 exit 0
 
