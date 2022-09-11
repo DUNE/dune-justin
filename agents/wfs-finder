@@ -524,7 +524,7 @@ def findStalledAbortedJobs():
     # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
     #  CHECKS FOR FILE IN THE outputting STATE)
     try:
-      query = ('SELECT file_id,allocations,file_did '
+      query = ('SELECT file_id,allocations,file_did,state '
                'FROM files '
                'WHERE (state="allocated" OR state="outputting") '
                'AND wfs_job_id=%d '
@@ -580,7 +580,10 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
 
-        wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATION_RESET,
+        wfs.db.logEvent(eventTypeID = 
+                        wfs.db.event_FILE_OUTPUTTING_RESET 
+                         if fileRow['state'] == 'outputting'
+                         else wfs.db.event_FILE_ALLOCATED_RESET,
                         requestID = jobRow['request_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],

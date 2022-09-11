@@ -83,9 +83,10 @@ event_JOB_STALLED		= 308
 
 # File events
 #event_FILE_ALLOCATED           = 401
-event_FILE_ALLOCATION_RESET     = 402
+event_FILE_ALLOCATED_RESET      = 402
 event_FILE_SET_TO_FAILED        = 403
 event_FILE_CREATED              = 404
+event_FILE_OUTPUTTING_RESET     = 405
 
 eventTypes = { 
  
@@ -139,12 +140,14 @@ eventTypes = {
                          'Job identified as stalled by Finder'],
 
  # File events
- event_FILE_ALLOCATION_RESET : ['FILE_ALLOCATION_RESET',
-                                'File set back to unallocated'],
+ event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',
+                                'File set back to unallocated from allocated'],
  event_FILE_SET_TO_FAILED    : ['FILE_SET_TO_FAILED',
                                 'Too many attempts to process file: failed'],
  event_FILE_CREATED          : ['FILE_CREATED',
-                                'Output file created in job']
+                                'Output file created in job'],
+ event_FILE_OUTPUTTING_RESET : ['FILE_OUTPUTTING_RESET',
+                                'File set back to unallocated from outputting']
              }
 
 def stringIsJobsubID(s):
