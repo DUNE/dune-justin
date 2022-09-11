@@ -891,8 +891,9 @@ def showJob(cgiValues):
     except:
       showJobsubLog = 'false'
 
+    print('<h2 id="jobsublog">Jobsub log</h2>')
+
     if showJobsubLog == 'true':
-      print('<h2 id="jobsublog">Jobsub log</h2>')
       print('<table><tr><td><pre>') 
 
       print(html.escape(
