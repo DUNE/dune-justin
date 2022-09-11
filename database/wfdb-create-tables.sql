@@ -63,6 +63,7 @@ CREATE TABLE `jobs` (
   `processors` tinyint unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `cookie` varchar(255) NOT NULL DEFAULT '',
+  `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`wfs_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,

@@ -1,8 +1,11 @@
 #!/bin/bash
 #
-# Generic Job script which will get a stage bootstrap script from the
+# Generic Job script which will get a stage's bootstrap script from the
 # Workflow Allocator
 #
+
+# Everything goes to stdout
+exec 2>&1
 
 function log_line() {
 echo `date -u +'%Y-%m-%d %H:%M:%S '`$1
@@ -33,10 +36,12 @@ EOF
   exit 1
 }
 
-echo '### date ; pwd ; printenv'
-date
-pwd
-printenv
+#echo '### date ; pwd ; printenv'
+#date
+#pwd
+#printenv
+#echo "### $_CONDOR_JOB_AD"
+#cat $_CONDOR_JOB_AD
 
 echo '### ls -lt ###'
 ls -lt
@@ -80,9 +85,6 @@ export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
 export hostname=`hostname`
-
-echo "### $_CONDOR_JOB_AD"
-cat $_CONDOR_JOB_AD
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`

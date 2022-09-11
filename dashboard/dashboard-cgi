@@ -884,6 +884,30 @@ def showJob(cgiValues):
   
     print('</pre></td></tr></table>') 
 
+  if os.path.isfile('/var/spool/wfs/fetchlog/%s' % jobsubID.replace('@','_')):
+  
+    try:
+      showJobsubLog = cgiValues.getfirst("show_jobsub_log")
+    except:
+      showJobsubLog = 'false'
+
+    if showJobsubLog == 'true':
+      print('<h2 id="jobsublog">Jobsub log</h2>')
+      print('<table><tr><td><pre>') 
+
+      print(html.escape(
+       open('/var/spool/wfs/fetchlog/%s' %
+           jobsubID.replace('@','_')).read().encode('ascii',
+                                                    errors='ignore').decode(), 
+       quote=True))
+  
+      print('</pre></td></tr></table>') 
+      
+    else:
+      print('<p><a href="/dashboard/show?method=show-job&jobsub_id=%s'
+            '&show_jobsub_log=true#jobsublog">Show jobsub log</a></p>'
+            % jobsubID)
+
   footer()
 
 def listJobs(cgiValues, pageNumber, pageLength):

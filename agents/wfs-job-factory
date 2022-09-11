@@ -132,6 +132,79 @@ def parseJobsubHistory():
   # Commit whatever we found - no rush
   wfs.db.conn.commit()
 
+def parseFetchlogList():
+
+  try:
+    query = ('SELECT jobsub_id FROM jobs WHERE need_to_fetch_jobsub_log '
+             'AND (finished_time > DATE_SUB(NOW(),INTERVAL 2 DAY))')
+
+    wfs.db.cur.execute(query)    
+    jobRows = wfs.db.cur.fetchall()
+  
+  except Exception as e:
+    logLine("Failed to get list of jobs needing fetchlog: " + str(e))
+    return
+
+  jobsToFetch = []
+  
+  for jobRow in jobRows:
+    jobsToFetch.append(jobRow['jobsub_id'])
+    
+  if not jobsToFetch:
+    logLine('No job logs to fetch')
+    return
+
+  try: 
+    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-fetchlog-list'],
+                             stdin   = subprocess.DEVNULL,
+                             stderr  = subprocess.STDOUT,
+                             stdout  = subprocess.PIPE,
+                             timeout = 60
+                            ) 
+  except Exception as e:
+    logLine("run-jobsub-fetchlog-list fails with error: " + str(e))
+    return
+
+  logLine(outcome.stdout.decode())
+  
+  for line in outcome.stdout.decode().splitlines():
+    if '@jobsub' in line:
+      jobsubID = line.split()[0]
+      
+      if jobsubID in jobsToFetch:
+        runFetchlog(jobsubID)
+  
+        try:
+          # We only try fetching logs once
+          wfs.db.cur.execute('UPDATE jobs '
+                             'SET need_to_fetch_jobsub_log=FALSE '
+                             'WHERE jobsub_id="%s"'
+                             % jobsubID
+                            )
+
+        except Exception as e:
+          # But try to keep going
+          logLine('Update jobs fails with: ' + str(e))
+
+  # Commit whatever we found - no rush
+  wfs.db.conn.commit()
+
+def runFetchlog(jobsubID):
+
+  try: 
+    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-fetchlog',
+                              jobsubID],
+                             stdin   = subprocess.DEVNULL,
+                             stderr  = subprocess.STDOUT,
+                             stdout  = subprocess.PIPE,
+                             timeout = 60
+                            ) 
+  except Exception as e:
+    logLine("run-jobsub-fetchlog fails with error: " + str(e))
+    return
+
+  logLine(outcome.stdout.decode())
+
 def updateSiteCounts():
 
   try:
@@ -198,10 +271,12 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
                   'site_id=%d,'
                   'slot_size_id=%d,'
                   'submitted_time=NOW(),'
+                  'need_to_fetch_jobsub_log=%s,'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
                      slotSizeRow['site_id'],
                      slotSizeRow['slot_size_id'],
+                     "TRUE" if i == 0 else "FALSE",
                      majorJobsubJobID, i, jobsubHost)
                  )
 
@@ -268,6 +343,7 @@ def oneCycle():
   parseJobsubQ()
   parseJobsubHistory()
   updateSiteCounts()
+  parseFetchlogList()
 
   # Go through the sites / slot sizes, deciding what to submit
   

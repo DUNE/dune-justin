@@ -1,0 +1,41 @@
+#!/bin/sh
+
+source /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
+source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+setup jobsub_client
+setup cigetcert
+
+major_jobsub_id=`echo "$1" | cut -d. -f1`
+jobsub_host=`echo "$1" | cut -d@ -f2`
+
+output_dir=`mktemp --directory --tmpdir=/tmp`
+if [ ! -d "$output_dir" ] ; then
+ echo "Failed to create temporary directory"
+ exit 1
+fi
+
+cd $output_dir
+
+jobsub_fetchlog \
+  --user dunepro \
+  --jobid "$1" \
+  --partial \
+  --dest-dir $output_dir
+  
+if [ $? != 0 ] ; then
+  echo "jobsub_fetchlog fails"
+  exit 2
+fi
+
+mkdir -p /var/spool/wfs/fetchlog
+umask o+r
+
+for i in *.out
+do
+  minor_jobsub_id=`echo $i | cut -d. -f3`
+  cp -f $i \
+   "/var/spool/wfs/fetchlog/$major_jobsub_id.${minor_jobsub_id}_$jobsub_host"
+done
+
+rm -f *
+rmdir $output_dir
