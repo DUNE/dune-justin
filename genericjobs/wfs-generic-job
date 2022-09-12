@@ -19,7 +19,6 @@ function job_aborted() {
 {
   "method"         : "job_aborted",
   "jobsub_id"      : "$JOBSUBJOBID",
-  "cookie"         : "$WFS_COOKIE",
   "http_code"      :  $1,
   "aborted_method" : "$2",
   "rse_name"       : "$3"
