@@ -14,12 +14,15 @@ echo `date -u +'%Y-%m-%d %H:%M:%S '`$1
 log_line '====Start of wfs-generic-job===='
 
 function job_aborted() {
+
   cat <<EOF >wfs-job-aborted.json
 {
   "method"         : "job_aborted",
   "jobsub_id"      : "$JOBSUBJOBID",
-  "http_code"      : $1,
-  "aborted_method" : "$2"
+  "cookie"         : "$WFS_COOKIE",
+  "http_code"      :  $1,
+  "aborted_method" : "$2",
+  "rse_name"       : "$3"
 }
 EOF
 
@@ -423,7 +426,7 @@ do
       echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> wfs-output-dids-rses.txt
     else
       log_line "rucio upload fails"
-      job_aborted 900 "rucio upload error"
+      job_aborted 900 "rucio upload error" "$OUTPUT_RSE"
     fi
   else
     log_line "metacat file declare fails"

@@ -372,6 +372,13 @@ def jobAbortedMethod(jsonDict):
      not wfs.db.stringNoQuotes(jsonDict['aborted_method']):
     httpError('400 Bad Request', 'Missing/invalid aborted_method in JSON')
 
+  jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
+
+#  if jobDict['error_message']:
+#    httpError('400 Bad Request', jobDict['error_message'])
+
+  # All ok, now process the message
+
   if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
     state = 'notused'
   else:
@@ -386,6 +393,19 @@ def jobAbortedMethod(jsonDict):
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Workflow allocator job_aborted failed: ' + str(e))
+
+#  if 'rse_name' in jsonDict:
+#    rseName = jsonDict['rse_name']
+#  else:
+#    rseName = None
+#
+#  wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_ABORTED,
+#                  requestID   = jobDict['request_id'],
+#                  stageID     = jobDict['stage_id'],
+#                  wfsJobID    = jobDict['wfs_job_id'],
+#                  siteID      = jobDict['site_id'],
+#                  rseName     = rseName
+#                 )
 
   # All done so commit the job details.
   try:

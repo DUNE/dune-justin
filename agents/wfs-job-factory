@@ -52,7 +52,7 @@ import wfs
 
 sleepSeconds     = 60
 jobsPerCycle     = 10
-maxSubmittedJobs = 10
+maxSubmittedJobs = 100
 
 class wfsError(Exception):
   pass
