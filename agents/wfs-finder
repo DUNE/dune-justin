@@ -512,7 +512,8 @@ def findStalledAbortedJobs():
               % (jobRow['jobsub_id'], str(e)))
         continue
 
-      logLine('Job %s set to stalled' % jobRow['jobsub_id'])
+      logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
+                                                 jobRow['allocation_state']))
     
       wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_STALLED,
                       requestID = jobRow['request_id'],

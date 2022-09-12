@@ -158,7 +158,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
              'WHERE (use_for_output OR '
              'stages_output_storages.rse_id IS NOT NULL) AND '
              'sites_storages.distance IS NOT NULL AND '
-             'storages.rse_write '
+             'storages.rse_write AND '
+             'storages.occupancy < 1.0 '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
              % (stage['request_id'], 
@@ -234,7 +235,7 @@ def getStageMethod(jsonDict):
   if jobDict['error_message']:
     httpError('400 Bad Request', jobDict['error_message'])
 
-  # Soem kind of mismatch. Maybe the idle job was marked as stalled.
+  # Some kind of mismatch. Maybe the idle job was marked as stalled.
   if jobDict['allocation_state'] != 'submitted':
     httpError('410 Gone', 'Job now unavailable for allocation')
 
@@ -374,8 +375,13 @@ def jobAbortedMethod(jsonDict):
 
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
-#  if jobDict['error_message']:
-#    httpError('400 Bad Request', jobDict['error_message'])
+  if jobDict['error_message']:
+    httpError('400 Bad Request', jobDict['error_message'])
+
+  if jobDict['allocation_state'] not in ['submitted','started',
+                                         'processing','outputting']:
+    httpError('410 Gone', 
+              'Job already in %s state' % jobDict['allocation_state'])
 
   # All ok, now process the message
 
@@ -394,18 +400,18 @@ def jobAbortedMethod(jsonDict):
     httpError('500 Internal Server Error', 
               'Workflow allocator job_aborted failed: ' + str(e))
 
-#  if 'rse_name' in jsonDict:
-#    rseName = jsonDict['rse_name']
-#  else:
-#    rseName = None
-#
-#  wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_ABORTED,
-#                  requestID   = jobDict['request_id'],
-#                  stageID     = jobDict['stage_id'],
-#                  wfsJobID    = jobDict['wfs_job_id'],
-#                  siteID      = jobDict['site_id'],
-#                  rseName     = rseName
-#                 )
+  if 'rse_name' in jsonDict:
+    rseName = jsonDict['rse_name']
+  else:
+    rseName = None
+
+  wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_ABORTED,
+                  requestID   = jobDict['request_id'],
+                  stageID     = jobDict['stage_id'],
+                  wfsJobID    = jobDict['wfs_job_id'],
+                  siteID      = jobDict['site_id'],
+                  rseName     = rseName
+                 )
 
   # All done so commit the job details.
   try:
@@ -837,8 +843,9 @@ elif jsonDict['method'] == 'job_aborted':
   checkJobUser()
   jobAbortedMethod(jsonDict)
 
-# Get one or more files to process  
+# Get one or more files to process
 elif jsonDict['method'] == 'get_file':
+  # cookie is checked rather than checkJobUser()
   getFileMethod(jsonDict)
   
 # Record results of processing files

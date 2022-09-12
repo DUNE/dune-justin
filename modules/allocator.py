@@ -90,8 +90,7 @@ def makeJobDict(jobsubID, cookie = None):
   if not job:
     return { "error_message": "Failed to find job from jobsubID" }
 
-  if job['allocation_state'] != 'submitted' and \
-     (cookie is None or job['cookie'] != cookie):
+  if cookie is not None and job['cookie'] != cookie:
     return { "error_message": "Cookie mismatch" }
 
   return { "error_message"    : None,

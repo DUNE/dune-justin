@@ -669,8 +669,9 @@ def showFile(cgiValues):
   fileID = int(filesRows[0]["file_id"])
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
-           "rse_name FROM events "
+           "site_name,rse_name FROM events "
            "LEFT JOIN storages ON storages.rse_id=events.rse_id "
+           "LEFT JOIN sites ON sites.site_id=events.site_id "
            "LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id "
            "WHERE event_type_id=%d AND file_id=%d ORDER BY event_id" 
            % (wfs.db.event_FILE_ALLOCATED, fileID))
@@ -713,8 +714,13 @@ def showFile(cgiValues):
   
   for jobRow in jobsRows:
   
-    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> (%s)<br>' % 
-          (jobRow["jobsub_id"], jobRow["jobsub_id"], jobRow["allocation_state"]))
+    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> '
+          '(%s &nbsp; %s &nbsp; %s)<br>' % 
+          (jobRow["jobsub_id"], jobRow["jobsub_id"], 
+           jobRow["allocation_state"],
+           jobRow["site_name"],
+           jobRow["rse_name"])
+         )
 
   print('</td></tr>')
 

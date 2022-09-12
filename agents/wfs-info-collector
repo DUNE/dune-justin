@@ -346,6 +346,12 @@ def updateStorages():
     return
   
   try:
+    accountClient = rucio.client.accountclient.AccountClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+  
+  try:
     rseList = rseClient.list_rses()  
   except Exception as e:
     logLine("Reading RSE list from Rucio fails with: " + str(e))
@@ -366,7 +372,7 @@ def updateStorages():
 
     try:
       usageList = rseClient.get_rse_usage(rse['rse'],
-                                          filters = {"source": "storage"})
+                                          filters = {"source": "rucio"})
     except Exception as e:
       logLine("Reading %s usage fails with: %s" % 
               (rse['rse'], str(e)))
@@ -374,12 +380,21 @@ def updateStorages():
       occupancy = 0.0
 
     else:
+
       try:
-        usage = next(usageList)
+        accLimits = accountClient.get_account_limits('dunepro', 
+                                                     rse['rse'], 
+                                                     'local')
+      except Exception as e:
+        logLine("Reading %s account limits fails with: %s" % 
+                (rse['rse'], str(e)))
+      
+       
+      try:
+        usage     = next(usageList)        
+        occupancy = float(usage['used']) / float(accLimits[rse['rse']])
       except:
         occupancy = 0.0
-      else:
-        occupancy = float(usage['used']) / usage['total']
 
     rootPrefix  = ""
     httpsPrefix = ""
