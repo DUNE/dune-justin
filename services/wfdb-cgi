@@ -78,6 +78,13 @@ def doQuery(query):
   except Exception as e:
     httpError('500 Internal Server Error', 'Error reading workflow database ' + str(e))
 
+def doSelect(query):
+
+  try:
+    return wfs.db.select(query)
+  except Exception as e:
+    httpError('500 Internal Server Error', 'Error reading workflow database ' + str(e))
+
 def showRequestsCmd(jsonDict):
 
   try:
@@ -88,7 +95,7 @@ def showRequestsCmd(jsonDict):
   else:
     requestFilter = "WHERE request_id=" + str(requestID)
 
-  rows = doQuery("SELECT * FROM requests %s ORDER BY created" % requestFilter)
+  rows = doSelect("SELECT * FROM requests %s ORDER BY created" % requestFilter)
 
   print('Status: 200 OK')
   print('Content-Type: text/plain')
@@ -116,7 +123,7 @@ def showStagesCmd(jsonDict):
   else:
     stageFilter = "AND stage_id=" + str(stageID)
 
-  rows = doQuery("SELECT * FROM stages WHERE request_id=%d %s "
+  rows = doSelect("SELECT * FROM stages WHERE request_id=%d %s "
                  "ORDER BY request_id,stage_id" 
                  % (requestID, stageFilter))
 
@@ -149,7 +156,7 @@ def showBootstrapCmd(jsonDict):
   except:
     httpError('400 Bad Request', 'Stage ID not given')
 
-  rows = doQuery("SELECT * FROM bootstraps "
+  rows = doSelect("SELECT * FROM bootstraps "
                  "WHERE request_id=%d AND stage_id=%d"
                  % (requestID, stageID))
 
@@ -173,7 +180,7 @@ def showStageOutputsCmd(jsonDict):
   except:
     httpError('400 Bad Request', 'Stage ID not given')
 
-  rows = doQuery("SELECT * FROM stages_outputs "
+  rows = doSelect("SELECT * FROM stages_outputs "
                  "WHERE request_id=%d AND stage_id=%d "
                  "ORDER BY dataset,file_scope,file_pattern" 
                  % (requestID, stageID))
@@ -222,7 +229,7 @@ def showFilesCmd(jsonDict):
     if fileDID:
       filter += " AND file_did='%s'" % fileDID
 
-  rows = doQuery("SELECT * FROM files WHERE " + filter +
+  rows = doSelect("SELECT * FROM files WHERE " + filter +
                  " ORDER BY request_id,stage_id,file_did")
 
   print('Status: 200 OK')
@@ -279,7 +286,7 @@ def showReplicasCmd(jsonDict):
   if rseName:
     filter += " AND storages.rse_name='%s'" % rseName
 
-  rows = doQuery("SELECT * FROM replicas "
+  rows = doSelect("SELECT * FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
                  "LEFT JOIN files ON replicas.file_id=files.file_id "
                  "WHERE " + filter + " ORDER BY "
@@ -309,7 +316,7 @@ def showStoragesCmd(jsonDict):
   except:
     filter = ""
 
-  rows = doQuery("SELECT * FROM storages " + filter + 
+  rows = doSelect("SELECT * FROM storages " + filter + 
                  " ORDER BY rse_name,occupancy")
 
   print('Status: 200 OK')
@@ -360,7 +367,7 @@ def showSitesStoragesCmd(jsonDict):
   else:
     filter = ""
 
-  rows = doQuery("SELECT * FROM sites_storages " 
+  rows = doSelect("SELECT * FROM sites_storages " 
                  "LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id "
                  "LEFT JOIN sites ON sites_storages.site_id=sites.site_id "
                  + filter +          
@@ -802,6 +809,32 @@ def createStageCmd(jsonDict):
 
   httpError('200 OK', None)
 
+def createBootstrapCmd(jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    httpError('400 Bad Request', 'Request ID must be given')
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    httpError('400 Bad Request', 'Stage ID must be given')
+
+  if 'file' in jsonDict and jsonDict['file']:
+    bootstrap = jsonDict['file']
+  else:
+    httpError('400 Bad Request', 'Upload file is required')
+
+  doQuery('UPDATE bootstraps SET '
+          'bootstrap="%s" WHERE request_id=%d AND stage_id=%d'
+          % (bootstrap.replace('\\','\\\\').replace('"','\\"'),
+             requestID, stageID))
+
+  wfs.db.conn.commit()
+
+  httpError('200 OK', None)
+
 def addFileCmd(jsonDict):
 
   try:
@@ -885,7 +918,7 @@ def showJobsCmd(jsonDict):
     except:
       pass
 
-  rows = doQuery("SELECT jobsub_id,request_id,stage_id,allocation_state,allocation_time "
+  rows = doSelect("SELECT jobsub_id,request_id,stage_id,allocation_state,allocation_time "
                  "FROM jobs "
                  + filter +
                  " ORDER BY wfs_job_id")
@@ -910,7 +943,7 @@ def getUserID():
   # Convert to the older format with slashes 
   clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
-  rows = doQuery('SELECT user_id FROM x509 '
+  rows = doSelect('SELECT user_id FROM x509 '
                  'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
                  clientDN.replace('\\','\\\\').replace('"','\\"'))
   
@@ -999,6 +1032,9 @@ if jsonDict['command'] == 'finish-request':
 
 if jsonDict['command'] == 'create-stage':
   createStageCmd(jsonDict)
+
+if jsonDict['command'] == 'create-bootstrap':
+  createBootstrapCmd(jsonDict)
 
 if jsonDict['command'] == 'add-file':
   addFileCmd(jsonDict)

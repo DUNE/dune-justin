@@ -221,7 +221,7 @@ def updateSiteCounts():
   else:
     wfs.db.conn.commit()
    
-def submitToSlotSize(numberToSubmit, slotSizeRow):
+def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
 
   try: 
     outcome = subprocess.run(
@@ -249,9 +249,9 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
   jobsubHost       = None
   
   for line in outcome.stdout.decode().splitlines():
-    if line.startswith("Use job id "):
+    if line.startswith('JobsubJobId of first job:'):
       try:
-        jobsubJobID      = line.split()[3]
+        jobsubJobID      = line.split()[4]
         majorJobsubJobID = jobsubJobID.split('.')[0]
         jobsubHost       = jobsubJobID.split('@')[1]
         break
@@ -263,6 +263,11 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
     logLine("Valid jobsub job ID not found after submitting job(s)!")
     return
 
+  logLine("Submitted cluster %s to %s%s" % 
+          (jobsubJobID, 
+           slotSizeRow['jobsub_site_name'],
+           ' (WTF job)' if forWtf else ''))
+
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
@@ -272,11 +277,13 @@ def submitToSlotSize(numberToSubmit, slotSizeRow):
                   'slot_size_id=%d,'
                   'submitted_time=NOW(),'
                   'need_to_fetch_jobsub_log=%s,'
+                  'for_wtf=%s,'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
                      slotSizeRow['site_id'],
                      slotSizeRow['slot_size_id'],
                      "TRUE" if i == 0 else "FALSE",
+                     "TRUE" if forWtf else "FALSE",
                      majorJobsubJobID, i, jobsubHost)
                  )
 
@@ -307,9 +314,15 @@ def processSlotSize(slotSizeRow):
 
   logLine(str(slotSizeRow))
 
-  if slotSizeRow['submitted_jobs'] + slotSizeRow['running_jobs'] \
-       >= slotSizeRow['max_jobs']:
-    # Just check once, so we might go over a little bit for now ...
+  # First, the special Workflow Testing Framework jobs
+  if slotSizeRow['number_wtf'] == 0 and slotSizeRow['min_processors'] == 0:
+    submitToSlotSize(1, slotSizeRow, forWtf = True)
+
+  # Now normal jobs for processing requests/stages
+  if not slotSizeRow['enabled'] or \
+     (slotSizeRow['submitted_jobs'] + slotSizeRow['running_jobs'] 
+       >= slotSizeRow['max_jobs']):
+    # Just check count once, so we might go over a little bit for now ...
     return
 
   try:
@@ -329,10 +342,10 @@ def processSlotSize(slotSizeRow):
     numberToSubmit = stage['matches']
     logLine('Match found - submit %d job(s)' % numberToSubmit)
     submitToSlotSize(numberToSubmit, slotSizeRow)
-  elif not slotSizeRow['site_submitted_recently'] and \
-       (slotSizeRow['min_processors'] == 0):
-    logLine('Nothing matched but time to submit again anyway')
-    submitToSlotSize(1, slotSizeRow)
+#  elif not slotSizeRow['site_submitted_recently'] and \
+#       (slotSizeRow['min_processors'] == 0):
+#    logLine('Nothing matched but time to submit again anyway')
+#    submitToSlotSize(1, slotSizeRow)
   else:
     logLine('No match found or none allowed by limits')
 
@@ -348,7 +361,7 @@ def oneCycle():
   # Go through the sites / slot sizes, deciding what to submit
   
   try:
-    wfs.db.cur.execute('SELECT sites.site_id,'
+    slotSizesRows = wfs.db.select('SELECT sites.site_id,'
       'site_name,'
       'jobsub_site_name,'
       'slot_size_id,'
@@ -369,17 +382,28 @@ def oneCycle():
       '(SELECT COUNT(*) FROM jobs WHERE'
       ' allocation_state IN ("submitted","starting","processing","outputting") '
       ' AND jobs.site_id=sites.site_id) AS number_at_site,'
-      '(sites.last_submitted_time > '
-      'DATE_SUB(NOW(),INTERVAL 1 DAY)) AS site_submitted_recently '
+      '(SELECT COUNT(*) FROM jobs WHERE'
+      ' jobs.site_id=sites.site_id AND for_wtf AND'
+      ' submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY)) as number_wtf,'
+      'enabled '
       'FROM sites '
       'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
-      'WHERE enabled OR (sites.last_submitted_time < '
-      'DATE_SUB(NOW(),INTERVAL 1 DAY)) '
       'ORDER BY site_name,min_processors'
       # Should change this to random order
+
+# Saved version that submits at least once a day
+#      '(SELECT COUNT(*) FROM jobs WHERE'
+#      ' allocation_state IN ("submitted","starting","processing","outputting") '
+#      ' AND jobs.site_id=sites.site_id) AS number_at_site,'
+#      '(sites.last_submitted_time > '
+#      'DATE_SUB(NOW(),INTERVAL 1 DAY)) AS site_submitted_recently '
+#      'FROM sites '
+#      'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
+#      'WHERE enabled OR (sites.last_submitted_time < '
+#      'DATE_SUB(NOW(),INTERVAL 1 DAY)) '
+#      'ORDER BY site_name,min_processors'
                )
 
-    slotSizesRows = wfs.db.cur.fetchall()
   except Exception as e:
     logLine('Failed getting list of slot sizes at sites: ' + str(e))
     return

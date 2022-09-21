@@ -105,7 +105,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(jsonDict, jobDict, stage, cookie):
+def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -139,6 +139,36 @@ def makeTarFile(jsonDict, jobDict, stage, cookie):
     
   addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
+  # Create a list of all RSEs for Workflow Test jobs
+  if forWtf:
+    try:
+      query = ('SELECT rse_name,deterministic_rse,write_protocol,'
+               'root_prefix,https_prefix FROM storages '
+               'WHERE rse_name<>"MONTECARLO"')
+
+      wfs.db.cur.execute(query)
+      rseRows = wfs.db.cur.fetchall()
+    except:
+      return None
+
+    allRseFile = ''
+    for rseRow in rseRows:
+      if rseRow['deterministic_rse']:
+        allRseFile += '%s %s \n' % (rseRow['rse_name'], 
+                                    rseRow['write_protocol'])
+
+      elif rseRow['write_protocol'] == 'https':
+        allRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
+                                       rseRow['write_protocol'],
+                                       rseRow['https_prefix'])
+
+      else:
+        allRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
+                                      rseRow['write_protocol'],
+                                      rseRow['root_prefix'])
+      
+    addFileToTarFile(tar, 'wfs-all-rse-list.txt', allRseFile)
+                  
   # Create an ordered output RSE list specific to this stage
   #
   # When the occupancy figures are usable this needs to have 
@@ -227,13 +257,15 @@ def getStageMethod(jsonDict):
   # Check jsonDict contains required string values
   for name in ['cpuinfo', 'os_release', 'hostname']:
     if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]):
-      httpError('400 Bad Request', 'Missing/invalid value(s) in JSON')
+      httpError('400 Bad Request', 
+                'Missing/invalid value for %s in JSON' % name)
 
   # Find details of the job
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
-    httpError('400 Bad Request', jobDict['error_message'])
+    httpError('400 Bad Request', 
+              jobDict['error_message'] + ' in getStageMethod')
 
   # Some kind of mismatch. Maybe the idle job was marked as stalled.
   if jobDict['allocation_state'] != 'submitted':
@@ -248,13 +280,21 @@ def getStageMethod(jsonDict):
     httpError('500 Internal Server Error',
               'Workflow allocator fails to record get_stage time')
 
-  # Use the Just In Time decision making: identify the best request+stage 
-  # candidate combination at this moment
-  try:
-    stage = wfs.allocator.findStage(jobDict, forUpdate = True)
-  except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Workflow allocator fails finding stage: ' + str(e))
+  if jobDict['for_wtf']:
+    # Special job for Workflow Testing Framework
+    stage = { 'request_id'  : wfs.db.wtfRequestID,
+              'stage_id'    : 1,
+              'max_distance': 0,
+              'matches'     : 1 }
+
+  else:
+    # Use the Just In Time decision making: identify the best request+stage 
+    # candidate combination at this moment
+    try:
+      stage = wfs.allocator.findStage(jobDict, forUpdate = True)
+    except Exception as e:
+       httpError('500 Internal Server Error', 
+                'Workflow allocator fails finding stage: ' + str(e))
 
   if not stage:
     # No stages/files eligible to be processed by this job
@@ -291,7 +331,7 @@ def getStageMethod(jsonDict):
     wfs.db.cur.execute(query)
   except Exception as e:
     httpError('500 Internal Server Error', 
-              'Workflow allocator failed: ' + str(e))
+              'Workflow allocator failed updating allocated job: ' + str(e))
 
   try:
     query = ('UPDATE slot_sizes SET last_allocation_time=NOW() '
@@ -302,9 +342,9 @@ def getStageMethod(jsonDict):
   except Exception as e:
     # We log this but carry on - someone testing?
     httpError('500 Internal Server Error',
-              'Workflow allocator failed: ' + str(e))
+              'Workflow allocator failed updating slot_sizes: ' + str(e))
 
-  tarFile = makeTarFile(jsonDict, jobDict, stage, cookie)
+  tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_wtf'])
   
   if not tarFile:
     httpError('500 Internal Server Error', 'Failed to create tar file')
@@ -344,7 +384,7 @@ def sendHeartbeatMethod(jsonDict):
     wfs.db.cur.execute(query)
   except Exception as e:
     httpError('500 Internal Server Error', 
-              'Workflow allocator failed: ' + str(e))
+              'Workflow allocator failed recording heartbeat: ' + str(e))
 
   # All done so commit the job details.
   try:
@@ -376,7 +416,8 @@ def jobAbortedMethod(jsonDict):
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
-    httpError('400 Bad Request', jobDict['error_message'])
+    httpError('400 Bad Request', 
+              jobDict['error_message'] + ' in jobAbortedMethod')
 
   if jobDict['allocation_state'] not in ['submitted','started',
                                          'processing','outputting']:
@@ -440,7 +481,8 @@ def getFileMethod(jsonDict):
                                       jsonDict['cookie'])
                                           
   if jobDict['error_message']:
-    httpError('400 Bad Request', jobDict['error_message'])
+    httpError('400 Bad Request', 
+              jobDict['error_message'] + ' in getFileMethod')
 
   if jobDict['allocation_state'] != 'started' and \
      jobDict['allocation_state'] != 'processing':
@@ -543,6 +585,35 @@ def processOutputDids(outputDids, requestID, stageID, wfsJobID):
             )
     wfs.db.cur.execute(query)
 
+def saveWtfResults(wfsJobID, siteID, bootstrapLog):
+
+#  print('WTF %d %d in saveWtfResults' % (wfsJobID, siteID), 
+#         file=sys.stderr)
+
+  for line in bootstrapLog.splitlines():
+#    print('WTF %d %d %s' % (wfsJobID, siteID, line), 
+#            file=sys.stderr)
+    if line.startswith('==wtf== '):
+#      print('WTF %d %d %s' % (wfsJobID, siteID, line), 
+#            file=sys.stderr)
+      lineSplitted = line.split()
+      
+      try:
+        wfs.db.cur.execute('UPDATE sites_storages SET '
+                           'wfs_job_id=%d,read_result=%d,write_result=%d '
+                           'WHERE site_id=%d AND '
+                           'rse_id=(SELECT rse_id FROM storages '
+                           'WHERE rse_name="%s")' 
+                           % (wfsJobID, 
+                              int(lineSplitted[3]),
+                              int(lineSplitted[4]),
+                              siteID,
+                              lineSplitted[2])
+                          )
+      except Exception as e:
+        print('Update wtf results fails with %s' % str(e), 
+              file=sys.stderr)
+
 # Before uploading output files the generic jobs record any results from 
 # the bootstrap script, but just puts them in the "outputting" state
 def recordResultsMethod(jsonDict):
@@ -562,7 +633,7 @@ def recordResultsMethod(jsonDict):
         httpError('400 Bad Request', 'Invalid DID or PFN in ' + name)
       
   try:
-    query = ('SELECT wfs_job_id, request_id, stage_id '
+    query = ('SELECT wfs_job_id, request_id, stage_id, for_wtf, site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     wfs.db.cur.execute(query)
@@ -571,6 +642,8 @@ def recordResultsMethod(jsonDict):
     wfsJobID  = int(row['wfs_job_id'])
     requestID = int(row['request_id'])
     stageID   = int(row['stage_id'])
+    siteID    = int(row['site_id'])
+    forWtf    = row['for_wtf']
   except:
     httpError('500 Internal Server Error', 'Failed finding job')
 
@@ -650,13 +723,15 @@ def recordResultsMethod(jsonDict):
              'bootstrap_log="%s"' %
         base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
             )
-
-#    print(str(jsonDict),file=sys.stderr)
-#    print(query,file=sys.stderr)
     
     wfs.db.cur.execute(query)
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))
+
+  if forWtf:
+    saveWtfResults(wfsJobID, 
+                   siteID, 
+                   base64.b64decode(jsonDict['bootstrap_log']).decode())
 
   # Update counts for this stage
   wfs.allocator.updateStageCounts(requestID, stageID)

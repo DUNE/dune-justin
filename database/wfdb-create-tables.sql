@@ -64,6 +64,7 @@ CREATE TABLE `jobs` (
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `cookie` varchar(255) NOT NULL DEFAULT '',
   `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
+  `for_wtf` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`wfs_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
@@ -263,6 +264,9 @@ CREATE TABLE `sites_storages` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
   `distance` float NOT NULL DEFAULT 100.0,
+  `read_result` tinyint(1) unsigned NOT NULL DEFAULT 255,
+  `write_result` tinyint(1) unsigned NOT NULL DEFAULT 255,
+  `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   UNIQUE KEY `rse_id` (`rse_id`,`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

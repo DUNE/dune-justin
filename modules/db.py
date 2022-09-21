@@ -36,6 +36,10 @@ conn = None
 cur  = None
 
 import re
+import sys
+import time
+import MySQLdb
+import MySQLdb.constants.ER
 
 rseAvailabilityDelete = 1
 rseAvailabilityWrite  = 2
@@ -49,6 +53,8 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
 jobStallSeconds = 3600
+
+wtfRequestID = 1
 
 maxAllocations = 6
 
@@ -151,16 +157,16 @@ eventTypes = {
              }
 
 def stringIsJobsubID(s):
-  return re.search('[^A-Z,a-z,0-9,_,.,@,-]', s) is None
+  return re.search('[^A-Za-z0-9_.@-]', s) is None
 
 def stringIsDomain(s):
-  return re.search('[^A-Z,a-z,0-9,.,-]', s) is None
+  return re.search('[^A-Za-z0-9.-]', s) is None
 
 def stringIsSite(s):
-  return re.search('[^A-Z,a-z,0-9,_,-]', s) is None
+  return re.search('[^A-Za-z0-9_-]', s) is None
 
 def stringNoQuotes(s):
-  return re.search('[",`,\']', s) is None
+  return re.search('["`\']', s) is None
 
 # Log an event to the database, returning an error message or None if no
 # errors. You must ensure events are committed along with anything else
@@ -209,3 +215,30 @@ def logEvent(eventTypeID = event_UNDEFINED,
     return None
   except Exception as e:
     return 'Error logging event: ' + str(e)
+
+def select(query, justOne = False, triesLeft = 5):
+
+  while True: 
+
+    try:
+      cur.execute(query)
+ 
+    except MySQLdb.OperationalError as e:
+      print(str(e.args), e.args[0], str(e), file=sys.stderr)
+      # We try again iff a deadlock error
+      if ( e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK and
+           triesLeft > 0 ):
+        print('Deadlock but will retry: ' + str(e), file=sys.stderr)
+        time.sleep(1)
+        triesLeft -= 1
+        continue
+   
+      # Otherwise we re-raise the same exception
+      raise
+      
+    else:
+      # Success! Return the results!
+      if justOne:
+        return cur.fetchone()    
+      else:
+        return cur.fetchall()

@@ -1,0 +1,75 @@
+cat <<EOF >rucio.cfg
+[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://auth-dune-rucio.fnal.gov
+account = dunepro
+auth_type = x509_proxy
+request_retries = 3
+EOF
+
+source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+setup rucio
+rucio --config rucio.cfg --version
+
+touch results.txt
+export now=`date +'%s'`
+
+cat $WFS_PATH/wfs-all-rse-list.txt | (
+
+while read rse_name write_protocol write_prefix
+do
+  echo $WFS_SITE_NAME $rse_name $write_protocol $write_prefix
+
+  fn=`mktemp wtf-$now-XXXXXXXXXX`
+  echo "$fn" > $fn
+
+  if [ "$write_prefix" != "" ] ; then
+    rucio --config rucio.cfg \
+          --verbose \
+          upload \
+          --rse "$rse_name" \
+          --transfer-timeout 600 \
+          --pfn "$write_prefix/$fn" \
+          --protocol "$write_protocol" \
+          --scope testpro \
+          --name "$fn" "$fn"
+
+    upload_retval=$?
+    rm -f "$fn"
+  else
+    rucio --config rucio.cfg \
+          --verbose \
+          upload \
+          --rse "$rse_name" \
+          --transfer-timeout 600 \
+          --protocol "$write_protocol" \
+          --scope testpro \
+          --name "$fn" "$fn"
+
+    upload_retval=$?
+    rm -f "$fn"
+  fi
+
+  if [ "$upload_retval" = 0 ] ; then
+    rucio --config rucio.cfg \
+          --verbose \
+          download \
+          --protocol root \
+          --rse "$rse_name" \
+          --transfer-timeout 600 \
+          "testpro:$fn"
+
+    download_retval=$?
+    rm -f "$fn"
+  else
+    download_retval=255
+  fi
+
+  echo "==wtf== $WFS_SITE_NAME $rse_name $download_retval $upload_retval" \
+    >> results.txt
+done
+
+)
+
+echo "Testing results:"
+cat results.txt

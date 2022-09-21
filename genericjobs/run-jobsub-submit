@@ -12,9 +12,10 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --memory ${3}KB \
   --cpu ${4} \
   --expected-lifetime=${5}s \
-  --group dune.prod_keepup \
+  --group dune \
+  --subgroup prod_keepup \
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
-  file:///var/lib/wfs/wfs-generic-job
+  file:///var/lib/wfs/wfs-generic-job 2>/dev/null
 else
  jobsub_submit \
   --debug \
@@ -23,7 +24,8 @@ else
   --memory ${3}KB \
   --cpu ${4} \
   --expected-lifetime=${5}s \
-  --group dune.prod_keepup \
+  --group dune \
+  --subgroup prod_keepup \
   --resource-provides=usage_model=OFFSITE \
-  file:///var/lib/wfs/wfs-generic-job
+  file:///var/lib/wfs/wfs-generic-job 2>/dev/null
 fi

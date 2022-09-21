@@ -72,6 +72,7 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="/dashboard/?method=list-events">Events</a> . 
 <a href="/dashboard/?method=list-sites">Sites</a> . 
 <a href="/dashboard/?method=list-storages">Storages</a> .
+<a href="/dashboard/?method=wtf-results">WTF</a> .
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
 """)
@@ -120,6 +121,7 @@ def mainPage():
   print('<li><a href="/dashboard/?method=list-events">Events</a></li>')
   print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
   print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
+  print('<li><a href="/dashboard/?method=wtf-results">Workflow Testing</a></li>')
   print('<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>')
   print('</ul>')
   
@@ -744,6 +746,7 @@ def showJob(cgiValues):
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
+           "jobs.for_wtf,"
            "slot_sizes.max_processors,slot_sizes.min_processors,"
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
            "slot_sizes.max_wall_seconds,bootstrap_log "
@@ -789,6 +792,10 @@ def showJob(cgiValues):
   print('<tr><td>Jobsub ID</td>'
         '<td>%s</td></tr>'
         % html.escape(jobsubID, quote=True))
+
+  if jobRow['for_wtf']: 
+    print('<tr><td>Workflow Testing</td>'
+          '<td>Yes</td></tr>')
 
   print('<tr><td>Submitted time</td>'
         '<td>%s</td></tr>'
@@ -1022,7 +1029,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
-           "jobs.finished_time,jobs.jobsub_state,users.username "
+           "jobs.finished_time,jobs.jobsub_state,users.username,jobs.for_wtf "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
@@ -1057,30 +1064,34 @@ def listJobs(cgiValues, pageNumber, pageLength):
       usernameStr = jobRow["username"]
     else:
       usernameStr = ' '
+
+    if jobRow['for_wtf']:
+      requestStageStr = '<td colspan=2>Workflow Testing</td>'
       
-    if jobRow['request_id']:
-      requestIdStr = ('<a href="/dashboard/?method=show-request&'
-                      'request_id=%s">%s</a>' %
+    else:
+      if jobRow['request_id']:
+        requestStageStr = ('<td><a href="/dashboard/?method=show-request&'
+                      'request_id=%s">%s</a></td>' %
                       (jobRow["request_id"], jobRow["request_id"]))
-    else:
-      requestIdStr = ' '
+      else:
+        requestStageStr = '<td> </td>'
       
-    if jobRow['stage_id']:
-      stageIdStr = ('<a href="/dashboard/?method=show-stage&request_id=%s&'
-                    'stage_id=%s">%s</a>' %
-                    (jobRow["request_id"], 
-                     jobRow["stage_id"], jobRow["stage_id"]))
-    else:
-      stageIdStr = ' '  
+      if jobRow['stage_id']:
+        requestStageStr += (
+             '<td><a href="/dashboard/?method=show-stage&request_id=%s&'
+             'stage_id=%s">%s</a></td>' %
+             (jobRow["request_id"], 
+              jobRow["stage_id"], jobRow["stage_id"]))
+      else:
+        requestStageStr += '<td> </td>'
   
     print('<tr>'
           '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'          
-          '<td>%s</td>'          
           '<td>%s</td>'
-          '<td>%s</td>'
+          '%s'
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
@@ -1090,8 +1101,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
              jobRow['allocation_state'],
              jobRow['site_name'], jobRow['site_name'],
              usernameStr,
-             requestIdStr,
-             stageIdStr,
+             requestStageStr,
              spaceForUnixEpoch(jobRow["submitted_time"]),
              spaceForUnixEpoch(jobRow["allocation_time"]),
              spaceForUnixEpoch(jobRow["finished_time"])
@@ -1328,9 +1338,11 @@ def showSite(cgiValues):
   print("<h2>Storages by distance</h2>")
 
   query = ('SELECT rse_name,occupancy,rse_write,rse_read,rse_delete,'
-           'use_for_output,distance FROM storages '
+           'use_for_output,distance,read_result,write_result,jobsub_id '
+           'FROM storages '
            'LEFT JOIN sites_storages ON sites_storages.rse_id=storages.rse_id '
-           'WHERE site_id=%d '
+           'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
+           'WHERE sites_storages.site_id=%d '
            'ORDER BY distance,rse_name' % siteRow['site_id'])
 
   wfs.db.cur.execute(query)
@@ -1346,6 +1358,8 @@ def showSite(cgiValues):
         '<th>Write</th>'
         '<th>Delete</th>'
         '<th>For output</th>'
+        '<th>Read test</th>'
+        '<th>Write test</th>'
         '</tr>')
   
   for storageRow in storageRows:  
@@ -1357,7 +1371,6 @@ def showSite(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          '</tr>' 
           % (storageRow['rse_name'], storageRow['rse_name'],
              int(storageRow['distance']),
              storageRow['occupancy'],
@@ -1367,6 +1380,20 @@ def showSite(cgiValues):
              bool(storageRow['use_for_output'])
             )
          )    
+         
+    if int(storageRow['read_result']) == 255:
+      print('<td> </td>')
+    elif int(storageRow['read_result']) == 0:
+      print('<td>OK</td>')
+    else:
+      print('<td>%d</td>' % int(storageRow['read_result']))
+
+    if int(storageRow['write_result']) == 255:
+      print('<td> </td></tr>')
+    elif int(storageRow['write_result']) == 0:
+      print('<td>OK</td></tr>')
+    else:
+      print('<td>%d</td></tr>' % int(storageRow['write_result']))
 
   print("</table>")
 
@@ -1561,6 +1588,105 @@ def listEvents(cgiValues, pageNumber, pageLength):
 
   footer()
 
+def wtfResults(cgiValues):
+              
+  header("WFS: Workflow Testing Framework")
+
+  print("<h1>Workflow Testing Framework</h1>")
+
+  print("<p>Read/Write rucio exit codes for jobs at each site contacting "
+        "each RSE. 0 = success.</p>")
+
+  sitesRows = wfs.db.select('SELECT site_name '
+                            'FROM sites ORDER by site_name')
+  siteNames = []
+  for siteRow in sitesRows:
+    siteNames.append(siteRow['site_name'])
+
+  storagesRows = wfs.db.select('SELECT rse_name '
+                               'FROM storages '
+                               'WHERE rse_name <> "MONTECARLO" '
+                               'ORDER by rse_name')
+  rseNames = []
+  for storageRow in storagesRows:
+    rseNames.append(storageRow['rse_name'])
+
+  sitesStoragesMatrix = {}
+
+  for siteName in siteNames:
+    sitesStoragesMatrix[siteName] = {}
+    for rseName in rseNames:
+      sitesStoragesMatrix[siteName][rseName] = []
+ 
+  resultsRows = wfs.db.select(
+           'SELECT site_name,rse_name,read_result,write_result,jobsub_id '
+           'FROM sites_storages '
+           'LEFT JOIN sites ON sites_storages.site_id=sites.site_id '
+           'LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id '
+           'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
+           'WHERE rse_name <> "MONTECARLO"')
+
+  # Put the results in nested dictionaries
+  for results in resultsRows:
+    sitesStoragesMatrix[results['site_name']][results['rse_name']] = \
+      [results['read_result'], results['write_result'], results['jobsub_id']]
+
+  print('<table>')
+
+  # List of storages
+  print('<tr><td> </td>')
+  
+  for rseName in rseNames:  
+    print('<th><div style="writing-mode: vertical-lr">'
+          '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
+          '</div></th>' % (rseName, rseName))
+
+  print('<td> </td></tr>')
+
+  # Go through the sites, Row by row 
+
+  for siteName in siteNames:
+    print('<tr><th><a href="/dashboard/?method=show-site&site_name=%s">%s'
+          '</a></th>' % (siteName, siteName))
+  
+    for rseName in rseNames:
+      (readResult, writeResult, jobsubID) = \
+                      sitesStoragesMatrix[siteName][rseName]
+
+      if readResult == 255 and writeResult == 255:
+        print('<td> </td>')
+        
+      else:
+        if readResult == 255:
+          s = '?'
+        else:
+          s = '%d' % readResult
+
+        if writeResult == 255:
+          s += '/?'
+        else:
+          s += '/%d' % writeResult
+          
+        print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s'
+              '</a></td>' % (jobsubID, s))
+
+    print('<th><a href="/dashboard/?method=show-site&site_name=%s">%s'
+          '</a></th></tr>' % (siteName, siteName))
+
+  # List of storages
+  print('<tr><td> </td>')
+  
+  for rseName in rseNames:
+    print('<th><div style="writing-mode: vertical-lr">'
+          '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
+          '</div></th>' % (rseName, rseName))
+
+  print('<td> </td></tr>')
+
+  print("</table>")
+
+  footer()
+
 #
 # PROGRAM MAIN
 #
@@ -1632,6 +1758,9 @@ if method == "show-storage":
 
 if method == "list-events":
   listEvents(cgiValues, pageNumber, pageLength)
+
+if method == "wtf-results":
+  wtfResults(cgiValues)
 
 print('Status: 400 Bad Request')
 print()

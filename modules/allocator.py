@@ -67,6 +67,7 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.stage_id,'
              'jobs.wfs_job_id,'
              'jobs.site_id,'
+             'jobs.for_wtf,'
              'slot_sizes.min_processors,'
              'slot_sizes.max_processors,'
              'slot_sizes.min_rss_bytes,'
@@ -85,10 +86,11 @@ def makeJobDict(jobsubID, cookie = None):
     wfs.db.cur.execute(query)
     job = wfs.db.cur.fetchone()
   except Exception as e:
-    return { "error_message": "Error finding job from jobsubID: " + str(e) }
+    return { "error_message": "Error finding job from jobsubID " + 
+             jobsubID + ": " + str(e) }
 
   if not job:
-    return { "error_message": "Failed to find job from jobsubID" }
+    return { "error_message": "Failed to find job from jobsubID " + jobsubID }
 
   if cookie is not None and job['cookie'] != cookie:
     return { "error_message": "Cookie mismatch" }
@@ -101,6 +103,7 @@ def makeJobDict(jobsubID, cookie = None):
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
            "slot_size_id"     : job['slot_size_id'],
+           "for_wtf"          : job['for_wtf'],
            "max_distance"     : job['max_distance'],
            "min_processors"   : job['min_processors'],
            "max_processors"   : job['max_processors'],
@@ -179,11 +182,10 @@ def findStage(jobDict, limit=1, forUpdate = True):
   limit,
   'FOR UPDATE' if forUpdate else ''
  ))
+    
+  fileRows = wfs.db.select(query)
   
-  wfs.db.cur.execute(query)
-  fileRows = wfs.db.cur.fetchall()
-  
-  if len(fileRows) == 0:
+  if not fileRows:
     return None
 
   # The dictionary to return, with the highest priority result
@@ -217,10 +219,9 @@ def findFile(jobDict):
  jobDict['max_distance'])
           )
       
-  wfs.db.cur.execute(query)
-  fileRows = wfs.db.cur.fetchall()
+  fileRows = wfs.db.select(query)
   
-  if len(fileRows) == 0:
+  if not fileRows:
     # No matches found
     return { 'error_message': None,
              'file_did'     : None

@@ -35,7 +35,12 @@ EOF
      --data @wfs-job-aborted.json \
      https://wfs-pro.dune.hep.ac.uk/wfa-cgi/job_aborted_$1
 
-  exit 1
+  if [ "$1" = "404" ] ; then
+    # Not finding any work isn't a failure
+    exit 0
+  else
+    exit 1
+  fi
 }
 
 #echo '### date ; pwd ; printenv'
