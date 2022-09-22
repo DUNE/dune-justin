@@ -202,7 +202,7 @@ def findFile(jobDict):
 
   query = (
 "SELECT files.file_id,files.file_did,storages.rse_name,"
-"replicas.rse_id,replicas.pfn "
+"replicas.rse_id,replicas.wan_pfn,replicas.lan_pfn,sites_storages.distance "
 "FROM files "
 "LEFT JOIN replicas ON files.file_id=replicas.file_id "
 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
@@ -246,10 +246,16 @@ def findFile(jobDict):
                   siteID      = jobDict['site_id'],
                   rseID       = fileRows[0]['rse_id'])
 
+  # If storage is at the same site and a lan PFN is given, use it
+  if fileRows[0]['distance'] == 0 and fileRows[0]['lan_pfn']:
+    pfn = fileRows[0]['lan_pfn']
+  else:
+    pfn = fileRows[0]['wan_pfn']
+
   # The dictionary to return
   return { 'error_message': None,
            'file_did'     : fileRows[0]['file_did'],
-           'pfn'          : fileRows[0]['pfn'],
+           'pfn'          : pfn,
            'rse_name'     : fileRows[0]['rse_name']
          }
 

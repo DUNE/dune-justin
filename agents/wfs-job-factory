@@ -384,7 +384,7 @@ def oneCycle():
       ' AND jobs.site_id=sites.site_id) AS number_at_site,'
       '(SELECT COUNT(*) FROM jobs WHERE'
       ' jobs.site_id=sites.site_id AND for_wtf AND'
-      ' submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY)) as number_wtf,'
+      ' submitted_time > DATE_SUB(NOW(),INTERVAL 24 HOUR)) as number_wtf,'
       'enabled '
       'FROM sites '
       'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '

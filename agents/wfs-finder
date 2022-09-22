@@ -85,7 +85,7 @@ def addFilesMonteCarlo(requestID, count):
 
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
-               'pfn="%06d"'
+               'wan_pfn="%06d",lan_pfn=""'
                % (wfs.conf.MonteCarloRseID, wfs.db.cur.lastrowid, i))
 
       wfs.db.cur.execute(query)
@@ -282,27 +282,25 @@ def findReplicas():
   # Make a list of up to maxFileFindsPerCycle files to work on 
   # but only for Rucio DIDs in scope:name format
   didsList = []
-  query = ('SELECT files.request_id,files.stage_id,file_id,file_did FROM files '
+
+  try:
+    fileRows = wfs.db.select(
+           'SELECT files.request_id,files.stage_id,file_id,file_did FROM files '
            'LEFT JOIN requests ON requests.request_id=files.request_id '
            'WHERE files.state="finding" '
            'AND requests.state="running" '
            'AND file_did LIKE "%:%" '
            'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
+
+  except Exception as e:
+    logLine('Finding list of files to find fails: ' + str(e))
+    return
   
-  wfs.db.cur.execute(query)
-  findingFiles = wfs.db.cur.fetchall()
-  
-  if not findingFiles:
-    # Nothing to do
+  # Nothing to do
+  if not fileRows:
+    logLine('No files found in finding state')
     return
 
-  # Receives a list of unique (requestID,stageID) combinations
-  requestsStages = set()
-  
-  for fileRow in findingFiles:
-    didSplit = fileRow['file_did'].split(':')
-    didsList.append({ 'scope': didSplit[0], 'name' : didSplit[1] })
-        
   # Check we can talk to Rucio
   try:
     repClient = rucio.client.replicaclient.ReplicaClient()
@@ -310,101 +308,112 @@ def findReplicas():
     logLine("Connect to Rucio fails with: " + str(e))
     return
 
-#  print(didsList)
-  try:
-    # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
-    repsList = repClient.list_replicas(didsList, schemes=['root'])
-  except Exception as e:
-    logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
-    return
-
-  # Make a dictionary with the replicas of all the file DIDs we asked about
-  repsDict = {}
-
-  for rep in repsList:
-    repsDict[ rep['scope'] + ':' + rep['name'] ] = rep['rses'].copy()
-
-  # Cache rse_id of each known RSE into a local dictionary
+  # Cache rse_id of every known RSE into a local dictionary
   storagesDict = {}
   wfs.db.cur.execute('SELECT rse_name,rse_id,needs_pin FROM storages')
   allStorages = wfs.db.cur.fetchall()
   
   for storageRow in allStorages:
     storagesDict[storageRow['rse_name']] = { 
-                     'rse_id'    : storageRow['rse_id'], 
+                     'rse_id'    : storageRow['rse_id'],
                      'needs_pin' : bool(storageRow['needs_pin']) }
- 
-  # Go back to our list of files in finding state and put replicas in DB
-  for fileRow in findingFiles:
-    replicaInserts = []
+
+  # Receives a list of unique (requestID,stageID) combinations
+  requestsStages = set()
+
+  for fileRow in fileRows:
+    (didScope, didName) = fileRow['file_did'].split(':')
+
+    try:
+      # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
+      repsList = repClient.list_replicas([ { 'scope' : didScope,
+                                             'name'  : didName   } ],
+                                         schemes=['root'], 
+                                         domain='all')
+    except Exception as e:
+      logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
+      return
+
+    rses = {}
+
+    try:
+      rep = next(repsList)
+    except:
+      # No replicas found in Rucio
+      pass
+    else:
+      # Save the wan and lan PFNs returned for each RSE with a replica
+      for pfn in rep['pfns']:
+        if rep['pfns'][pfn]['type'] == 'DISK':
+
+          if rep['pfns'][pfn]['rse'] not in rses:
+            rses[rep['pfns'][pfn]['rse']] = {}
+
+      
+          if rep['pfns'][pfn]['domain'] == 'lan':
+            rses[rep['pfns'][pfn]['rse']]['lan_pfn'] = pfn
+
+          else:
+            rses[rep['pfns'][pfn]['rse']]['wan_pfn'] = pfn
+
+      for rse in rses:
+        # If PFN wan=lan then set lan PFN to ''
+        if 'lan_pfn' not in rses[rse] or \
+           rses[rse]['wan_pfn'] == rses[rse]['lan_pfn']:
+          rses[rse]['lan_pfn'] = ''
     
-    if fileRow['file_did'] in repsDict:
-
-      for rseName in repsDict[fileRow['file_did']]:
-        if rseName in storagesDict and repsDict[fileRow['file_did']][rseName]:
-
-         if storagesDict[rseName]['needs_pin']:
-           accessibleUntil = ',accessible_until="%s" ' % wfs.db.unixEpoch
-         else:
-           accessibleUntil = ''
-             
-         replicaInserts.append('INSERT INTO replicas SET '
-                               'rse_id=' + str(storagesDict[rseName]['rse_id']) + ','
-                               'file_id=' + str(fileRow['file_id']) + ',' 
-                               'pfn="' + 
-                                repsDict[fileRow['file_did']][rseName][0] + 
-                                '"' + accessibleUntil
-                              )
-                              
-         logLine('Will add replica %s for file %s on RSE %s' %
-                 (repsDict[fileRow['file_did']][rseName][0],
-                  fileRow['file_did'],
-                  rseName
-                 )
-                )
-                              
-    if replicaInserts:
-      for query in replicaInserts:
+        if storagesDict[rse]['needs_pin']:
+          accessibleUntil = ',accessible_until="%s" ' % wfs.db.unixEpoch
+        else:
+          accessibleUntil = ''
+        
         try:
-          logLine('Inserting replica: ' + query)
+          query = ('INSERT INTO replicas SET '
+                   'rse_id=%d,file_id=%d,wan_pfn="%s",lan_pfn="%s"%s' %
+                   (storagesDict[rse]['rse_id'],
+                    fileRow['file_id'],
+                    rses[rse]['wan_pfn'],
+                    rses[rse]['lan_pfn'],
+                    accessibleUntil))
+                          
           wfs.db.cur.execute(query)
         except Exception as e:
           logLine('Failed inserting replica: ' + str(e))
           # We give up if this happens, without the commit
           return
+           
+        # Add request/stage to the list to have updated stats at the end
+        requestsStages.add((fileRow['request_id'], fileRow['stage_id']))
 
+    if rses:
       # Found all the replicas for this file so update its state
       try:
-        query = ('UPDATE files SET state="unallocated" WHERE file_id=' +
-                      str(fileRow['file_id']))
+        query = ('UPDATE files SET state="unallocated" WHERE file_id=%d' %
+                 fileRow['file_id'])
 
-        print(query)
         wfs.db.cur.execute(query)
       except Exception as e:
-        logLine('Failed updating file (' + 
-                str(fileRow['request_id']) + ',' + 
-                str(fileRow['stage_id']) +  ',' + 
-                fileRow['file_did'] + 
-                '): ' + str(e))
+        logLine('Failed updating file (%d,%d,%s): %s' %
+                (fileRow['request_id'],
+                 fileRow['stage_id'],
+                 fileRow['file_did'],
+                 str(e)))
+        # We give up if this happens, without the commit
         return
-
-      # Add request/stage to the list to have updated stats at the end
-      requestsStages.add((fileRow['request_id'],fileRow['stage_id']))
-
     else:
-      # No usable RSE/PFN info for this file from Rucio!      
-      # Should protect against transient Rucio failures here...
       try:
-        query = ('UPDATE files SET state="notfound" WHERE file_id=' +
-                 str(fileRow['file_id']))
+        query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
+                 fileRow['file_id'])
 
         wfs.db.cur.execute(query)
       except Exception as e:
-        logLine('Failed updating file (' + 
-                str(fileRow['request_id']) + ',' + 
-                str(fileRow['stage_id']) +  ',' + 
-                fileRow['file_did'] + 
-                '): ' + str(e))
+        logLine('Failed updating file (%d,%d,%s): %s' %
+                (fileRow['request_id'], 
+                 fileRow['stage_id'],
+                 fileRow['file_did'],
+                 str(e)))
+        # We give up if this happens, without the commit
+        return
 
   # Update all the stages for which we've updated a file
   for (requestID, stageID) in requestsStages:

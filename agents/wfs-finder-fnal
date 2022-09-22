@@ -1,3 +1,5 @@
+# THIS NEEDS UPDATING FOR pfn -> (wan_pfn,lan_pfn)
+
 #!/usr/bin/env python3
 #
 #  wfs-finder-fnal - WFS Finder agent for FNAL

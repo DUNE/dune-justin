@@ -151,11 +151,12 @@ CREATE TABLE `replicas` (
   `replica_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `rse_id` smallint(5) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL,
-  `pfn` varchar(255) NOT NULL,
+  `wan_pfn` varchar(255) NOT NULL,
+  `lan_pfn` varchar(255) NOT NULL,
   `accessible_until` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY(`replica_id`),
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
-  UNIQUE KEY `pfn` (`pfn`,`file_id`),
+  UNIQUE KEY `pfn` (`wan_pfn`,`file_id`),
   INDEX `file_id` (`file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -345,8 +346,8 @@ CREATE TABLE `storages` (
   `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
   `deterministic_rse` tinyint(1) NOT NULL DEFAULT TRUE,
-  `root_prefix` varchar(255) NOT NULL DEFAULT '',
-  `https_prefix` varchar(255) NOT NULL DEFAULT '',
+#  `root_prefix` varchar(255) NOT NULL DEFAULT '',
+#  `https_prefix` varchar(255) NOT NULL DEFAULT '',
   `write_protocol` varchar(255) NOT NULL DEFAULT 'root',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)

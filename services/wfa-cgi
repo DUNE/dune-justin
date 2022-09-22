@@ -142,8 +142,9 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
   # Create a list of all RSEs for Workflow Test jobs
   if forWtf:
     try:
-      query = ('SELECT rse_name,deterministic_rse,write_protocol,'
-               'root_prefix,https_prefix FROM storages '
+      query = ('SELECT rse_name,deterministic_rse,write_protocol '
+#               ',root_prefix,https_prefix '
+               'FROM storages '
                'WHERE rse_name<>"MONTECARLO"')
 
       wfs.db.cur.execute(query)
@@ -153,19 +154,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
 
     allRseFile = ''
     for rseRow in rseRows:
-      if rseRow['deterministic_rse']:
-        allRseFile += '%s %s \n' % (rseRow['rse_name'], 
-                                    rseRow['write_protocol'])
-
-      elif rseRow['write_protocol'] == 'https':
-        allRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
-                                       rseRow['write_protocol'],
-                                       rseRow['https_prefix'])
-
-      else:
-        allRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
-                                      rseRow['write_protocol'],
-                                      rseRow['root_prefix'])
+      allRseFile += '%s %s \n' % (rseRow['rse_name'], 
+                                  rseRow['write_protocol'])
       
     addFileToTarFile(tar, 'wfs-all-rse-list.txt', allRseFile)
                   
@@ -176,7 +166,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
   #  storages.occupancy added to ORDER BY
   try:
     query = ('SELECT rse_name,'
-             'deterministic_rse,write_protocol,root_prefix,https_prefix '
+             'deterministic_rse,write_protocol '
+#             ',root_prefix,https_prefix '
              'FROM storages '
              'LEFT JOIN stages_output_storages '
              'ON (storages.rse_id=stages_output_storages.rse_id '
@@ -205,17 +196,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
 
   outputRseFile = ''
   for rseRow in rseRows:
-    if rseRow['deterministic_rse']:
-      outputRseFile += '%s %s \n' % (rseRow['rse_name'], 
-                                     rseRow['write_protocol'])
-    elif rseRow['write_protocol'] == 'https':
-      outputRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
-                                       rseRow['write_protocol'],
-                                       rseRow['https_prefix'])
-    else:
-      outputRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
-                                       rseRow['write_protocol'],
-                                       rseRow['root_prefix'])
+    outputRseFile += '%s %s \n' % (rseRow['rse_name'], 
+                                   rseRow['write_protocol'])
       
   addFileToTarFile(tar, 'wfs-output-rse-list.txt', outputRseFile)
                   
@@ -649,7 +631,7 @@ def recordResultsMethod(jsonDict):
 
   try:
     # Use the event records to find the right replicas for this job
-    query = ('SELECT events.file_id,file_did,pfn '
+    query = ('SELECT events.file_id,file_did,wan_pfn,lan_pfn '
              'FROM events '
              'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
              'replicas.rse_id=events.rse_id) '
@@ -669,7 +651,9 @@ def recordResultsMethod(jsonDict):
 
   for jobFile in jobFiles:
     if jobFile['file_did'] in jsonDict['processed_dids'] or \
-       jobFile['pfn'] in jsonDict['processed_pfns']:
+       jobFile['wan_pfn'] in jsonDict['processed_pfns'] or \
+       (jobFile['lan_pfn'] and 
+        jobFile['lan_pfn'] in jsonDict['processed_pfns']):
       processedFileIDs.append(jobFile['file_id'])
     else:
       unprocessedFileIDs.append(jobFile['file_id'])
