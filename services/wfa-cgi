@@ -139,25 +139,36 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
     
   addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
-  # Create a list of all RSEs for Workflow Test jobs
+  # Create a list of RSEs for Workflow Test jobs
   if forWtf:
     try:
-      query = ('SELECT rse_name,deterministic_rse,write_protocol '
-#               ',root_prefix,https_prefix '
+      query = ('SELECT rse_name,write_protocol,distance,wan_pfn,lan_pfn '
                'FROM storages '
-               'WHERE rse_name<>"MONTECARLO"')
+               'LEFT JOIN sites_storages '
+               'ON sites_storages.rse_id=storages.rse_id '
+               'AND sites_storages.site_id=%d '
+               'LEFT JOIN replicas '
+               'ON replicas.file_id=%d AND replicas.rse_id=storages.rse_id '
+               'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL' % 
+               (jobDict['site_id'], wfs.db.wtfRequestID) )
 
       wfs.db.cur.execute(query)
       rseRows = wfs.db.cur.fetchall()
     except:
       return None
 
-    allRseFile = ''
+    wtfRseFile = ''
     for rseRow in rseRows:
-      allRseFile += '%s %s \n' % (rseRow['rse_name'], 
-                                  rseRow['write_protocol'])
+      if rseRow['lan_pfn'] and rseRow['distance'] == 0:
+        pfn = rseRow['lan_pfn']
+      else:
+        pfn = rseRow['wan_pfn']
+             
+      wtfRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
+                                    rseRow['write_protocol'],
+                                    pfn)
       
-    addFileToTarFile(tar, 'wfs-all-rse-list.txt', allRseFile)
+    addFileToTarFile(tar, 'wfs-wtf-rse-list.txt', wtfRseFile)
                   
   # Create an ordered output RSE list specific to this stage
   #
@@ -167,7 +178,6 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
   try:
     query = ('SELECT rse_name,'
              'deterministic_rse,write_protocol '
-#             ',root_prefix,https_prefix '
              'FROM storages '
              'LEFT JOIN stages_output_storages '
              'ON (storages.rse_id=stages_output_storages.rse_id '

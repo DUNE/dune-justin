@@ -67,11 +67,9 @@ if [ "$did_pfn_rse" = "" ] ; then
   exit 1
 fi
 
-# rawpfn is also needed when creating wfs-processed-pfns.txt
-rawpfn=`echo $did_pfn_rse | cut -f2 -d' '`
+# pfn is also needed when creating wfs-processed-pfns.txt
+pfn=`echo $did_pfn_rse | cut -f2 -d' '`
 
-# Nasty sed fix for bad URLs in Rucio!
-pfn=`echo $rawpfn | sed 's:ch/eos:ch//eos:'`
 echo "Input PFN = $pfn"
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
@@ -125,7 +123,7 @@ if [ $larExit -eq 0 ] ; then
 
   if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
     echo "Metadata extraction succeeds"
-    echo "$rawpfn" > wfs-processed-pfns.txt
+    echo "$pfn" > wfs-processed-pfns.txt
     echo "===Metadata JSON==="
     cat $outFile.json
     echo

@@ -326,40 +326,60 @@ def findReplicas():
 
     try:
       # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
-      repsList = repClient.list_replicas([ { 'scope' : didScope,
-                                             'name'  : didName   } ],
-                                         schemes=['root'], 
-                                         domain='all')
+      # domain='all' does not seem to work for now
+      wanRepsList = repClient.list_replicas([ { 'scope' : didScope,
+                                                'name'  : didName   } ],
+                                            schemes=['root'], 
+                                            domain='wan')
+
+      lanRepsList = repClient.list_replicas([ { 'scope' : didScope,
+                                                'name'  : didName   } ],
+                                            schemes=['root'], 
+                                            domain='lan')
+
     except Exception as e:
       logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
       return
-
+      
+    pfns = {}
     rses = {}
 
     try:
-      rep = next(repsList)
+      rep  = next(wanRepsList)
+      pfns = rep['pfns'].copy()
     except:
-      # No replicas found in Rucio
+      # No wan replicas found in Rucio
+      pass
+
+    try:
+      rep = next(lanRepsList)
+    except:
       pass
     else:
-      # Save the wan and lan PFNs returned for each RSE with a replica
       for pfn in rep['pfns']:
-        if rep['pfns'][pfn]['type'] == 'DISK':
+        if pfn not in pfns:
+          pfns[pfn] = rep['pfns'][pfn]
 
-          if rep['pfns'][pfn]['rse'] not in rses:
-            rses[rep['pfns'][pfn]['rse']] = {}
+    if pfns:
+      # Save the wan and lan PFNs returned for each RSE with a replica
+      for pfn in pfns:
+        if pfns[pfn]['type'] == 'DISK':
+
+          if pfns[pfn]['rse'] not in rses:
+            rses[pfns[pfn]['rse']] = {}
 
       
-          if rep['pfns'][pfn]['domain'] == 'lan':
-            rses[rep['pfns'][pfn]['rse']]['lan_pfn'] = pfn
+          if pfns[pfn]['domain'] == 'lan':
+            rses[pfns[pfn]['rse']]['lan_pfn'] = wfs.db.fixPfn(pfn)
 
           else:
-            rses[rep['pfns'][pfn]['rse']]['wan_pfn'] = pfn
+            rses[pfns[pfn]['rse']]['wan_pfn'] = wfs.db.fixPfn(pfn)
 
       for rse in rses:
         # If PFN wan=lan then set lan PFN to ''
         if 'lan_pfn' not in rses[rse] or \
-           rses[rse]['wan_pfn'] == rses[rse]['lan_pfn']:
+           ('wan_pfn' in rses[rse] and 
+            rses[rse]['wan_pfn'] == rses[rse]['lan_pfn']):
           rses[rse]['lan_pfn'] = ''
     
         if storagesDict[rse]['needs_pin']:

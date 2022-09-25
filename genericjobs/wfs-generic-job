@@ -50,7 +50,8 @@ EOF
 #echo "### $_CONDOR_JOB_AD"
 #cat $_CONDOR_JOB_AD
 
-echo '### ls -lt ###'
+echo '### pwd ; ls -lt ###'
+pwd
 ls -lt
 echo '##############'
 

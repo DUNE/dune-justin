@@ -1358,6 +1358,9 @@ def showSite(cgiValues):
   wfs.db.cur.execute(query)
   storageRows = wfs.db.cur.fetchall()
 
+  print("<p>Test values are xrdcp read and rucio write exit codes for jobs "
+        "at each site contacting each RSE. 0 = success.</p>")
+
   print('<table>')
   
   print('<tr>'
@@ -1393,17 +1396,17 @@ def showSite(cgiValues):
          
     if int(storageRow['read_result']) == 255:
       print('<td> </td>')
-    elif int(storageRow['read_result']) == 0:
-      print('<td>OK</td>')
     else:
-      print('<td>%d</td>' % int(storageRow['read_result']))
+      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+            '%d</a></td>' % 
+            (storageRow['jobsub_id'], int(storageRow['read_result'])))
 
     if int(storageRow['write_result']) == 255:
       print('<td> </td></tr>')
-    elif int(storageRow['write_result']) == 0:
-      print('<td>OK</td></tr>')
     else:
-      print('<td>%d</td></tr>' % int(storageRow['write_result']))
+      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+            '%d</a></td>' % 
+            (storageRow['jobsub_id'], int(storageRow['write_result'])))
 
   print("</table>")
 
@@ -1443,24 +1446,23 @@ def showStorage(cgiValues):
   print('<tr><td>Write protocol</td><td>%s</td></tr>' 
         % storageRow['write_protocol'])
 
-#  if storageRow['write_protocol'] == 'root':
-#    print('<tr><td>PFN prefix</td><td>%s</td></tr>' 
-#          % storageRow['root_prefix'])
-#  elif storageRow['write_protocol'] == 'https':
-#    print('<tr><td>PFN prefix</td><td>%s</td></tr>' 
-#          % storageRow['https_prefix'])
-
   print('</table>')
 
   print("<h2>Sites by distance</h2>")
 
-  query = ('SELECT site_name,distance,enabled FROM sites '
+  query = ('SELECT site_name,distance,enabled,'
+           'read_result,write_result,jobsub_id '
+           'FROM sites '
            'LEFT JOIN sites_storages ON sites_storages.site_id=sites.site_id '
+           'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
            'WHERE rse_id=%d '
            'ORDER BY distance,site_name' % storageRow['rse_id'])
 
   wfs.db.cur.execute(query)
   siteRows = wfs.db.cur.fetchall()
+
+  print("<p>Test values are xrdcp read and rucio write exit codes for jobs "
+        "at each site contacting each RSE. 0 = success.</p>")
 
   print('<table>')
   
@@ -1468,6 +1470,8 @@ def showStorage(cgiValues):
         '<th>Site name</th>'
         '<th>Distance</th>'
         '<th>Enabled</th>'
+        '<th>Read test</th>'
+        '<th>Write test</th>'
         '</tr>')
   
   for siteRow in siteRows:  
@@ -1475,12 +1479,25 @@ def showStorage(cgiValues):
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%s</td>'
-          '</tr>' 
           % (siteRow['site_name'], siteRow['site_name'],
              int(siteRow['distance']),
              bool(siteRow['enabled'])
             )
          )    
+
+    if int(siteRow['read_result']) == 255:
+      print('<td> </td>')
+    else:
+      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+            '%d</a></td>' % 
+            (siteRow['jobsub_id'], int(siteRow['read_result'])))
+
+    if int(siteRow['write_result']) == 255:
+      print('<td> </td></tr>')
+    else:
+      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+            '%d</a></td>' % 
+            (siteRow['jobsub_id'], int(siteRow['write_result'])))
 
   print("</table>")
 
@@ -1604,8 +1621,8 @@ def wtfResults(cgiValues):
 
   print("<h1>Workflow Testing Framework</h1>")
 
-  print("<p>Read/Write rucio exit codes for jobs at each site contacting "
-        "each RSE. 0 = success.</p>")
+  print("<p>Values are xrdcp read and rucio write exit codes for jobs at "
+        "each site contacting each RSE. 0 = success.</p>")
 
   sitesRows = wfs.db.select('SELECT site_name '
                             'FROM sites ORDER by site_name')
@@ -1664,7 +1681,7 @@ def wtfResults(cgiValues):
                       sitesStoragesMatrix[siteName][rseName]
 
       if readResult == 255 and writeResult == 255:
-        print('<td> </td>')
+        print('<td>&nbsp;</td>')
         
       else:
         if readResult == 255:

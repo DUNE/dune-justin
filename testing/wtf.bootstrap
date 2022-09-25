@@ -14,21 +14,16 @@ rucio --config rucio.cfg --version
 touch results.txt
 export now=`date +'%s'`
 
-cat $WFS_PATH/wfs-all-rse-list.txt | (
+cat $WFS_PATH/wfs-wtf-rse-list.txt | (
 
-while read rse_name write_protocol
+while read rse_name write_protocol read_pfn
 do
-  echo $WFS_SITE_NAME $rse_name $write_protocol
+  echo $WFS_SITE_NAME $rse_name $write_protocol $read_pfn
 
-  # Test download of file prepositioned on all RSEs
-  rucio --config rucio.cfg \
-        --verbose \
-        download \
-        --protocol root \
-        --rse "$rse_name" \
-        --transfer-timeout 600 \
-        "testpro:wtf-download-file.txt"
+  # Test download of file prepositioned on RSEs
+  xrdcp --force --nopbar --verbose "$read_pfn" wtf-download-file.txt
   download_retval=$?
+  echo "'xrdcp --force --nopbar --verbose $read_pfn wtf-download-file.txt' returns $download_retval"
 
   # Test upload of random file
   fn=`mktemp wtf-$now-XXXXXXXXXX`
@@ -38,7 +33,6 @@ do
         --verbose \
         upload \
         --rse "$rse_name" \
-        --transfer-timeout 600 \
         --protocol "$write_protocol" \
         --scope testpro \
         --name "$fn" "$fn"

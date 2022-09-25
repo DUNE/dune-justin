@@ -55,6 +55,7 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
 jobStallSeconds = 3600
 
 wtfRequestID = 1
+wtfFileID    = 1
 
 maxAllocations = 6
 
@@ -242,3 +243,19 @@ def select(query, justOne = False, triesLeft = 5):
         return cur.fetchone()    
       else:
         return cur.fetchall()
+
+# Temporary function to fix PFNs from Rucio that have faulty URLs
+def fixPfn(pfn):
+
+  for (old, new) in \
+     [('.cern.ch/eos/',          '.cern.ch//eos/'          ),
+      ('.in2p3.fr:1097/xrootd/', '.in2p3.fr:1097//xrootd/' ),
+      ('.bnl.gov:1094/pnfs/',    '.bnl.gov:1094//pnfs/'    ),
+      ('.bnl.gov:1096/pnfs/',    '.bnl.gov:1096//pnfs/'    ),
+      ('.lancs.ac.uk/dpm/',      '.lancs.ac.uk//dpm/'      ),
+      ('.liv.ac.uk/dune/',       '.liv.ac.uk//dune/'       ),
+      ('.manchester.ac.uk/dune/','.manchester.ac.uk//dune/')
+     ]:
+    pfn = pfn.replace(old, new)
+    
+  return pfn
