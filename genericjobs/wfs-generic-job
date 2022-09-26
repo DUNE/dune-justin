@@ -88,6 +88,37 @@ b2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9UTVAKZXhpdCAkcmV0Y29kZQo=
 EOF
 chmod +x $WFS_PATH/wfs-get-file
 
+# Create the wfs-metadata command
+base64 -d <<EOF > $WFS_PATH/wfs-metadata
+IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwojCiMgQ2hlY2sgYW55IG1ldGFkYXRhIEpTT04gZnJvbSBi
+b290c3RyYXAgc2NyaXB0IGZvciBhIGdpdmVuIGZpbGUgYW5kIGFkZAojwqBXRlMgbWV0YWRhdGEg
+dG8gaXQuIFRoZSBvdXRwdXQgZmlsZSBhbmQgaXRzIEpTT04gZmlsZSB3aWxsIGJlIGxvb2tlZCBm
+b3IgaW4gCiMgdGhlIHdvcmtzcGFjZSBzdWJkaXJlY3RvcnkuCiMKIyBUaGlzIHNjcmlwdCBtdXN0
+IGJlIGNvbnZlcnRlZCB0byBiYXNlNjQgd2l0aCBzb21ldGhpbmcgbGlrZSB0aGUgZm9sbG93aW5n
+IAojIGFuZCBpbmNsdWRlZCBpbiB0aGUgaGVyZSBkb2N1bWVudCBuZWFyIHRoZSBzdGFydCBvZiB3
+ZnMtZ2VuZXJpYy1qb2IgOgojCiMgKG1hY09TKSBiYXNlNjQgLWIgNzYgd2ZzLW1ldGFkYXRhID4g
+d2ZzLW1ldGFkYXRhLmI2NAojIChMaW51eCkgYmFzZTY0ICAgICAgIHdmcy1tZXRhZGF0YSA+IHdm
+cy1tZXRhZGF0YS5iNjQKCmltcG9ydCBvcwppbXBvcnQgc3lzCmltcG9ydCBqc29uCgp0cnk6CiAg
+ZmlsZVNjb3BlID0gc3lzLmFyZ3ZbMV0KICBmaWxlTmFtZSAgPSBzeXMuYXJndlsyXQpleGNlcHQ6
+CiAgcHJpbnQoIndmcy1tZXRhZGF0YSBTQ09QRSBOQU1FIiwgZmlsZT1zeXMuc3RkZXJyKQogIHN5
+cy5leGl0KDEpCiAgICAKdHJ5OgogIG1ldGFkYXRhID0ganNvbi5sb2FkKG9wZW4oJ3dvcmtzcGFj
+ZS8nICsgZmlsZU5hbWUgKyAnLmpzb24nLCAncicpKQpleGNlcHQgRmlsZU5vdEZvdW5kRXJyb3I6
+CiAgbWV0YWRhdGEgPSB7ICJtZXRhZGF0YSIgOiB7fSB9CmV4Y2VwdCBFeGNlcHRpb24gYXMgZToK
+ICBwcmludCgiRmlsZSB3b3Jrc3BhY2UvJXMuanNvbiBleGlzdHMgYnV0IEpTT04gbG9hZCBmYWls
+czogJXMiICUgCiAgICAgICAgKGZpbGVOYW1lLCBzdHIoZSkpKQoKbWV0YWRhdGFbJ3NpemUnXSAg
+ICAgID0gb3MucGF0aC5nZXRzaXplKCd3b3Jrc3BhY2UvJyArIGZpbGVOYW1lKQptZXRhZGF0YVsn
+bmFtZXNwYWNlJ10gPSBmaWxlU2NvcGUKbWV0YWRhdGFbJ25hbWUnXSAgICAgID0gZmlsZU5hbWUK
+bWV0YWRhdGFbJ21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cnXSA9IHt9CgptZXRhZGF0YVsnbWV0
+YWRhdGEnXVsnRFVORS53b3JrZmxvdyddWydzaXRlX25hbWUnXSBcCiA9IG9zLmVudmlyb25bJ1dG
+U19TSVRFX05BTUUnXQptZXRhZGF0YVsnbWV0YWRhdGEnXVsnRFVORS53b3JrZmxvdyddWydyZXF1
+ZXN0X2lkJ10gXAogPSBpbnQob3MuZW52aXJvblsnV0ZTX1JFUVVFU1RfSUQnXSkKbWV0YWRhdGFb
+J21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cnXVsnc3RhZ2VfaWQnXSBcCiA9IGludChvcy5lbnZp
+cm9uWydXRlNfU1RBR0VfSUQnXSkKbWV0YWRhdGFbJ21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cn
+XVsnc3RhZ2VfaWQnXSBcCiA9IG9zLmVudmlyb25bJ0hPU1ROQU1FJ10pCgpwcmludChqc29uLmR1
+bXBzKG1ldGFkYXRhLCBpbmRlbnQgPSA0LCBzb3J0X2tleXMgPSBUcnVlKSkK
+EOF
+chmod +x $WFS_PATH/wfs-metadata
+
 # Assemble values to record
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
@@ -372,29 +403,7 @@ touch wfs-output-dids-rses.txt
 
 while read dataset scope fn
 do
-  file_size=`wc --bytes "workspace/$fn" | cut -f1 -d' '`
-
-  # Make the JSON to send, including the file's JSON
-  echo '{' > tmp.json
-  echo "\"size\" : $file_size," >> tmp.json
-  echo "\"namespace\" : \"$scope\"," >> tmp.json
-  echo "\"name\" : \"$fn\"," >> tmp.json
-  echo "\"metadata\" : {" >> tmp.json
-  echo "\"DUNE.workflow\" : {" >> tmp.json
-  echo "\"site_name\" : \"$WFS_SITE_NAME\"," >> tmp.json
-  echo "\"request_id\" : $WFS_REQUEST_ID," >> tmp.json
-  echo "\"stage_id\" : $WFS_STAGE_ID," >> tmp.json
-  echo "\"hostname\" : \"$HOSTNAME\" }" >> tmp.json
-
-  if [ -r "workspace/$fn.json" ] ; then  
-    echo ',' >> tmp.json
-    tail --bytes +2 "workspace/$fn.json" >> tmp.json
-  else
-    echo '}' >> tmp.json
-  fi
-
-  echo '}' >> tmp.json
-
+  $WFS_PATH/wfs-metadata "$scope" "$fn" > tmp.json
   echo "==== Start MetaCat JSON for $fn ===="
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="

@@ -1681,7 +1681,7 @@ def wtfResults(cgiValues):
                       sitesStoragesMatrix[siteName][rseName]
 
       if readResult == 255 and writeResult == 255:
-        print('<td>&nbsp;</td>')
+        print('<td>&nbsp; &nbsp;</td>')
         
       else:
         if readResult == 255:

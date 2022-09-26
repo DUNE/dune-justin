@@ -15,6 +15,7 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --group dune \
   --subgroup prod_keepup \
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   file:///var/lib/wfs/wfs-generic-job 2>/dev/null
 else
  jobsub_submit \
@@ -27,5 +28,6 @@ else
   --group dune \
   --subgroup prod_keepup \
   --resource-provides=usage_model=OFFSITE \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   file:///var/lib/wfs/wfs-generic-job 2>/dev/null
 fi

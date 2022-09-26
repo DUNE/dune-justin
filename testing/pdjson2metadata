@@ -18,14 +18,15 @@ import sys, json
 
 coreAttributes = {
     "event_count":  "core.event_count",
-    "file_type":    "core.file_type", 
+    "file_type"  :  "core.file_type", 
     "file_format":  "core.file_format",
-    "data_tier":    "core.data_tier", 
+    "data_tier"  :  "core.data_tier", 
     "data_stream":  "core.data_stream", 
-    "events":       "core.events",
+    "events"     :  "core.events",
     "first_event":  "core.first_event_number",
-    "last_event":   "core.last_event_number",
-    "event_count":  "core.event_count"
+    "last_event" :  "core.last_event_number",
+    "event_count":  "core.event_count",
+    "parents"    :  "temp.parents"
 }
    
 try:
@@ -34,11 +35,23 @@ except Exception as e:
   print("Error reading metadata from file: " + str(e), file=sys.stderr)
   sys.exit(1)
 
+allInputDids = []
+if len(sys.argv) > 2:
+  try:
+    for line in open(sys.argv[2], "r").read().splitlines():
+      allInputDids.append(line)
+
+  except Exception as e:
+    print("Error read all input DIDs file: " + str(e), file=sys.stderr)
+    sys.exit(2)
+
 inputMetadata.pop("file_size", None)
 inputMetadata.pop("checksum", None)
 inputMetadata.pop("file_name", None)
 
-outputMetadata = {}
+# Most of the metadata goes in "metadata" within the outer dictionary
+outputMetadata = { "metadata": {}}
+
 runsSubruns = set()
 runType = None
 runs = set()
@@ -47,19 +60,39 @@ for run, subrun, rtype in inputMetadata.pop("runs", []):
   runs.add(run)
   runsSubruns.add(100000 * run + subrun)
 
-outputMetadata["core.runs_subruns"] = sorted(list(runsSubruns))
-outputMetadata["core.runs"] = sorted(list(runs))
-outputMetadata["core.run_type"] = runType
+outputMetadata["metadata"]["core.runs_subruns"] = sorted(list(runsSubruns))
+outputMetadata["metadata"]["core.runs"] = sorted(list(runs))
+outputMetadata["metadata"]["core.run_type"] = runType
 
 for name, value in inputMetadata.items():
-  if '.' not in name:
-    if name in coreAttributes:
-      name = coreAttributes[name]
-    else:
-      name = 'x.' + name
-            
-  outputMetadata[name] = value
+  if name == 'parents':
+    parentDids = []
+    for parent in value:
+      matchingDid = None
+      for did in allInputDids:
+        if did.endswith(parent["file_name"]):
+          matchingDid = Did
+          break
+
+      if matchingDid:
+        parentDids.append({ "did" : matchingDid })
+      else:
+        print("No matching input DID for file %s - exiting" % str(parent))
+        sys.exit(3)
     
-outputMetadata.setdefault("core.event_count", len(outputMetadata.get("core.events", [])))
+    # Add the list of { "did": "..." } dictionaries to top level
+    outputMetadata["parents"] = parentDids
+      
+  else:
+    if '.' not in name:
+      if name in coreAttributes:
+        name = coreAttributes[name]
+      else:
+        name = 'x.' + name
+            
+    outputMetadata["metadata"][name] = value
+    
+outputMetadata["metadata"].setdefault("core.event_count", 
+                len(outputMetadata["metadata"].get("core.events", [])))
  
 json.dump(outputMetadata, sys.stdout, indent=4, sort_keys=True)
