@@ -137,7 +137,7 @@ if [ $larExit -eq 0 ] ; then
   extractorExit=$?
   echo "extractor_prod.py exit code $extractorExit"
 
-  pdjson2metadata $outFile.ext.json > $outFile.json
+  pdjson2metadata $outFile.ext.json all-input-dids.txt > $outFile.json
   p2mExit=$?
   echo "pdjson2metadata exit code $p2mExit"
 

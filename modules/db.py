@@ -244,6 +244,29 @@ def select(query, justOne = False, triesLeft = 5):
       else:
         return cur.fetchall()
 
+def insertUpdate(query, triesLeft = 5):
+
+  while True: 
+
+    try:
+      cur.execute(query)
+ 
+    except MySQLdb.OperationalError as e:
+      print(str(e.args), e.args[0], str(e), file=sys.stderr)
+      # We try again iff a deadlock error
+      if ( e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK and
+           triesLeft > 0 ):
+        print('Deadlock but will retry: ' + str(e), file=sys.stderr)
+        time.sleep(1)
+        triesLeft -= 1
+        continue
+   
+      # Otherwise we re-raise the same exception
+      raise
+      
+    else:
+      return cur.lastrowid
+
 # Temporary function to fix PFNs from Rucio that have faulty URLs
 def fixPfn(pfn):
 

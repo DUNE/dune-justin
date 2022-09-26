@@ -80,8 +80,7 @@ def getBootstrap(stage):
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    wfs.db.cur.execute(query)
-    row = wfs.db.cur.fetchone()
+    row = wfs.db.select(query, justOne = True)
     bootstrap = row['bootstrap']
   except:
     return None
@@ -124,8 +123,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    wfs.db.cur.execute(query)
-    rows = wfs.db.cur.fetchall()
+    rows = wfs.db.select(query)
   except:
     return None
 
@@ -152,8 +150,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
                'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL' % 
                (jobDict['site_id'], wfs.db.wtfRequestID) )
 
-      wfs.db.cur.execute(query)
-      rseRows = wfs.db.cur.fetchall()
+      rseRows = wfs.db.select(query)
     except:
       return None
 
@@ -199,8 +196,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
                )
             )
 
-    wfs.db.cur.execute(query)
-    rseRows = wfs.db.cur.fetchall()
+    rseRows = wfs.db.select(query)
   except:
     return None
 
@@ -264,10 +260,8 @@ def getStageMethod(jsonDict):
     httpError('410 Gone', 'Job now unavailable for allocation')
 
   try:
-    query = ('UPDATE sites SET last_get_stage_time=NOW() '
-             'WHERE site_id=%d' % jobDict['site_id'])
-             
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
+                        'WHERE site_id=%d' % jobDict['site_id'])
   except:
     httpError('500 Internal Server Error',
               'Workflow allocator fails to record get_stage time')
@@ -291,10 +285,8 @@ def getStageMethod(jsonDict):
   if not stage:
     # No stages/files eligible to be processed by this job
     try:
-      query = ('UPDATE slot_sizes SET last_no_match_time=NOW() '
-               'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
-             
-      wfs.db.cur.execute(query)    
+      wfs.db.insertUpdate('UPDATE slot_sizes SET last_no_match_time=NOW() '
+                          'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
       wfs.db.conn.commit()
     except Exception as e:
       pass
@@ -304,7 +296,8 @@ def getStageMethod(jsonDict):
   cookie = str(uuid.uuid4())
 
   try:
-    query = ('UPDATE jobs SET '
+    wfs.db.insertUpdate(
+             'UPDATE jobs SET '
              'allocation_time=NOW(),' 
              'heartbeat_time=NOW(),' 
              'allocation_state="started",'
@@ -319,17 +312,14 @@ def getStageMethod(jsonDict):
              'wall_seconds=' + str(jsonDict['wall_seconds']) + ',' 
              'cookie="' + cookie + '" ' 
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
-            )
-    wfs.db.cur.execute(query)
+                       )
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Workflow allocator failed updating allocated job: ' + str(e))
 
   try:
-    query = ('UPDATE slot_sizes SET last_allocation_time=NOW() '
-             'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
-             
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate('UPDATE slot_sizes SET last_allocation_time=NOW() '
+                        'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
     
   except Exception as e:
     # We log this but carry on - someone testing?
@@ -370,10 +360,9 @@ def sendHeartbeatMethod(jsonDict):
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   try:
-    query = ('UPDATE jobs SET heartbeat_time=NOW() ' 
-             'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
-            )
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate('UPDATE jobs SET heartbeat_time=NOW() ' 
+                        'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
+                       )
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Workflow allocator failed recording heartbeat: ' + str(e))
@@ -424,11 +413,11 @@ def jobAbortedMethod(jsonDict):
     state = 'aborted'
  
   try:
-    query = ('UPDATE jobs SET heartbeat_time=NOW(),allocation_state="%s",'
+    wfs.db.insertUpdate(
+             'UPDATE jobs SET heartbeat_time=NOW(),allocation_state="%s",'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
-    wfs.db.cur.execute(query)
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Workflow allocator job_aborted failed: ' + str(e))
@@ -491,10 +480,10 @@ def getFileMethod(jsonDict):
   if oneFile['file_did']:
     if jobDict['allocation_state'] == 'started':
       try:
-        query = ('UPDATE jobs SET allocation_state="processing" '
+        wfs.db.insertUpdate(
+                 'UPDATE jobs SET allocation_state="processing" '
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
-                )
-        wfs.db.cur.execute(query)
+                           )
 
         wfs.allocator.updateStageCounts(jobDict['request_id'], 
                                         jobDict['stage_id'])
@@ -558,7 +547,7 @@ def updateFileProcessing(fileIDList,
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
 
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate(query)
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
@@ -569,13 +558,12 @@ def processOutputDids(outputDids, requestID, stageID, wfsJobID):
     if '"' in outputDid or "'" in outputDid:
       continue
 
-    query = ('INSERT INTO files SET state="recorded",'
-             'file_did="'          + str(outputDid) + '",'
-             'creator_wfs_job_id=' + str(wfsJobID)  + ','
-             'request_id='         + str(requestID) + ','
-             'stage_id='           + str(stageID + 1)
-            )
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdatequery('INSERT INTO files SET state="recorded",'
+                             'file_did="'          + str(outputDid) + '",'
+                             'creator_wfs_job_id=' + str(wfsJobID)  + ','
+                             'request_id='         + str(requestID) + ','
+                             'stage_id='           + str(stageID + 1)
+                            )
 
 def saveWtfResults(wfsJobID, siteID, bootstrapLog):
 
@@ -591,17 +579,17 @@ def saveWtfResults(wfsJobID, siteID, bootstrapLog):
       lineSplitted = line.split()
       
       try:
-        wfs.db.cur.execute('UPDATE sites_storages SET '
-                           'wfs_job_id=%d,read_result=%d,write_result=%d '
-                           'WHERE site_id=%d AND '
-                           'rse_id=(SELECT rse_id FROM storages '
-                           'WHERE rse_name="%s")' 
-                           % (wfsJobID, 
-                              int(lineSplitted[3]),
-                              int(lineSplitted[4]),
-                              siteID,
-                              lineSplitted[2])
-                          )
+        wfs.db.insertUpdate('UPDATE sites_storages SET '
+                            'wfs_job_id=%d,read_result=%d,write_result=%d '
+                            'WHERE site_id=%d AND '
+                            'rse_id=(SELECT rse_id FROM storages '
+                            'WHERE rse_name="%s")' 
+                            % (wfsJobID, 
+                               int(lineSplitted[3]),
+                               int(lineSplitted[4]),
+                               siteID,
+                               lineSplitted[2])
+                           )
       except Exception as e:
         print('Update wtf results fails with %s' % str(e), 
               file=sys.stderr)
@@ -628,8 +616,7 @@ def recordResultsMethod(jsonDict):
     query = ('SELECT wfs_job_id, request_id, stage_id, for_wtf, site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    wfs.db.cur.execute(query)
-    row = wfs.db.cur.fetchone()
+    row = wfs.db.select(query, justOne = True)
 
     wfsJobID  = int(row['wfs_job_id'])
     requestID = int(row['request_id'])
@@ -649,8 +636,7 @@ def recordResultsMethod(jsonDict):
              'WHERE events.wfs_job_id=%d AND events.event_type_id=%d'
              % (wfsJobID, wfs.db.event_FILE_ALLOCATED))
              
-    wfs.db.cur.execute(query)
-    jobFiles = wfs.db.cur.fetchall()
+    jobFiles = wfs.db.select(query)
     
   except Exception as e:
     httpError('500 Internal Server Error', 
@@ -704,21 +690,18 @@ def recordResultsMethod(jsonDict):
               'Failed recording outputs: ' + str(e))
 
   try:
-    query = ('UPDATE jobs SET allocation_state="outputting",'
-             'outputting_time=NOW(),heartbeat_time=NOW() '
-             'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
-
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
+                        'outputting_time=NOW(),heartbeat_time=NOW() '
+                        'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed updating jobs: ' + str(e))
 
   try:
-    query = ('INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
-             'bootstrap_log="%s"' %
+    wfs.db.insertUpdate(
+        'INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
+        'bootstrap_log="%s"' %
         base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
-            )
-    
-    wfs.db.cur.execute(query)
+                       )                           
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))
 
@@ -755,8 +738,7 @@ def confirmResultsMethod(jsonDict):
     query = ('SELECT wfs_job_id,request_id,stage_id,site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    wfs.db.cur.execute(query)
-    row = wfs.db.cur.fetchone()
+    row = wfs.db.select(query, justOne = True)
 
     wfsJobID  = int(row['wfs_job_id'])
     requestID = int(row['request_id'])
@@ -766,31 +748,24 @@ def confirmResultsMethod(jsonDict):
     httpError('500 Internal Server Error', 'Failed finding job')
 
   try:
-    query = ('UPDATE files SET state="processed" WHERE '
-             'state="outputting" AND wfs_job_id=%d' % wfsJobID)
-
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate('UPDATE files SET state="processed" WHERE '
+                        'state="outputting" AND wfs_job_id=%d' % wfsJobID)
   except:
     httpError('500 Internal Server Error', 'Updating processed input files')
 
   try:
-    query = ('SELECT file_did,file_id,stage_id FROM files '
-             'WHERE state="recorded" AND '
-             'creator_wfs_job_id=%d' % wfsJobID)
-
-    wfs.db.cur.execute(query)
-    fileRows = wfs.db.cur.fetchall()
+    fileRows = wfs.db.select('SELECT file_did,file_id,stage_id FROM files '
+                             'WHERE state="recorded" AND '
+                             'creator_wfs_job_id=%d' % wfsJobID)
   except:
     httpError('500 Internal Server Error', 'Getting recorded output files')
 
   for fileRow in fileRows:
   
     try:
-      query = ('UPDATE files SET state="%s" WHERE file_id=%d' %
-               ('finding' if (fileRow['stage_id'] > 0) else 'output', 
-                fileRow['file_id']))
-               
-      wfs.db.cur.execute(query)
+      wfs.db.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
+                          ('finding' if (fileRow['stage_id'] > 0) else 'output', 
+                          fileRow['file_id']))
       
       wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_CREATED,
                       requestID = requestID,
@@ -805,12 +780,10 @@ def confirmResultsMethod(jsonDict):
                 'Updating recorded output file: ' + str(e))
   
   try:
-    query = ('UPDATE jobs SET allocation_state="finished",'
-             'finished_time=NOW(),heartbeat_time=NOW() '
-             'WHERE wfs_job_id=%d AND allocation_state="outputting"'
-             % wfsJobID)
-
-    wfs.db.cur.execute(query)
+    wfs.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
+                        'finished_time=NOW(),heartbeat_time=NOW() '
+                        'WHERE wfs_job_id=%d AND allocation_state="outputting"'
+                        % wfsJobID)
 
     wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_FINISHED,
                     requestID = requestID,
@@ -850,8 +823,7 @@ def checkJobUser():
            clientDN.replace('\\','\\\\').replace('"','\\"'))
 
   try:
-    wfs.db.cur.execute(query)
-    rows = wfs.db.cur.fetchall()
+    rows = wfs.db.select(query)
   except:
     httpError('500 Internal Server Error', 'Error reading database')
 
