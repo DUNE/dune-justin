@@ -42,6 +42,7 @@ import json
 import uuid
 import html
 import urllib
+import urllib.parse
 import string
 import MySQLdb
 
@@ -736,6 +737,10 @@ def showFile(cgiValues):
 
   print('</td></tr>')
 
+  print('<tr><td colspan=2><a href="'
+   'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
+   'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+
   print("</table>")
   
   footer()
@@ -756,7 +761,7 @@ def showJob(cgiValues):
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
-           "jobs.for_wtf,"
+           "jobs.for_wtf,jobs.site_job_id,"
            "slot_sizes.max_processors,slot_sizes.min_processors,"
            "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
            "slot_sizes.max_wall_seconds,bootstrap_log "
@@ -802,6 +807,10 @@ def showJob(cgiValues):
   print('<tr><td>Jobsub ID</td>'
         '<td>%s</td></tr>'
         % html.escape(jobsubID, quote=True))
+
+  print('<tr><td>Site job ID</td>'
+        '<td>%s</td></tr>'
+        % html.escape(jobRow['site_job_id'], quote=True))
 
   if jobRow['for_wtf']: 
     print('<tr><td>Workflow Testing</td>'
@@ -1622,21 +1631,28 @@ def wtfResults(cgiValues):
   print("<h1>Workflow Testing Framework</h1>")
 
   print("<p>Values are xrdcp read and rucio write exit codes for jobs at "
-        "each site contacting each RSE. 0 = success.</p>")
+        "each site contacting each RSE. 0 = success. Enabled sites and "
+        "storages allowed for output are in bold.</p>")
 
-  sitesRows = wfs.db.select('SELECT site_name '
+  sitesRows = wfs.db.select('SELECT site_name,enabled '
                             'FROM sites ORDER by site_name')
-  siteNames = []
+  siteNames        = []
+  enabledSiteNames = []
   for siteRow in sitesRows:
     siteNames.append(siteRow['site_name'])
+    if siteRow['enabled']:
+      enabledSiteNames.append(siteRow['site_name'])
 
-  storagesRows = wfs.db.select('SELECT rse_name '
+  storagesRows = wfs.db.select('SELECT rse_name,use_for_output '
                                'FROM storages '
                                'WHERE rse_name <> "MONTECARLO" '
                                'ORDER by rse_name')
-  rseNames = []
+  rseNames       = []
+  outputRseNames = []
   for storageRow in storagesRows:
     rseNames.append(storageRow['rse_name'])
+    if storageRow['use_for_output']:
+      outputRseNames.append(storageRow['rse_name'])
 
   sitesStoragesMatrix = {}
 
@@ -1664,17 +1680,27 @@ def wtfResults(cgiValues):
   print('<tr><td> </td>')
   
   for rseName in rseNames:  
-    print('<th><div style="writing-mode: vertical-lr">'
+    if rseName in outputRseNames:
+      cellType = 'th'
+    else:
+      cellType = 'td'
+    print('<%s><div style="writing-mode: vertical-lr">'
           '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
-          '</div></th>' % (rseName, rseName))
+          '</div></%s>' % (cellType, rseName, rseName, cellType))
 
   print('<td> </td></tr>')
 
   # Go through the sites, Row by row 
 
   for siteName in siteNames:
-    print('<tr><th><a href="/dashboard/?method=show-site&site_name=%s">%s'
-          '</a></th>' % (siteName, siteName))
+    if siteName in enabledSiteNames:
+      cellType = 'th'
+    else:
+      cellType = 'td'
+    
+    print('<tr><%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
+          '</a></%s>' % 
+          (cellType, siteName, siteName, cellType))
   
     for rseName in rseNames:
       (readResult, writeResult, jobsubID) = \
@@ -1697,16 +1723,21 @@ def wtfResults(cgiValues):
         print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s'
               '</a></td>' % (jobsubID, s))
 
-    print('<th><a href="/dashboard/?method=show-site&site_name=%s">%s'
-          '</a></th></tr>' % (siteName, siteName))
+    print('<%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
+          '</a></%s></tr>' % 
+          (cellType, siteName, siteName, cellType))
 
   # List of storages
   print('<tr><td> </td>')
   
   for rseName in rseNames:
-    print('<th><div style="writing-mode: vertical-lr">'
+    if rseName in outputRseNames:
+      cellType = 'th'
+    else:
+      cellType = 'td'
+    print('<%s><div style="writing-mode: vertical-lr">'
           '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
-          '</div></th>' % (rseName, rseName))
+          '</div></%s>' % (cellType, rseName, rseName, cellType))
 
   print('<td> </td></tr>')
 

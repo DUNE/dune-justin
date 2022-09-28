@@ -57,7 +57,7 @@ import rucio.client
 #
 import wfs
 
-maxFileFindsPerCycle = 10
+maxFileFindsPerCycle = 50
 sleepSeconds         = 60
 
 class wfsError(Exception):

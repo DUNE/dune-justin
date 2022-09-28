@@ -38,6 +38,7 @@ cur  = None
 import re
 import sys
 import time
+import random
 import MySQLdb
 import MySQLdb.constants.ER
 
@@ -217,21 +218,21 @@ def logEvent(eventTypeID = event_UNDEFINED,
   except Exception as e:
     return 'Error logging event: ' + str(e)
 
-def select(query, justOne = False, triesLeft = 5):
+def select(query, justOne = False, tries = 10):
 
-  while True: 
+  for tryNumber in range(1, tries + 1):
 
     try:
       cur.execute(query)
  
     except MySQLdb.OperationalError as e:
-      print(str(e.args), e.args[0], str(e), file=sys.stderr)
       # We try again iff a deadlock error
-      if ( e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK and
-           triesLeft > 0 ):
-        print('Deadlock but will retry: ' + str(e), file=sys.stderr)
-        time.sleep(1)
-        triesLeft -= 1
+      if ( (e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK or 
+            e.args[0] == MySQLdb.constants.ER.LOCK_WAIT_TIMEOUT) and
+           tryNumber < tries ):
+        print('Lock error but will retry (%d/%d): %s:' % 
+              (tryNumber, tries, str(e)), file=sys.stderr)
+        time.sleep(3 * random.random() * tryNumber)
         continue
    
       # Otherwise we re-raise the same exception
@@ -244,21 +245,21 @@ def select(query, justOne = False, triesLeft = 5):
       else:
         return cur.fetchall()
 
-def insertUpdate(query, triesLeft = 5):
+def insertUpdate(query, tries = 10):
 
-  while True: 
+  for tryNumber in range(1, tries + 1):
 
     try:
       cur.execute(query)
  
     except MySQLdb.OperationalError as e:
-      print(str(e.args), e.args[0], str(e), file=sys.stderr)
       # We try again iff a deadlock error
-      if ( e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK and
-           triesLeft > 0 ):
-        print('Deadlock but will retry: ' + str(e), file=sys.stderr)
-        time.sleep(1)
-        triesLeft -= 1
+      if ( (e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK or
+            e.args[0] == MySQLdb.constants.ER.LOCK_WAIT_TIMEOUT) and
+           tryNumber < tries ):
+        print('Lock error but will retry (%d/%d): %s' % 
+              (tryNumber, tries, str(e)), file=sys.stderr)
+        time.sleep(3 * random.random() * tryNumber)
         continue
    
       # Otherwise we re-raise the same exception

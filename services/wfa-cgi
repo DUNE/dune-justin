@@ -243,7 +243,7 @@ def getStageMethod(jsonDict):
       httpError('400 Bad Request', 'Missing/invalid integer value(s) in JSON')
 
   # Check jsonDict contains required string values
-  for name in ['cpuinfo', 'os_release', 'hostname']:
+  for name in ['cpuinfo', 'os_release', 'hostname', 'site_job_id']:
     if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]):
       httpError('400 Bad Request', 
                 'Missing/invalid value for %s in JSON' % name)
@@ -257,7 +257,9 @@ def getStageMethod(jsonDict):
 
   # Some kind of mismatch. Maybe the idle job was marked as stalled.
   if jobDict['allocation_state'] != 'submitted':
-    httpError('410 Gone', 'Job now unavailable for allocation')
+    httpError('410 Gone', 
+              'Cannot get stage as job already in %s state' 
+              % jobDict['allocation_state'])
 
   try:
     wfs.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
@@ -298,6 +300,7 @@ def getStageMethod(jsonDict):
   try:
     wfs.db.insertUpdate(
              'UPDATE jobs SET '
+             'site_job_id="' + str(jsonDict['site_job_id']) + '",'
              'allocation_time=NOW(),' 
              'heartbeat_time=NOW(),' 
              'allocation_state="started",'
@@ -403,7 +406,8 @@ def jobAbortedMethod(jsonDict):
   if jobDict['allocation_state'] not in ['submitted','started',
                                          'processing','outputting']:
     httpError('410 Gone', 
-              'Job already in %s state' % jobDict['allocation_state'])
+              'Cannot set job to aborted as job already in %s state' 
+              % jobDict['allocation_state'])
 
   # All ok, now process the message
 
@@ -414,7 +418,7 @@ def jobAbortedMethod(jsonDict):
  
   try:
     wfs.db.insertUpdate(
-             'UPDATE jobs SET heartbeat_time=NOW(),allocation_state="%s",'
+             'UPDATE jobs SET allocation_state="%s",'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
@@ -558,12 +562,12 @@ def processOutputDids(outputDids, requestID, stageID, wfsJobID):
     if '"' in outputDid or "'" in outputDid:
       continue
 
-    wfs.db.insertUpdatequery('INSERT INTO files SET state="recorded",'
-                             'file_did="'          + str(outputDid) + '",'
-                             'creator_wfs_job_id=' + str(wfsJobID)  + ','
-                             'request_id='         + str(requestID) + ','
-                             'stage_id='           + str(stageID + 1)
-                            )
+    wfs.db.insertUpdate('INSERT INTO files SET state="recorded",'
+                        'file_did="'          + str(outputDid) + '",'
+                        'creator_wfs_job_id=' + str(wfsJobID)  + ','
+                        'request_id='         + str(requestID) + ','
+                        'stage_id='           + str(stageID + 1)
+                       )
 
 def saveWtfResults(wfsJobID, siteID, bootstrapLog):
 
@@ -691,7 +695,7 @@ def recordResultsMethod(jsonDict):
 
   try:
     wfs.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
-                        'outputting_time=NOW(),heartbeat_time=NOW() '
+                        'outputting_time=NOW() '
                         'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
   except Exception as e:
     httpError('500 Internal Server Error', 'Failed updating jobs: ' + str(e))
@@ -781,7 +785,7 @@ def confirmResultsMethod(jsonDict):
   
   try:
     wfs.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
-                        'finished_time=NOW(),heartbeat_time=NOW() '
+                        'finished_time=NOW() '
                         'WHERE wfs_job_id=%d AND allocation_state="outputting"'
                         % wfsJobID)
 

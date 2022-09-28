@@ -114,8 +114,8 @@ U19TSVRFX05BTUUnXQptZXRhZGF0YVsnbWV0YWRhdGEnXVsnRFVORS53b3JrZmxvdyddWydyZXF1
 ZXN0X2lkJ10gXAogPSBpbnQob3MuZW52aXJvblsnV0ZTX1JFUVVFU1RfSUQnXSkKbWV0YWRhdGFb
 J21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cnXVsnc3RhZ2VfaWQnXSBcCiA9IGludChvcy5lbnZp
 cm9uWydXRlNfU1RBR0VfSUQnXSkKbWV0YWRhdGFbJ21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cn
-XVsnaG9zdG5hbWUnXSBcCiA9IG9zLmVudmlyb25bJ0hPU1ROQU1FJ10pCgpwcmludChqc29uLmR1
-bXBzKG1ldGFkYXRhLCBpbmRlbnQgPSA0LCBzb3J0X2tleXMgPSBUcnVlKSkK
+XVsnaG9zdG5hbWUnXSBcCiA9IG9zLmVudmlyb25bJ0hPU1ROQU1FJ10KCnByaW50KGpzb24uZHVt
+cHMobWV0YWRhdGEsIGluZGVudCA9IDQsIHNvcnRfa2V5cyA9IFRydWUpKQo=
 EOF
 chmod +x $WFS_PATH/wfs-metadata
 
@@ -123,7 +123,7 @@ chmod +x $WFS_PATH/wfs-metadata
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export os_release=`head -1 /etc/redhat-release`
-export hostname=`hostname`
+export HOSTNAME=${HOSTNAME:-`hostname`}
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
@@ -186,10 +186,11 @@ cat <<EOF >wfs-get-stage.json
   "site_name"    : "${site_name:-XX-UNKNOWN}",
   "cpuinfo"      : "${cpuinfo:-Unknown}",
   "os_release"   : "${os_release:-Unknown}",
-  "hostname"     : "${hostname:-unknown}",
+  "hostname"     : "${HOSTNAME:-unknown}",
   "rss_bytes"    : ${rss_bytes:-0},
   "processors"   : ${processors:-0},
-  "wall_seconds" : ${wall_seconds:-0}
+  "wall_seconds" : ${wall_seconds:-0},
+  "site_job_id"  : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}"
 }
 EOF
 

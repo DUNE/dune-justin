@@ -51,7 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds     = 60
-jobsPerCycle     = 10
+jobsPerCycle     = 25
 maxSubmittedJobs = 100
 
 class wfsError(Exception):
@@ -329,7 +329,7 @@ def processSlotSize(slotSizeRow):
     jobDict = wfs.allocator.makeSlotSizeDict(slotSizeRow['slot_size_id'])
     print(jobDict)
     stage = wfs.allocator.findStage(jobDict, 
-                                    limit = jobsPerCycle, 
+                                    limit = jobsPerCycle,
                                     forUpdate = False)
     print(stage)
     print(slotSizeRow)

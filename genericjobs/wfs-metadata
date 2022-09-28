@@ -41,6 +41,6 @@ metadata['metadata']['DUNE.workflow']['request_id'] \
 metadata['metadata']['DUNE.workflow']['stage_id'] \
  = int(os.environ['WFS_STAGE_ID'])
 metadata['metadata']['DUNE.workflow']['hostname'] \
- = os.environ['HOSTNAME'])
+ = os.environ['HOSTNAME']
 
 print(json.dumps(metadata, indent = 4, sort_keys = True))

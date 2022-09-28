@@ -300,6 +300,8 @@ def updateSites():
 
       wfs.db.cur.execute(query)
 
+  wfs.db.conn.commit()
+
 def updateSitesStorages(): 
   # Update the matrix of sites to storage mappings
   logLine('---- Start updateSitesStorages ----')
@@ -326,7 +328,7 @@ def updateSitesStorages():
               
       wfs.db.cur.execute(query)
 
-#  wfs.db.conn.commit()
+  wfs.db.conn.commit()
 
 def updateStorages():
   # Get info about storages Rucio knows about
@@ -464,7 +466,7 @@ def updateStorages():
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
 
-#  wfs.db.conn.commit()
+  wfs.db.conn.commit()
 
 def oneCycle():
 

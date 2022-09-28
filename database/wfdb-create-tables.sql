@@ -41,6 +41,7 @@ CREATE TABLE `jobs` (
   `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
+  `site_job_id` varchar(255) NOT NULL DEFAULT '',
   `site_id` smallint(5) unsigned NOT NULL,
   `slot_size_id` smallint(5) unsigned NOT NULL,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
@@ -68,7 +69,9 @@ CREATE TABLE `jobs` (
   PRIMARY KEY (`wfs_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
-    `allocation_state`,`site_id`,`slot_size_id`)
+    `allocation_state`,`site_id`,`slot_size_id`),
+  INDEX `site_id_allocation_state` (`site_id`,`allocation_state`,
+    `slot_size_id`,`submitted_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
