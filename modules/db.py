@@ -278,7 +278,8 @@ def fixPfn(pfn):
       ('.bnl.gov:1096/pnfs/',    '.bnl.gov:1096//pnfs/'    ),
       ('.lancs.ac.uk/dpm/',      '.lancs.ac.uk//dpm/'      ),
       ('.liv.ac.uk/dune/',       '.liv.ac.uk//dune/'       ),
-      ('.manchester.ac.uk/dune/','.manchester.ac.uk//dune/')
+      ('.manchester.ac.uk/dune/','.manchester.ac.uk//dune/'),
+      ('.qmul.ac.uk:1094/dune/', 'qmul.ac.uk:1094//dune/'  )
      ]:
     pfn = pfn.replace(old, new)
     

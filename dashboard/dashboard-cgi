@@ -73,7 +73,7 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="/dashboard/?method=list-events">Events</a> . 
 <a href="/dashboard/?method=list-sites">Sites</a> . 
 <a href="/dashboard/?method=list-storages">Storages</a> .
-<a href="/dashboard/?method=wtf-results">WTF</a> .
+<a href="/dashboard/?method=wtf-results">AWT</a> .
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
 """)
@@ -122,7 +122,7 @@ def mainPage():
   print('<li><a href="/dashboard/?method=list-events">Events</a></li>')
   print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
   print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
-  print('<li><a href="/dashboard/?method=wtf-results">Workflow Testing</a></li>')
+  print('<li><a href="/dashboard/?method=wtf-results">Automated Workflow Tests</a></li>')
   print('<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>')
   print('</ul>')
   
@@ -1626,9 +1626,9 @@ def listEvents(cgiValues, pageNumber, pageLength):
 
 def wtfResults(cgiValues):
               
-  header("WFS: Workflow Testing Framework")
+  header("WFS: Automated Workflow Tests")
 
-  print("<h1>Workflow Testing Framework</h1>")
+  print("<h1>Automated Workflow Tests</h1>")
 
   print("<p>Values are xrdcp read and rucio write exit codes for jobs at "
         "each site contacting each RSE. 0 = success. Enabled sites and "
