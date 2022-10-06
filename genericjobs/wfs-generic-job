@@ -39,7 +39,8 @@ EOF
     # Not finding any work isn't a failure
     exit 0
   else
-    exit 1
+    # Do not generate failures: they're WFS failures, not job failures
+    exit 0
   fi
 }
 
@@ -114,16 +115,24 @@ U19TSVRFX05BTUUnXQptZXRhZGF0YVsnbWV0YWRhdGEnXVsnRFVORS53b3JrZmxvdyddWydyZXF1
 ZXN0X2lkJ10gXAogPSBpbnQob3MuZW52aXJvblsnV0ZTX1JFUVVFU1RfSUQnXSkKbWV0YWRhdGFb
 J21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cnXVsnc3RhZ2VfaWQnXSBcCiA9IGludChvcy5lbnZp
 cm9uWydXRlNfU1RBR0VfSUQnXSkKbWV0YWRhdGFbJ21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cn
-XVsnaG9zdG5hbWUnXSBcCiA9IG9zLmVudmlyb25bJ0hPU1ROQU1FJ10KCnByaW50KGpzb24uZHVt
-cHMobWV0YWRhdGEsIGluZGVudCA9IDQsIHNvcnRfa2V5cyA9IFRydWUpKQo=
+XVsnaG9zdG5hbWUnXSBcCiA9IG9zLmVudmlyb25bJ1dGU19IT1NUTkFNRSddCm1ldGFkYXRhWydt
+ZXRhZGF0YSddWydEVU5FLndvcmtmbG93J11bJ3NjcmlwdF9zdGFydCddIFwKID0gb3MuZW52aXJv
+blsnV0ZTX0JPT1RTVFJBUF9TQ1JJUFRfU1RBUlQnXQptZXRhZGF0YVsnbWV0YWRhdGEnXVsnRFVO
+RS53b3JrZmxvdyddWydzY3JpcHRfZmluaXNoJ10gXAogPSBvcy5lbnZpcm9uWydXRlNfQk9PVFNU
+UkFQX1NDUklQVF9GSU5JU0gnXQptZXRhZGF0YVsnbWV0YWRhdGEnXVsnRFVORS53b3JrZmxvdydd
+WydjcHVpbmZvJ10gXAogPSBvcy5lbnZpcm9uWydXRlNfQ1BVSU5GTyddCm1ldGFkYXRhWydtZXRh
+ZGF0YSddWydEVU5FLndvcmtmbG93J11bJ29zX3JlbGVhc2UnXSBcCiA9IG9zLmVudmlyb25bJ1dG
+U19PU19SRUxFQVNFJ10KbWV0YWRhdGFbJ21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cnXVsnam9i
+X2lkJ10gXAogPSBvcy5lbnZpcm9uWydKT0JTVUJKT0JJRCddCgpwcmludChqc29uLmR1bXBzKG1l
+dGFkYXRhLCBpbmRlbnQgPSA0LCBzb3J0X2tleXMgPSBUcnVlKSkK
 EOF
 chmod +x $WFS_PATH/wfs-metadata
 
 # Assemble values to record
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
-export cpuinfo=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
-export os_release=`head -1 /etc/redhat-release`
-export HOSTNAME=${HOSTNAME:-`hostname`}
+export WFS_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
+export WFS_OS_RELEASE=`head -1 /etc/redhat-release`
+export WFS_HOSTNAME=${HOSTNAME:-`hostname`}
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
@@ -137,13 +146,13 @@ export X509_CERTIFICATES=${X509_CERTIFICATES:-/etc/grid-security/certificates/}
 if [ ! -r "$X509_USER_PROXY" ] ; then
  # Stop if proxy file is missing or deleted
  log_line "Cannot read X509_USER_PROXY file = $X509_USER_PROXY"
- exit 1
+ exit 0
 fi
 
 curl --version
 if [ $? -ne 0 ] ; then
  log_line Failed running curl
- exit 1
+ exit 0
 fi
 
 cat <<EOF >wfs-send-heartbeat.json
@@ -160,7 +169,7 @@ while :
 do
   # Stop if JSON file is missing or deleted
   if [ ! -r wfs-send-heartbeat.json ] ; then
-    exit 1
+    exit 0
   fi
 
   curl \
@@ -184,9 +193,9 @@ cat <<EOF >wfs-get-stage.json
   "method"       : "get_stage",
   "jobsub_id"    : "$JOBSUBJOBID",
   "site_name"    : "${site_name:-XX-UNKNOWN}",
-  "cpuinfo"      : "${cpuinfo:-Unknown}",
-  "os_release"   : "${os_release:-Unknown}",
-  "hostname"     : "${HOSTNAME:-unknown}",
+  "cpuinfo"      : "${WFS_CPUINFO:-Unknown}",
+  "os_release"   : "${WFS_OS_RELEASE:-Unknown}",
+  "hostname"     : "${WFS_HOSTNAME:-unknown}",
   "rss_bytes"    : ${rss_bytes:-0},
   "processors"   : ${processors:-0},
   "wall_seconds" : ${wall_seconds:-0},
@@ -243,13 +252,15 @@ if [ -f wfs-bootstrap.sh ] ; then
 
   mkdir workspace
   echo '====Run wfs-bootstrap.sh===='
+  export BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
   ( cd workspace ; stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) > workspace/wfs-bootstrap.log 2>&1
   retval=$?
+  export BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
   echo '====After wfs-bootstrap.sh===='
 else
   # How can this happen???
   log_line No wfs-bootstrap.sh found
-  exit 1
+  exit 0
 fi
 
 echo '#### wfs-bootstrap.log'
@@ -442,7 +453,7 @@ done
 if [ $? != 0 ] ; then
   # Exit/aborts inside subshell just exit the subshell with a non-zero code
   # So we exit the generic job script properly here
-  exit 1
+  exit 0
 fi
 
 # If all ok, then confirm that to the Workflow Allocator
