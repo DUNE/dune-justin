@@ -158,93 +158,98 @@ SUBCOMMANDS
               wallclock seconds, max RSS bytes, and the max distance value.
 
 
+       create-bootstrap --request-id ID --stage-id ID --file FILENAME
+              Creates  a  bootstrap  file for the given stage within the given
+              request, replacing the existing bootstrap file.
+
+
        show-bootstrap --request-id ID --stage-id ID
-              Show  the  bootstrap  script of the given stage within the given
+              Show the bootstrap script of the given stage  within  the  given
               request.
 
 
        show-stage-outputs --request-id ID --stage-id ID
-              Shows the datasets to be assigned and the patterns used to  find
-              output  files  of the given stage within the given request. Each
+              Shows  the datasets to be assigned and the patterns used to find
+              output files of the given stage within the given  request.  Each
               line of the response consists of "(next)" or "(  )" depending on
-              whether  the  files  are  passed  to  the  next stage within the
-              request, and then the dataset, scope, and  files  pattern  them-
+              whether the files are  passed  to  the  next  stage  within  the
+              request,  and  then  the dataset, scope, and files pattern them-
               selves.
 
 
        show-storages [--rse-name NAME]
-              Shows  information  about  Rucio  Storage Elements cached in the
-              Workflow Database, optionally limiting output to  a  single  RSE
+              Shows information about Rucio Storage  Elements  cached  in  the
+              Workflow  Database,  optionally  limiting output to a single RSE
               using its name. Each line of the output consists of the RSE name
-              followed by the occupancy fraction obtained from  Rucio  in  the
+              followed  by  the  occupancy fraction obtained from Rucio in the
               range 0.0 to 1.0, and the Read, Write and Delete availability of
-              the RSE from Rucio, and whether the RSE will be included in  the
+              the  RSE from Rucio, and whether the RSE will be included in the
               default list for output files.
 
 
        show-sites-storages [--site-name NAME] [--rse-name NAME]
-              Shows  information about the distances of Rucio storage elements
-              relative to sites, optionally limited to the given  site  and/or
-              RSE.  Each line of the output gives the site name, RSE name, and
+              Shows information about the distances of Rucio storage  elements
+              relative  to  sites, optionally limited to the given site and/or
+              RSE. Each line of the output gives the site name, RSE name,  and
               then their relative distance between 0 (same site) and 100 (max-
               imally remote).
 
 
        add-file --request-id ID [--stage-id ID] --file-did DID --rse-name NAME
               --pfn URL
-              Adds one file to the list of files to be processed in  a  stage,
-              with  the given Rucio file Data Identifier (DID).  Normally this
-              should only be done for the first stage, which is  the  default.
+              Adds  one  file to the list of files to be processed in a stage,
+              with the given Rucio file Data Identifier (DID).  Normally  this
+              should  only  be done for the first stage, which is the default.
               Files are created in the "unallocated" state, ready for process-
-              ing. Exactly RSE which has a replica of the file must  be  given
-              along  with one PFN to access the replica on that RSE. This sub-
-              command is only intended for testing,  as  normally  the  Finder
+              ing.  Exactly  RSE which has a replica of the file must be given
+              along with one PFN to access the replica on that RSE. This  sub-
+              command  is  only  intended  for testing, as normally the Finder
               agent builds the lists of files and replicas for the first stage
               of a request using MetaCat and Rucio.
 
 
        show-files [--request-id ID] [--stage-id ID] [--file-did DID]
-              Shows files information cached in the Workflow Database,  either
-              limited  by  request  ID  and  stage ID or by file DID. For each
-              file, the request ID, stage ID, file state,  and  file  DID  are
+              Shows  files information cached in the Workflow Database, either
+              limited by request ID and stage ID or  by  file  DID.  For  each
+              file,  the  request  ID,  stage ID, file state, and file DID are
               shown. The file state is one of "finding", "unallocated", "allo-
-              cated", or "processed". Files wait in the  "unallocated"  state,
-              are  then  allocated to an instance of the stage's script by the
-              Workflow Allocator, and then either return to  "unallocated"  or
-              move  to  "processed" depending on whether the script is able to
+              cated",  or  "processed". Files wait in the "unallocated" state,
+              are then allocated to an instance of the stage's script  by  the
+              Workflow  Allocator,  and then either return to "unallocated" or
+              move to "processed" depending on whether the script is  able  to
               process them correctly.
 
 
        show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]
-              Shows file and replica information  in  the  Workflow  Database,
-              either  limited  by  request ID and stage ID or by file DID. For
+              Shows  file  and  replica  information in the Workflow Database,
+              either limited by request ID and stage ID or by  file  DID.  For
               each replica of each file, the request ID, stage ID, file state,
               RSE name, and file DID are shown.
 
 
-       show-jobs  --jobsub-id  ID  |  --request-id ID [--stage-id ID] [--state
+       show-jobs --jobsub-id ID | --request-id  ID  [--stage-id  ID]  [--state
               STATE]
-              Show jobs identified by Jobsub ID or Request ID (and  optionally
-              Stage  ID).  Job  state  can also be given to further filter the
-              jobs listed. For each job, the Jobsub ID, Request ID, Stage  ID,
+              Show  jobs identified by Jobsub ID or Request ID (and optionally
+              Stage ID). Job state can also be given  to  further  filter  the
+              jobs  listed. For each job, the Jobsub ID, Request ID, Stage ID,
               State, and creation time are shown.
 
 
 BOOTSTRAP SCRIPTS
-       The  bootstrap scripts supplied when creating a stage are shell scripts
-       which the generic jobs execute on the  worker  nodes  matched  to  that
-       stage.   They  are  started  in  an empty workspace directory.  Several
-       environment variables are made available to the scripts,  all  prefixed
-       with  WFS_,  including  $WFS_REQUEST_ID,  $WFS_STAGE_ID and $WFS_COOKIE
+       The bootstrap scripts supplied when creating a stage are shell  scripts
+       which  the  generic  jobs  execute  on the worker nodes matched to that
+       stage.  They are started in  an  empty  workspace  directory.   Several
+       environment  variables  are made available to the scripts, all prefixed
+       with WFS_, including  $WFS_REQUEST_ID,  $WFS_STAGE_ID  and  $WFS_COOKIE
        which allows the bootstrap script to authenticate to the Workflow Allo-
        cator. $WFS_PATH is used to reference files and scripts provided by the
        Workflow System.
 
        To  get  the  details  of  an  input  file  to  work  on,  the  command
-       $WFS_PATH/wfs-get-file  is executed by the bootstrap script.  This pro-
-       duces a single line of output with the Rucio DID of  the  chosen  file,
-       its  PFN on the optimal RSE, and the name of that RSE, all separated by
-       spaces. This code fragment shows how the DID, PFN and RSE  can  be  put
+       $WFS_PATH/wfs-get-file is executed by the bootstrap script.  This  pro-
+       duces  a  single  line of output with the Rucio DID of the chosen file,
+       its PFN on the optimal RSE, and the name of that RSE, all separated  by
+       spaces.  This  code  fragment shows how the DID, PFN and RSE can be put
        into shell variables:
 
          did_pfn_rse=`$WFS_PATH/wfs-get-file`
@@ -252,68 +257,68 @@ BOOTSTRAP SCRIPTS
          pfn=`echo $did_pfn_rse | cut -f2 -d' '`
          rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-       If  no file is available to be processed, then wfs-get-file produces no
-       output to stdout, which should also be checked for.  wfs-get-file  logs
+       If no file is available to be processed, then wfs-get-file produces  no
+       output  to  stdout, which should also be checked for. wfs-get-file logs
        errors to stderr.
 
        wfs-get-file can be called multiple times to process more than one file
-       in the same bootstrap script. This can be done  all  at  the  start  or
-       repeatedly  during  the  lifetime  of the job. wfs-get-file is itself a
+       in  the  same  bootstrap  script.  This can be done all at the start or
+       repeatedly during the lifetime of the job.  wfs-get-file  is  itself  a
        simple wrapper around the curl command and it would also be possible to
-       access  the Workflow Allocator's REST API directly from an application.
+       access the Workflow Allocator's REST API directly from an  application.
 
-       Each file returned by wfs-get-file is marked as allocated and will  not
-       be  processed by any other jobs. When the bootstrap script finishes, it
-       must leave files with lists of the processed  files  in  its  workspace
-       directory.  These  lists  are  sent  to  the  Workflow Allocator by the
-       generic job, which either marks input files as being successfully  pro-
-       cessed  or  resets  their  state  to unallocated, ready for matching by
+       Each  file returned by wfs-get-file is marked as allocated and will not
+       be processed by any other jobs. When the bootstrap script finishes,  it
+       must  leave  files  with  lists of the processed files in its workspace
+       directory. These lists are  sent  to  the  Workflow  Allocator  by  the
+       generic  job, which either marks input files as being successfully pro-
+       cessed or resets their state to  unallocated,  ready  for  matching  by
        another job.
 
-       Files can be referred to either by DID or PFN, one  per  line,  in  the
+       Files  can  be  referred  to either by DID or PFN, one per line, in the
        appropriate list file:
          wfs-processed-dids.txt
          wfs-processed-pfns.txt
 
-       It  is  not  necessary  to  create  list files which would otherwise be
-       empty. You can use a mix of DIDs and PFNs, as long as each  appears  in
+       It is not necessary to create  list  files  which  would  otherwise  be
+       empty.  You  can use a mix of DIDs and PFNs, as long as each appears in
        the correct list file. Any files not represented in either file will be
        treated as unprocessed and made available for other jobs to process.
 
-       Output files which are to be uploaded with Rucio  by  the  generic  job
-       must  be  created in the bootstrap's workspace directory and have file-
-       names matching the patterns given by --output-pattern or  --output-pat-
-       tern-next-stage  when  the  stage  was  created.  The suffixed .json is
+       Output  files  which  are  to be uploaded with Rucio by the generic job
+       must be created in the bootstrap's workspace directory and  have  file-
+       names  matching the patterns given by --output-pattern or --output-pat-
+       tern-next-stage when the stage  was  created.  The  suffixed  .json  is
        appended to find the corresponding metadata files for MetaCat.
 
 
 REQUEST PROCESSING
-       Once a request enters the running state, it is processed by  the  Work-
-       flow  System's Finder agent. Usually this is just done once, but it can
-       be repeated if the --refind-interval-hours option is given when  creat-
-       ing  the  request.  When  the request is processed, the Finder uses the
+       Once  a  request enters the running state, it is processed by the Work-
+       flow System's Finder agent. Usually this is just done once, but it  can
+       be  repeated if the --refind-interval-hours option is given when creat-
+       ing the request. When the request is processed,  the  Finder  uses  the
        requests's MQL expression to create a list of input files for the first
-       stage.  Work is only assigned to jobs when a matching file is found and
+       stage. Work is only assigned to jobs when a matching file is found  and
        so these lists of files are essential.
 
-       In most cases, the MQL query is a MetaCat  Query  Language  expression,
+       In  most  cases,  the MQL query is a MetaCat Query Language expression,
        which the Finder sends to the MetaCat service to get a list of matching
-       file DIDs.  However,  if  the  query  is  of  the  form  "rucio-dataset
+       file  DIDs.   However,  if  the  query  is  of  the form "rucio-dataset
        SCOPE:NAME" then the query is sent directly to Rucio to get the list of
        file DIDs contained in the given Rucio dataset. Finally if the --monte-
-       carlo  COUNT  option  is used when creating the request, then an MQL of
-       the form "monte-carlo COUNT" is stored. This causes the  Finder  itself
+       carlo COUNT option is used when creating the request, then  an  MQL  of
+       the  form  "monte-carlo COUNT" is stored. This causes the Finder itself
        to create a series of COUNT placeholder files which can be used to keep
-       track of Monte Carlo processing without a distinct input file for  each
-       of  the  COUNT  jobs.  Each of these placeholder files has a DID of the
-       form monte-carlo-REQUEST_ID-NUMBER where NUMBER is in the  range  1  to
+       track  of Monte Carlo processing without a distinct input file for each
+       of the COUNT jobs.  Each of these placeholder files has a  DID  of  the
+       form  monte-carlo-REQUEST_ID-NUMBER  where  NUMBER is in the range 1 to
        COUNT, and REQUEST_ID is the assigned request ID number.
 
 
 FILES
-       An  X.509  user  proxy file is currently needed to contact the Workflow
-       Service,   which   is   either    given    by    $X509_USER_PROXY    or
-       /tmp/x509up_uUSERID  where USERID is the numeric Unix user id, given by
+       An X.509 user proxy file is currently needed to  contact  the  Workflow
+       Service,    which    is    either    given   by   $X509_USER_PROXY   or
+       /tmp/x509up_uUSERID where USERID is the numeric Unix user id, given  by
        id -u
 
 

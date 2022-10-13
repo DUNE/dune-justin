@@ -252,10 +252,10 @@ if [ -f wfs-bootstrap.sh ] ; then
 
   mkdir workspace
   echo '====Run wfs-bootstrap.sh===='
-  export BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
+  export WFS_BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
   ( cd workspace ; stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) > workspace/wfs-bootstrap.log 2>&1
   retval=$?
-  export BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
+  export WFS_BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
   echo '====After wfs-bootstrap.sh===='
 else
   # How can this happen???
