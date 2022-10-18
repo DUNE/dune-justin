@@ -51,6 +51,10 @@ EOF
 #echo "### $_CONDOR_JOB_AD"
 #cat $_CONDOR_JOB_AD
 
+echo 'Before GFAL unsets, do  printenv | grep GFAL'
+printenv | grep GFAL
+unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
+
 echo '### pwd ; ls -lt ###'
 pwd
 ls -lt
