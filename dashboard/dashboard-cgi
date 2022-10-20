@@ -949,10 +949,13 @@ def showJob(cgiValues):
       
   print('</td></tr>')
 
-  print('<tr><td colspan=2><a '
-        'href="/dashboard/?method=list-events&jobsub_id=%s">List job events'
-        '</a></td></tr>'
-        % jobsubID)
+  print('<tr><td colspan=2>'
+        '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
+        'List job events</a> &nbsp; &nbsp; '
+        '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
+        'Landscape job page</a> '
+        '</td></tr>'
+        % (jobsubID, jobsubID))
 
   print("</table>")
 
@@ -963,32 +966,32 @@ def showJob(cgiValues):
     print(html.escape(jobRow["bootstrap_log"].strip(), 
           quote=True))
   
-    print('</pre></td></tr></table>') 
+    print('</pre></td></tr></table>')
 
-  if os.path.isfile('/var/spool/wfs/fetchlog/%s' % jobsubID.replace('@','_')):
-  
-    try:
-      showJobsubLog = cgiValues.getfirst("show_jobsub_log")
-    except:
-      showJobsubLog = 'false'
-
-    print('<h2 id="jobsublog">Jobsub log</h2>')
-
-    if showJobsubLog == 'true':
-      print('<table><tr><td><pre>') 
-
-      print(html.escape(
-       open('/var/spool/wfs/fetchlog/%s' %
-           jobsubID.replace('@','_')).read().encode('ascii',
-                                                    errors='ignore').decode(), 
-       quote=True))
-  
-      print('</pre></td></tr></table>') 
-      
-    else:
-      print('<p><a href="/dashboard/show?method=show-job&jobsub_id=%s'
-            '&show_jobsub_log=true#jobsublog">Show jobsub log</a></p>'
-            % jobsubID)
+#  if os.path.isfile('/var/spool/wfs/fetchlog/%s' % jobsubID.replace('@','_')):
+#    
+#    try:
+#      showJobsubLog = cgiValues.getfirst("show_jobsub_log")
+#    except:
+#      showJobsubLog = 'false'
+#
+#    print('<h2 id="jobsublog">Jobsub log</h2>')
+#
+#    if showJobsubLog == 'true':
+#      print('<table><tr><td><pre>') 
+#
+#      print(html.escape(
+#       open('/var/spool/wfs/fetchlog/%s' %
+#           jobsubID.replace('@','_')).read().encode('ascii',
+#                                                    errors='ignore').decode(), 
+#       quote=True))
+#  
+#      print('</pre></td></tr></table>') 
+#      
+#    else:
+#      print('<p><a href="/dashboard/show?method=show-job&jobsub_id=%s'
+#            '&show_jobsub_log=true#jobsublog">Show jobsub log</a></p>'
+#            % jobsubID)
 
   footer()
 

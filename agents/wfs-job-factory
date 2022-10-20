@@ -356,7 +356,7 @@ def oneCycle():
   parseJobsubQ()
   parseJobsubHistory()
   updateSiteCounts()
-  parseFetchlogList()
+#  parseFetchlogList()
 
   # Go through the sites / slot sizes, deciding what to submit
   
@@ -384,6 +384,7 @@ def oneCycle():
       ' AND jobs.site_id=sites.site_id) AS number_at_site,'
       '(SELECT COUNT(*) FROM jobs WHERE'
       ' jobs.site_id=sites.site_id AND for_wtf AND'
+
       ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) as number_wtf,'
       'enabled '
       'FROM sites '
