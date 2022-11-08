@@ -11,6 +11,7 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
 which rucio
 rucio --config rucio.cfg --version
+python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
 
 touch results.txt
 export now=`date +'%s'`

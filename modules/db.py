@@ -241,7 +241,7 @@ def select(query, justOne = False, tries = 10):
     else:
       # Success! Return the results!
       if justOne:
-        return cur.fetchone()    
+        return cur.fetchone()
       else:
         return cur.fetchall()
 

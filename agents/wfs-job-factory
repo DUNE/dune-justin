@@ -50,9 +50,9 @@ import MySQLdb
 #
 import wfs
 
-sleepSeconds     = 60
-jobsPerCycle     = 25
-maxSubmittedJobs = 100
+sleepSeconds      = 60
+jobsPerCycle      = 50
+maxSubmittedRatio = 2
 
 class wfsError(Exception):
   pass
@@ -211,7 +211,9 @@ def updateSiteCounts():
     wfs.db.cur.execute('UPDATE sites SET '
         'submitted_jobs='
         '(SELECT COUNT(*) FROM jobs WHERE '
-         'sites.site_id=jobs.site_id AND allocation_state="submitted"),'
+         '(sites.site_id = jobs.site_id) AND '
+         '(jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 24 HOUR)) AND '
+         '(allocation_state = "submitted")),'
         'running_jobs='
         '(SELECT COUNT(*) FROM jobs WHERE '
          'sites.site_id=jobs.site_id AND allocation_state '
@@ -220,6 +222,7 @@ def updateSiteCounts():
     logLine('Update site counts fails with: ' + str(e))
   else:
     wfs.db.conn.commit()
+    logLine('Updated site job counts')
    
 def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
 
@@ -320,8 +323,8 @@ def processSlotSize(slotSizeRow):
 
   # Now normal jobs for processing requests/stages
   if not slotSizeRow['enabled'] or \
-     (slotSizeRow['submitted_jobs'] + slotSizeRow['running_jobs'] 
-       >= slotSizeRow['max_jobs']):
+     (slotSizeRow['submitted_jobs'] >= 
+      maxSubmittedRatio * slotSizeRow['max_jobs']):
     # Just check count once, so we might go over a little bit for now ...
     return
 
@@ -337,7 +340,8 @@ def processSlotSize(slotSizeRow):
     logLine('Update makeSlotSizeDict/findStage fails with: ' + str(e))
     stage = None
 
-  if stage and (slotSizeRow['submitted_jobs'] < maxSubmittedJobs):
+  if stage and (slotSizeRow['submitted_jobs'] < 
+                maxSubmittedRatio * slotSizeRow['max_jobs']):
     # Submit job(s) if at least one stage would match and none idle
     numberToSubmit = stage['matches']
     logLine('Match found - submit %d job(s)' % numberToSubmit)
@@ -384,7 +388,6 @@ def oneCycle():
       ' AND jobs.site_id=sites.site_id) AS number_at_site,'
       '(SELECT COUNT(*) FROM jobs WHERE'
       ' jobs.site_id=sites.site_id AND for_wtf AND'
-
       ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) as number_wtf,'
       'enabled '
       'FROM sites '
