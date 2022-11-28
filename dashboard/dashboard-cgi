@@ -96,6 +96,16 @@ def spaceForUnixEpoch(s):
   else:
     return str(s)
 
+def daysHoursMinutes(seconds):
+  # Convert integer seconds to a short string with days, hours, or minutes
+  if seconds >= 86400:
+    return '%dd' % int(seconds / 86400)
+  
+  if seconds >= 3600:
+    return '%dh' % int(seconds / 3600)
+    
+  return '%dm' % int(seconds / 60)
+
 def printPager(pageNumber, pageLength, rowsLen, urlTemplate):
 
   print('<p>Page: ')
@@ -1293,6 +1303,8 @@ def showSite(cgiValues):
 
   print('<tr><td>Last job started</td><td>%s</td></tr>' % lastGetStageStr)
 
+  print('<tr><td>Last AWT test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_wtf_time']))
+
   print('<tr><td>Submitted jobs</td><td>%d</td></tr>' % siteRow['submitted_jobs'])
 
   print('<tr><td>Running jobs</td><td>%d</td></tr>' % siteRow['running_jobs'])
@@ -1637,12 +1649,15 @@ def wtfResults(cgiValues):
         "each site contacting each RSE. 0 = success. Enabled sites and "
         "storages allowed for output are in bold.</p>")
 
-  sitesRows = wfs.db.select('SELECT site_name,enabled '
+  sitesRows = wfs.db.select('SELECT site_name,enabled,'
+                            'UNIX_TIMESTAMP(last_wtf_time) AS lwt '
                             'FROM sites ORDER by site_name')
   siteNames        = []
   enabledSiteNames = []
+  lastJobTimes     = {}
   for siteRow in sitesRows:
     siteNames.append(siteRow['site_name'])
+    lastJobTimes[siteRow['site_name']] = int(siteRow['lwt'])
     if siteRow['enabled']:
       enabledSiteNames.append(siteRow['site_name'])
 
@@ -1680,7 +1695,9 @@ def wtfResults(cgiValues):
   print('<table>')
 
   # List of storages
-  print('<tr><td> </td>')
+  print('<tr><td> </td>'
+        '<td><div style="writing-mode: vertical-lr">'
+        'Last&nbsp;AWT&nbsp;job</div></td>')
   
   for rseName in rseNames:  
     if rseName in outputRseNames:
@@ -1704,6 +1721,12 @@ def wtfResults(cgiValues):
     print('<tr><%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
           '</a></%s>' % 
           (cellType, siteName, siteName, cellType))
+
+    if lastJobTimes[siteName] == 0:
+      print('<td> </td>')
+    else:
+      print('<td style="text-align: right">%s</td>' % 
+            daysHoursMinutes(int(time.time()) - lastJobTimes[siteName]))
   
     for rseName in rseNames:
       (readResult, writeResult, jobsubID) = \
@@ -1731,7 +1754,9 @@ def wtfResults(cgiValues):
           (cellType, siteName, siteName, cellType))
 
   # List of storages
-  print('<tr><td> </td>')
+  print('<tr><td> </td>'
+        '<td><div style="writing-mode: vertical-lr">'
+        'Last&nbsp;AWT&nbsp;job</div></td>')
   
   for rseName in rseNames:
     if rseName in outputRseNames:

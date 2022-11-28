@@ -419,8 +419,10 @@ def jobAbortedMethod(jsonDict):
 
   if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
     state = 'notused'
+    eventTypeID = wfs.db.event_JOB_NOTUSED
   else:
     state = 'aborted'
+    eventTypeID = wfs.db.event_JOB_ABORTED
  
   try:
     wfs.db.insertUpdate(
@@ -437,7 +439,7 @@ def jobAbortedMethod(jsonDict):
   else:
     rseName = None
 
-  wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_ABORTED,
+  wfs.db.logEvent(eventTypeID = eventTypeID,
                   requestID   = jobDict['request_id'],
                   stageID     = jobDict['stage_id'],
                   wfsJobID    = jobDict['wfs_job_id'],
@@ -603,6 +605,14 @@ def saveWtfResults(wfsJobID, siteID, bootstrapLog):
       except Exception as e:
         print('Update wtf results fails with %s' % str(e), 
               file=sys.stderr)
+
+  try:
+    wfs.db.insertUpdate('UPDATE sites SET last_wtf_time=NOW() '
+                        'WHERE site_id=%d' % siteID)
+
+  except Exception as e:
+    print('Update wtf last time fails with %s' % str(e), 
+          file=sys.stderr)
 
 # Before uploading output files the generic jobs record any results from 
 # the bootstrap script, but just puts them in the "outputting" state
@@ -776,6 +786,11 @@ def confirmResultsMethod(jsonDict):
       wfs.db.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
                           ('finding' if (fileRow['stage_id'] > 0) else 'output', 
                           fileRow['file_id']))
+
+      try:
+        rseName = jsonDict['output_dids'][fileRow['file_did']]
+      except:
+        rseName = None
       
       wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_CREATED,
                       requestID = requestID,
@@ -783,7 +798,7 @@ def confirmResultsMethod(jsonDict):
                       fileID = fileRow['file_id'],
                       wfsJobID = wfsJobID,
                       siteID = siteID,
-                      rseName = jsonDict['output_dids'][fileRow['file_did']]
+                      rseName = rseName
                      )
     except Exception as e:
       httpError('500 Internal Server Error', 
@@ -893,8 +908,9 @@ try:
                                 db=wfs.conf.mysqlDbName)
   wfs.db.conn.autocommit(False)
   wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
-except:
-  httpError('500 Internal Server Error', 'Problem with database connection')
+except Exception as e:
+  httpError('500 Internal Server Error', 
+            'Problem with database connection: ' + str(e))
 
 try:
   getAllocatorLock()

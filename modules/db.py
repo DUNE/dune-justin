@@ -88,6 +88,7 @@ event_JOB_FINISHED		= 305
 event_JOB_NOTUSED		= 306
 event_JOB_ABORTED		= 307
 event_JOB_STALLED		= 308
+event_JOB_SCRIPT_ERROR          = 309
 
 # File events
 #event_FILE_ALLOCATED           = 401
@@ -130,22 +131,24 @@ eventTypes = {
                                     'Finder identifies request as finished'],
 
  # Job events               
- event_JOB_SUBMITTED  : ['JOB_SUBMITTED',
-                         'Job submitted by factory'],
- event_JOB_STARTED    : ['JOB_STARTED',
-                         'Job started running at site'],
- event_JOB_PROCESSING : ['JOB_PROCESSING',
-                         'Job began processing files'],
- event_JOB_OUTPUTTING : ['JOB_OUTPUTTING',
-                         'Job began outputting files to storage'],
- event_JOB_FINISHED   : ['JOB_FINISHED',
-                         'Job finished'],
- event_JOB_NOTUSED    : ['JOB_NOTUSED',
-                         'Job was not allocated a stage'],
- event_JOB_ABORTED    : ['JOB_ABORTED',
-                         'Job aborted'],
- event_JOB_STALLED    : ['JOB_STALLED',
-                         'Job identified as stalled by Finder'],
+ event_JOB_SUBMITTED    : ['JOB_SUBMITTED',
+                           'Job submitted by factory'],
+ event_JOB_STARTED      : ['JOB_STARTED',
+                           'Job started running at site'],
+ event_JOB_PROCESSING   : ['JOB_PROCESSING',
+                           'Job began processing files'],
+ event_JOB_OUTPUTTING   : ['JOB_OUTPUTTING',
+                           'Job began outputting files to storage'],
+ event_JOB_FINISHED     : ['JOB_FINISHED',
+                           'Job finished'],
+ event_JOB_NOTUSED      : ['JOB_NOTUSED',
+                           'Job was not allocated a stage'],
+ event_JOB_ABORTED      : ['JOB_ABORTED',
+                           'Job aborted'],
+ event_JOB_STALLED      : ['JOB_STALLED',
+                           'Job identified as stalled by Finder'],
+ event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
+                           'Error raised by the bootstrap script'],
 
  # File events
  event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',

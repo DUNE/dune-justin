@@ -164,13 +164,24 @@ def findFilesMetaCat(requestID, mql):
               + str(response.status))
       return
 
-    filesList = json.load(response)
+#    filesList = json.load(response)
+    fileLines = response.readlines()
   except Exception as e:
     logLine("Reading files list from MetaCat fails with: " + str(e))
     return
 
-  for fileDict in filesList:
-  
+#  for fileDict in filesList:
+  for fileLine in fileLines:
+    # Remove any weirdness
+    if fileLine[0] < 32:
+      fileLine = fileLine[1:]
+
+    try:
+      fileDict = json.loads(fileLine)
+    except:
+      logLine("Parsing line from MetaCat fails with: " + str(e))
+      return
+        
     if 'namespace' not in fileDict or not fileDict['namespace'] \
        or 'name' not in fileDict or not fileDict['name']:
       logLine('Ignore file with invalid SCOPE:NAME from MetaCat: '

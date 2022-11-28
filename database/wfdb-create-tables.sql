@@ -46,7 +46,7 @@ CREATE TABLE `jobs` (
   `slot_size_id` smallint(5) unsigned NOT NULL,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
-                  'finished','notused','aborted','stalled') 
+                  'finished','notused','aborted','stalled','script_error') 
                   NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
@@ -106,6 +106,7 @@ CREATE TABLE `events` (
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `rse_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `milliseconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`event_id`),
   INDEX `request_id` (`request_id`,`stage_id`),
   INDEX `file_id` (`file_id`),
@@ -227,6 +228,7 @@ CREATE TABLE `sites` (
   `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_get_stage_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_wtf_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

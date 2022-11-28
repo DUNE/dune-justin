@@ -37,10 +37,11 @@ do
         --rse "$rse_name" \
         --protocol "$write_protocol" \
         --scope testpro \
+        --lifetime 86400 \
         --name "$fn" "$fn"
 
   upload_retval=$?
-  echo "rucio --config rucio.cfg --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --name $fn $fn' returns $upload_retval"
+  echo "rucio --config rucio.cfg --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
 
   echo "==wtf== $WFS_SITE_NAME $rse_name $download_retval $upload_retval" \
     "$read_pfn $write_protocol" >> results.txt

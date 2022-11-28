@@ -5,5 +5,9 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup jobsub_client
 setup cigetcert
 
+# Do a clean up of any old job that never ran
+jobsub_rm --user dunepro --constraint '(regexp("wfs-generic-job$",TransferInput) && JobStatus=?=1 && EnteredCurrentStatus < (CurrentTime - 7*86400))'
+
+# Get current statuses
 jobsub_q --user dunepro
 

@@ -51,7 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds      = 60
-jobsPerCycle      = 50
+jobsPerCycle      = 24
 maxSubmittedRatio = 2
 
 class wfsError(Exception):
@@ -383,9 +383,6 @@ def oneCycle():
       'jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 2 HOUR) AND '
       'allocation_state="submitted" AND jobs.site_id=sites.site_id AND '
       'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
-      '(SELECT COUNT(*) FROM jobs WHERE'
-      ' allocation_state IN ("submitted","starting","processing","outputting") '
-      ' AND jobs.site_id=sites.site_id) AS number_at_site,'
       '(SELECT COUNT(*) FROM jobs WHERE'
       ' jobs.site_id=sites.site_id AND for_wtf AND'
       ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) as number_wtf,'

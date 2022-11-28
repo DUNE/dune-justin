@@ -271,6 +271,10 @@ else
   exit 0
 fi
 
+#if [ "$retval" != 0 ] ; then
+#  job_aborted 900 "Bootstrap script error $retval"
+#fi
+
 echo '#### wfs-bootstrap.log'
 cat workspace/wfs-bootstrap.log
 echo '####'
