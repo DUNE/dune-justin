@@ -399,6 +399,12 @@ def findReplicas():
           accessibleUntil = ''
         
         try:
+#          print(storagesDict[rse]['rse_id'],
+#                    fileRow['file_id'],
+#                    rses[rse]['wan_pfn'],
+#                    rses[rse]['lan_pfn'],
+#                    accessibleUntil)
+                    
           query = ('INSERT INTO replicas SET '
                    'rse_id=%d,file_id=%d,wan_pfn="%s",lan_pfn="%s"%s' %
                    (storagesDict[rse]['rse_id'],

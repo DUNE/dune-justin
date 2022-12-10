@@ -17,6 +17,18 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   file:///var/lib/wfs/wfs-generic-job 2>/dev/null
+elif [ "$2" = "ANY" ] ; then
+ jobsub_submit \
+  --debug \
+  -N ${1} \
+  --memory ${3}KB \
+  --cpu ${4} \
+  --expected-lifetime=${5}s \
+  --group dune \
+  --subgroup prod_keepup \
+  --resource-provides=usage_model=OFFSITE,DEDICATED,OPPORTUNISTIC \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
+  file:///var/lib/wfs/wfs-generic-job 2>/dev/null
 else
  jobsub_submit \
   --debug \

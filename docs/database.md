@@ -28,7 +28,6 @@ The database is implemented as a MySQL/Mariadb SQL database.
 - requests - workflows submitted to the system for processing
 - sites - site info obtained from the OSG Pilot Factory configuration
 - sites_storages - distances between sites and storages
-- slot_sizes - lists of possible job slot sizes for each site
 - stages - stages within each request
 - stages_output_storages - preferred output RSEs for each stage
 - stages_outputs - wildcards to find output files of bootstrap scripts

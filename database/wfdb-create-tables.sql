@@ -43,7 +43,6 @@ CREATE TABLE `jobs` (
   `jobsub_id` varchar(255) NOT NULL,
   `site_job_id` varchar(255) NOT NULL DEFAULT '',
   `site_id` smallint(5) unsigned NOT NULL,
-  `slot_size_id` smallint(5) unsigned NOT NULL,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','script_error') 
@@ -61,17 +60,22 @@ CREATE TABLE `jobs` (
   `cpuinfo` varchar(255) NOT NULL DEFAULT '',
   `os_release` varchar(255) NOT NULL DEFAULT '',
   `rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
+  `min_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
+  `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
   `processors` tinyint unsigned NOT NULL DEFAULT 0,
+  `min_processors` tinyint unsigned NOT NULL DEFAULT 0,
+  `max_processors` tinyint unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
+  `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `cookie` varchar(255) NOT NULL DEFAULT '',
   `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
   `for_wtf` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`wfs_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
-    `allocation_state`,`site_id`,`slot_size_id`),
+    `allocation_state`,`site_id`),
   INDEX `site_id_allocation_state` (`site_id`,`allocation_state`,
-    `slot_size_id`,`submitted_time`)
+    `submitted_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -221,6 +225,9 @@ CREATE TABLE `sites` (
   `site_name` varchar(255) NOT NULL,
   `jobsub_site_name` varchar(255) NOT NULL,
   `wlcg_site_name` varchar(255) NOT NULL,
+  `max_processors` tinyint unsigned NOT NULL DEFAULT 1,
+  `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
+  `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
   `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
   `submitted_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -231,31 +238,6 @@ CREATE TABLE `sites` (
   `last_wtf_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `slot_sizes`
---
-
-DROP TABLE IF EXISTS `slot_sizes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `slot_sizes` (
-  `slot_size_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `site_id` smallint(5) unsigned NOT NULL,
-  `max_processors` tinyint unsigned NOT NULL,
-  `min_processors` tinyint unsigned NOT NULL DEFAULT 1,
-  `min_rss_bytes` bigint unsigned NOT NULL,
-  `max_rss_bytes` bigint unsigned NOT NULL,
-  `max_wall_seconds` mediumint unsigned NOT NULL,
-  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `last_no_match_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `last_allocation_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  PRIMARY KEY (`slot_size_id`),
-  UNIQUE KEY `site_id` (`site_id`,`min_rss_bytes`,`max_rss_bytes`,
-                        `max_processors`,`min_processors`,`max_wall_seconds`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

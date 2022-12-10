@@ -291,14 +291,6 @@ def getStageMethod(jsonDict):
                 'Workflow allocator fails finding stage: ' + str(e))
 
   if not stage:
-    # No stages/files eligible to be processed by this job
-    try:
-      wfs.db.insertUpdate('UPDATE slot_sizes SET last_no_match_time=NOW() '
-                          'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
-      wfs.db.conn.commit()
-    except Exception as e:
-      pass
-
     httpError('404 Not Found', 'No eligible stages found')
 
   cookie = str(uuid.uuid4())
@@ -325,15 +317,6 @@ def getStageMethod(jsonDict):
   except Exception as e:
     httpError('500 Internal Server Error', 
               'Workflow allocator failed updating allocated job: ' + str(e))
-
-  try:
-    wfs.db.insertUpdate('UPDATE slot_sizes SET last_allocation_time=NOW() '
-                        'WHERE slot_size_id=' + str(jobDict['slot_size_id']))
-    
-  except Exception as e:
-    # We log this but carry on - someone testing?
-    httpError('500 Internal Server Error',
-              'Workflow allocator failed updating slot_sizes: ' + str(e))
 
   tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_wtf'])
   
@@ -389,10 +372,6 @@ def sendHeartbeatMethod(jsonDict):
    
 # Job aborted 
 def jobAbortedMethod(jsonDict):
-
-  if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
-    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   try:
     httpCode = int(jsonDict['http_code'])
@@ -856,13 +835,15 @@ def checkJobUser():
   if not rows[0]['generic_jobs']:
     httpError('403 Forbidden', 'Forbidden - authorized identity not provided')
 
-def getAllocatorLock():
+def getAllocatorLock(jsonDict):
   # Try to get the workflow allocator service lock or raise an exception if
   # unable to do this for any reason, including a timeout
 
   # No try here since we expose exceptions to the caller!
   # Hardcoded timeout for 60 seconds for now
-  wfs.db.cur.execute('SELECT GET_LOCK("wfs_allocator", 60) AS result')
+  wfs.db.cur.execute('SELECT GET_LOCK("wfs_allocator", %d) AS result' %
+                     (1 if (jsonDict['method'] == 'get_stage') else 60))
+
   row =  wfs.db.cur.fetchone()
 
   if not row or 'result' not in row:
@@ -896,6 +877,10 @@ try:
 except:
   httpError('400 Bad Request', 'Failed to parse JSON')
 
+if 'jobsub_id' not in jsonDict or \
+   not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+  httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+
 # Check jsonDict specifies a method
 if 'method' not in jsonDict:
   httpError('400 Bad Request', 'Missing method in JSON')
@@ -913,10 +898,20 @@ except Exception as e:
             'Problem with database connection: ' + str(e))
 
 try:
-  getAllocatorLock()
+  getAllocatorLock(jsonDict)
 except Exception as e:
+  if jsonDict['method'] == 'get_stage':
+    try:
+      wfs.db.insertUpdate(
+             'UPDATE jobs SET allocation_state="aborted",'
+             'finished_time=NOW() '
+             'WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
+    except:
+      pass
+
   httpError('503 Service Unavailable',
-            'Unable to get allocator lock. Too busy? Exception:  ' + str(e))
+        'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
+        % (str(jsonDict['method']), str(e)))
   
 # Get the stage for the job to work on
 if jsonDict['method'] == 'get_stage':

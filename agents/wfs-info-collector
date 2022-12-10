@@ -256,49 +256,43 @@ def updateSites():
 
   for siteName in sitesDict:
     # Ensure the sites exist
+
+    maxProcessors  = sitesDict[siteName]['largest_processors']
+    maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
+    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
+
     query = ('INSERT INTO sites SET site_name="%s",'
              'jobsub_site_name="%s",'
              'wlcg_site_name="%s",'
+             'max_processors=%d,'
+             'max_rss_bytes=%d,'
+             'max_wall_seconds=%d,'
              'last_seen_time=NOW() '
              'ON DUPLICATE KEY UPDATE '
-             'jobsub_site_name="%s",wlcg_site_name="%s",last_seen_time=NOW()'
+             'jobsub_site_name="%s",'
+             'wlcg_site_name="%s",'
+             'max_processors=%d,'
+             'max_rss_bytes=%d,'
+             'max_wall_seconds=%d,'
+             'last_seen_time=NOW()'
              % (siteName, 
                 sitesDict[siteName]['jobsub_site_name'], 
                 sitesDict[siteName]['wlcg_site_name'],
+                maxProcessors,
+                maxRssBytes,
+                maxWallSeconds,
                 sitesDict[siteName]['jobsub_site_name'],
-                sitesDict[siteName]['wlcg_site_name']
+                sitesDict[siteName]['wlcg_site_name'],
+                maxProcessors,
+                maxRssBytes,
+                maxWallSeconds
                )
             )
 
     wfs.db.cur.execute(query)
     
-    maxProcessors  = sitesDict[siteName]['largest_processors']
-    maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
-    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
-
     logLine('Site: %s, %d processors, %d bytes, %s seconds' %
             (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
-
-    # Go through the range of processors we found
-    for processors in range(1, maxProcessors + 1):
-
-      query = ('INSERT INTO slot_sizes SET '
-               'last_seen_time=NOW(),'
-               'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
-                  siteName + '"),' 
-               'min_processors=%d,max_processors=%d,' 
-               'min_rss_bytes=%d,'
-               'max_rss_bytes=%d,' 
-               'max_wall_seconds=%d '
-               'ON DUPLICATE KEY UPDATE last_seen_time=NOW()' %
-               (processors - 1, processors,
-                int((maxRssBytes / maxProcessors) * (processors - 1)),
-                int((maxRssBytes / maxProcessors) *  processors),
-                maxWallSeconds
-               )
-              ) 
-
-      wfs.db.cur.execute(query)
 
   wfs.db.conn.commit()
 

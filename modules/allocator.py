@@ -59,7 +59,6 @@ def makeJobDict(jobsubID, cookie = None):
   # Find the job info and the stage's max_distance value
   try:
     query = ('SELECT '
-             'jobs.slot_size_id,'
              'jobs.allocation_state,'
              'jobs.cookie,'
              'stages.max_distance,'
@@ -68,19 +67,17 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.wfs_job_id,'
              'jobs.site_id,'
              'jobs.for_wtf,'
-             'slot_sizes.min_processors,'
-             'slot_sizes.max_processors,'
-             'slot_sizes.min_rss_bytes,'
-             'slot_sizes.max_rss_bytes,'
-             'slot_sizes.max_wall_seconds,'
+             'jobs.min_processors,'
+             'jobs.max_processors,'
+             'jobs.min_rss_bytes,'
+             'jobs.max_rss_bytes,'
+             'jobs.max_wall_seconds,'
              'sites.site_name,'
              'sites.max_jobs,'
              'sites.running_jobs '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.request_id=stages.request_id '
              'AND jobs.stage_id=stages.stage_id '
-             'LEFT JOIN slot_sizes '
-             'ON slot_sizes.slot_size_id=jobs.slot_size_id '
              'LEFT JOIN sites '
              'ON jobs.site_id=sites.site_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
@@ -106,7 +103,6 @@ def makeJobDict(jobsubID, cookie = None):
            "max_jobs"         : job['max_jobs'],
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
-           "slot_size_id"     : job['slot_size_id'],
            "for_wtf"          : job['for_wtf'],
            "max_distance"     : job['max_distance'],
            "min_processors"   : job['min_processors'],
@@ -114,38 +110,6 @@ def makeJobDict(jobsubID, cookie = None):
            "min_rss_bytes"    : job['min_rss_bytes'],
            "max_rss_bytes"    : job['max_rss_bytes'],
            "max_wall_seconds" : job['max_wall_seconds']
-         }
-
-# Make a dictionary in the same format as makeJobDict() but using the 
-# slotSizeID - this is used by wfs-job-agent to test for waiting matches
-def makeSlotSizeDict(slotSizeID):
-
-  try:
-    query = ('SELECT '
-             'sites.site_name,'
-             'slot_sizes.site_id,'
-             'slot_sizes.min_processors,'
-             'slot_sizes.max_processors,'
-             'slot_sizes.min_rss_bytes,'
-             'slot_sizes.max_rss_bytes,'
-             'slot_sizes.max_wall_seconds '
-             'FROM slot_sizes '
-             'LEFT JOIN sites ON slot_sizes.site_id=sites.site_id '
-             'WHERE slot_sizes.slot_size_id=' + str(slotSizeID))
-
-    wfs.db.cur.execute(query)
-    slotSize = wfs.db.cur.fetchone()
-  except:
-    return { "error_message": "Failed to find slot size from slotSizeID" }
-
-  return { "error_message"   : None,
-           "site_id"         : slotSize['site_id'],
-           "site_name"       : slotSize['site_name'],
-           "min_processors"  : slotSize['min_processors'],
-           "max_processors"  : slotSize['max_processors'],
-           "min_rss_bytes"   : slotSize['min_rss_bytes'],
-           "max_rss_bytes"   : slotSize['max_rss_bytes'],
-           "max_wall_seconds": slotSize['max_wall_seconds']
          }
 
 # Just in time decision making: identify the best request+stage combination

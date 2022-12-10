@@ -132,79 +132,6 @@ def parseJobsubHistory():
   # Commit whatever we found - no rush
   wfs.db.conn.commit()
 
-def parseFetchlogList():
-
-  try:
-    query = ('SELECT jobsub_id FROM jobs WHERE need_to_fetch_jobsub_log '
-             'AND (finished_time > DATE_SUB(NOW(),INTERVAL 2 DAY))')
-
-    wfs.db.cur.execute(query)    
-    jobRows = wfs.db.cur.fetchall()
-  
-  except Exception as e:
-    logLine("Failed to get list of jobs needing fetchlog: " + str(e))
-    return
-
-  jobsToFetch = []
-  
-  for jobRow in jobRows:
-    jobsToFetch.append(jobRow['jobsub_id'])
-    
-  if not jobsToFetch:
-    logLine('No job logs to fetch')
-    return
-
-  try: 
-    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-fetchlog-list'],
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.STDOUT,
-                             stdout  = subprocess.PIPE,
-                             timeout = 60
-                            ) 
-  except Exception as e:
-    logLine("run-jobsub-fetchlog-list fails with error: " + str(e))
-    return
-
-  logLine(outcome.stdout.decode())
-  
-  for line in outcome.stdout.decode().splitlines():
-    if '@jobsub' in line:
-      jobsubID = line.split()[0]
-      
-      if jobsubID in jobsToFetch:
-        runFetchlog(jobsubID)
-  
-        try:
-          # We only try fetching logs once
-          wfs.db.cur.execute('UPDATE jobs '
-                             'SET need_to_fetch_jobsub_log=FALSE '
-                             'WHERE jobsub_id="%s"'
-                             % jobsubID
-                            )
-
-        except Exception as e:
-          # But try to keep going
-          logLine('Update jobs fails with: ' + str(e))
-
-  # Commit whatever we found - no rush
-  wfs.db.conn.commit()
-
-def runFetchlog(jobsubID):
-
-  try: 
-    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-fetchlog',
-                              jobsubID],
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.STDOUT,
-                             stdout  = subprocess.PIPE,
-                             timeout = 60
-                            ) 
-  except Exception as e:
-    logLine("run-jobsub-fetchlog fails with error: " + str(e))
-    return
-
-  logLine(outcome.stdout.decode())
-
 def updateSiteCounts():
 
   try:
@@ -224,16 +151,24 @@ def updateSiteCounts():
     wfs.db.conn.commit()
     logLine('Updated site job counts')
    
-def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
+def submitJobs(numberToSubmit, 
+               siteID,
+               jobsubSiteName,
+               minProcessors,
+               maxProcessors,
+               minRssBytes,
+               maxRssBytes,
+               maxWallSeconds,
+               forWtf = False):
 
   try: 
     outcome = subprocess.run(
                ["/var/lib/wfs/run-jobsub-submit",
                 str(numberToSubmit),
-                slotSizeRow['jobsub_site_name'],
-                str(int(slotSizeRow['max_rss_bytes'] / 1024)),
-                str(slotSizeRow['max_processors']),
-                str(slotSizeRow['max_wall_seconds'])
+                jobsubSiteName,
+                str(int(maxRssBytes / 1024)),
+                str(maxProcessors),
+                str(maxWallSeconds)
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
@@ -268,7 +203,7 @@ def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
 
   logLine("Submitted cluster %s to %s%s" % 
           (jobsubJobID, 
-           slotSizeRow['jobsub_site_name'],
+           jobsubSiteName,
            ' (WTF job)' if forWtf else ''))
 
   # Record the job(s) in the database
@@ -277,14 +212,22 @@ def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
       wfs.db.cur.execute('INSERT INTO jobs '
                   'SET factory_name="%s",'
                   'site_id=%d,'
-                  'slot_size_id=%d,'
+                  'min_processors=%d,'
+                  'max_processors=%d,'
+                  'min_rss_bytes=%d,'
+                  'max_rss_bytes=%d,'
+                  'max_wall_seconds=%d,'
                   'submitted_time=NOW(),'
                   'need_to_fetch_jobsub_log=%s,'
                   'for_wtf=%s,'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
-                     slotSizeRow['site_id'],
-                     slotSizeRow['slot_size_id'],
+                     siteID,
+                     minProcessors,
+                     maxProcessors,
+                     minRssBytes,
+                     maxRssBytes,
+                     maxWallSeconds,
                      "TRUE" if i == 0 else "FALSE",
                      "TRUE" if forWtf else "FALSE",
                      majorJobsubJobID, i, jobsubHost)
@@ -294,14 +237,10 @@ def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
       # But try to keep going
       logLine('INSERT INTO jobs fails with: ' + str(e))
 
-  # Record that we've done a submission for this slot size
+  # Record that we've done a submission for this site
   try:
     wfs.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
-                'WHERE site_id=%d' % slotSizeRow['site_id']
-               )
-
-    wfs.db.cur.execute('UPDATE slot_sizes SET last_submitted_time=NOW() '
-                'WHERE slot_size_id=%d' % slotSizeRow['slot_size_id']
+                'WHERE site_id=%d' % siteID
                )
 
   except Exception as e:
@@ -311,107 +250,107 @@ def submitToSlotSize(numberToSubmit, slotSizeRow, forWtf = False):
   # Commit it all to the DB
   wfs.db.conn.commit()
 
-def processSlotSize(slotSizeRow):
-  # Decide how many jobs to submit, targetted at this slot size at one
-  # site and submit them with jobsub_submit
-
-  logLine(str(slotSizeRow))
-
-  # First, the special Workflow Testing Framework jobs
-  if slotSizeRow['number_wtf'] == 0 and slotSizeRow['min_processors'] == 0:
-    submitToSlotSize(1, slotSizeRow, forWtf = True)
-
-  # Now normal jobs for processing requests/stages
-  if not slotSizeRow['enabled'] or \
-     (slotSizeRow['submitted_jobs'] >= 
-      maxSubmittedRatio * slotSizeRow['max_jobs']):
-    # Just check count once, so we might go over a little bit for now ...
-    return
+def perSiteJobs():  
+  # Go through the sites deciding what to submit for that site
 
   try:
-    jobDict = wfs.allocator.makeSlotSizeDict(slotSizeRow['slot_size_id'])
-    print(jobDict)
-    stage = wfs.allocator.findStage(jobDict, 
-                                    limit = jobsPerCycle,
-                                    forUpdate = False)
-    print(stage)
-    print(slotSizeRow)
+    siteRows = wfs.db.select('SELECT sites.site_id,'
+      'site_name,'
+      'jobsub_site_name,'
+      'max_rss_bytes,'
+      'max_processors,'
+      'max_wall_seconds,'
+      'submitted_jobs,'
+      'running_jobs,'
+      'max_jobs '
+      'FROM sites '
+      'WHERE enabled AND '
+      '(submitted_jobs + running_jobs < max_jobs) '
+      'ORDER BY site_name'
+               )
+
   except Exception as e:
-    logLine('Update makeSlotSizeDict/findStage fails with: ' + str(e))
-    stage = None
+    logLine('Failed getting list of sites for per-site jobs: ' + str(e))
+    return
+  
+  for siteRow in siteRows:
+    for processors in range(1, siteRow['max_processors'] + 1):
 
-  if stage and (slotSizeRow['submitted_jobs'] < 
-                maxSubmittedRatio * slotSizeRow['max_jobs']):
-    # Submit job(s) if at least one stage would match and none idle
-    numberToSubmit = stage['matches']
-    logLine('Match found - submit %d job(s)' % numberToSubmit)
-    submitToSlotSize(numberToSubmit, slotSizeRow)
-#  elif not slotSizeRow['site_submitted_recently'] and \
-#       (slotSizeRow['min_processors'] == 0):
-#    logLine('Nothing matched but time to submit again anyway')
-#    submitToSlotSize(1, slotSizeRow)
-  else:
-    logLine('No match found or none allowed by limits')
+      jobDict = { "error_message"   : None,
+                  "site_id"         : siteRow['site_id'],
+                  "site_name"       : siteRow['site_name'],
+                  "min_processors"  : processors - 1,
+                  "max_processors"  : processors,
+                  "min_rss_bytes"   : int(((processors - 1) * 
+                                       siteRow['max_rss_bytes'])
+                                       / siteRow['max_processors']),
+                  "max_rss_bytes"   : int((processors * 
+                                       siteRow['max_rss_bytes'])
+                                       / siteRow['max_processors']),
+                  "max_wall_seconds": siteRow['max_wall_seconds']
+                }
+                      
+      try:
+        print(jobDict)
+        stage = wfs.allocator.findStage(jobDict, 
+                                        limit = jobsPerCycle,
+                                        forUpdate = False)
+        print(stage)
+      except Exception as e:
+        logLine('Update findStage fails with: ' + str(e))
+        stage = None
+   
+      if stage:
+        logLine('Matches found - submit %d job(s)' % stage['matches'])
+        submitJobs(  numberToSubmit = stage['matches'],
+                     siteID         = siteRow['site_id'],
+                     jobsubSiteName = siteRow['jobsub_site_name'],
+                     minProcessors  = jobDict['min_processors'],
+                     maxProcessors  = jobDict['max_processors'],
+                     minRssBytes    = jobDict['min_rss_bytes'],
+                     maxRssBytes    = jobDict['max_rss_bytes'],
+                     maxWallSeconds = jobDict['max_wall_seconds'],
+                     forWtf         = False)
+    
+def wtfJobsToSites():
+  # Go through the sites deciding where to submit WTF jobs
 
+  try:
+    rows = wfs.db.select('SELECT site_id,'
+      'site_name,'
+      'jobsub_site_name '
+      'FROM sites '
+      'WHERE '
+      '(SELECT COUNT(*) FROM jobs WHERE'
+      ' jobs.site_id=sites.site_id AND for_wtf AND'
+      ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) = 0 '
+      'ORDER BY site_name'
+      # Should change this to random order?
+               )
+
+  except Exception as e:
+    logLine('Failed getting list of sites for WTF jobs: ' + str(e))
+    return
+  
+  for row in rows:
+      submitJobs(numberToSubmit = 1,
+                 siteID         = row['site_id'],
+                 jobsubSiteName = row['jobsub_site_name'],
+                 minProcessors  = 0,
+                 maxProcessors  = 1,
+                 minRssBytes    = 0,
+                 maxRssBytes    = 1024 * 1024 * 1024,
+                 maxWallSeconds = 3600,
+                 forWtf         = True)
+    
 def oneCycle():
-
   # Update the database with the states of submitted jobsub jobs
 
   parseJobsubQ()
   parseJobsubHistory()
   updateSiteCounts()
-#  parseFetchlogList()
-
-  # Go through the sites / slot sizes, deciding what to submit
-  
-  try:
-    slotSizesRows = wfs.db.select('SELECT sites.site_id,'
-      'site_name,'
-      'jobsub_site_name,'
-      'slot_size_id,'
-      'min_rss_bytes,'
-      'max_rss_bytes,'
-      'min_processors,'
-      'max_processors,'
-      'max_wall_seconds,'
-      'sites.max_jobs,'
-      'sites.submitted_jobs,'
-      'sites.running_jobs,'
-      'UNIX_TIMESTAMP(slot_sizes.last_submitted_time) AS last_submitted_time,'
-      'UNIX_TIMESTAMP(slot_sizes.last_allocation_time) AS last_allocation_time,'
-      '(SELECT COUNT(*) FROM jobs WHERE '
-      'jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 2 HOUR) AND '
-      'allocation_state="submitted" AND jobs.site_id=sites.site_id AND '
-      'jobs.slot_size_id=slot_sizes.slot_size_id) AS number_idle,'
-      '(SELECT COUNT(*) FROM jobs WHERE'
-      ' jobs.site_id=sites.site_id AND for_wtf AND'
-      ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) as number_wtf,'
-      'enabled '
-      'FROM sites '
-      'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
-      'ORDER BY site_name,min_processors'
-      # Should change this to random order
-
-# Saved version that submits at least once a day
-#      '(SELECT COUNT(*) FROM jobs WHERE'
-#      ' allocation_state IN ("submitted","starting","processing","outputting") '
-#      ' AND jobs.site_id=sites.site_id) AS number_at_site,'
-#      '(sites.last_submitted_time > '
-#      'DATE_SUB(NOW(),INTERVAL 1 DAY)) AS site_submitted_recently '
-#      'FROM sites '
-#      'LEFT JOIN slot_sizes ON sites.site_id=slot_sizes.site_id '
-#      'WHERE enabled OR (sites.last_submitted_time < '
-#      'DATE_SUB(NOW(),INTERVAL 1 DAY)) '
-#      'ORDER BY site_name,min_processors'
-               )
-
-  except Exception as e:
-    logLine('Failed getting list of slot sizes at sites: ' + str(e))
-    return
-  
-  for slotSizeRow in slotSizesRows:
-    processSlotSize(slotSizeRow)
-    
+  wtfJobsToSites()
+  perSiteJobs()
   
 #
 # PROGRAM MAIN

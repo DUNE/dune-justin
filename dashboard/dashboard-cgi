@@ -679,7 +679,11 @@ def showFile(cgiValues):
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
 
-  fileID = int(filesRows[0]["file_id"])
+  try:
+    fileID = int(filesRows[0]["file_id"])
+
+  except:
+    errorPage("invalid file_id")
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
            "site_name,rse_name FROM events "
@@ -772,14 +776,13 @@ def showJob(cgiValues):
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
            "jobs.for_wtf,jobs.site_job_id,"
-           "slot_sizes.max_processors,slot_sizes.min_processors,"
-           "slot_sizes.max_rss_bytes,slot_sizes.min_rss_bytes,"
-           "slot_sizes.max_wall_seconds,bootstrap_log "
+           "jobs.max_processors,jobs.min_processors,"
+           "jobs.max_rss_bytes,jobs.min_rss_bytes,"
+           "jobs.max_wall_seconds,bootstrap_log "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
-           "LEFT JOIN slot_sizes ON jobs.slot_size_id=slot_sizes.slot_size_id "
            "LEFT JOIN jobs_logs ON jobs_logs.wfs_job_id=jobs.wfs_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
@@ -1152,10 +1155,7 @@ def listSites(cgiValues):
 
   print("<h1>Sites</h1>")
   
-  query = ("SELECT * FROM sites "
-           "ORDER BY site_name"
-          )
-
+  query = "SELECT * FROM sites WHERE site_id > 0 ORDER BY site_name"
   wfs.db.cur.execute(query)
   siteRows = wfs.db.cur.fetchall()
 
@@ -1165,8 +1165,8 @@ def listSites(cgiValues):
         '<th>Site name</th>'
         '<th>Enabled?</th>'
         '<th>Last job</th>'
-        '<th>Jobsub site name</th>'
-        '<th>WLCG site name</th>'
+        '<th>RSS(MB) / Processors</th>'
+        '<th>Max Wall Seconds</th>'
         '<th>Submitted jobs</th>'
         '<th>Running jobs</th>'
         '<th>Max jobs</th>'
@@ -1183,11 +1183,11 @@ def listSites(cgiValues):
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
-          '<td>%s</td>'
-          '<td>%s</td>'
-          '<td>%d</td>'
-          '<td>%d</td>'
-          '<td>%d</td>'
+          '<td style="text-align: right">%d / %d = %d</td>'
+          '<td style="text-align: right">%d</td>'
+          '<td style="text-align: right">%d</td>'
+          '<td style="text-align: right">%d</td>'
+          '<td style="text-align: right">%d</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a></td>'
@@ -1200,8 +1200,11 @@ def listSites(cgiValues):
              'bold' if siteRow['enabled'] else 'normal',
              'TRUE' if siteRow['enabled'] else 'False',
              lastGetStageStr,
-             siteRow['jobsub_site_name'],
-             siteRow['wlcg_site_name'],
+             int(siteRow['max_rss_bytes'] / 1048576),
+              siteRow['max_processors'],
+              int((siteRow['max_rss_bytes'] 
+                    / siteRow['max_processors']) / 1048576),
+             siteRow['max_wall_seconds'],
              siteRow['submitted_jobs'],
              siteRow['running_jobs'],
              siteRow['max_jobs'],
@@ -1333,41 +1336,6 @@ def showSite(cgiValues):
           '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name']))
 
   print("</table>")
-
-  print("<h2>Slot sizes</h2>")
-
-  query = ('SELECT * FROM slot_sizes WHERE site_id=%d '
-           'ORDER BY min_processors' % siteRow['site_id'])
-  wfs.db.cur.execute(query)
-  slotRows = wfs.db.cur.fetchall()
-
-  print('<table>'
-        '<tr><th colspan=2>Processors OR Memory (MB)</th>'
-        '<th>Wall time (s)</th>'
-        '<th>Last submission</th><th>Last no match</th>'
-        '<th>Last allocation</th></tr>')
-
-  for slotRow in slotRows:
-    print('<tr><td>%d &lt; p &le; %d</td>'
-          '<td>%d &lt; m &le; %d</td>'
-          '<td>t &le; %d</td>'
-          '<td>%s</td>'
-          '<td>%s</td>'
-          '<td>%s</td>'
-          '</tr>' 
-          % (slotRow['min_processors'],
-             slotRow['max_processors'],
-             int(slotRow['min_rss_bytes'] / 1048576), 
-             int(slotRow['max_rss_bytes'] / 1048576),
-             slotRow['max_wall_seconds'],
-             slotRow['last_submitted_time'],
-             slotRow['last_no_match_time'],
-             slotRow['last_allocation_time']
-            )
-         )
-
-  print('</table>')
-
 
   print("<h2>Storages by distance</h2>")
 
