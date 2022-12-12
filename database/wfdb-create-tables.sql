@@ -42,7 +42,7 @@ CREATE TABLE `jobs` (
   `factory_name` varchar(255) NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
   `site_job_id` varchar(255) NOT NULL DEFAULT '',
-  `site_id` smallint(5) unsigned NOT NULL,
+  `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','script_error') 
@@ -295,6 +295,7 @@ DROP TABLE IF EXISTS `stages_outputs`;
 CREATE TABLE `stages_outputs` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
+  `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
   `file_scope` varchar(255) NOT NULL,
   `dataset` varchar(255) NOT NULL,

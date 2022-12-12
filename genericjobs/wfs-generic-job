@@ -215,8 +215,12 @@ echo '====start wfs-get-stage.json===='
 cat wfs-get-stage.json
 echo '====end wfs-get-stage.json===='
 
+# Sleep for up to 60 seconds to spread out job start storms
+sleep `expr $RANDOM / 512`
+
 # Make the call to the Workflow Allocator
 http_code=`curl \
+--retry 0 \
 --user-agent 'wfs-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
 --key $X509_USER_PROXY \
@@ -289,7 +293,7 @@ ls -lR workspace
 echo '###'
 
 cat wfs-output-patterns.txt | (
-while read for_next_stage dataset scope pattern
+while read lifetime for_next_stage dataset scope pattern
 do  
   (
     cd workspace
@@ -298,7 +302,7 @@ do
     do
       if [ -r "$fn" ] ; then
         # wfs-outputs.txt gets DATASET SCOPE FILENAME on each line
-        echo "$dataset $scope $fn" >> $WFS_PATH/wfs-outputs.txt
+        echo "$lifetime $dataset $scope $fn" >> $WFS_PATH/wfs-outputs.txt
 
         if [ "$for_next_stage" = "True" ] ; then
           # wfs-next-stage-dids gets a list of DIDs
@@ -425,7 +429,7 @@ fi
 
 touch wfs-output-dids-rses.txt
 
-while read dataset scope fn
+while read lifetime dataset scope fn
 do
   $WFS_PATH/wfs-metadata "$scope" "$fn" > tmp.json
   echo "==== Start MetaCat JSON for $fn ===="
@@ -435,9 +439,14 @@ do
   log_line "Declare file in MetaCat"
   metacat file declare --json tmp.json "$dataset"
   if [ $? = 0 ] ; then
+    if [ "$lifetime" -gt 0 ] ; then
+      $lifetime_option="--lifetime $lifetime"
+    fi  
     log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
     rucio --config $WFS_PATH/rucio.cfg --verbose \
-          upload --rse "$OUTPUT_RSE" \
+          upload \
+          $lifetime_option \
+          --rse "$OUTPUT_RSE" \
           --transfer-timeout 600 \
           --protocol "$OUTPUT_PROTOCOL" \
           --scope "$scope" --name "$fn" "workspace/$fn"

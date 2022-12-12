@@ -90,7 +90,7 @@ Changes the state of the given request to "finished". This state
 excludes a request from the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern SCOPE:DATASET:PATTERN] [--output-pattern-next-stage SCOPE:DATASET:PATTERN] [--output-rse NAME]" 
+.B "create-stage --request-id ID --stage-id ID --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern SCOPE:DATASET:PATTERN] [--output-pattern-next-stage SCOPE:DATASET:PATTERN] [--output-rse NAME] [--lifetime-days DAYS]"
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -105,7 +105,7 @@ then the default of 80000
 seconds is used. If the maximum amount of resident memory needed is not
 given by 
 .B --rss-mb
-then the default of 2048MiB is used. The resident memory corresponds to the 
+then the default of 2000MiB is used. The resident memory corresponds to the 
 physical memory managed by HTCondor's ResidentSetSize value.
 
 If the script can make use of multiple processors then 
@@ -144,8 +144,12 @@ from that list of RSEs, with preference given to RSEs which are closer in
 distance. If this option is not used, or none of the given RSEs are available,
 then the default algorithm for choosing the closest available RSE is used.
 
+.B --lifetime-days DAYS
+sets the Rucio lifetime for all output files that are uploaded. The lifetime
+defaults to 1 day if not specified.
+
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS] --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME]"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS] --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME] [--lifetime-days DAYS]"
 .br
 Combines the 
 .B create-request, create-stage

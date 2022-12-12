@@ -74,7 +74,8 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.max_wall_seconds,'
              'sites.site_name,'
              'sites.max_jobs,'
-             'sites.running_jobs '
+             'sites.running_jobs,'
+             'sites.enabled '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.request_id=stages.request_id '
              'AND jobs.stage_id=stages.stage_id '
@@ -101,6 +102,7 @@ def makeJobDict(jobsubID, cookie = None):
            "site_name"        : job['site_name'],
            "running_jobs"     : job['running_jobs'],
            "max_jobs"         : job['max_jobs'],
+           "site_enabled"     : job['enabled'],
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
            "for_wtf"          : job['for_wtf'],

@@ -423,9 +423,10 @@ def showStage(cgiValues):
     
   print("<h2>Output patterns</h2>")
   print('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
-        '<th>For next stage</th></tr>') 
+        '<th>Lifetime</th><th>For next stage</th></tr>') 
 
-  query = ("SELECT dataset,file_scope,file_pattern,for_next_stage "
+  query = ("SELECT dataset,file_scope,file_pattern,"
+           "for_next_stage,lifetime_seconds "
            "FROM stages_outputs "
            "WHERE request_id=%d AND stage_id=%d "
            "ORDER BY dataset,file_scope,file_pattern" %
@@ -435,10 +436,11 @@ def showStage(cgiValues):
   patternRows = wfs.db.cur.fetchall()
 
   for patternRow in patternRows:
-    print("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" %
+    print("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>" %
            (patternRow["dataset"],
             patternRow["file_scope"],
             html.escape(patternRow["file_pattern"], quote=True),
+            patternRow["lifetime_seconds"],
             bool(patternRow["for_next_stage"])))
 
   print('</table>') 
@@ -846,6 +848,8 @@ def showJob(cgiValues):
           '<td><a href="/dashboard/?method=show-site&site_name=%s">'
           '%s</a></td></tr>'
           % (jobRow["site_name"], jobRow["site_name"]))
+  else:
+    print('<tr><td>Site</td><td> </td></tr>')
 
   print('<tr><td>Slot</td><td>'
         '%d &lt; processors &le; %d<br>'
@@ -1120,11 +1124,17 @@ def listJobs(cgiValues, pageNumber, pageLength):
       else:
         requestStageStr += '<td> </td>'
   
+    if jobRow['site_name']:
+      siteNameStr = ('<td><a href="/dashboard/?method=show-site&site_name=%s">'
+                     '%s</a></td>' % (jobRow['site_name'], jobRow['site_name']))
+    else:
+      siteNameStr = '<td> </td>'
+
     print('<tr>'
           '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'          
+          '%s'
           '<td>%s</td>'
           '%s'
           '<td>%s</td>'
@@ -1134,7 +1144,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
           % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
              jobRow['jobsub_state'],
              jobRow['allocation_state'],
-             jobRow['site_name'], jobRow['site_name'],
+             siteNameStr,
              usernameStr,
              requestStageStr,
              spaceForUnixEpoch(jobRow["submitted_time"]),
@@ -1167,7 +1177,7 @@ def listSites(cgiValues):
         '<th>Last job</th>'
         '<th>RSS(MB) / Processors</th>'
         '<th>Max Wall Seconds</th>'
-        '<th>Submitted jobs</th>'
+#        '<th>Submitted jobs</th>'
         '<th>Running jobs</th>'
         '<th>Max jobs</th>'
         '<th colspan=2>&nbsp;</th>'
@@ -1185,7 +1195,7 @@ def listSites(cgiValues):
           '<td>%s</td>'
           '<td style="text-align: right">%d / %d = %d</td>'
           '<td style="text-align: right">%d</td>'
-          '<td style="text-align: right">%d</td>'
+#          '<td style="text-align: right">%d</td>'
           '<td style="text-align: right">%d</td>'
           '<td style="text-align: right">%d</td>'
           '<td><a '
@@ -1205,7 +1215,7 @@ def listSites(cgiValues):
               int((siteRow['max_rss_bytes'] 
                     / siteRow['max_processors']) / 1048576),
              siteRow['max_wall_seconds'],
-             siteRow['submitted_jobs'],
+#             siteRow['submitted_jobs'],
              siteRow['running_jobs'],
              siteRow['max_jobs'],
              siteRow['site_name'],

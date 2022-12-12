@@ -546,7 +546,7 @@ def quickRequestCmd(jsonDict, userID):
   try:
     rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
   except:
-    rssBytes = 2048 * 1024 * 1024
+    rssBytes = 2000 * 1024 * 1024
 
   if 'file' in jsonDict and jsonDict['file']:
     bootstrap = jsonDict['file']
@@ -570,6 +570,11 @@ def quickRequestCmd(jsonDict, userID):
           (requestID, 
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
 
+  try:
+    lifetimeDays = int(jsonDict['lifetime_days'])
+  except:
+    lifetimeDays = 1
+
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
       splitList = i.split(':')
@@ -587,12 +592,14 @@ def quickRequestCmd(jsonDict, userID):
               'dataset="%s:%s",'
               'file_scope="%s",'
               'file_pattern="%s",'
+              'lifetime_seconds=%d,'
               'for_next_stage=FALSE' % 
               (requestID,
                scope.replace('\\','\\\\').replace('"','\\"'),
                datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
-               pattern.replace('\\','\\\\').replace('"','\\"')
+               pattern.replace('\\','\\\\').replace('"','\\"'),
+               lifetimeDays * 86400
               )
              )
 
@@ -739,6 +746,11 @@ def createStageCmd(jsonDict):
           (requestID, stageID, 
            bootstrap.replace('\\','\\\\').replace('"','\\"')))
 
+  try:
+    lifetimeDays = int(jsonDict['lifetime_days'])
+  except:
+    lifetimeDays = 1
+
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
     
@@ -757,12 +769,14 @@ def createStageCmd(jsonDict):
               'dataset="%s:%s",'
               'file_scope="%s",'
               'file_pattern="%s",'
+              'lifetime_seconds=%d,'
               'for_next_stage=FALSE' % 
               (requestID, stageID,
                scope.replace('\\','\\\\').replace('"','\\"'),
                datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
-               pattern.replace('\\','\\\\').replace('"','\\"')
+               pattern.replace('\\','\\\\').replace('"','\\"'),
+               lifetimeDays * 86400
               )
              )
 
@@ -783,13 +797,15 @@ def createStageCmd(jsonDict):
               'stage_id=%d,'
               'dataset="%s:%s",'
               'file_scope="%s",'
-              'file_pattern="%s",'
+              'file_pattern="%s',
+              'lifetime_seconds=%d,'
               'for_next_stage=TRUE' % 
               (requestID, stageID,
                scope.replace('\\','\\\\').replace('"','\\"'),
                datasetName.replace('\\','\\\\').replace('"','\\"'),
                scope.replace('\\','\\\\').replace('"','\\"'),
-               pattern.replace('\\','\\\\').replace('"','\\"')
+               pattern.replace('\\','\\\\').replace('"','\\"'),
+               lifetimeDays * 86400
               )
              )
           

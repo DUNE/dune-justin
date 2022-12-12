@@ -51,7 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds      = 60
-jobsPerCycle      = 24
+jobsPerCluster    = 24
 maxSubmittedRatio = 2
 
 class wfsError(Exception):
@@ -250,6 +250,75 @@ def submitJobs(numberToSubmit,
   # Commit it all to the DB
   wfs.db.conn.commit()
 
+def anySiteJobs():
+
+  for processors in range(1, 9):
+    for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024]:
+      
+      try:
+        matches = wfs.db.select('SELECT COUNT(*) AS count FROM files '
+                                'LEFT JOIN requests '
+                                'ON requests.request_id = files.request_id '
+                                'LEFT JOIN stages '
+                                'ON stages.request_id = files.request_id AND '
+                                'stages.stage_id = files.stage_id '
+                                'WHERE files.state = "unallocated" AND '
+                                'requests.state="running" AND '
+                                'stages.processors = %d AND '
+                                'stages.rss_bytes > %d AND '
+                                'stages.rss_bytes <= %d' %
+                                (processors,
+                                 bytesPerProcessor * (processors - 1),
+                                 bytesPerProcessor * processors
+                                ), justOne = True
+                               )
+
+        numberUnallocated = matches['count']
+      except Exception as e:
+        logLine('Failed getting count of unallocated: ' + str(e))
+        continue
+        
+      logLine('%d processors %d MB: %d unallocated files' % 
+              (processors, 
+               int((bytesPerProcessor * processors) / (1024 * 1024)), 
+               numberUnallocated))
+
+      # Skip if no unallocated files for this geometry
+      if numberUnallocated == 0:
+        continue
+
+      if numberUnallocated > jobsPerCluster:
+        numberUnallocated = jobsPerCluster
+
+      try:
+        submitted = wfs.db.select('SELECT COUNT(*) AS count FROM jobs '
+                                  'WHERE allocation_state = "submitted" AND '
+                                  'processors = %d AND '
+                                  'rss_bytes > %d AND '
+                                  'rss_bytes <= %d' %
+                                  (processors,
+                                   bytesPerProcessor * (processors - 1),
+                                   bytesPerProcessor * processors
+                                  ), justOne = True
+                                 )
+        numberSubmitted = submitted['count']
+      except Exception as e:
+        logLine('Failed getting count of submitted jobs: ' + str(e))
+        continue
+            
+      if numberUnallocated > numberSubmitted:
+          submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
+                     siteID         = 0,
+                     jobsubSiteName = 'ANY',
+                     minProcessors  = processors - 0,
+                     maxProcessors  = processors,
+                     minRssBytes    = bytesPerProcessor * (processors - 1),
+                     maxRssBytes    = bytesPerProcessor * processors,
+                     maxWallSeconds = 86400,
+                     forWtf         = False)
+        
+      
+
 def perSiteJobs():  
   # Go through the sites deciding what to submit for that site
 
@@ -293,7 +362,7 @@ def perSiteJobs():
       try:
         print(jobDict)
         stage = wfs.allocator.findStage(jobDict, 
-                                        limit = jobsPerCycle,
+                                        limit = jobsPerCluster,
                                         forUpdate = False)
         print(stage)
       except Exception as e:
@@ -350,7 +419,8 @@ def oneCycle():
   parseJobsubHistory()
   updateSiteCounts()
   wtfJobsToSites()
-  perSiteJobs()
+#  perSiteJobs()
+  anySiteJobs()
   
 #
 # PROGRAM MAIN

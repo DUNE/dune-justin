@@ -41,7 +41,7 @@ import ssl
 import urllib.request
 import argparse
 
-versionNumber = '00.00.02'
+versionNumber = '00.00.03'
 
 def body(buf): 
 
@@ -158,6 +158,10 @@ parser.add_argument("--output-rse",
                     type   = str,
                     action = "append",
                     help   = "Name of RSE to use for output files")
+
+parser.add_argument("--lifetime-days",
+                    type = int,
+                    help = "Rucio lifetime for output files")
 
 parser.add_argument("--pfn",
                     type   = str,

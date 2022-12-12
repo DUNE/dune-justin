@@ -118,7 +118,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
 
   # Create a file containing the output file patterns
   try:
-    query = ("SELECT dataset,file_scope,file_pattern,for_next_stage "
+    query = ("SELECT lifetime_seconds,dataset,file_scope,file_pattern,"
+             "for_next_stage "
              "FROM stages_outputs "
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
@@ -130,7 +131,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
   patternsFile = ''
 
   for row in rows:
-    patternsFile += (str(row['for_next_stage']) + ' ' + 
+    patternsFile += (str(row['lifetime_seconds']) + ' ' +
+                     str(row['for_next_stage']) + ' ' + 
                      row['dataset'] + ' ' +
                      row['file_scope'] + ' ' +
                      row['file_pattern'] + '\n')
@@ -243,11 +245,28 @@ def getStageMethod(jsonDict):
       httpError('400 Bad Request', 'Missing/invalid integer value(s) in JSON')
 
   # Check jsonDict contains required string values
-  for name in ['cpuinfo', 'os_release', 'hostname', 'site_job_id']:
+  for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
     if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]):
       httpError('400 Bad Request', 
                 'Missing/invalid value for %s in JSON' % name)
 
+  if jsonDict['site_name'] == 'US_FermiGrid':
+    # Aaargh - why do OSG just guess this kind of thing !!!!
+    jsonDict['site_name'] = 'US_FNAL'
+  
+  try:
+    wfs.db.insertUpdate('UPDATE jobs SET '
+                        'site_id=(SELECT site_id FROM sites '
+                        'WHERE site_name="%s") '
+                        'WHERE jobsub_id="%s"' % 
+                        (jsonDict['site_name'], jsonDict['jobsub_id']))
+    wfs.db.conn.commit()
+  except Exception as e:
+    httpError('500 Internal Server Error',
+              'Workflow allocator fails to update job with site_id '
+              '(site_name=%s): %s' %
+              (str(jsonDict['site_name']), str(e)))
+    
   # Find details of the job
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
@@ -260,6 +279,11 @@ def getStageMethod(jsonDict):
     httpError('410 Gone', 
               'Cannot get stage as job already in %s state' 
               % jobDict['allocation_state'])
+
+  # Site not enabled so no matches allowed 
+  if not jobDict['site_enabled']:
+    httpError('404 Not Found',
+              'No stage allocated as site not enabled')
 
   # Already at limit of running jobs for this site
   if jobDict['running_jobs'] >= jobDict['max_jobs']:
@@ -903,14 +927,17 @@ except Exception as e:
   if jsonDict['method'] == 'get_stage':
     try:
       wfs.db.insertUpdate(
-             'UPDATE jobs SET allocation_state="aborted",'
+             'UPDATE jobs SET allocation_state="notused",'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
+      wfs.db.conn.commit()
     except:
-      pass
+      httpError('503 Service Unavailable',
+                'Unable to get allocator lock for get_stage method. '
+                'Failed to update allocation_state to notused')
 
   httpError('503 Service Unavailable',
-        'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
+       'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
         % (str(jsonDict['method']), str(e)))
   
 # Get the stage for the job to work on
