@@ -51,7 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds      = 60
-jobsPerCluster    = 24
+jobsPerCluster    = 96
 maxSubmittedRatio = 2
 
 class wfsError(Exception):

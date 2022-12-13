@@ -215,6 +215,9 @@ echo '====start wfs-get-stage.json===='
 cat wfs-get-stage.json
 echo '====end wfs-get-stage.json===='
 
+for i in 1 2 3 4 5 
+do
+
 # Sleep for up to 60 seconds to spread out job start storms
 sleep `expr $RANDOM / 512`
 
@@ -232,7 +235,12 @@ http_code=`curl \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/wfa-cgi/get_stage`
 
-log_line curl returns HTTP code $http_code
+log_line "($i/5) curl returns HTTP code $http_code"
+
+if [ "$http_code" != "503" ] ; then
+ break
+fi
+done
 
 if [ "$http_code" != "200" ] ; then
   log_line "curl call to WFA to get stage fails with code $http_code"

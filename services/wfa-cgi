@@ -246,12 +246,12 @@ def getStageMethod(jsonDict):
 
   # Check jsonDict contains required string values
   for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
-    if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]):
+    if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]) or not jsonDict[name]:
       httpError('400 Bad Request', 
                 'Missing/invalid value for %s in JSON' % name)
 
   if jsonDict['site_name'] == 'US_FermiGrid':
-    # Aaargh - why do OSG just guess this kind of thing !!!!
+    # Quick hack for now until the site names finalised
     jsonDict['site_name'] = 'US_FNAL'
   
   try:
@@ -275,7 +275,8 @@ def getStageMethod(jsonDict):
               jobDict['error_message'] + ' in getStageMethod')
 
   # Some kind of mismatch. Maybe the idle job was marked as stalled.
-  if jobDict['allocation_state'] != 'submitted':
+  if jobDict['allocation_state'] != 'submitted' and \
+     jobDict['allocation_state'] != 'notused':
     httpError('410 Gone', 
               'Cannot get stage as job already in %s state' 
               % jobDict['allocation_state'])
@@ -412,7 +413,7 @@ def jobAbortedMethod(jsonDict):
     httpError('400 Bad Request', 
               jobDict['error_message'] + ' in jobAbortedMethod')
 
-  if jobDict['allocation_state'] not in ['submitted','started',
+  if jobDict['allocation_state'] not in ['submitted','notused', 'started',
                                          'processing','outputting']:
     httpError('410 Gone', 
               'Cannot set job to aborted as job already in %s state' 
@@ -859,14 +860,12 @@ def checkJobUser():
   if not rows[0]['generic_jobs']:
     httpError('403 Forbidden', 'Forbidden - authorized identity not provided')
 
-def getAllocatorLock(jsonDict):
+def getAllocatorLock(timeoutSeconds):
   # Try to get the workflow allocator service lock or raise an exception if
   # unable to do this for any reason, including a timeout
-
   # No try here since we expose exceptions to the caller!
-  # Hardcoded timeout for 60 seconds for now
   wfs.db.cur.execute('SELECT GET_LOCK("wfs_allocator", %d) AS result' %
-                     (1 if (jsonDict['method'] == 'get_stage') else 60))
+                     timeoutSeconds)
 
   row =  wfs.db.cur.fetchone()
 
@@ -922,7 +921,7 @@ except Exception as e:
             'Problem with database connection: ' + str(e))
 
 try:
-  getAllocatorLock(jsonDict)
+  getAllocatorLock(10 if jsonDict['method'] == 'get_stage' else 60)
 except Exception as e:
   if jsonDict['method'] == 'get_stage':
     try:
