@@ -811,9 +811,9 @@ def showJob(cgiValues):
 
   print('<table>')
   
-  print('<tr><td>Jobsub state</td>'
-        '<td>%s</td></tr>'
-        % jobRow["jobsub_state"])
+#  print('<tr><td>Jobsub state</td>'
+#        '<td>%s</td></tr>'
+#        % jobRow["jobsub_state"])
       
   print('<tr><td>Allocation state</td>'
         '<td>%s</td></tr>'
@@ -1087,7 +1087,6 @@ def listJobs(cgiValues, pageNumber, pageLength):
   
   print('<tr>'
         '<th>Jobsub ID</th>'
-        '<th>Jobsub State</th>'
         '<th>Allocation state</th>'
         '<th>Site</th>'
         '<th>User</th>'
@@ -1098,6 +1097,8 @@ def listJobs(cgiValues, pageNumber, pageLength):
         '<th>Finished</th>'
         '</tr>')
   
+#        '<th>Jobsub State</th>'
+
   for jobRow in jobRows[:pageLength]:
     if jobRow['username']:
       usernameStr = jobRow["username"]
@@ -1132,7 +1133,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
 
     print('<tr>'
           '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
-          '<td>%s</td>'
+#          '<td>%s</td>'
           '<td>%s</td>'
           '%s'
           '<td>%s</td>'
@@ -1142,7 +1143,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
           '<td>%s</td>'
           '</tr>'
           % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
-             jobRow['jobsub_state'],
+#             jobRow['jobsub_state'],
              jobRow['allocation_state'],
              siteNameStr,
              usernameStr,

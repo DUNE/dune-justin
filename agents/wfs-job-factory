@@ -51,7 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds      = 60
-jobsPerCluster    = 96
+jobsPerCluster    = 192
 maxSubmittedRatio = 2
 
 class wfsError(Exception):
@@ -159,6 +159,7 @@ def submitJobs(numberToSubmit,
                minRssBytes,
                maxRssBytes,
                maxWallSeconds,
+               ignoreStr,
                forWtf = False):
 
   try: 
@@ -168,7 +169,8 @@ def submitJobs(numberToSubmit,
                 jobsubSiteName,
                 str(int(maxRssBytes / 1024)),
                 str(maxProcessors),
-                str(maxWallSeconds)
+                str(maxWallSeconds),
+                ignoreStr+' '
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
@@ -250,7 +252,7 @@ def submitJobs(numberToSubmit,
   # Commit it all to the DB
   wfs.db.conn.commit()
 
-def anySiteJobs():
+def recordUnallocatedCounts(unallocatedCounts):
 
   for processors in range(1, 9):
     for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024]:
@@ -273,24 +275,27 @@ def anySiteJobs():
                                 ), justOne = True
                                )
 
-        numberUnallocated = matches['count']
+        if matches['count']:
+          unallocatedCounts.append((processors, 
+                                    bytesPerProcessor,
+                                    matches['count']
+                                  ))
       except Exception as e:
         logLine('Failed getting count of unallocated: ' + str(e))
         continue
-        
-      logLine('%d processors %d MB: %d unallocated files' % 
-              (processors, 
-               int((bytesPerProcessor * processors) / (1024 * 1024)), 
-               numberUnallocated))
 
-      # Skip if no unallocated files for this geometry
-      if numberUnallocated == 0:
-        continue
+def anySiteJobs(unallocatedCounts, ignoreSites):
 
-      if numberUnallocated > jobsPerCluster:
-        numberUnallocated = jobsPerCluster
+  for (processors, bytesPerProcessor, numberUnallocated) in unallocatedCounts:
+    logLine('%d processor(s) %d MB: %d unallocated files' % 
+            (processors, 
+            int((bytesPerProcessor * processors) / (1024 * 1024)), 
+            numberUnallocated))
 
-      try:
+    if numberUnallocated > jobsPerCluster:
+      numberUnallocated = jobsPerCluster
+
+    try:
         submitted = wfs.db.select('SELECT COUNT(*) AS count FROM jobs '
                                   'WHERE allocation_state = "submitted" AND '
                                   'processors = %d AND '
@@ -302,19 +307,23 @@ def anySiteJobs():
                                   ), justOne = True
                                  )
         numberSubmitted = submitted['count']
-      except Exception as e:
+    except Exception as e:
         logLine('Failed getting count of submitted jobs: ' + str(e))
         continue
             
-      if numberUnallocated > numberSubmitted:
-          submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
+    if numberUnallocated > numberSubmitted:    
+      ignoreStr = ','.join(ignoreSites[(processors,bytesPerProcessor)])    
+      
+      logLine('Submit jobs with blacklist: ' + ignoreStr)
+      submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
                      siteID         = 0,
                      jobsubSiteName = 'ANY',
-                     minProcessors  = processors - 0,
+                     minProcessors  = processors - 1,
                      maxProcessors  = processors,
                      minRssBytes    = bytesPerProcessor * (processors - 1),
                      maxRssBytes    = bytesPerProcessor * processors,
                      maxWallSeconds = 86400,
+                     ignoreStr      = ignoreStr,
                      forWtf         = False)
         
       
@@ -379,8 +388,102 @@ def perSiteJobs():
                      minRssBytes    = jobDict['min_rss_bytes'],
                      maxRssBytes    = jobDict['max_rss_bytes'],
                      maxWallSeconds = jobDict['max_wall_seconds'],
+                     ignoreStr      = None,
                      forWtf         = False)
     
+def cacheFindStageResults(unallocatedCounts, ignoreSites):
+  # Go through the sites recording what findStage() returns
+
+  # We use this time to remove previous cache entries
+  cutoffTime = int(time.time())
+
+  try:
+    siteRows = wfs.db.select('SELECT site_id,site_name,'
+                             'enabled,jobsub_site_name '
+                             'FROM sites ORDER by site_name')
+  except Exception as e:
+    logLine('Failed getting list of sites for get_stage_cache: ' + str(e))
+    return
+  
+  for (processors,bytesPerProcessor,numberUnallocated) in unallocatedCounts:   
+    ignoreSites[(processors,bytesPerProcessor)] = []
+    
+    for siteRow in siteRows:
+
+      if siteRow['enabled']:
+        jobDict = { "error_message"   : None,
+                  "site_id"         : siteRow['site_id'],
+                  "site_name"       : siteRow['site_name'],
+                  "min_processors"  : processors - 1,
+                  "max_processors"  : processors,
+                  "min_rss_bytes"   : bytesPerProcessor * (processors - 1),
+                  "max_rss_bytes"   : bytesPerProcessor * processors,
+                  "max_wall_seconds": 86400
+                }
+                      
+        try:
+          print(jobDict)
+          stage = wfs.allocator.findStage(jobDict, 
+                                          limit = 1,
+                                          forUpdate = False)
+          print(stage)
+        except Exception as e:
+          logLine('Update findStage fails with: ' + str(e))
+          stage = None
+      else:
+        stage = None
+   
+      if not stage:
+        requestID = 0
+        stageID   = 0
+        ignoreSites[(processors,bytesPerProcessor)].append(
+                                                siteRow['jobsub_site_name'])
+      else:
+        requestID = stage['request_id']
+        stageID   = stage['stage_id']
+        logLine('Match(es) found (%d,%d) for site %s - caching' % 
+                (requestID, stageID, siteRow['site_name']))
+
+        try:
+          wfs.db.insertUpdate('INSERT INTO get_stage_cache SET '
+                              'site_id=%d,'
+                              'min_processors=%d,'
+                              'max_processors=%d,'
+                              'min_rss_bytes=%d,'
+                              'max_rss_bytes=%d,'
+                              'max_wall_seconds=%d,'
+                              'request_id=%d,'
+                              'stage_id=%d,'
+                              'cache_time=NOW() '
+                              'ON DUPLICATE KEY UPDATE ' 
+                              'request_id=%d,'
+                              'stage_id=%d,'
+                              'cache_time=NOW() ' % 
+                              (jobDict['site_id'],
+                               jobDict['min_processors'],
+                               jobDict['max_processors'],
+                               jobDict['min_rss_bytes'],
+                               jobDict['max_rss_bytes'],
+                               jobDict['max_wall_seconds'],
+                               requestID,
+                               stageID,
+                               requestID,
+                               stageID
+                              )
+                             )
+
+        except Exception as e:
+          logLine('Record  fails with: ' + str(e))
+   
+  try:
+    wfs.db.insertUpdate('DELETE FROM get_stage_cache '
+                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
+  except Exception as e:
+    logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
+
+  # Commit what we did    
+  wfs.db.conn.commit()
+
 def wtfJobsToSites():
   # Go through the sites deciding where to submit WTF jobs
 
@@ -410,18 +513,26 @@ def wtfJobsToSites():
                  minRssBytes    = 0,
                  maxRssBytes    = 1024 * 1024 * 1024,
                  maxWallSeconds = 3600,
+                 ignoreStr      = None,
                  forWtf         = True)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
 
-  parseJobsubQ()
-  parseJobsubHistory()
+#  parseJobsubQ()
+#  parseJobsubHistory()
   updateSiteCounts()
+
   wtfJobsToSites()
 #  perSiteJobs()
-  anySiteJobs()
-  
+
+  unallocatedCounts = []
+  recordUnallocatedCounts(unallocatedCounts)
+
+  ignoreSites = {}
+  cacheFindStageResults(unallocatedCounts, ignoreSites)
+  anySiteJobs(unallocatedCounts, ignoreSites)
+
 #
 # PROGRAM MAIN
 #

@@ -57,7 +57,7 @@ import rucio.client
 #
 import wfs
 
-maxFileFindsPerCycle = 50
+maxFileFindsPerCycle = 500
 sleepSeconds         = 60
 
 class wfsError(Exception):
@@ -331,88 +331,96 @@ def findReplicas():
 
   # Receives a list of unique (requestID,stageID) combinations
   requestsStages = set()
+  filesList = []
 
+  # Make a list of files we want replicas for, in the Rucio API's format
   for fileRow in fileRows:
     (didScope, didName) = fileRow['file_did'].split(':')
+    filesList.append({'scope' : didScope, 'name'  : didName })
 
-    try:
-      # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
-      # domain='all' does not seem to work for now
-      wanRepsList = repClient.list_replicas([ { 'scope' : didScope,
-                                                'name'  : didName   } ],
-                                            schemes=['root'], 
-                                            domain='wan')
+  # Use the Rucio API to get big lists of replicas for the files
+  try:
+    # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
+    # domain='all' does not seem to work for now
+    wanRepsList = repClient.list_replicas(filesList,
+                                          schemes=['root'], 
+                                          domain='wan')
 
-      lanRepsList = repClient.list_replicas([ { 'scope' : didScope,
-                                                'name'  : didName   } ],
-                                            schemes=['root'], 
-                                            domain='lan')
+    lanRepsList = repClient.list_replicas(filesList,
+                                          schemes=['root'], 
+                                          domain='lan')
 
-    except Exception as e:
-      logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
-      return
+  except Exception as e:
+    logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
+    return
+
+  # Make a dictionary with DIDs as keys and lists of replicas from Rucio
+  # as the values
+  repsDict = {}
+  for rep in list(wanRepsList) + list(lanRepsList):
+    if rep['scope']+':'+rep['name'] not in repsDict:
+      repsDict[rep['scope']+':'+rep['name']] = []
       
-    pfns = {}
+    for pfn in rep['pfns']:
+      pfnDict = rep['pfns'][pfn]
+      pfnDict['pfn'] = pfn
+      repsDict[rep['scope']+':'+rep['name']].append(pfnDict)
+                      
+  # Go through the files again, pulling out the replica info obtained 
+  # for the file's DID
+  for fileRow in fileRows:
+    try:
+      pfnsList = repsDict[fileRow['file_did']]
+    except:
+      continue
+    
     rses = {}
 
-    try:
-      rep  = next(wanRepsList)
-      pfns = rep['pfns'].copy()
-    except:
-      # No wan replicas found in Rucio
-      pass
+    # Save the wan and lan PFNs returned for each RSE with a replica
+    # These go into the SAME rses dictionary so separate LAN and WAN
+    # replica information is merged into one data dictionary
+    for pfnDict in pfnsList:
+        if pfnDict['type'] != 'DISK':
+          continue
 
-    try:
-      rep = next(lanRepsList)
-    except:
-      pass
-    else:
-      for pfn in rep['pfns']:
-        if pfn not in pfns:
-          pfns[pfn] = rep['pfns'][pfn]
-
-    if pfns:
-      # Save the wan and lan PFNs returned for each RSE with a replica
-      for pfn in pfns:
-        if pfns[pfn]['type'] == 'DISK':
-
-          if pfns[pfn]['rse'] not in rses:
-            rses[pfns[pfn]['rse']] = {}
-
+        if pfnDict['rse'] not in rses:
+            rses[pfnDict['rse']] = {}
       
-          if pfns[pfn]['domain'] == 'lan':
-            rses[pfns[pfn]['rse']]['lan_pfn'] = wfs.db.fixPfn(pfn)
+        if pfnDict['domain'] == 'lan':
+            rses[pfnDict['rse']]['lan_pfn'] = wfs.db.fixPfn(pfnDict['pfn'])
+        else:
+            rses[pfnDict['rse']]['wan_pfn'] = wfs.db.fixPfn(pfnDict['pfn'])
 
-          else:
-            rses[pfns[pfn]['rse']]['wan_pfn'] = wfs.db.fixPfn(pfn)
+    # Now go through the replicas for this file, RSE by RSE
+    for rse in rses:
+        try:
+          lanPFN = rses[rse]['lan_pfn'] 
+        except:
+          lanPFN = ''
 
-      for rse in rses:
-        # If PFN wan=lan then set lan PFN to ''
-        if 'lan_pfn' not in rses[rse] or \
-           ('wan_pfn' in rses[rse] and 
-            rses[rse]['wan_pfn'] == rses[rse]['lan_pfn']):
-          rses[rse]['lan_pfn'] = ''
-    
+        try:
+          wanPFN = rses[rse]['wan_pfn'] 
+        except:
+          wanPFN = ''
+          
+        # If PFN wan=lan then set lan PFN to ''        
+        if wanPFN == lanPFN:
+          lanPFN = ''       
+  
         if storagesDict[rse]['needs_pin']:
           accessibleUntil = ',accessible_until="%s" ' % wfs.db.unixEpoch
         else:
           accessibleUntil = ''
         
         try:
-#          print(storagesDict[rse]['rse_id'],
-#                    fileRow['file_id'],
-#                    rses[rse]['wan_pfn'],
-#                    rses[rse]['lan_pfn'],
-#                    accessibleUntil)
-                    
           query = ('INSERT INTO replicas SET '
                    'rse_id=%d,file_id=%d,wan_pfn="%s",lan_pfn="%s"%s' %
                    (storagesDict[rse]['rse_id'],
                     fileRow['file_id'],
-                    rses[rse]['wan_pfn'],
-                    rses[rse]['lan_pfn'],
+                    wanPFN,
+                    lanPFN,
                     accessibleUntil))
-                          
+
           wfs.db.cur.execute(query)
         except Exception as e:
           logLine('Failed inserting replica: ' + str(e))
@@ -423,7 +431,8 @@ def findReplicas():
         requestsStages.add((fileRow['request_id'], fileRow['stage_id']))
 
     if rses:
-      # Found all the replicas for this file so update its state
+      # If we got this far, then we found all the replicas for this 
+      # file so we update its state to unallocated (not finding any more)
       try:
         query = ('UPDATE files SET state="unallocated" WHERE file_id=%d' %
                  fileRow['file_id'])

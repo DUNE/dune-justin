@@ -230,11 +230,22 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
   tar.close()  
   return buffer.getvalue()
 
+def updateAllocationState(jobsub_id, state):
+  try:
+    wfs.db.insertUpdate(
+             'UPDATE jobs SET allocation_state="%s",'
+             'finished_time=NOW() '
+             'WHERE jobsub_id="%s"' % (state, jobsub_id))
+    wfs.db.conn.commit()
+  except:
+    pass
+
 # Try to get the stage with the highest priority files still unallocated
 def getStageMethod(jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('400 Bad Request', 'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required integer values (eg rss_bytes)
@@ -242,11 +253,13 @@ def getStageMethod(jsonDict):
     try:
       n = int(jsonDict[name])
     except:
+      updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       httpError('400 Bad Request', 'Missing/invalid integer value(s) in JSON')
 
   # Check jsonDict contains required string values
   for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
     if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]) or not jsonDict[name]:
+      updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       httpError('400 Bad Request', 
                 'Missing/invalid value for %s in JSON' % name)
 
@@ -262,6 +275,7 @@ def getStageMethod(jsonDict):
                         (jsonDict['site_name'], jsonDict['jobsub_id']))
     wfs.db.conn.commit()
   except Exception as e:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('500 Internal Server Error',
               'Workflow allocator fails to update job with site_id '
               '(site_name=%s): %s' %
@@ -271,23 +285,27 @@ def getStageMethod(jsonDict):
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('400 Bad Request', 
               jobDict['error_message'] + ' in getStageMethod')
 
   # Some kind of mismatch. Maybe the idle job was marked as stalled.
   if jobDict['allocation_state'] != 'submitted' and \
      jobDict['allocation_state'] != 'notused':
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('410 Gone', 
               'Cannot get stage as job already in %s state' 
               % jobDict['allocation_state'])
 
   # Site not enabled so no matches allowed 
   if not jobDict['site_enabled']:
+    updateAllocationState(jsonDict['jobsub_id'], 'notused')
     httpError('404 Not Found',
               'No stage allocated as site not enabled')
 
   # Already at limit of running jobs for this site
   if jobDict['running_jobs'] >= jobDict['max_jobs']:
+    updateAllocationState(jsonDict['jobsub_id'], 'notused')
     httpError('404 Not Found',
               'No stage allocated as running jobs (%d) >= max jobs (%d)'
               % (jobDict['running_jobs'], jobDict['max_jobs']))
@@ -296,26 +314,27 @@ def getStageMethod(jsonDict):
     wfs.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
                         'WHERE site_id=%d' % jobDict['site_id'])
   except:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('500 Internal Server Error',
               'Workflow allocator fails to record get_stage time')
 
   if jobDict['for_wtf']:
     # Special job for Workflow Testing Framework
     stage = { 'request_id'  : wfs.db.wtfRequestID,
-              'stage_id'    : 1,
-              'max_distance': 0,
-              'matches'     : 1 }
+              'stage_id'    : 1 }
 
   else:
     # Use the Just In Time decision making: identify the best request+stage 
     # candidate combination at this moment
     try:
-      stage = wfs.allocator.findStage(jobDict, forUpdate = True)
+      stage = wfs.allocator.findCachedStage(jobDict)
     except Exception as e:
-       httpError('500 Internal Server Error', 
+      updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+      httpError('500 Internal Server Error', 
                 'Workflow allocator fails finding stage: ' + str(e))
 
   if not stage:
+    updateAllocationState(jsonDict['jobsub_id'], 'notused')
     httpError('404 Not Found', 'No eligible stages found')
 
   cookie = str(uuid.uuid4())
@@ -340,12 +359,14 @@ def getStageMethod(jsonDict):
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('500 Internal Server Error', 
               'Workflow allocator failed updating allocated job: ' + str(e))
 
   tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_wtf'])
   
   if not tarFile:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('500 Internal Server Error', 'Failed to create tar file')
         
   wfs.allocator.updateStageCounts(stage['request_id'], 
@@ -358,6 +379,7 @@ def getStageMethod(jsonDict):
   try:
     wfs.db.conn.commit()
   except Exception as e:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('500 Internal Server Error',
               'Workflow allocator get_stage commit failed: ' + str(e))
   
@@ -924,16 +946,7 @@ try:
   getAllocatorLock(10 if jsonDict['method'] == 'get_stage' else 60)
 except Exception as e:
   if jsonDict['method'] == 'get_stage':
-    try:
-      wfs.db.insertUpdate(
-             'UPDATE jobs SET allocation_state="notused",'
-             'finished_time=NOW() '
-             'WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
-      wfs.db.conn.commit()
-    except:
-      httpError('503 Service Unavailable',
-                'Unable to get allocator lock for get_stage method. '
-                'Failed to update allocation_state to notused')
+    updateAllocationState(jsonDict['jobsub_id'], 'notused')
 
   httpError('503 Service Unavailable',
        'Unable to get allocator lock for %s method. Too busy? Exception: %s' 

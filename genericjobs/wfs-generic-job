@@ -137,10 +137,13 @@ EOF
 chmod +x $WFS_PATH/wfs-metadata
 
 # Assemble values to record
-export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 export WFS_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export WFS_OS_RELEASE=`head -1 /etc/redhat-release`
 export WFS_HOSTNAME=${HOSTNAME:-`hostname`}
+export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
+if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FNAL" ] ; then
+  export site_name=US_FNAL
+fi
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`

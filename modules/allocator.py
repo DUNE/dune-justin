@@ -166,6 +166,40 @@ def findStage(jobDict, limit=1, forUpdate = True):
 
   return stage
 
+# (Almost) Just in time decision making: identify the best request+stage
+# combination based on the immediate situation rather than trying to plan 
+# ahead of time
+def findCachedStage(jobDict):
+
+  query = (
+ "SELECT request_id,stage_id "
+ "FROM get_stage_cache "
+ "WHERE "
+ "site_id=%d AND "
+ "min_processors=%d AND "
+ "max_processors=%d AND "
+ "min_rss_bytes=%d AND "
+ "max_rss_bytes=%d AND "
+ "max_wall_seconds=%d" % 
+ ( jobDict["site_id"],
+   jobDict["min_processors"],
+   jobDict["max_processors"], 
+   jobDict["min_rss_bytes"],
+   jobDict["max_rss_bytes"], 
+   jobDict["max_wall_seconds"] )
+          )
+     
+  stageRow = wfs.db.select(query, justOne=True)
+  
+  if not stageRow:
+    return None
+
+  # The dictionary to return, with the highest priority result
+  stage = { 'request_id'  : stageRow['request_id'],
+            'stage_id'    : stageRow['stage_id']    }
+
+  return stage
+
 # Make a dictionary containing information about the most suitable file
 # for a particular job to process given the contents of jobDict
 def findFile(jobDict):
