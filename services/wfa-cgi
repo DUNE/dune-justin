@@ -509,7 +509,8 @@ def getFileMethod(jsonDict):
          'Job in wrong state to find file (%s)' % jobDict['allocation_state'])
     
   # Create a stage dictionary with the next file in this stage  
-  oneFile = wfs.allocator.findFile(jobDict)
+#  oneFile = wfs.allocator.findFile(jobDict)
+  oneFile = wfs.allocator.findCachedFile(jobDict)
 
   if oneFile['error_message']:
     httpError('500 Internal Server Error', 
@@ -942,18 +943,26 @@ except Exception as e:
   httpError('500 Internal Server Error', 
             'Problem with database connection: ' + str(e))
 
-try:
-  getAllocatorLock(10 if jsonDict['method'] == 'get_stage' else 60)
-except Exception as e:
-  if jsonDict['method'] == 'get_stage':
-    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-
-  httpError('503 Service Unavailable',
-       'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
-        % (str(jsonDict['method']), str(e)))
+#try:
+#  getAllocatorLock(10 if jsonDict['method'] == 'get_stage' else 60)
+#except Exception as e:
+#  if jsonDict['method'] == 'get_stage':
+#    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+#
+#  httpError('503 Service Unavailable',
+#       'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
+#        % (str(jsonDict['method']), str(e)))
   
 # Get the stage for the job to work on
 if jsonDict['method'] == 'get_stage':
+  try:
+    getAllocatorLock(10)
+  except Exception as e:
+    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+    httpError('503 Service Unavailable',
+              'Unable to get allocator lock for get_stage method. '
+              'Too busy? Exception: %s' % str(e))
+  
   # Fails with an HTTP error and exit if authorized ID not given
   checkJobUser()
   getStageMethod(jsonDict)

@@ -341,6 +341,27 @@ CREATE TABLE `get_stage_cache` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `get_stage_cache`
+--
+
+DROP TABLE IF EXISTS `find_file_cache`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `find_file_cache` (
+  `site_id` smallint(5) unsigned NOT NULL,
+  `rse_id` smallint(5) unsigned NOT NULL,
+  `request_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `replica_id` int(10) unsigned NOT NULL,
+  `file_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `distance` float NOT NULL DEFAULT 100.0,
+  `cache_time` datetime NOT NULL,
+  INDEX `multiple` (`site_id`, `request_id`, `stage_id`,
+                    `distance`, `file_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `storages`
 --
 

@@ -263,6 +263,72 @@ def findFile(jobDict):
            'rse_name'     : fileRows[0]['rse_name']
          }
 
+# (Almost) Just in time decision making: identify the best file 
+# based on the immediate situation rather than trying to plan 
+# ahead of time
+def findCachedFile(jobDict):
+
+  query = (
+ "SELECT file_did,find_file_cache.file_id,lan_pfn,wan_pfn,"
+ "rse_name,find_file_cache.rse_id,distance "
+ "FROM find_file_cache "
+ "LEFT JOIN files ON files.file_id=find_file_cache.file_id "
+ "LEFT JOIN replicas ON replicas.file_id=find_file_cache.file_id "
+ "LEFT JOIN storages ON storages.rse_id=replicas.rse_id "
+ "WHERE "
+ "find_file_cache.site_id=%d AND "
+ "find_file_cache.request_id=%d AND "
+ "find_file_cache.stage_id=%d AND "
+ "files.state='unallocated' "
+ "ORDER BY distance,find_file_cache.file_id "
+ "LIMIT 1 FOR UPDATE" %
+ (jobDict['site_id'],
+  jobDict['request_id'],
+  jobDict['stage_id']))
+     
+  replicaRow = wfs.db.select(query, justOne=True)
+  
+  if not replicaRow:
+    # No matches found
+    return { 'error_message': None,
+             'file_did'     : None
+           }
+
+  try: 
+    query = ("UPDATE files SET state='allocated',"
+             "allocations=allocations+1,"
+             "wfs_job_id=" + str(jobDict['wfs_job_id']) + " "
+             "WHERE file_id=" + str(replicaRow['file_id'])
+            )
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    # If anything goes wrong, we stop straightaway
+    return { 'error_message': 'Failed recording state change: ' + str(e) }
+
+  wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATED,
+                  requestID   = jobDict['request_id'],
+                  stageID     = jobDict['stage_id'],
+                  fileID      = replicaRow['file_id'],
+                  wfsJobID    = jobDict['wfs_job_id'],
+                  siteID      = jobDict['site_id'],
+                  rseID       = replicaRow['rse_id'])
+
+  # If storage is at the same site and a lan PFN is given, use it
+  if replicaRow['distance'] == 0 and replicaRow['lan_pfn']:
+    pfn = replicaRow['lan_pfn']
+  else:
+    pfn = replicaRow['wan_pfn']
+
+  # The dictionary to return, with the highest priority result
+  replica = { 'error_message' : None,
+              'file_did'      : replicaRow['file_did'],
+              'pfn'           : pfn,
+              'rse_name'      : replicaRow['rse_name']
+            }
+            
+
+  return replica
+
 def updateStageCounts(requestID, stageID):
 # Do a brute force recount of everything for this stage rather than try 
 # to use increments

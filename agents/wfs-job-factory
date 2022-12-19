@@ -51,7 +51,7 @@ import MySQLdb
 import wfs
 
 sleepSeconds      = 60
-jobsPerCluster    = 192
+jobsPerCluster    = 128
 maxSubmittedRatio = 2
 
 class wfsError(Exception):
@@ -162,6 +162,17 @@ def submitJobs(numberToSubmit,
                ignoreStr,
                forWtf = False):
 
+  logLine('submitJobs %d %s %s %d-%d %d-%d %d %s' %
+          (numberToSubmit,
+           siteID,
+           jobsubSiteName,
+           minProcessors,
+           maxProcessors,
+           minRssBytes,
+           maxRssBytes,
+           maxWallSeconds,
+           ignoreStr))
+
   try: 
     outcome = subprocess.run(
                ["/var/lib/wfs/run-jobsub-submit",
@@ -170,7 +181,7 @@ def submitJobs(numberToSubmit,
                 str(int(maxRssBytes / 1024)),
                 str(maxProcessors),
                 str(maxWallSeconds),
-                ignoreStr+' '
+                ignoreStr
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
@@ -313,6 +324,8 @@ def anySiteJobs(unallocatedCounts, ignoreSites):
             
     if numberUnallocated > numberSubmitted:    
       ignoreStr = ','.join(ignoreSites[(processors,bytesPerProcessor)])    
+      if not ignoreStr:
+        ignoreStr = ' '
       
       logLine('Submit jobs with blacklist: ' + ignoreStr)
       submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
@@ -388,9 +401,63 @@ def perSiteJobs():
                      minRssBytes    = jobDict['min_rss_bytes'],
                      maxRssBytes    = jobDict['max_rss_bytes'],
                      maxWallSeconds = jobDict['max_wall_seconds'],
-                     ignoreStr      = None,
+                     ignoreStr      = ' ',
                      forWtf         = False)
-    
+
+def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
+  # Cache best replicas info for the best stage for a site, relative
+  # to that site
+
+  try:
+    replicaRows = wfs.db.select('SELECT replica_id,'
+                   'replicas.rse_id,'
+                   'files.file_id,'
+                   'distance '
+                   'FROM files '
+                   'LEFT JOIN replicas ON files.file_id=replicas.file_id '
+                   'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
+                   'LEFT JOIN sites_storages ON '
+                   'replicas.rse_id=sites_storages.rse_id AND '
+                   'sites_storages.site_id=%d '
+                   'WHERE request_id=%d AND stage_id=%d AND '
+                   'files.state="unallocated" AND '
+                   'distance<=%f AND '
+                   'accessible_until > NOW() '
+                   'ORDER by distance,files.file_id LIMIT 500' % 
+                   (siteID, requestID, stageID, maxDistance))
+  except Exception as e:
+    logLine('Failed getting replica info to cache: %s' % str(e))
+    return
+
+  # Go through the replicas, caching them
+  for replicaRow in replicaRows:
+    logLine('Replica %d for %d,%d' % 
+            (replicaRow['replica_id'], 
+             requestID,
+             stageID))
+    try:
+      wfs.db.insertUpdate('INSERT INTO find_file_cache SET '
+                          'site_id=%d,'
+                          'request_id=%d,'
+                          'stage_id=%d,'
+                          'distance=%f,'
+                          'file_id=%d,'
+                          'rse_id=%d,'
+                          'replica_id=%d,'
+                          'cache_time=NOW()' %
+                          (siteID,
+                           requestID,
+                           stageID,
+                           replicaRow['distance'],
+                           replicaRow['file_id'],
+                           replicaRow['rse_id'],
+                           replicaRow['replica_id']
+                          )
+                         )
+    except Exception as e:
+      logLine('Failed caching replica info: %s' % str(e))
+      continue
+
 def cacheFindStageResults(unallocatedCounts, ignoreSites):
   # Go through the sites recording what findStage() returns
 
@@ -439,8 +506,9 @@ def cacheFindStageResults(unallocatedCounts, ignoreSites):
         ignoreSites[(processors,bytesPerProcessor)].append(
                                                 siteRow['jobsub_site_name'])
       else:
-        requestID = stage['request_id']
-        stageID   = stage['stage_id']
+        requestID   = stage['request_id']
+        stageID     = stage['stage_id']
+        maxDistance = stage['max_distance']
         logLine('Match(es) found (%d,%d) for site %s - caching' % 
                 (requestID, stageID, siteRow['site_name']))
 
@@ -474,12 +542,23 @@ def cacheFindStageResults(unallocatedCounts, ignoreSites):
 
         except Exception as e:
           logLine('Record  fails with: ' + str(e))
+
+        cacheFindFileResults(jobDict['site_id'], 
+                             requestID, 
+                             stageID, 
+                             maxDistance)
    
   try:
     wfs.db.insertUpdate('DELETE FROM get_stage_cache '
                         'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
   except Exception as e:
     logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
+
+  try:
+    wfs.db.insertUpdate('DELETE FROM find_file_cache '
+                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
+  except Exception as e:
+    logLine('Delete previous find_file_cache entries fails with: ' + str(e))
 
   # Commit what we did    
   wfs.db.conn.commit()
@@ -513,7 +592,7 @@ def wtfJobsToSites():
                  minRssBytes    = 0,
                  maxRssBytes    = 1024 * 1024 * 1024,
                  maxWallSeconds = 3600,
-                 ignoreStr      = None,
+                 ignoreStr      = ' ',
                  forWtf         = True)
     
 def oneCycle():
