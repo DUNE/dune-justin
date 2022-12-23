@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+#
+#  wfs-stage-cache - WFS Stage Cache
+# 
+#  Andrew McNab, University of Manchester.
+#  Copyright (c) 2013-22. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or
+#  without modification, are permitted provided that the following
+#  conditions are met:
+#
+#    o Redistributions of source code must retain the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer.
+#    o Redistributions in binary form must reproduce the above
+#      copyright notice, this list of conditions and the following
+#      disclaimer in the documentation and/or other materials
+#      provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+#  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+#  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+import os
+import sys
+import stat
+import time
+import tempfile
+import subprocess
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+# wfs/conf.py must define these variables in a way that is both
+# valid Python and valid Bash!
+#
+# mysqlUser='username'
+# mysqlPassword='PAsSWoRd'
+#
+import wfs
+
+sleepSeconds      = 60
+
+class wfsError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
+  # Cache best replicas info for the best stage for a site, relative
+  # to that site
+
+  try:
+    replicaRows = wfs.db.select('SELECT replicas.file_id,'
+                   'replicas.replica_id,'
+                   'replicas.rse_id,'
+                   'distance '
+                   'FROM replicas '
+                   'LEFT JOIN files ON files.file_id=replicas.file_id '
+                   'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
+                   'LEFT JOIN sites_storages ON '
+                   'replicas.rse_id=sites_storages.rse_id AND '
+                   'sites_storages.site_id=%d '
+                   'WHERE replicas.request_id=%d AND replicas.stage_id=%d AND '
+                   'files.state="unallocated" AND '
+                   'distance<=%f AND '
+                   'accessible_until > NOW() '
+                   'ORDER by distance,replicas.file_id LIMIT 1000' % 
+                   (siteID, requestID, stageID, maxDistance))
+  except Exception as e:
+    logLine('Failed getting replica info to cache: %s' % str(e))
+    return
+
+  filesSeen = set()
+
+  for replicaRow in replicaRows:
+    # Go through the replicas, caching them.
+    # Do not add more distant replicas of files already seen.
+    # This deduplication in the Python agent reduces the big scans of
+    # the database which block other services.
+    if replicaRow['file_id'] in filesSeen or len(filesSeen) >= 350:
+      continue
+      
+    filesSeen.add(replicaRow['file_id'])
+  
+    try:
+      wfs.db.insertUpdate('INSERT INTO find_file_cache SET '
+                          'site_id=%d,'
+                          'request_id=%d,'
+                          'stage_id=%d,'
+                          'distance=%f,'
+                          'file_id=%d,'
+                          'rse_id=%d,'
+                          'replica_id=%d,'
+                          'cache_time=NOW()' %
+                          (siteID,
+                           requestID,
+                           stageID,
+                           replicaRow['distance'],
+                           replicaRow['file_id'],
+                           replicaRow['rse_id'],
+                           replicaRow['replica_id']
+                          )
+                         )
+    except Exception as e:
+      logLine('Failed caching replica info: %s' % str(e))
+      continue
+
+def cacheFindStageResults():
+  # Go through the sites recording what findStage() returns
+
+  # We use this time to remove previous cache entries
+  cutoffTime = int(time.time())
+
+  try:
+    siteRows = wfs.db.select('SELECT site_id,site_name,'
+                             'enabled,jobsub_site_name '
+                             'FROM sites ORDER by site_name')
+  except Exception as e:
+    logLine('Failed getting list of sites for get_stage_cache: ' + str(e))
+    return
+
+  for (processors,bytesPerProcessor,numberUnallocated) \
+   in wfs.allocator.getUnallocatedCounts():
+    
+    for siteRow in siteRows:
+
+      if siteRow['enabled']:
+        jobDict = { "error_message"   : None,
+                  "site_id"         : siteRow['site_id'],
+                  "site_name"       : siteRow['site_name'],
+                  "min_processors"  : processors - 1,
+                  "max_processors"  : processors,
+                  "min_rss_bytes"   : bytesPerProcessor * (processors - 1),
+                  "max_rss_bytes"   : bytesPerProcessor * processors,
+                  "max_wall_seconds": 86400
+                }
+                      
+        try:
+          print(jobDict)
+          stage = wfs.allocator.findStage(jobDict, 
+                                          limit = 1,
+                                          forUpdate = False)
+          print(stage)
+        except Exception as e:
+          logLine('Update findStage fails with: ' + str(e))
+          stage = None
+      else:
+        stage = None
+   
+      if not stage:
+        requestID = 0
+        stageID   = 0
+      else:
+        requestID   = stage['request_id']
+        stageID     = stage['stage_id']
+        maxDistance = stage['max_distance']
+        logLine('Match(es) found (%d,%d) for site %s - caching' % 
+                (requestID, stageID, siteRow['site_name']))
+
+        try:
+          wfs.db.insertUpdate('INSERT INTO get_stage_cache SET '
+                              'site_id=%d,'
+                              'min_processors=%d,'
+                              'max_processors=%d,'
+                              'min_rss_bytes=%d,'
+                              'max_rss_bytes=%d,'
+                              'max_wall_seconds=%d,'
+                              'request_id=%d,'
+                              'stage_id=%d,'
+                              'cache_time=NOW() '
+                              'ON DUPLICATE KEY UPDATE ' 
+                              'request_id=%d,'
+                              'stage_id=%d,'
+                              'cache_time=NOW() ' % 
+                              (jobDict['site_id'],
+                               jobDict['min_processors'],
+                               jobDict['max_processors'],
+                               jobDict['min_rss_bytes'],
+                               jobDict['max_rss_bytes'],
+                               jobDict['max_wall_seconds'],
+                               requestID,
+                               stageID,
+                               requestID,
+                               stageID
+                              )
+                             )
+
+        except Exception as e:
+          logLine('Record  fails with: ' + str(e))
+
+        cacheFindFileResults(jobDict['site_id'], 
+                             requestID, 
+                             stageID, 
+                             maxDistance)
+   
+  try:
+    wfs.db.insertUpdate('DELETE FROM get_stage_cache '
+                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
+  except Exception as e:
+    logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
+
+  try:
+    wfs.db.insertUpdate('DELETE FROM find_file_cache '
+                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
+  except Exception as e:
+    logLine('Delete previous find_file_cache entries fails with: ' + str(e))
+
+  # Commit what we did    
+  wfs.db.conn.commit()
+
+def oneCycle():
+  # Update the database with the states of submitted jobsub jobs
+
+  logLine("cacheFindStageResults()")
+  cacheFindStageResults()
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs('/var/run/wfs',         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open('/var/run/wfs/stage-cache.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create /var/run/wfs/stage-cache.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/wfs directory exists
+        try:
+          os.makedirs('/var/log/wfs', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/wfs/stage-cache', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+          
+        se = open('/var/log/wfs/stage-cache', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open('/var/run/wfs/stage-cache.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new /var/run/wfs/stage-cache.pid - exiting')
+            break
+
+        except:
+          print('no /var/run/wfs/stage-cache.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          wfs.conf.readConf()
+          
+          try:
+            wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
+                                  user=wfs.conf.mysqlUsername,
+                                  passwd=wfs.conf.mysqlPassword, 
+                                  db=wfs.conf.mysqlDbName)
+            wfs.db.conn.autocommit(False)
+            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+

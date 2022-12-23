@@ -148,7 +148,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
                'ON sites_storages.rse_id=storages.rse_id '
                'AND sites_storages.site_id=%d '
                'LEFT JOIN replicas '
-               'ON replicas.file_id=%d AND replicas.rse_id=storages.rse_id '
+               'ON replicas.request_id=%d AND replicas.rse_id=storages.rse_id '
                'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL' % 
                (jobDict['site_id'], wfs.db.wtfRequestID) )
 
@@ -267,6 +267,11 @@ def getStageMethod(jsonDict):
     # Quick hack for now until the site names finalised
     jsonDict['site_name'] = 'US_FNAL'
   
+  if jsonDict['site_name'] == 'XX_UNKNOWN':
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    httpError('400 Bad Request', 'Unknown site')
+
+  print('Before UPDATE jobs site_name', file=sys.stderr)
   try:
     wfs.db.insertUpdate('UPDATE jobs SET '
                         'site_id=(SELECT site_id FROM sites '
@@ -281,6 +286,7 @@ def getStageMethod(jsonDict):
               '(site_name=%s): %s' %
               (str(jsonDict['site_name']), str(e)))
     
+  print('Before makeJobDict()', file=sys.stderr)
   # Find details of the job
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
@@ -303,13 +309,14 @@ def getStageMethod(jsonDict):
     httpError('404 Not Found',
               'No stage allocated as site not enabled')
 
-  # Already at limit of running jobs for this site
-  if jobDict['running_jobs'] >= jobDict['max_jobs']:
-    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-    httpError('404 Not Found',
-              'No stage allocated as running jobs (%d) >= max jobs (%d)'
-              % (jobDict['running_jobs'], jobDict['max_jobs']))
+#  # Already at limit of running jobs for this site
+#  if jobDict['running_jobs'] >= jobDict['max_jobs']:
+#    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+#    httpError('404 Not Found',
+#              'No stage allocated as running jobs (%d) >= max jobs (%d)'
+#              % (jobDict['running_jobs'], jobDict['max_jobs']))
 
+  print('Before UPDATE sites last_get_stage_time', file=sys.stderr)
   try:
     wfs.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
                         'WHERE site_id=%d' % jobDict['site_id'])
@@ -327,6 +334,7 @@ def getStageMethod(jsonDict):
     # Use the Just In Time decision making: identify the best request+stage 
     # candidate combination at this moment
     try:
+      print('Before findCachedStage()', file=sys.stderr)
       stage = wfs.allocator.findCachedStage(jobDict)
     except Exception as e:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -339,12 +347,14 @@ def getStageMethod(jsonDict):
 
   cookie = str(uuid.uuid4())
 
+  print('Before UPDATE jobs SET', file=sys.stderr)
   try:
     wfs.db.insertUpdate(
              'UPDATE jobs SET '
              'site_job_id="' + str(jsonDict['site_job_id']) + '",'
              'allocation_time=NOW(),' 
-             'heartbeat_time=NOW(),' 
+             'heartbeat_time=NOW(),'
+             'finished_time="' + wfs.db.unixEpoch + '",' 
              'allocation_state="started",'
              'allocator_name="' + allocatorName + '",' 
              'request_id=' + str(stage['request_id']) + ','
@@ -363,12 +373,14 @@ def getStageMethod(jsonDict):
     httpError('500 Internal Server Error', 
               'Workflow allocator failed updating allocated job: ' + str(e))
 
+  print('Before makeTarFile', file=sys.stderr)
   tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_wtf'])
   
   if not tarFile:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     httpError('500 Internal Server Error', 'Failed to create tar file')
         
+  print('Before updateStageCounts', file=sys.stderr)
   wfs.allocator.updateStageCounts(stage['request_id'], 
                                   stage['stage_id'])
  
@@ -376,6 +388,7 @@ def getStageMethod(jsonDict):
   # We do this before the HTTP response in case
   # it is received ok by the job and run 
   # but times out and fails here on the server side
+  print('Before commit()', file=sys.stderr)
   try:
     wfs.db.conn.commit()
   except Exception as e:
@@ -383,6 +396,7 @@ def getStageMethod(jsonDict):
     httpError('500 Internal Server Error',
               'Workflow allocator get_stage commit failed: ' + str(e))
   
+  print('Before Status 200 OK', file=sys.stderr)
   # Return the script to the workflow job 
   print('Status: 200 OK')
   print('Content-Type: application/x-tar')
@@ -577,7 +591,6 @@ def updateFileProcessing(fileIDList,
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
-    
     else:
       query = ('UPDATE files SET state="outputting" '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
@@ -699,6 +712,10 @@ def recordResultsMethod(jsonDict):
         jobFile['lan_pfn'] in jsonDict['processed_pfns']):
       processedFileIDs.append(jobFile['file_id'])
     else:
+      print('Set unprocessed',jsonDict['jobsub_id'],
+            jobFile['file_did'],
+            jobFile['wan_pfn'], jobFile['lan_pfn'], 
+            str(jsonDict['processed_pfns']), file=sys.stderr)
       unprocessedFileIDs.append(jobFile['file_id'])
 
   # For processed inputs, we just record they got as far as outputting
@@ -955,15 +972,16 @@ except Exception as e:
   
 # Get the stage for the job to work on
 if jsonDict['method'] == 'get_stage':
-  try:
-    getAllocatorLock(10)
-  except Exception as e:
-    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-    httpError('503 Service Unavailable',
-              'Unable to get allocator lock for get_stage method. '
-              'Too busy? Exception: %s' % str(e))
+#  try:
+#    getAllocatorLock(10)
+#  except Exception as e:
+#    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+#    httpError('503 Service Unavailable',
+#              'Unable to get allocator lock for get_stage method. '
+#              'Too busy? Exception: %s' % str(e))
   
   # Fails with an HTTP error and exit if authorized ID not given
+  print('Before checkJobUser()', file=sys.stderr)
   checkJobUser()
   getStageMethod(jsonDict)
 

@@ -51,8 +51,12 @@ import MySQLdb
 import wfs
 
 sleepSeconds      = 60
-jobsPerCluster    = 128
-maxSubmittedRatio = 2
+jobsPerCluster    = 192
+
+# Jobsub names of all sites we always ignore. This is for sites unknown to us 
+# because they do not have pilot factory entries. Known sites are disabled in
+# the database.
+alwaysIgnoreSitesList = [ 'UConn-HPC' ] 
 
 class wfsError(Exception):
   pass
@@ -60,77 +64,6 @@ class wfsError(Exception):
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
-
-def parseJobsubQ():
-
-  try: 
-    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-q'],
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.STDOUT,
-                             stdout  = subprocess.PIPE,
-                             timeout = 60
-                            ) 
-  except Exception as e:
-    logLine("run-jobsub-q fails with error: " + str(e))
-    return
-
-  logLine(outcome.stdout.decode())
-  
-  for line in outcome.stdout.decode().splitlines():
-    if '@jobsub' in line and 'wfs-generic-job' in line:
-      jobsubID = line.split()[0]
-      state    = line.split()[5]
-
-      try:
-        wfs.db.cur.execute('UPDATE jobs '
-                    'SET jobsub_state="%s" '
-                    'WHERE jobsub_id="%s"'
-                    % (state, jobsubID)
-                   )
-
-      except Exception as e:
-        # But try to keep going
-        logLine('Update jobsub job ' + jobsubID + ' fails with: ' + str(e))
-
-  # Commit whatever we found - no rush
-  wfs.db.conn.commit()
-
-def parseJobsubHistory():
-
-  try: 
-    outcome = subprocess.run(['/var/lib/wfs/run-jobsub-history'],
-                             stdin   = subprocess.DEVNULL,
-                             stderr  = subprocess.STDOUT,
-                             stdout  = subprocess.PIPE,
-                             timeout = 60
-                            ) 
-  except Exception as e:
-    logLine("run-jobsub-history fails with error: " + str(e))
-    return
-
-  logLine(outcome.stdout.decode())
-  
-  for line in outcome.stdout.decode().splitlines():
-    if '@jobsub' in line and 'wfs-generic-job' in line:
-      jobsubID = line.split()[0]
-      try:
-        state = line.split()[6]
-      except:
-        state = 'X'
-
-      try:
-        wfs.db.cur.execute('UPDATE jobs '
-                    'SET jobsub_state="%s" '
-                    'WHERE jobsub_id="%s"'
-                    % (state, jobsubID)
-                   )
-
-      except Exception as e:
-        # But try to keep going
-        logLine('Update jobs fails with: ' + str(e))
-
-  # Commit whatever we found - no rush
-  wfs.db.conn.commit()
 
 def updateSiteCounts():
 
@@ -263,41 +196,10 @@ def submitJobs(numberToSubmit,
   # Commit it all to the DB
   wfs.db.conn.commit()
 
-def recordUnallocatedCounts(unallocatedCounts):
-
-  for processors in range(1, 9):
-    for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024]:
-      
-      try:
-        matches = wfs.db.select('SELECT COUNT(*) AS count FROM files '
-                                'LEFT JOIN requests '
-                                'ON requests.request_id = files.request_id '
-                                'LEFT JOIN stages '
-                                'ON stages.request_id = files.request_id AND '
-                                'stages.stage_id = files.stage_id '
-                                'WHERE files.state = "unallocated" AND '
-                                'requests.state="running" AND '
-                                'stages.processors = %d AND '
-                                'stages.rss_bytes > %d AND '
-                                'stages.rss_bytes <= %d' %
-                                (processors,
-                                 bytesPerProcessor * (processors - 1),
-                                 bytesPerProcessor * processors
-                                ), justOne = True
-                               )
-
-        if matches['count']:
-          unallocatedCounts.append((processors, 
-                                    bytesPerProcessor,
-                                    matches['count']
-                                  ))
-      except Exception as e:
-        logLine('Failed getting count of unallocated: ' + str(e))
-        continue
-
-def anySiteJobs(unallocatedCounts, ignoreSites):
-
-  for (processors, bytesPerProcessor, numberUnallocated) in unallocatedCounts:
+def anySiteJobs():
+  
+  for (processors, bytesPerProcessor, numberUnallocated) \
+   in wfs.allocator.getUnallocatedCounts():
     logLine('%d processor(s) %d MB: %d unallocated files' % 
             (processors, 
             int((bytesPerProcessor * processors) / (1024 * 1024)), 
@@ -305,6 +207,33 @@ def anySiteJobs(unallocatedCounts, ignoreSites):
 
     if numberUnallocated > jobsPerCluster:
       numberUnallocated = jobsPerCluster
+
+    try:
+      ignoreRows = wfs.db.select('SELECT jobsub_site_name '
+                     'FROM sites '
+                     'LEFT JOIN get_stage_cache '
+                     'ON get_stage_cache.site_id=sites.site_id '
+                     'AND get_stage_cache.min_processors=%d '
+                     'AND get_stage_cache.max_processors=%d '
+                     'AND get_stage_cache.min_rss_bytes=%d '
+                     'AND get_stage_cache.max_rss_bytes=%d '
+                     'AND get_stage_cache.max_wall_seconds=%d '
+                     'WHERE get_stage_cache.site_id IS NULL '
+                     'OR NOT sites.enabled '
+                     'ORDER by site_name' % 
+                     (processors - 1, 
+                      processors, 
+                      bytesPerProcessor * (processors - 1),
+                      bytesPerProcessor * processors,
+                      86400))
+    except Exception as e:
+      logLine('Failed getting list of ignored sites for get_stage_cache: ' + 
+              str(e))
+      return
+
+    ignoreSites = alwaysIgnoreSitesList
+    for ignoreRow in ignoreRows:
+      ignoreSites.append(ignoreRow['jobsub_site_name'])
 
     try:
         submitted = wfs.db.select('SELECT COUNT(*) AS count FROM jobs '
@@ -322,8 +251,8 @@ def anySiteJobs(unallocatedCounts, ignoreSites):
         logLine('Failed getting count of submitted jobs: ' + str(e))
         continue
             
-    if numberUnallocated > numberSubmitted:    
-      ignoreStr = ','.join(ignoreSites[(processors,bytesPerProcessor)])    
+    if numberUnallocated > numberSubmitted:
+      ignoreStr = ','.join(ignoreSites)
       if not ignoreStr:
         ignoreStr = ' '
       
@@ -338,230 +267,6 @@ def anySiteJobs(unallocatedCounts, ignoreSites):
                      maxWallSeconds = 86400,
                      ignoreStr      = ignoreStr,
                      forWtf         = False)
-        
-      
-
-def perSiteJobs():  
-  # Go through the sites deciding what to submit for that site
-
-  try:
-    siteRows = wfs.db.select('SELECT sites.site_id,'
-      'site_name,'
-      'jobsub_site_name,'
-      'max_rss_bytes,'
-      'max_processors,'
-      'max_wall_seconds,'
-      'submitted_jobs,'
-      'running_jobs,'
-      'max_jobs '
-      'FROM sites '
-      'WHERE enabled AND '
-      '(submitted_jobs + running_jobs < max_jobs) '
-      'ORDER BY site_name'
-               )
-
-  except Exception as e:
-    logLine('Failed getting list of sites for per-site jobs: ' + str(e))
-    return
-  
-  for siteRow in siteRows:
-    for processors in range(1, siteRow['max_processors'] + 1):
-
-      jobDict = { "error_message"   : None,
-                  "site_id"         : siteRow['site_id'],
-                  "site_name"       : siteRow['site_name'],
-                  "min_processors"  : processors - 1,
-                  "max_processors"  : processors,
-                  "min_rss_bytes"   : int(((processors - 1) * 
-                                       siteRow['max_rss_bytes'])
-                                       / siteRow['max_processors']),
-                  "max_rss_bytes"   : int((processors * 
-                                       siteRow['max_rss_bytes'])
-                                       / siteRow['max_processors']),
-                  "max_wall_seconds": siteRow['max_wall_seconds']
-                }
-                      
-      try:
-        print(jobDict)
-        stage = wfs.allocator.findStage(jobDict, 
-                                        limit = jobsPerCluster,
-                                        forUpdate = False)
-        print(stage)
-      except Exception as e:
-        logLine('Update findStage fails with: ' + str(e))
-        stage = None
-   
-      if stage:
-        logLine('Matches found - submit %d job(s)' % stage['matches'])
-        submitJobs(  numberToSubmit = stage['matches'],
-                     siteID         = siteRow['site_id'],
-                     jobsubSiteName = siteRow['jobsub_site_name'],
-                     minProcessors  = jobDict['min_processors'],
-                     maxProcessors  = jobDict['max_processors'],
-                     minRssBytes    = jobDict['min_rss_bytes'],
-                     maxRssBytes    = jobDict['max_rss_bytes'],
-                     maxWallSeconds = jobDict['max_wall_seconds'],
-                     ignoreStr      = ' ',
-                     forWtf         = False)
-
-def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
-  # Cache best replicas info for the best stage for a site, relative
-  # to that site
-
-  try:
-    replicaRows = wfs.db.select('SELECT replica_id,'
-                   'replicas.rse_id,'
-                   'files.file_id,'
-                   'distance '
-                   'FROM files '
-                   'LEFT JOIN replicas ON files.file_id=replicas.file_id '
-                   'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
-                   'LEFT JOIN sites_storages ON '
-                   'replicas.rse_id=sites_storages.rse_id AND '
-                   'sites_storages.site_id=%d '
-                   'WHERE request_id=%d AND stage_id=%d AND '
-                   'files.state="unallocated" AND '
-                   'distance<=%f AND '
-                   'accessible_until > NOW() '
-                   'ORDER by distance,files.file_id LIMIT 500' % 
-                   (siteID, requestID, stageID, maxDistance))
-  except Exception as e:
-    logLine('Failed getting replica info to cache: %s' % str(e))
-    return
-
-  # Go through the replicas, caching them
-  for replicaRow in replicaRows:
-    logLine('Replica %d for %d,%d' % 
-            (replicaRow['replica_id'], 
-             requestID,
-             stageID))
-    try:
-      wfs.db.insertUpdate('INSERT INTO find_file_cache SET '
-                          'site_id=%d,'
-                          'request_id=%d,'
-                          'stage_id=%d,'
-                          'distance=%f,'
-                          'file_id=%d,'
-                          'rse_id=%d,'
-                          'replica_id=%d,'
-                          'cache_time=NOW()' %
-                          (siteID,
-                           requestID,
-                           stageID,
-                           replicaRow['distance'],
-                           replicaRow['file_id'],
-                           replicaRow['rse_id'],
-                           replicaRow['replica_id']
-                          )
-                         )
-    except Exception as e:
-      logLine('Failed caching replica info: %s' % str(e))
-      continue
-
-def cacheFindStageResults(unallocatedCounts, ignoreSites):
-  # Go through the sites recording what findStage() returns
-
-  # We use this time to remove previous cache entries
-  cutoffTime = int(time.time())
-
-  try:
-    siteRows = wfs.db.select('SELECT site_id,site_name,'
-                             'enabled,jobsub_site_name '
-                             'FROM sites ORDER by site_name')
-  except Exception as e:
-    logLine('Failed getting list of sites for get_stage_cache: ' + str(e))
-    return
-  
-  for (processors,bytesPerProcessor,numberUnallocated) in unallocatedCounts:   
-    ignoreSites[(processors,bytesPerProcessor)] = []
-    
-    for siteRow in siteRows:
-
-      if siteRow['enabled']:
-        jobDict = { "error_message"   : None,
-                  "site_id"         : siteRow['site_id'],
-                  "site_name"       : siteRow['site_name'],
-                  "min_processors"  : processors - 1,
-                  "max_processors"  : processors,
-                  "min_rss_bytes"   : bytesPerProcessor * (processors - 1),
-                  "max_rss_bytes"   : bytesPerProcessor * processors,
-                  "max_wall_seconds": 86400
-                }
-                      
-        try:
-          print(jobDict)
-          stage = wfs.allocator.findStage(jobDict, 
-                                          limit = 1,
-                                          forUpdate = False)
-          print(stage)
-        except Exception as e:
-          logLine('Update findStage fails with: ' + str(e))
-          stage = None
-      else:
-        stage = None
-   
-      if not stage:
-        requestID = 0
-        stageID   = 0
-        ignoreSites[(processors,bytesPerProcessor)].append(
-                                                siteRow['jobsub_site_name'])
-      else:
-        requestID   = stage['request_id']
-        stageID     = stage['stage_id']
-        maxDistance = stage['max_distance']
-        logLine('Match(es) found (%d,%d) for site %s - caching' % 
-                (requestID, stageID, siteRow['site_name']))
-
-        try:
-          wfs.db.insertUpdate('INSERT INTO get_stage_cache SET '
-                              'site_id=%d,'
-                              'min_processors=%d,'
-                              'max_processors=%d,'
-                              'min_rss_bytes=%d,'
-                              'max_rss_bytes=%d,'
-                              'max_wall_seconds=%d,'
-                              'request_id=%d,'
-                              'stage_id=%d,'
-                              'cache_time=NOW() '
-                              'ON DUPLICATE KEY UPDATE ' 
-                              'request_id=%d,'
-                              'stage_id=%d,'
-                              'cache_time=NOW() ' % 
-                              (jobDict['site_id'],
-                               jobDict['min_processors'],
-                               jobDict['max_processors'],
-                               jobDict['min_rss_bytes'],
-                               jobDict['max_rss_bytes'],
-                               jobDict['max_wall_seconds'],
-                               requestID,
-                               stageID,
-                               requestID,
-                               stageID
-                              )
-                             )
-
-        except Exception as e:
-          logLine('Record  fails with: ' + str(e))
-
-        cacheFindFileResults(jobDict['site_id'], 
-                             requestID, 
-                             stageID, 
-                             maxDistance)
-   
-  try:
-    wfs.db.insertUpdate('DELETE FROM get_stage_cache '
-                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
-  except Exception as e:
-    logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
-
-  try:
-    wfs.db.insertUpdate('DELETE FROM find_file_cache '
-                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
-  except Exception as e:
-    logLine('Delete previous find_file_cache entries fails with: ' + str(e))
-
-  # Commit what we did    
-  wfs.db.conn.commit()
 
 def wtfJobsToSites():
   # Go through the sites deciding where to submit WTF jobs
@@ -598,19 +303,14 @@ def wtfJobsToSites():
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
 
-#  parseJobsubQ()
-#  parseJobsubHistory()
-  updateSiteCounts()
+#  logLine("updateSiteCounts()")
+#  updateSiteCounts()
 
+  logLine("wtfJobsToSites()")
   wtfJobsToSites()
-#  perSiteJobs()
 
-  unallocatedCounts = []
-  recordUnallocatedCounts(unallocatedCounts)
-
-  ignoreSites = {}
-  cacheFindStageResults(unallocatedCounts, ignoreSites)
-  anySiteJobs(unallocatedCounts, ignoreSites)
+  logLine("anySiteJobs()")
+  anySiteJobs()
 
 #
 # PROGRAM MAIN

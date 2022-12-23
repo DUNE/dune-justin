@@ -286,7 +286,9 @@ def showReplicasCmd(jsonDict):
   if rseName:
     filter += " AND storages.rse_name='%s'" % rseName
 
-  rows = doSelect("SELECT * FROM replicas "
+  rows = doSelect("SELECT replicas.request_id,replicas.stage_id,files.state,"
+                 "storages.rse_name,files.file_did "
+                 "FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
                  "LEFT JOIN files ON replicas.file_id=files.file_id "
                  "WHERE " + filter + " ORDER BY "
@@ -894,8 +896,8 @@ def addFileCmd(jsonDict):
   for rseName in rseList:
     doQuery("INSERT INTO replicas SET "
             "rse_id=(SELECT rse_id FROM storages WHERE rse_name='%s'),"
-            "file_id=%d" % 
-            (rseName, fileID))
+            "file_id=%d,request_id=%d,stage_id=%d" % 
+            (rseName, fileID, requestID, stageID))
               
   wfs.db.conn.commit()
 

@@ -1179,7 +1179,7 @@ def listSites(cgiValues):
         '<th>RSS(MB) / Processors</th>'
         '<th>Max Wall Seconds</th>'
 #        '<th>Submitted jobs</th>'
-        '<th>Running jobs</th>'
+#        '<th>Running jobs</th>'
         '<th>Max jobs</th>'
         '<th colspan=2>&nbsp;</th>'
         '</tr>')
@@ -1197,7 +1197,7 @@ def listSites(cgiValues):
           '<td style="text-align: right">%d / %d = %d</td>'
           '<td style="text-align: right">%d</td>'
 #          '<td style="text-align: right">%d</td>'
-          '<td style="text-align: right">%d</td>'
+#          '<td style="text-align: right">%d</td>'
           '<td style="text-align: right">%d</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
@@ -1217,7 +1217,7 @@ def listSites(cgiValues):
                     / siteRow['max_processors']) / 1048576),
              siteRow['max_wall_seconds'],
 #             siteRow['submitted_jobs'],
-             siteRow['running_jobs'],
+#             siteRow['running_jobs'],
              siteRow['max_jobs'],
              siteRow['site_name'],
              siteRow['wlcg_site_name']
@@ -1319,9 +1319,9 @@ def showSite(cgiValues):
 
   print('<tr><td>Last AWT test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_wtf_time']))
 
-  print('<tr><td>Submitted jobs</td><td>%d</td></tr>' % siteRow['submitted_jobs'])
-
-  print('<tr><td>Running jobs</td><td>%d</td></tr>' % siteRow['running_jobs'])
+#  print('<tr><td>Submitted jobs</td><td>%d</td></tr>' % siteRow['submitted_jobs'])
+#
+#  print('<tr><td>Running jobs</td><td>%d</td></tr>' % siteRow['running_jobs'])
 
   print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 

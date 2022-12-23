@@ -114,6 +114,45 @@ def makeJobDict(jobsubID, cookie = None):
            "max_wall_seconds" : job['max_wall_seconds']
          }
 
+# Populate the list unallocatedCounts with tuples for the number of
+# unallocated files for any running request or stage for each processor
+# and memory combination
+def getUnallocatedCounts():
+
+  unallocatedCounts = []
+
+  for processors in range(1, 9):
+    for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024]:
+      
+      try:
+        matches = wfs.db.select('SELECT COUNT(*) AS count FROM files '
+                                'LEFT JOIN requests '
+                                'ON requests.request_id = files.request_id '
+                                'LEFT JOIN stages '
+                                'ON stages.request_id = files.request_id AND '
+                                'stages.stage_id = files.stage_id '
+                                'WHERE files.state = "unallocated" AND '
+                                'requests.state="running" AND '
+                                'stages.processors = %d AND '
+                                'stages.rss_bytes > %d AND '
+                                'stages.rss_bytes <= %d' %
+                                (processors,
+                                 bytesPerProcessor * (processors - 1),
+                                 bytesPerProcessor * processors
+                                ), justOne = True
+                               )
+
+        if matches['count']:
+          unallocatedCounts.append((processors, 
+                                    bytesPerProcessor,
+                                    matches['count']
+                                  ))
+      except Exception as e:
+        logLine('Failed getting count of unallocated: ' + str(e))
+        continue
+
+  return unallocatedCounts
+
 # Just in time decision making: identify the best request+stage combination
 # based on the immediate situation rather than trying to plan ahead
 def findStage(jobDict, limit=1, forUpdate = True):
@@ -273,8 +312,8 @@ def findCachedFile(jobDict):
  "rse_name,find_file_cache.rse_id,distance "
  "FROM find_file_cache "
  "LEFT JOIN files ON files.file_id=find_file_cache.file_id "
- "LEFT JOIN replicas ON replicas.file_id=find_file_cache.file_id "
- "LEFT JOIN storages ON storages.rse_id=replicas.rse_id "
+ "LEFT JOIN replicas ON replicas.replica_id=find_file_cache.replica_id "
+ "LEFT JOIN storages ON storages.rse_id=find_file_cache.rse_id "
  "WHERE "
  "find_file_cache.site_id=%d AND "
  "find_file_cache.request_id=%d AND "
