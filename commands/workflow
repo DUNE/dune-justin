@@ -41,7 +41,7 @@ import ssl
 import urllib.request
 import argparse
 
-versionNumber = '00.00.03'
+versionNumber = '00.01.00'
 
 def body(buf): 
 
@@ -206,7 +206,7 @@ if jsonDict['verbose']:
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-  url = 'https://wfs-pro.dune.hep.ac.uk/wfdb-cgi'
+  url = 'https://wfs.dune.hep.ac.uk/api/commands'
 
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),

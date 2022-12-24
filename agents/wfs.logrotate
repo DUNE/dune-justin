@@ -2,6 +2,7 @@
 /var/log/wfs/finder
 /var/log/wfs/finder-fnal
 /var/log/wfs/job-factory
+/var/log/wfs/stage-cache
 {
   daily
   missingok
