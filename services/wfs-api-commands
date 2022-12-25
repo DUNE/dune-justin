@@ -29,7 +29,9 @@
 #  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 #  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
-#
+
+#  This WSGI script relies on wfs-api-import-script being run by
+#  the mod_wsgi directive WSGIImportScript
 
 #  This WSGI script must be run from an Apache httpd server with
 #  X.509 proxy certificates enabled. On a systemd system (like 
