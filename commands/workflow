@@ -206,7 +206,7 @@ if jsonDict['verbose']:
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-  url = 'https://wfs.dune.hep.ac.uk/api/commands'
+  url = 'https://wfs-ui-pro.dune.hep.ac.uk/api/commands'
 
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),

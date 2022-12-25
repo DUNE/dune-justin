@@ -39,8 +39,6 @@
 #
 #  Environment=OPENSSL_ALLOW_PROXY_CERTS=1
 
-import os
-
 import re
 import sys
 import time
@@ -1086,12 +1084,6 @@ def showJobsCmd(startResponse, jsonDict):
   return httpOK(startResponse, outputString)
 
 def getUserID(environ, startResponse):
-
-  print(' ', file=sys.stderr)
-  print(str(environ), file=sys.stderr)
-  print(' ', file=sys.stderr)
-  print(str(os.environ), file=sys.stderr)
-
 
   # Use certificates and proxies for now; will transition to tokens in future
   if 'SSL_CLIENT_S_DN' not in environ or not environ['SSL_CLIENT_S_DN']:
