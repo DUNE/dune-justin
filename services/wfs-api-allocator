@@ -54,16 +54,39 @@ import tarfile
 
 import wfs
 
-def httpError(code, message = None):
-  if code[:3] != '200':
-    print('WFA fails with %s (%s)' % (code, str(message)), file=sys.stderr)
-    
-  print('Status: ' + code)
-  print('Content-Type: text/plain')
-  print()
-  if message:
-    print(message)
-  sys.exit(0)
+def httpError(startResponse, code, message):
+
+  try:
+    wfs.db.conn.rollback()
+  except:
+    pass
+
+  print('wfdb-cgi fails with %s (%s)' % 
+        (code, str(message)), file=sys.stderr)
+
+  startResponse(code,
+                [('Content-type',   'text/plain'),
+                 ('Content-length', str(len(message)))
+                ])
+
+  return [message.encode('UTF-8')]
+
+def httpOK(startResponse, outputString):
+
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    code = '500 Internal Server Error'
+    outputString = 'Database commit fails: ' + str(e)
+  else:
+    code = '200 OK'
+
+  startResponse(code,
+                [('Content-type',   'text/plain'),
+                 ('Content-length', str(len(outputString)))
+                ])
+
+  return [outputString.encode('UTF-8')]
 
 # Successfully identified the request+stage and files so get the 
 # bootstrap for this stage and return it
@@ -235,12 +258,14 @@ def updateAllocationState(jobsub_id, state):
     pass
 
 # Try to get the stage with the highest priority files still unallocated
-def getStageMethod(jsonDict):
+def getStageMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required integer values (eg rss_bytes)
   for name in ['rss_bytes', 'processors', 'wall_seconds']:  
@@ -248,14 +273,17 @@ def getStageMethod(jsonDict):
       n = int(jsonDict[name])
     except:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-      httpError('400 Bad Request', 'Missing/invalid integer value(s) in JSON')
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Missing/invalid integer value(s) in JSON')
 
   # Check jsonDict contains required string values
   for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
     if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]) or not jsonDict[name]:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-      httpError('400 Bad Request', 
-                'Missing/invalid value for %s in JSON' % name)
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'Missing/invalid value for %s in JSON' % name)
 
   if jsonDict['site_name'] == 'US_FermiGrid':
     # Quick hack for now until the site names finalised
@@ -263,9 +291,9 @@ def getStageMethod(jsonDict):
   
   if jsonDict['site_name'] == 'XX_UNKNOWN':
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('400 Bad Request', 'Unknown site')
+    return httpError(startResponse, '400 Bad Request', 'Unknown site')
 
-  print('Before UPDATE jobs site_name', file=sys.stderr)
+#  print('Before UPDATE jobs site_name', file=sys.stderr)
   try:
     wfs.db.insertUpdate('UPDATE jobs SET '
                         'site_id=(SELECT site_id FROM sites '
@@ -275,49 +303,54 @@ def getStageMethod(jsonDict):
     wfs.db.conn.commit()
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('500 Internal Server Error',
-              'Workflow allocator fails to update job with site_id '
-              '(site_name=%s): %s' %
-              (str(jsonDict['site_name']), str(e)))
+    return httpError(startResponse, 
+                     '500 Internal Server Error',
+                     'Workflow allocator fails to update job with site_id '
+                     '(site_name=%s): %s' %
+                     (str(jsonDict['site_name']), str(e)))
     
-  print('Before makeJobDict()', file=sys.stderr)
+#  print('Before makeJobDict()', file=sys.stderr)
   # Find details of the job
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('400 Bad Request', 
-              jobDict['error_message'] + ' in getStageMethod')
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     jobDict['error_message'] + ' in getStageMethod')
 
   # Some kind of mismatch. Maybe the idle job was marked as stalled.
   if jobDict['allocation_state'] != 'submitted' and \
      jobDict['allocation_state'] != 'notused':
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('410 Gone', 
-              'Cannot get stage as job already in %s state' 
-              % jobDict['allocation_state'])
+    return httpError(startResponse, 
+                     '410 Gone', 
+                     'Cannot get stage as job already in %s state' 
+                     % jobDict['allocation_state'])
 
   # Site not enabled so no matches allowed 
   if not jobDict['site_enabled']:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
-    httpError('404 Not Found',
-              'No stage allocated as site not enabled')
+    return httpError(startResponse, 
+                     '404 Not Found',
+                     'No stage allocated as site not enabled')
 
 #  # Already at limit of running jobs for this site
 #  if jobDict['running_jobs'] >= jobDict['max_jobs']:
 #    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-#    httpError('404 Not Found',
+#    return httpError(startResponse, '404 Not Found',
 #              'No stage allocated as running jobs (%d) >= max jobs (%d)'
 #              % (jobDict['running_jobs'], jobDict['max_jobs']))
 
-  print('Before UPDATE sites last_get_stage_time', file=sys.stderr)
+#  print('Before UPDATE sites last_get_stage_time', file=sys.stderr)
   try:
     wfs.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
                         'WHERE site_id=%d' % jobDict['site_id'])
   except:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('500 Internal Server Error',
-              'Workflow allocator fails to record get_stage time')
+    return httpError(startResponse, 
+                     '500 Internal Server Error',
+                     'Workflow allocator fails to record get_stage time')
 
   if jobDict['for_wtf']:
     # Special job for Workflow Testing Framework
@@ -328,20 +361,23 @@ def getStageMethod(jsonDict):
     # Use the Just In Time decision making: identify the best request+stage 
     # candidate combination at this moment
     try:
-      print('Before findCachedStage()', file=sys.stderr)
+#      print('Before findCachedStage()', file=sys.stderr)
       stage = wfs.allocator.findCachedStage(jobDict)
     except Exception as e:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-      httpError('500 Internal Server Error', 
-                'Workflow allocator fails finding stage: ' + str(e))
+      return httpError(startResponse, 
+                       '500 Internal Server Error', 
+                       'Workflow allocator fails finding stage: ' + str(e))
 
   if not stage:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
-    httpError('404 Not Found', 'No eligible stages found')
+    return httpError(startResponse, 
+                     '404 Not Found', 
+                     'No eligible stages found')
 
   cookie = str(uuid.uuid4())
 
-  print('Before UPDATE jobs SET', file=sys.stderr)
+#  print('Before UPDATE jobs SET', file=sys.stderr)
   try:
     wfs.db.insertUpdate(
              'UPDATE jobs SET '
@@ -364,90 +400,76 @@ def getStageMethod(jsonDict):
                        )
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('500 Internal Server Error', 
-              'Workflow allocator failed updating allocated job: ' + str(e))
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Workflow allocator failed updating allocated job: ' 
+                     + str(e))
 
-  print('Before makeTarFile', file=sys.stderr)
+#  print('Before makeTarFile', file=sys.stderr)
   tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_wtf'])
   
   if not tarFile:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('500 Internal Server Error', 'Failed to create tar file')
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed to create tar file')
         
-  print('Before updateStageCounts', file=sys.stderr)
+#  print('Before updateStageCounts', file=sys.stderr)
   wfs.allocator.updateStageCounts(stage['request_id'], 
                                   stage['stage_id'])
- 
-  # All done so commit the job details.
-  # We do this before the HTTP response in case
-  # it is received ok by the job and run 
-  # but times out and fails here on the server side
-  print('Before commit()', file=sys.stderr)
-  try:
-    wfs.db.conn.commit()
-  except Exception as e:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    httpError('500 Internal Server Error',
-              'Workflow allocator get_stage commit failed: ' + str(e))
-  
-  print('Before Status 200 OK', file=sys.stderr)
-  # Return the script to the workflow job 
-  print('Status: 200 OK')
-  print('Content-Type: application/x-tar')
-  print()
-  sys.stdout.flush()
-  sys.stdout.buffer.write(tarFile)
-  sys.exit(0)
+   
+  return httpOK(startResponse, tarFile)
    
 # Record heartbeats from generic jobs
-def sendHeartbeatMethod(jsonDict):
+def sendHeartbeatMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
-    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Missing jobsub_id in JSON')
 
   try:
     wfs.db.insertUpdate('UPDATE jobs SET heartbeat_time=NOW() ' 
                         'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Workflow allocator failed recording heartbeat: ' + str(e))
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Workflow allocator failed recording heartbeat: ' 
+                     + str(e))
 
-  # All done so commit the job details.
-  try:
-    wfs.db.conn.commit()
-  except Exception as e:
-    httpError('500 Internal Server Error',
-              'Workflow allocator send_heartbeat commit failed: ' + str(e))
-
-  print('Status: 200 OK')
-  print()
-  sys.exit(0)
+  return httpOK(startResponse, '')
    
 # Job aborted 
-def jobAbortedMethod(jsonDict):
+def jobAbortedMethod(startResponse, jsonDict):
 
   try:
     httpCode = int(jsonDict['http_code'])
   except:
-    httpError('400 Bad Request', 'Missing/invalid http_code in JSON')
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Missing/invalid http_code in JSON')
 
   if 'aborted_method' not in jsonDict or \
      not wfs.db.stringNoQuotes(jsonDict['aborted_method']):
-    httpError('400 Bad Request', 'Missing/invalid aborted_method in JSON')
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Missing/invalid aborted_method in JSON')
 
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
-    httpError('400 Bad Request', 
-              jobDict['error_message'] + ' in jobAbortedMethod')
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     jobDict['error_message'] + ' in jobAbortedMethod')
 
   if jobDict['allocation_state'] not in ['submitted','notused', 'started',
                                          'processing','outputting']:
-    httpError('410 Gone', 
-              'Cannot set job to aborted as job already in %s state' 
-              % jobDict['allocation_state'])
+    return httpError(startResponse, 
+                     410 Gone', 
+                     'Cannot set job to aborted as job already in %s state' 
+                     % jobDict['allocation_state'])
 
   # All ok, now process the message
 
@@ -465,8 +487,9 @@ def jobAbortedMethod(jsonDict):
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Workflow allocator job_aborted failed: ' + str(e))
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Workflow allocator job_aborted failed: ' + str(e))
 
   if 'rse_name' in jsonDict:
     rseName = jsonDict['rse_name']
@@ -481,48 +504,47 @@ def jobAbortedMethod(jsonDict):
                   rseName     = rseName
                  )
 
-  # All done so commit the job details.
-  try:
-    wfs.db.conn.commit()
-  except Exception as e:
-    httpError('500 Internal Server Error',
-              'Workflow allocator job_aborted commit failed: ' + str(e))
-
-  print('Status: 200 OK')
-  print()
-  sys.exit(0)
+  return httpOK(startResponse, '')
    
 # Get an unallocated file from the given request+stage
-def getFileMethod(jsonDict):
+def getFileMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
-    httpError('400 Bad Request', 'Missing/invalid jobsub_id in JSON')
+    return httpError(startResponse, 
+                     '400 Bad Request',
+                     'Missing/invalid jobsub_id in JSON')
 
   if 'cookie' not in jsonDict or \
      not wfs.db.stringNoQuotes(jsonDict['cookie']):
-    httpError('400 Bad Request', 'Missing/invalid cookie in JSON')
+    return httpError(startResponse,
+                     '400 Bad Request',
+                     'Missing/invalid cookie in JSON')
 
   # Lookup job details
   jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'],
                                       jsonDict['cookie'])
                                           
   if jobDict['error_message']:
-    httpError('400 Bad Request', 
-              jobDict['error_message'] + ' in getFileMethod')
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     jobDict['error_message'] + ' in getFileMethod')
 
   if jobDict['allocation_state'] != 'started' and \
      jobDict['allocation_state'] != 'processing':
-    httpError('403 Forbidden', 
-         'Job in wrong state to find file (%s)' % jobDict['allocation_state'])
+    return httpError(startResponse,
+                     '403 Forbidden', 
+                     'Job in wrong state to find file (%s)' % 
+                     jobDict['allocation_state'])
     
   # Create a stage dictionary with the next file in this stage  
 #  oneFile = wfs.allocator.findFile(jobDict)
   oneFile = wfs.allocator.findCachedFile(jobDict)
 
   if oneFile['error_message']:
-    httpError('500 Internal Server Error', 
-              'Failed finding one file: ' + oneFile['error_message'])
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed finding one file: ' + oneFile['error_message'])
   
   if oneFile['file_did']:
     if jobDict['allocation_state'] == 'started':
@@ -536,32 +558,19 @@ def getFileMethod(jsonDict):
                                         jobDict['stage_id'])
 
       except Exception as e:
-        httpError('500 Internal Server Error',
-                  'Unable to update job to processing: ' + str(e))
+        return httpError(startResponse,
+                         '500 Internal Server Error',
+                         'Unable to update job to processing: ' + str(e))
 
-
-    # All done so commit the allocation and updates
-    # We do this before the HTTP response in case
-    # it is received ok by the job and processed
-    # but times out and fails here on the server side
-    try:
-      wfs.db.conn.commit()
-    except Exception as e:
-      httpError('500 Internal Server Error',
-                'Workflow allocator get_file commit failed: ' + str(e))
-
-    # Now tell the job what file to process and where it is
-    print('Status: 200 OK')
-    print('Content-Type: text/plain')
-    print()
-    print(oneFile['file_did'] +  ' ' + 
-          oneFile['pfn'] + ' ' + 
-          oneFile['rse_name'])
-
-    sys.exit(0)
+    return httpOK(startResponse,
+                  oneFile['file_did'] + ' ' +
+                  oneFile['pfn'] + ' ' +
+                  oneFile['rse_name'])
 
   # No file eligible to be processed by this job
-  httpError('404 Not Found', 'No eligible file found')
+  return httpError(startResponse, 
+                   '404 Not Found', 
+                   'No eligible file found')
 
 def updateFileProcessing(fileIDList,
                          state, wfsJobID, requestID, stageID):
@@ -650,21 +659,27 @@ def saveWtfResults(wfsJobID, siteID, bootstrapLog):
 
 # Before uploading output files the generic jobs record any results from 
 # the bootstrap script, but just puts them in the "outputting" state
-def recordResultsMethod(jsonDict):
+def recordResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
-    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+    return httpError(startResponse, 
+                     '400 Bad Request',
+                     'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required lists (can be empty)
   for name in ['processed_dids', 'processed_pfns', 
                'output_dids', 'next_stage_dids']:
     if name not in jsonDict:
-      httpError('400 Bad Request', 'Missing value (%s) in JSON' % name)
+      return httpError(startResponse,
+                       '400 Bad Request',
+                       'Missing value (%s) in JSON' % name)
 
     for fileDID in jsonDict[name]:
       if not wfs.db.stringNoQuotes(fileDID):    
-        httpError('400 Bad Request', 'Invalid DID or PFN in ' + name)
+        return httpError(startResponse,
+                         '400 Bad Request',
+                         'Invalid DID or PFN in ' + name)
       
   try:
     query = ('SELECT wfs_job_id, request_id, stage_id, for_wtf, site_id '
@@ -678,7 +693,9 @@ def recordResultsMethod(jsonDict):
     siteID    = int(row['site_id'])
     forWtf    = row['for_wtf']
   except:
-    httpError('500 Internal Server Error', 'Failed finding job')
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Failed finding job')
 
   try:
     # Use the event records to find the right replicas for this job
@@ -693,8 +710,9 @@ def recordResultsMethod(jsonDict):
     jobFiles = wfs.db.select(query)
     
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Failed getting files for the job: ' + str(e))
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Failed getting files for the job: ' + str(e))
 
   processedFileIDs   = []
   unprocessedFileIDs = []
@@ -719,8 +737,9 @@ def recordResultsMethod(jsonDict):
                          'outputting',
                          wfsJobID, requestID, stageID)
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Failed updating file statuses: ' + str(e))
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Failed updating file statuses: ' + str(e))
 
   # For unprocessed inputs, we can put them straight back into the
   # unprocessed states (unallocated or failed)
@@ -729,30 +748,35 @@ def recordResultsMethod(jsonDict):
                          'unprocessed',
                          wfsJobID, requestID, stageID)
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Failed updating file statuses: ' + str(e))
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Failed updating file statuses: ' + str(e))
           
   try:
     processOutputDids(jsonDict['next_stage_dids'],
                       requestID, stageID, wfsJobID)
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Failed recording next stage outputs: ' + str(e))
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed recording next stage outputs: ' + str(e))
 
   try:
     # We set stageID=-1 so that when 1 is added, the output only 
     # StageID of 0 is recorded
     processOutputDids(jsonDict['output_dids'], requestID, -1, wfsJobID)
   except Exception as e:
-    httpError('500 Internal Server Error', 
-              'Failed recording outputs: ' + str(e))
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed recording outputs: ' + str(e))
 
   try:
     wfs.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
                         'outputting_time=NOW() '
                         'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
   except Exception as e:
-    httpError('500 Internal Server Error', 'Failed updating jobs: ' + str(e))
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Failed updating jobs: ' + str(e))
 
   try:
     wfs.db.insertUpdate(
@@ -761,7 +785,9 @@ def recordResultsMethod(jsonDict):
         base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
                        )                           
   except Exception as e:
-    httpError('500 Internal Server Error', 'Failed saving job log: ' + str(e))
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Failed saving job log: ' + str(e))
 
   if forWtf:
     saveWtfResults(wfsJobID, 
@@ -771,26 +797,18 @@ def recordResultsMethod(jsonDict):
   # Update counts for this stage
   wfs.allocator.updateStageCounts(requestID, stageID)
 
-  # Commit everything, before we return OK to the job
-  try:
-    wfs.db.conn.commit()
-  except Exception as e:
-    httpError('500 Internal Server Error',
-              'Workflow allocator record_results commit failed: ' + str(e))
-
-  # Return OK to the job
-  print('Status: 200 OK')
-  print()
-  sys.exit(0)
+  return httpOK(startResponse, '')
 
 # After the output files have been successfully uploaded, the generic job
 # comes back with this method which changes the state of input files from
 # uploading to processed, and of output files from recorded to finding.
-def confirmResultsMethod(jsonDict):
+def confirmResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
-    httpError('400 Bad Request', 'Missing jobsub_id in JSON')
+    return httpError(startResponse,
+                     '400 Bad Request',
+                     'Missing jobsub_id in JSON')
 
   try:
     query = ('SELECT wfs_job_id,request_id,stage_id,site_id '
@@ -803,20 +821,26 @@ def confirmResultsMethod(jsonDict):
     stageID   = int(row['stage_id'])
     siteID    = int(row['site_id'])
   except:
-    httpError('500 Internal Server Error', 'Failed finding job')
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Failed finding job')
 
   try:
     wfs.db.insertUpdate('UPDATE files SET state="processed" WHERE '
                         'state="outputting" AND wfs_job_id=%d' % wfsJobID)
   except:
-    httpError('500 Internal Server Error', 'Updating processed input files')
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Updating processed input files')
 
   try:
     fileRows = wfs.db.select('SELECT file_did,file_id,stage_id FROM files '
                              'WHERE state="recorded" AND '
                              'creator_wfs_job_id=%d' % wfsJobID)
   except:
-    httpError('500 Internal Server Error', 'Getting recorded output files')
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Getting recorded output files')
 
   for fileRow in fileRows:
   
@@ -839,8 +863,9 @@ def confirmResultsMethod(jsonDict):
                       rseName = rseName
                      )
     except Exception as e:
-      httpError('500 Internal Server Error', 
-                'Updating recorded output file: ' + str(e))
+      return httpError(startResponse,
+                       '500 Internal Server Error', 
+                       'Updating recorded output file: ' + str(e))
   
   try:
     wfs.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
@@ -855,30 +880,24 @@ def confirmResultsMethod(jsonDict):
                     siteID = siteID
                    )
   except:
-    httpError('500 Internal Server Error', 'Updating job state to finished')
+    return httpError(startResponse, 
+                     '500 Internal Server Error',
+                     'Updating job state to finished')
   
   wfs.allocator.updateStageCounts(requestID, stageID)
 
-  # Commit everything, before we return OK to the job
-  try:
-    wfs.db.conn.commit()
-  except Exception as e:
-    httpError('500 Internal Server Error',
-              'Workflow allocator confirm_results commit failed: ' + str(e))
+  return httpOK(startResponse, '')
 
-  # Return OK to the job
-  print('Status: 200 OK')
-  print()
-  sys.exit(0)
-
-def checkJobUser():
+def checkJobUser(environ):
+  # Check if the identity provided is known and authorized; otherwise 
+  # raise an exception.
 
   # Use certificates and proxies for now; will transition to tokens in future
-  if 'SSL_CLIENT_S_DN' not in os.environ or not os.environ['SSL_CLIENT_S_DN']:
-    httpError('403 Forbidden', 'Forbidden - identity not provided')
+  if 'SSL_CLIENT_S_DN' not in environ or not environ['SSL_CLIENT_S_DN']:
+    raise RuntimeError('Forbidden - identity not provided')
 
   # Convert to the older format with slashes 
-  clientDN='/'+'/'.join(os.environ['SSL_CLIENT_S_DN'].split(',')[::-1])
+  clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
   query = ('SELECT users.generic_jobs FROM x509 '
            'LEFT JOIN users ON users.user_id=x509.user_id '
@@ -886,13 +905,13 @@ def checkJobUser():
            clientDN.replace('\\','\\\\').replace('"','\\"'))
 
   try:
-    rows = wfs.db.select(query)
+    row = wfs.db.select(query, justOne = True)
   except:
-    httpError('500 Internal Server Error', 'Error reading database')
+    raise RuntimeError('Error reading users from database')
 
   # User must be have generic_jobs=TRUE
-  if not rows[0]['generic_jobs']:
-    httpError('403 Forbidden', 'Forbidden - authorized identity not provided')
+  if not row['generic_jobs']:
+    raise RuntimeError('Forbidden - authorized identity not provided')
 
 def getAllocatorLock(timeoutSeconds):
   # Try to get the workflow allocator service lock or raise an exception if
@@ -922,7 +941,6 @@ def application(environ, startResponse):
   # Avoid leftovers from partial, failed transactions in this instance
   wfs.db.conn.rollback()
 
-
   # Quickly reject random GETs etc (if not handled by Apache already)
   if environ['REQUEST_METHOD'] != 'POST':
     return httpError(startResponse,
@@ -940,35 +958,29 @@ def application(environ, startResponse):
                      'DB connection lost and cannot reconnect: ' + str(e))
 
 
-# Create a unique ID string for this instance that may also help in debugging
-allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
+  # Create a unique ID string for this instance that may also help in debugging
+  allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
 
+  try:
+    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+    inputString = environ['wsgi.input'].read(inputLength)
+    jsonDict = json.loads(inputString)
+  except Exception as e:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Failed to read and parse JSON')
 
-# Get the JSON document POSTed to us
-try:
-  jsonDict = json.load(sys.stdin)
-except:
-  httpError('400 Bad Request', 'Failed to parse JSON')
+  if 'jobsub_id' not in jsonDict or \
+     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+    return httpError(startResponse,
+              '400 Bad Request', 
+              'Missing jobsub_id in JSON')
 
-if 'jobsub_id' not in jsonDict or \
-   not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
-  httpError('400 Bad Request', 'Missing jobsub_id in JSON')
-
-# Check jsonDict specifies a method
-if 'method' not in jsonDict:
-  httpError('400 Bad Request', 'Missing method in JSON')
-
-# Do as many checks as we can before connecting to the database here
-try:
-  wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
-                                user=wfs.conf.mysqlUsername, 
-                                passwd=wfs.conf.mysqlPassword, 
-                                db=wfs.conf.mysqlDbName)
-  wfs.db.conn.autocommit(False)
-  wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
-except Exception as e:
-  httpError('500 Internal Server Error', 
-            'Problem with database connection: ' + str(e))
+  # Check jsonDict specifies a method
+  if 'method' not in jsonDict:
+    return httpError(startResponse,
+                     '400 Bad Request',
+                     'Missing method in JSON')
 
 #try:
 #  getAllocatorLock(10 if jsonDict['method'] == 'get_stage' else 60)
@@ -980,50 +992,49 @@ except Exception as e:
 #       'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
 #        % (str(jsonDict['method']), str(e)))
   
-# Get the stage for the job to work on
-if jsonDict['method'] == 'get_stage':
+
+  # Get one or more files to process
+  # This request comes from bootstrap scripts using cookies so we 
+  # do not run checkJobUser() as getFileMethod() checks the cookie
+  if jsonDict['method'] == 'get_file':
+    return getFileMethod(startResponse, jsonDict)
+
+  # All other methods are called by the generic job using its identity
+  # which is checked with checkJobUser()
+  try:
+    checkJobUser(environ)
+  except Exception as e:
+    return httpError(startResponse, '403 Forbidden', str(e))
+
+  # Get the stage for the job to work on
+  if jsonDict['method'] == 'get_stage':
 #  try:
 #    getAllocatorLock(10)
 #  except Exception as e:
 #    updateAllocationState(jsonDict['jobsub_id'], 'notused')
 #    httpError('503 Service Unavailable',
 #              'Unable to get allocator lock for get_stage method. '
-#              'Too busy? Exception: %s' % str(e))
+#              'Too busy? Exception: %s' % str(e))  
+    return getStageMethod(startResponse, jsonDict)
+
+  # Record heartbeats from the generic jobs
+  if jsonDict['method'] == 'send_heartbeat':
+    return sendHeartbeatMethod(startResponse, jsonDict)
+
+  # Job aborted
+  if jsonDict['method'] == 'job_aborted':
+    return jobAbortedMethod(startResponse, jsonDict)
   
-  # Fails with an HTTP error and exit if authorized ID not given
-  print('Before checkJobUser()', file=sys.stderr)
-  checkJobUser()
-  getStageMethod(jsonDict)
+  # Record results of processing files
+  if jsonDict['method'] == 'record_results':
+    return recordResultsMethod(startResponse, jsonDict)
 
-# Record heartbeats from the generic jobs
-elif jsonDict['method'] == 'send_heartbeat':
-  # Fails with an HTTP error and exit if authorized ID not given
-  checkJobUser()
-  sendHeartbeatMethod(jsonDict)
+  # Confirm that uploads went ok
+  if jsonDict['method'] == 'confirm_results':
+    return confirmResultsMethod(startResponse, jsonDict)
 
-# Job aborted
-elif jsonDict['method'] == 'job_aborted':
-  # Fails with an HTTP error and exit if authorized ID not given
-  checkJobUser()
-  jobAbortedMethod(jsonDict)
-
-# Get one or more files to process
-elif jsonDict['method'] == 'get_file':
-  # cookie is checked rather than checkJobUser()
-  getFileMethod(jsonDict)
-  
-# Record results of processing files
-elif jsonDict['method'] == 'record_results':
-  # Fails with an HTTP error and exit if authorized ID not given
-  checkJobUser()
-  recordResultsMethod(jsonDict)
-
-# Confirm that uploads went ok
-elif jsonDict['method'] == 'confirm_results':
-  # Fails with an HTTP error and exit if authorized ID not given
-  checkJobUser()
-  confirmResultsMethod(jsonDict)
-
-else:
-  httpError('400 Bad Request', 'Method in JSON not recognised')
+  # Otherwise an error
+  return httpError(startResponse, 
+                   '400 Bad Request', 
+                   'Method in JSON not recognised')
 

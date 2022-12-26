@@ -54,9 +54,8 @@ def httpError(startResponse, code, message):
 
   wfs.db.conn.rollback()
 
-  if code[:3] != '200':
-    print('wfdb-cgi fails with %s (%s)' % 
-          (code, str(message)), file=sys.stderr)
+  print('wfdb-cgi fails with %s (%s)' % 
+        (code, str(message)), file=sys.stderr)
 
   startResponse(code,
                 [('Content-type',   'text/plain'),
