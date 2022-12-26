@@ -339,7 +339,7 @@ CREATE TABLE `get_stage_cache` (
   `cache_time` datetime NOT NULL,
   UNIQUE KEY `multiple` (`site_id`,
    `min_processors`,`max_processors`,`min_rss_bytes`,`max_rss_bytes`,
-   `max_wall_seconds`)
+   `max_wall_seconds`,`cache_time`,`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -360,7 +360,7 @@ CREATE TABLE `find_file_cache` (
   `distance` float NOT NULL DEFAULT 100.0,
   `cache_time` datetime NOT NULL,
   INDEX `multiple` (`site_id`, `request_id`, `stage_id`,
-                    `distance`, `file_id`)
+                    `cache_time`, `distance`, `file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

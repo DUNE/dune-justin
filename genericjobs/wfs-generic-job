@@ -33,7 +33,7 @@ EOF
      --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
      --data @wfs-job-aborted.json \
-     https://wfs-pro.dune.hep.ac.uk/wfa-cgi/job_aborted_$1
+     https://wfs-pro.dune.hep.ac.uk/api/allocator/job_aborted_$1
 
   if [ "$1" = "404" ] ; then
     # Not finding any work isn't a failure
@@ -87,13 +87,13 @@ IlgtSm9iaWQ6ICRKT0JTVUJKT0JJRCIgXAotLWhlYWRlciAiQWNjZXB0OiB0ZXh0L3BsYWluIiBc
 Ci0tY2FwYXRoICR7WDUwOV9DRVJUSUZJQ0FURVM6LS9ldGMvZ3JpZC1zZWN1cml0eS9jZXJ0aWZp
 Y2F0ZXMvfSBcCi0tZGF0YSBAJFdGU19QQVRIL3dmcy1nZXQtZmlsZS5qc29uIFwKLS1vdXRwdXQg
 JEdFVF9GSUxFX1RNUCBcCi0td3JpdGUtb3V0ICIle2h0dHBfY29kZX1cbiIgXApodHRwczovL3dm
-cy1wcm8uZHVuZS5oZXAuYWMudWsvd2ZhLWNnaS9nZXRfZmlsZSAyPi9kZXYvbnVsbGAKCmlmIFsg
-IiRodHRwX2NvZGUiID0gMjAwIF0gOyB0aGVuCiBjYXQgJEdFVF9GSUxFX1RNUAogcmV0Y29kZT0w
-CmVsaWYgWyAiJGh0dHBfY29kZSIgPSA0MDQgXSA7IHRoZW4gCiBlY2hvICJObyBmaWxlcyBhdmFp
-bGFibGUgZnJvbSB0aGlzIHN0YWdlIiA+JjIKIHJldGNvZGU9MQplbHNlCiBlY2hvICJnZXRfZmls
-ZSByZWNlaXZlczoiID4mMgogY2F0ICRHRVRfRklMRV9UTVAgPiYyCiBlY2hvICJnZXQtZmlsZSBm
-YWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9jb2RlIGZyb20gYWxsb2NhdG9yISIgPiYyCiByZXRj
-b2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9UTVAKZXhpdCAkcmV0Y29kZQo=
+cy1wcm8uZHVuZS5oZXAuYWMudWsvYXBpL2FsbG9jYXRvci9nZXRfZmlsZSAyPi9kZXYvbnVsbGAK
+CmlmIFsgIiRodHRwX2NvZGUiID0gMjAwIF0gOyB0aGVuCiBjYXQgJEdFVF9GSUxFX1RNUAogcmV0
+Y29kZT0wCmVsaWYgWyAiJGh0dHBfY29kZSIgPSA0MDQgXSA7IHRoZW4gCiBlY2hvICJObyBmaWxl
+cyBhdmFpbGFibGUgZnJvbSB0aGlzIHN0YWdlIiA+JjIKIHJldGNvZGU9MQplbHNlCiBlY2hvICJn
+ZXRfZmlsZSByZWNlaXZlczoiID4mMgogY2F0ICRHRVRfRklMRV9UTVAgPiYyCiBlY2hvICJnZXQt
+ZmlsZSBmYWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9jb2RlIGZyb20gYWxsb2NhdG9yISIgPiYy
+CiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9UTVAKZXhpdCAkcmV0Y29kZQo=
 EOF
 chmod +x $WFS_PATH/wfs-get-file
 
@@ -147,6 +147,9 @@ fi
 if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FermiGrid" ] ; then
   export site_name=US_FNAL
 fi
+if [ "$site_name" = "US_FermiGrid" ] ; then
+  export site_name=US_FNAL
+fi
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
@@ -194,7 +197,7 @@ do
      --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
      --data @wfs-send-heartbeat.json \
-     https://wfs-pro.dune.hep.ac.uk/wfa-cgi/send_heartbeat
+     https://wfs-pro.dune.hep.ac.uk/api/allocator/send_heartbeat
 
   sleep 600
 done
@@ -239,7 +242,7 @@ http_code=`curl \
 --data @wfs-get-stage.json \
 --output wfs-files.tar \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/wfa-cgi/get_stage`
+https://wfs-pro.dune.hep.ac.uk/api/allocator/get_stage`
 
 log_line "($i/5) curl returns HTTP code $http_code"
 
@@ -391,7 +394,7 @@ http_code=`curl \
 --data @wfs-record-results.json \
 --output record-results.log \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/wfa-cgi/record_results`
+https://wfs-pro.dune.hep.ac.uk/api/allocator/record_results`
 
 log_line "record_results returns HTTP code $http_code"
 echo "=====Start record-results.log=="
@@ -521,7 +524,7 @@ http_code=`curl \
 --data @wfs-confirm-results.json \
 --output confirm-results.log \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/wfa-cgi/confirm_results`
+https://wfs-pro.dune.hep.ac.uk/api/allocator/confirm_results`
 
 log_line "confirm_results returns HTTP code $http_code"
 echo "=====Start confirm-results.log=="

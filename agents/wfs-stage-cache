@@ -119,8 +119,59 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
       logLine('Failed caching replica info: %s' % str(e))
       continue
 
+# Just in time decision making: identify the best request+stage combination
+# based on the immediate situation rather than trying to plan ahead
+def findStage(jobDict):
+
+  query = (
+ "SELECT stages.request_id,stages.stage_id,stages.max_distance "
+ "FROM files "
+ "LEFT JOIN stages ON files.request_id=stages.request_id AND "
+ "files.stage_id=stages.stage_id "
+ "LEFT JOIN requests ON requests.request_id=files.request_id "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+ "LEFT JOIN sites_storages ON replicas.rse_id=sites_storages.rse_id AND "
+ "sites_storages.site_id=%d "
+ "WHERE files.state='unallocated' AND " 
+ "replicas.accessible_until > NOW() AND "
+ "requests.state='running' AND "
+ "((%d < stages.processors AND stages.processors <= %d AND "
+ "  stages.rss_bytes <= %d) OR "
+ " (%d < stages.rss_bytes AND stages.rss_bytes <= %d AND "
+ "  stages.processors <= %d)) AND "
+ "stages.wall_seconds <= %d "
+ "AND sites_storages.distance IS NOT NULL "
+ "AND sites_storages.distance <= stages.max_distance "
+ "AND storages.rse_read "
+ "ORDER BY stage_rank DESC,sites_storages.distance,"
+ "files.request_id,files.file_id "
+ "LIMIT 1" %
+ (
+  jobDict["site_id"],
+  jobDict["min_processors"], jobDict["max_processors"], 
+  jobDict["max_rss_bytes"],
+  jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
+  jobDict["max_processors"],
+  jobDict["max_wall_seconds"]
+ ))
+    
+  fileRows = wfs.db.select(query)
+  
+  if not fileRows:
+    return None
+
+  # The dictionary to return, with the highest priority result
+  stage = { 'request_id'  : fileRows[0]['request_id'],
+            'stage_id'    : fileRows[0]['stage_id'],
+            'max_distance': fileRows[0]['max_distance'],
+            'matches'     : len(fileRows) }
+
+  return stage
+
 def cacheFindStageResults():
-  # Go through the sites recording what findStage() returns
+  # Go through the job geometries and sites, caching matching results with
+  # the best stage for each site and geometry combination
 
   # We use this time to remove previous cache entries
   cutoffTime = int(time.time())
@@ -151,12 +202,10 @@ def cacheFindStageResults():
                       
         try:
           print(jobDict)
-          stage = wfs.allocator.findStage(jobDict, 
-                                          limit = 1,
-                                          forUpdate = False)
+          stage = findStage(jobDict)
           print(stage)
         except Exception as e:
-          logLine('Update findStage fails with: ' + str(e))
+          logLine('findStage() fails with: ' + str(e))
           stage = None
       else:
         stage = None

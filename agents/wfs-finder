@@ -156,24 +156,31 @@ def findFilesRucio(didClient, requestID, scope, name):
 def findFilesMetaCat(requestID, mql):
   # Find files matching the mql query from MetaCat
 
-  try:
-    response = urllib.request.urlopen(
+  for i in range(3,0,-1):
+    try:
+      response = urllib.request.urlopen(
        "https://metacat.fnal.gov:9443/dune_meta_demo/app/data/query?"
        "with_meta=no&with_provenance=no",
        data = mql.encode()           )
 
-    if response.status != 200:
-      logLine("Reading files list from MetaCat fails with HTTP code "
-              + str(response.status))
-      return
+      if response.status != 200:
+        logLine("Reading files list from MetaCat fails with HTTP code "
+                + str(response.status))
+        return
 
-#    filesList = json.load(response)
-    fileLines = response.readlines()
-  except Exception as e:
-    logLine("Reading files list from MetaCat fails with: " + str(e))
-    return
+      fileLines = response.readlines()
+    except Exception as e:    
+      logLine("Reading files list from MetaCat fails with: " + str(e))
+      
+      if i > 1:
+        # Try again as Metacat has transitory errors on large queries
+        # which seem to go away when repeated
+        time.sleep(1)        
+        continue
+      else:
+        # Give up
+        return
 
-#  for fileDict in filesList:
   for fileLine in fileLines:
     # Remove any weirdness
     if fileLine[0] < 32:

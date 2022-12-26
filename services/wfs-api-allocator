@@ -88,6 +88,67 @@ def httpOK(startResponse, outputString):
 
   return [outputString.encode('UTF-8')]
 
+# Return information about the job from the jobsubID
+def makeJobDict(jobsubID, cookie = None):
+
+  # Find the job info and the stage's max_distance value
+  try:
+    query = ('SELECT '
+             'jobs.allocation_state,'
+             'jobs.cookie,'
+             'stages.max_distance,'
+             'jobs.request_id,'
+             'jobs.stage_id,'
+             'jobs.wfs_job_id,'
+             'jobs.site_id,'
+             'jobs.for_wtf,'
+             'jobs.min_processors,'
+             'jobs.max_processors,'
+             'jobs.min_rss_bytes,'
+             'jobs.max_rss_bytes,'
+             'jobs.max_wall_seconds,'
+             'sites.site_name,'
+             'sites.max_jobs,'
+             'sites.running_jobs,'
+             'sites.enabled '
+             'FROM jobs '
+             'LEFT JOIN stages ON jobs.request_id=stages.request_id '
+             'AND jobs.stage_id=stages.stage_id '
+             'LEFT JOIN sites '
+             'ON jobs.site_id=sites.site_id '
+             'WHERE jobs.jobsub_id="' + jobsubID + '"')
+
+    wfs.db.cur.execute(query)
+    job = wfs.db.cur.fetchone()
+  except Exception as e:
+    return { "error_message": "Error finding job from jobsubID " + 
+             jobsubID + ": " + str(e) }
+
+  if not job:
+    return { "error_message": "Failed to find job from jobsubID " + jobsubID }
+
+  if cookie is not None and job['cookie'] != cookie:
+    return { "error_message": "Cookie mismatch" }
+
+  return { "error_message"    : None,
+           "request_id"       : job['request_id'],
+           "stage_id"         : job['stage_id'],
+           "site_id"          : job['site_id'],
+           "site_name"        : job['site_name'],
+           "running_jobs"     : job['running_jobs'],
+           "max_jobs"         : job['max_jobs'],
+           "site_enabled"     : job['enabled'],
+           "wfs_job_id"       : job['wfs_job_id'],
+           "allocation_state" : job['allocation_state'],
+           "for_wtf"          : job['for_wtf'],
+           "max_distance"     : job['max_distance'],
+           "min_processors"   : job['min_processors'],
+           "max_processors"   : job['max_processors'],
+           "min_rss_bytes"    : job['min_rss_bytes'],
+           "max_rss_bytes"    : job['max_rss_bytes'],
+           "max_wall_seconds" : job['max_wall_seconds']
+         }
+
 # Successfully identified the request+stage and files so get the 
 # bootstrap for this stage and return it
 def getBootstrap(stage):
@@ -257,6 +318,42 @@ def updateAllocationState(jobsub_id, state):
   except:
     pass
 
+# (Almost) Just in time decision making: identify the best request+stage
+# combination based on the immediate situation rather than trying to plan 
+# ahead of time
+def findCachedStage(jobDict):
+
+  query = (
+ "SELECT request_id,stage_id "
+ "FROM get_stage_cache "
+ "WHERE "
+ "site_id=%d AND "
+ "min_processors=%d AND "
+ "max_processors=%d AND "
+ "min_rss_bytes=%d AND "
+ "max_rss_bytes=%d AND "
+ "max_wall_seconds=%d "
+ "ORDER BY cache_time DESC "
+ "LIMIT 1" % 
+ ( jobDict["site_id"],
+   jobDict["min_processors"],
+   jobDict["max_processors"], 
+   jobDict["min_rss_bytes"],
+   jobDict["max_rss_bytes"], 
+   jobDict["max_wall_seconds"] )
+          )
+     
+  stageRow = wfs.db.select(query, justOne=True)
+  
+  if not stageRow:
+    return None
+
+  # The dictionary to return, with the highest priority result
+  stage = { 'request_id'  : stageRow['request_id'],
+            'stage_id'    : stageRow['stage_id']    }
+
+  return stage
+
 # Try to get the stage with the highest priority files still unallocated
 def getStageMethod(startResponse, jsonDict):
 
@@ -311,7 +408,7 @@ def getStageMethod(startResponse, jsonDict):
     
 #  print('Before makeJobDict()', file=sys.stderr)
   # Find details of the job
-  jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
+  jobDict = makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -362,7 +459,7 @@ def getStageMethod(startResponse, jsonDict):
     # candidate combination at this moment
     try:
 #      print('Before findCachedStage()', file=sys.stderr)
-      stage = wfs.allocator.findCachedStage(jobDict)
+      stage = findCachedStage(jobDict)
     except Exception as e:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
@@ -379,6 +476,9 @@ def getStageMethod(startResponse, jsonDict):
 
 #  print('Before UPDATE jobs SET', file=sys.stderr)
   try:
+    # Unique ID string for this instance that may also help in debugging
+    allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
+
     wfs.db.insertUpdate(
              'UPDATE jobs SET '
              'site_job_id="' + str(jsonDict['site_job_id']) + '",'
@@ -418,7 +518,19 @@ def getStageMethod(startResponse, jsonDict):
   wfs.allocator.updateStageCounts(stage['request_id'], 
                                   stage['stage_id'])
    
-  return httpOK(startResponse, tarFile)
+  try:
+    wfs.db.conn.commit()
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Database commit fails: ' + str(e))
+
+  startResponse('200 OK',
+                [('Content-type',   'application/x-tar'),
+                 ('Content-length', str(len(tarFile)))
+                ])
+
+  return [tarFile]
    
 # Record heartbeats from generic jobs
 def sendHeartbeatMethod(startResponse, jsonDict):
@@ -457,7 +569,7 @@ def jobAbortedMethod(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Missing/invalid aborted_method in JSON')
 
-  jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'])
+  jobDict = makeJobDict(jsonDict['jobsub_id'])
 
   if jobDict['error_message']:
     return httpError(startResponse,
@@ -467,7 +579,7 @@ def jobAbortedMethod(startResponse, jsonDict):
   if jobDict['allocation_state'] not in ['submitted','notused', 'started',
                                          'processing','outputting']:
     return httpError(startResponse, 
-                     410 Gone', 
+                     '410 Gone', 
                      'Cannot set job to aborted as job already in %s state' 
                      % jobDict['allocation_state'])
 
@@ -505,7 +617,73 @@ def jobAbortedMethod(startResponse, jsonDict):
                  )
 
   return httpOK(startResponse, '')
-   
+
+# (Almost) Just in time decision making: identify the best file 
+# based on the immediate situation rather than trying to plan 
+# ahead of time
+def findCachedFile(jobDict):
+
+  query = (
+ "SELECT file_did,find_file_cache.file_id,lan_pfn,wan_pfn,"
+ "rse_name,find_file_cache.rse_id,distance "
+ "FROM find_file_cache "
+ "LEFT JOIN files ON files.file_id=find_file_cache.file_id "
+ "LEFT JOIN replicas ON replicas.replica_id=find_file_cache.replica_id "
+ "LEFT JOIN storages ON storages.rse_id=find_file_cache.rse_id "
+ "WHERE "
+ "find_file_cache.site_id=%d AND "
+ "find_file_cache.request_id=%d AND "
+ "find_file_cache.stage_id=%d AND "
+ "files.state='unallocated' "
+ "ORDER BY find_file_cache.cache_time DESC,"
+ "find_file_cache.distance,find_file_cache.file_id "
+ "LIMIT 1 FOR UPDATE" %
+ (jobDict['site_id'],
+  jobDict['request_id'],
+  jobDict['stage_id']))
+     
+  replicaRow = wfs.db.select(query, justOne=True)
+  
+  if not replicaRow:
+    # No matches found
+    return { 'error_message': None,
+             'file_did'     : None
+           }
+
+  try: 
+    query = ("UPDATE files SET state='allocated',"
+             "allocations=allocations+1,"
+             "wfs_job_id=" + str(jobDict['wfs_job_id']) + " "
+             "WHERE file_id=" + str(replicaRow['file_id'])
+            )
+    wfs.db.cur.execute(query)
+  except Exception as e:
+    # If anything goes wrong, we stop straightaway
+    return { 'error_message': 'Failed recording state change: ' + str(e) }
+
+  wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATED,
+                  requestID   = jobDict['request_id'],
+                  stageID     = jobDict['stage_id'],
+                  fileID      = replicaRow['file_id'],
+                  wfsJobID    = jobDict['wfs_job_id'],
+                  siteID      = jobDict['site_id'],
+                  rseID       = replicaRow['rse_id'])
+
+  # If storage is at the same site and a lan PFN is given, use it
+  if replicaRow['distance'] == 0 and replicaRow['lan_pfn']:
+    pfn = replicaRow['lan_pfn']
+  else:
+    pfn = replicaRow['wan_pfn']
+
+  # The dictionary to return, with the highest priority result
+  replica = { 'error_message' : None,
+              'file_did'      : replicaRow['file_did'],
+              'pfn'           : pfn,
+              'rse_name'      : replicaRow['rse_name']
+            }
+
+  return replica
+
 # Get an unallocated file from the given request+stage
 def getFileMethod(startResponse, jsonDict):
 
@@ -522,8 +700,7 @@ def getFileMethod(startResponse, jsonDict):
                      'Missing/invalid cookie in JSON')
 
   # Lookup job details
-  jobDict = wfs.allocator.makeJobDict(jsonDict['jobsub_id'],
-                                      jsonDict['cookie'])
+  jobDict = makeJobDict(jsonDict['jobsub_id'], jsonDict['cookie'])
                                           
   if jobDict['error_message']:
     return httpError(startResponse,
@@ -538,8 +715,7 @@ def getFileMethod(startResponse, jsonDict):
                      jobDict['allocation_state'])
     
   # Create a stage dictionary with the next file in this stage  
-#  oneFile = wfs.allocator.findFile(jobDict)
-  oneFile = wfs.allocator.findCachedFile(jobDict)
+  oneFile = findCachedFile(jobDict)
 
   if oneFile['error_message']:
     return httpError(startResponse, 
@@ -958,8 +1134,6 @@ def application(environ, startResponse):
                      'DB connection lost and cannot reconnect: ' + str(e))
 
 
-  # Create a unique ID string for this instance that may also help in debugging
-  allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
 
   try:
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
