@@ -43,12 +43,6 @@ import string
 import tarfile
 import MySQLdb
 
-# wfs/conf.py must define these variables in a way that is both
-# valid Python and valid Bash!
-#
-# mysqlUser='username'
-# mysqlPassword='PAsSWoRd'
-#
 import wfs
 
 # Populate the list unallocatedCounts with tuples for the number of

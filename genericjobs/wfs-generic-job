@@ -474,7 +474,7 @@ do
           upload \
           $lifetime_option \
           --rse "$OUTPUT_RSE" \
-          --transfer-timeout 600 \
+          --transfer-timeout 1200 \
           --protocol "$OUTPUT_PROTOCOL" \
           --scope "$scope" --name "$fn" "workspace/$fn"
 

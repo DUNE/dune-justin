@@ -161,15 +161,12 @@ DROP TABLE IF EXISTS `replicas`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `replicas` (
   `replica_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `rse_id` smallint(5) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL,
   `wan_pfn` varchar(255) NOT NULL,
   `lan_pfn` varchar(255) NOT NULL,
   `accessible_until` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY(`replica_id`),
-  INDEX `request_id` (`request_id`,`stage_id`,`file_id`),
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
   UNIQUE KEY `pfn` (`wan_pfn`,`file_id`),
   INDEX `file_id` (`file_id`)

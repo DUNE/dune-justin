@@ -64,20 +64,21 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
   # to that site
 
   try:
-    replicaRows = wfs.db.select('SELECT replicas.file_id,'
+    replicaRows = wfs.db.select('SELECT files.file_id,'
                    'replicas.replica_id,'
                    'replicas.rse_id,'
                    'distance '
-                   'FROM replicas '
-                   'LEFT JOIN files ON files.file_id=replicas.file_id '
+                   'FROM files '
+                   'LEFT JOIN replicas ON files.file_id=replicas.file_id '
                    'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
                    'LEFT JOIN sites_storages ON '
                    'replicas.rse_id=sites_storages.rse_id AND '
                    'sites_storages.site_id=%d '
-                   'WHERE replicas.request_id=%d AND replicas.stage_id=%d AND '
+                   'WHERE files.request_id=%d AND files.stage_id=%d AND '
                    'files.state="unallocated" AND '
                    'distance<=%f AND '
-                   'accessible_until > NOW() '
+                   'accessible_until > NOW() AND '
+                   'storages.rse_read '
                    'ORDER by distance,replicas.file_id LIMIT 1000' % 
                    (siteID, requestID, stageID, maxDistance))
   except Exception as e:
