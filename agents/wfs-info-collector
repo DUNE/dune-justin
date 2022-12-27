@@ -330,8 +330,8 @@ def updateStorages():
   
   # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
   wfs.db.cur.execute('INSERT INTO storages SET rse_id=%d,'
-    'rse_name="MONTECARLO",occupancy=1,rse_write=FALSE,'
-    'rse_read=TRUE,rse_delete=FALSE,use_for_output=FALSE '
+    'rse_name="MONTECARLO",occupancy=1,rucio_write=FALSE,'
+    'rucio_read=TRUE,wfs_write=FALSE,wfs_read=FALSE '
     'ON DUPLICATE KEY UPDATE occupancy=1'
     % wfs.conf.MonteCarloRseID)
 
@@ -392,65 +392,22 @@ def updateStorages():
       except:
         occupancy = 0.0
 
-#    rootPrefix  = ""
-#    httpsPrefix = ""
-#
-#    try:
-#      protocols = rseClient.get_protocols(rse['rse'])
-#    except Exception as e:
-#      logLine("Reading %s protocols fails with: %s" % 
-#              (rse['rse'], str(e)))
-#    else:
-#      for protocol in protocols:
-#        if protocol['scheme'] == 'root':
-#          if protocol['port'] == 0:
-#            rootPrefix = 'root://%s%s' % (
-#               protocol['hostname'], protocol['prefix'])
-#          else:          
-#            rootPrefix = 'root://%s:%d%s' % (
-#               protocol['hostname'], protocol['port'], protocol['prefix'])
-#         
-#        elif protocol['scheme'] == 'https':
-#          if protocol['port'] == 0:
-#            httpsPrefix = 'https://%s%s' % (
-#               protocol['hostname'], protocol['prefix'])
-#          else:          
-#            httpsPrefix = 'https://%s:%d%s' % (
-#               protocol['hostname'], protocol['port'], protocol['prefix'])
-         
-           
-#    # The FIRST time these are seen, they get set to ignore  
-#    if rse['rse'] in ['FNAL_DCACHE_TEST', 'SCRATCH_DCACHE', 'T3_US_NERSC']:
-#      useForOutput = False
-#    else:
-#      useForOutput = True
-
-    # Explicitly check and enable RSEs for output
-    useForOutput = False
-
     try:
       # We should sanitise this name just in case...
       query = ('INSERT INTO storages SET rse_name="%s",'
-               'occupancy=%f,rse_write=%d,rse_read=%d,rse_delete=%d,'
-               'use_for_output=%d,deterministic_rse=%d '
-#               ',root_prefix="%s",https_prefix="%s" '
-               'ON DUPLICATE KEY UPDATE occupancy=%f,rse_write=%d,'
-               'rse_read=%d,rse_delete=%d,deterministic_rse=%d'
-#               ',root_prefix="%s",https_prefix="%s" '
+               'occupancy=%f,rucio_write=%d,rucio_read=%d,'
+               'wfs_write=FALSE,deterministic_rse=%d '
+               'ON DUPLICATE KEY UPDATE occupancy=%f,rucio_write=%d,'
+               'rucio_read=%d,deterministic_rse=%d'
                % (rse['rse'], 
-                  occupancy, 
-                  ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
-                  ((availability & wfs.db.rseAvailabilityRead)   != 0), 
-                  ((availability & wfs.db.rseAvailabilityDelete) != 0),
-                  useForOutput,
-                  int(rse['deterministic']),
-#                  rootPrefix, httpsPrefix,
                   occupancy,
-                  ((availability & wfs.db.rseAvailabilityWrite)  != 0), 
-                  ((availability & wfs.db.rseAvailabilityRead)   != 0), 
-                  ((availability & wfs.db.rseAvailabilityDelete) != 0),
+                  ((availability & wfs.db.rseAvailabilityWrite)  != 0),
+                  ((availability & wfs.db.rseAvailabilityRead)   != 0),
+                  int(rse['deterministic']),
+                  occupancy,
+                  ((availability & wfs.db.rseAvailabilityWrite)  != 0),
+                  ((availability & wfs.db.rseAvailabilityRead)   != 0),
                   int(rse['deterministic'])
-#                  ,rootPrefix, httpsPrefix
                  )
               )
       print(query)

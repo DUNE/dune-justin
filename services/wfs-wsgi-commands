@@ -323,7 +323,15 @@ def showStoragesCmd(startResponse, jsonDict):
     filter = ""
 
   try:
-    rows = wfs.db.select("SELECT * FROM storages " + filter + 
+    rows = wfs.db.select("SELECT rse_name,"
+                         "occupancy,"
+                         "rucio_write,"
+                         "rucio_read,"
+                         "wfs_write,"
+                         "wfs_read,"
+                         "(rucio_write AND wfs_write) AS has_write,"
+                         "(rucio_read AND wfs_read) AS has_read "
+                         "FROM storages " + filter + 
                          " ORDER BY rse_name,occupancy")
   except Exception as e:
     return httpError(startResponse, 
@@ -332,25 +340,15 @@ def showStoragesCmd(startResponse, jsonDict):
 
   outputString = ''
   for row in rows:
-    availabilityList = ['-', '-', '-']
-
-    if row['rse_read']:
-      availabilityList[0] = 'R'
-  
-    if row['rse_write']:
-      availabilityList[1] = 'W'
-  
-    if row['rse_delete']:
-      availabilityList[2] = 'D'  
-      
-    if row['use_for_output']:
-      useForOutput = 'Y'
-    else:
-      useForOutput = 'N'
-
-    outputString += ("%-25s %.2f  %s %s\n" % 
-                     (row['rse_name'], row['occupancy'], 
-                      ''.join(availabilityList), useForOutput))
+    outputString += ("%-25s %.2f  %s=%s%s %s=%s%s\n" % 
+                     (row['rse_name'], 
+                      row['occupancy'],
+                      'R' if row['has_read']    else '-',
+                      'R' if row['rucio_read']  else '-',
+                      'R' if row['wfs_read']    else '-',
+                      'W' if row['has_write']   else '-',
+                      'W' if row['rucio_write'] else '-',
+                      'W' if row['wfs_write']   else '-'))
 
   return httpOK(startResponse, outputString)
 

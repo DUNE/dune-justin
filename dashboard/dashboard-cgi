@@ -73,7 +73,7 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="/dashboard/?method=list-events">Events</a> . 
 <a href="/dashboard/?method=list-sites">Sites</a> . 
 <a href="/dashboard/?method=list-storages">Storages</a> .
-<a href="/dashboard/?method=wtf-results">AWT</a> .
+<a href="/dashboard/?method=awt-results">AWT</a> .
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
 """)
@@ -132,7 +132,7 @@ def mainPage():
   print('<li><a href="/dashboard/?method=list-events">Events</a></li>')
   print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
   print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
-  print('<li><a href="/dashboard/?method=wtf-results">Automated Workflow Tests</a></li>')
+  print('<li><a href="/dashboard/?method=awt-results">Automated Workflow Tests</a></li>')
   print('<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>')
   print('</ul>')
   
@@ -834,7 +834,7 @@ def showJob(cgiValues):
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
-           "jobs.for_wtf,jobs.site_job_id,"
+           "jobs.for_awt,jobs.site_job_id,"
            "jobs.max_processors,jobs.min_processors,"
            "jobs.max_rss_bytes,jobs.min_rss_bytes,"
            "jobs.max_wall_seconds,bootstrap_log "
@@ -884,7 +884,7 @@ def showJob(cgiValues):
         '<td>%s</td></tr>'
         % html.escape(jobRow['site_job_id'], quote=True))
 
-  if jobRow['for_wtf']: 
+  if jobRow['for_awt']: 
     print('<tr><td>Workflow Testing</td>'
           '<td>Yes</td></tr>')
 
@@ -1147,7 +1147,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
-           "jobs.finished_time,jobs.jobsub_state,users.username,jobs.for_wtf "
+           "jobs.finished_time,jobs.jobsub_state,users.username,jobs.for_awt "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
@@ -1184,7 +1184,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
     else:
       usernameStr = ' '
 
-    if jobRow['for_wtf']:
+    if jobRow['for_awt']:
       requestStageStr = '<td colspan=2>Workflow Testing</td>'
       
     else:
@@ -1312,7 +1312,11 @@ def listStorages(cgiValues):
 
   print("<h1>Storages</h1>")
   
-  query = "SELECT * FROM storages ORDER BY rse_name"
+  query = ("SELECT rse_name,occupancy,"
+           "rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,"
+           "rucio_read,wfs_read,(rucio_read AND wfs_read) AS has_read,"
+           "write_protocol,deterministic_rse "
+           "FROM storages ORDER BY rse_name")
   wfs.db.cur.execute(query)
   storageRows = wfs.db.cur.fetchall()
 
@@ -1322,9 +1326,9 @@ def listStorages(cgiValues):
         '<th>RSE name</th>'
         '<th>Occupancy</th>'
         '<th>Read</th>'
+        '<th>(Rucio/WFS)</th>'
         '<th>Write</th>'
-        '<th>Delete</th>'
-        '<th>For output</th>'
+        '<th>(Rucio/WFS)</th>'
         '<th>Write protcol</th>'
         '<th>Deterministic</th>'
         '</tr>')
@@ -1334,19 +1338,20 @@ def listStorages(cgiValues):
           '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%.2f</td>'
           '<td>%s</td>'
+          '<td>(%s/%s)</td>'
           '<td>%s</td>'
-          '<td>%s</td>'
-          '<td style="font-weight: %s">%s</td>'
+          '<td>(%s/%s)</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
           % (storageRow['rse_name'], storageRow['rse_name'],
              storageRow['occupancy'],
-             bool(storageRow['rse_read']),
-             bool(storageRow['rse_write']),
-             bool(storageRow['rse_delete']),
-             'bold' if storageRow['use_for_output'] else 'normal',
-             'TRUE' if storageRow['use_for_output'] else 'False',
+             bool(storageRow['has_read']),
+             bool(storageRow['rucio_read']),
+             bool(storageRow['wfs_read']),
+             bool(storageRow['has_write']),
+             bool(storageRow['rucio_write']),
+             bool(storageRow['wfs_write']),
              storageRow['write_protocol'],
              bool(storageRow['deterministic_rse'])
             )
@@ -1396,11 +1401,7 @@ def showSite(cgiValues):
 
   print('<tr><td>Last job started</td><td>%s</td></tr>' % lastGetStageStr)
 
-  print('<tr><td>Last AWT test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_wtf_time']))
-
-#  print('<tr><td>Submitted jobs</td><td>%d</td></tr>' % siteRow['submitted_jobs'])
-#
-#  print('<tr><td>Running jobs</td><td>%d</td></tr>' % siteRow['running_jobs'])
+  print('<tr><td>Last AWT test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
 
   print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 
@@ -1429,8 +1430,10 @@ def showSite(cgiValues):
 
   print("<h2>Storages by distance</h2>")
 
-  query = ('SELECT rse_name,occupancy,rse_write,rse_read,rse_delete,'
-           'use_for_output,distance,read_result,write_result,jobsub_id '
+  query = ('SELECT rse_name,occupancy,'
+           'rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,'
+           'rucio_read,wfs_read,(rucio_read AND wfs_read) AS has_read,'
+           'distance,read_result,write_result,jobsub_id '
            'FROM storages '
            'LEFT JOIN sites_storages ON sites_storages.rse_id=storages.rse_id '
            'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
@@ -1451,8 +1454,6 @@ def showSite(cgiValues):
         '<th>Occupancy</th>'
         '<th>Read</th>'
         '<th>Write</th>'
-        '<th>Delete</th>'
-        '<th>For output</th>'
         '<th>Read test</th>'
         '<th>Write test</th>'
         '</tr>')
@@ -1464,15 +1465,11 @@ def showSite(cgiValues):
           '<td>%.2f</td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          '<td>%s</td>'
-          '<td>%s</td>'
           % (storageRow['rse_name'], storageRow['rse_name'],
              int(storageRow['distance']),
              storageRow['occupancy'],
-             bool(storageRow['rse_read']),
-             bool(storageRow['rse_write']),
-             bool(storageRow['rse_delete']),
-             bool(storageRow['use_for_output'])
+             bool(storageRow['has_read']),
+             bool(storageRow['has_write'])
             )
          )    
          
@@ -1508,7 +1505,12 @@ def showStorage(cgiValues):
 
   print("<h1>Storage %s</h1>" % rseName)
   
-  query = 'SELECT * FROM storages WHERE rse_name="%s"' % rseName
+  query = ('SELECT occupancy,rse_id,'
+           'rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,'
+           'rucio_read,wfs_read,(rucio_read AND wfs_read) AS has_read,'
+           'deterministic_rse,write_protocol '
+           'FROM storages WHERE rse_name="%s"' % rseName)
+
   wfs.db.cur.execute(query)
   storageRow = wfs.db.cur.fetchone()
 
@@ -1518,11 +1520,16 @@ def showStorage(cgiValues):
   
   print('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
-  print('<tr><td>Read</td><td>%s</td></tr>' % bool(storageRow['rse_read']))
-  print('<tr><td>Write</td><td>%s</td></tr>' % bool(storageRow['rse_write']))
-  print('<tr><td>Delete</td><td>%s</td></tr>' % bool(storageRow['rse_delete']))
-  print('<tr><td>For output</td><td>%s</td></tr>' 
-        % bool(storageRow['use_for_output']))
+  print('<tr><td>Read</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
+        % (bool(storageRow['has_read']), 
+           bool(storageRow['rucio_read']), 
+           bool(storageRow['wfs_read'])))
+
+  print('<tr><td>Write</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
+        % (bool(storageRow['has_write']), 
+           bool(storageRow['rucio_write']), 
+           bool(storageRow['wfs_write'])))
+
   print('<tr><td>Deterministic</td><td>%s</td></tr>' 
         % bool(storageRow['deterministic_rse']))
   print('<tr><td>Write protocol</td><td>%s</td></tr>' 
@@ -1697,7 +1704,7 @@ def listEvents(cgiValues, pageNumber, pageLength):
 
   footer()
 
-def wtfResults(cgiValues):
+def awtResults(cgiValues):
               
   header("WFS: Automated Workflow Tests")
 
@@ -1708,7 +1715,7 @@ def wtfResults(cgiValues):
         "storages allowed for output are in bold.</p>")
 
   sitesRows = wfs.db.select('SELECT site_name,enabled,'
-                            'UNIX_TIMESTAMP(last_wtf_time) AS lwt '
+                            'UNIX_TIMESTAMP(last_awt_time) AS lwt '
                             'FROM sites ORDER by site_name')
   siteNames        = []
   enabledSiteNames = []
@@ -1719,7 +1726,8 @@ def wtfResults(cgiValues):
     if siteRow['enabled']:
       enabledSiteNames.append(siteRow['site_name'])
 
-  storagesRows = wfs.db.select('SELECT rse_name,use_for_output '
+  storagesRows = wfs.db.select('SELECT rse_name,'
+                               '(rucio_write AND wfs_write) AS has_write '
                                'FROM storages '
                                'WHERE rse_name <> "MONTECARLO" '
                                'ORDER by rse_name')
@@ -1727,7 +1735,7 @@ def wtfResults(cgiValues):
   outputRseNames = []
   for storageRow in storagesRows:
     rseNames.append(storageRow['rse_name'])
-    if storageRow['use_for_output']:
+    if storageRow['has_write']:
       outputRseNames.append(storageRow['rse_name'])
 
   sitesStoragesMatrix = {}
@@ -1903,8 +1911,8 @@ if method == "show-storage":
 if method == "list-events":
   listEvents(cgiValues, pageNumber, pageLength)
 
-if method == "wtf-results":
-  wtfResults(cgiValues)
+if method == "awt-results":
+  awtResults(cgiValues)
 
 print('Status: 400 Bad Request')
 print()

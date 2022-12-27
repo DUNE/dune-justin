@@ -93,7 +93,7 @@ def submitJobs(numberToSubmit,
                maxRssBytes,
                maxWallSeconds,
                ignoreStr,
-               forWtf = False):
+               forAwt = False):
 
   logLine('submitJobs %d %s %s %d-%d %d-%d %d %s' %
           (numberToSubmit,
@@ -150,7 +150,7 @@ def submitJobs(numberToSubmit,
   logLine("Submitted cluster %s to %s%s" % 
           (jobsubJobID, 
            jobsubSiteName,
-           ' (WTF job)' if forWtf else ''))
+           ' (AWT job)' if forAwt else ''))
 
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
@@ -165,7 +165,7 @@ def submitJobs(numberToSubmit,
                   'max_wall_seconds=%d,'
                   'submitted_time=NOW(),'
                   'need_to_fetch_jobsub_log=%s,'
-                  'for_wtf=%s,'
+                  'for_awt=%s,'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
                      siteID,
@@ -175,7 +175,7 @@ def submitJobs(numberToSubmit,
                      maxRssBytes,
                      maxWallSeconds,
                      "TRUE" if i == 0 else "FALSE",
-                     "TRUE" if forWtf else "FALSE",
+                     "TRUE" if forAwt else "FALSE",
                      majorJobsubJobID, i, jobsubHost)
                  )
 
@@ -266,10 +266,10 @@ def anySiteJobs():
                      maxRssBytes    = bytesPerProcessor * processors,
                      maxWallSeconds = 86400,
                      ignoreStr      = ignoreStr,
-                     forWtf         = False)
+                     forAwt         = False)
 
-def wtfJobsToSites():
-  # Go through the sites deciding where to submit WTF jobs
+def awtJobsToSites():
+  # Go through the sites deciding where to submit AWT jobs
 
   try:
     rows = wfs.db.select('SELECT site_id,'
@@ -278,14 +278,14 @@ def wtfJobsToSites():
       'FROM sites '
       'WHERE '
       '(SELECT COUNT(*) FROM jobs WHERE'
-      ' jobs.site_id=sites.site_id AND for_wtf AND'
+      ' jobs.site_id=sites.site_id AND for_awt AND'
       ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) = 0 '
       'ORDER BY site_name'
       # Should change this to random order?
                )
 
   except Exception as e:
-    logLine('Failed getting list of sites for WTF jobs: ' + str(e))
+    logLine('Failed getting list of sites for AWT jobs: ' + str(e))
     return
   
   for row in rows:
@@ -298,7 +298,7 @@ def wtfJobsToSites():
                  maxRssBytes    = 1024 * 1024 * 1024,
                  maxWallSeconds = 3600,
                  ignoreStr      = ' ',
-                 forWtf         = True)
+                 forAwt         = True)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
@@ -306,8 +306,8 @@ def oneCycle():
 #  logLine("updateSiteCounts()")
 #  updateSiteCounts()
 
-  logLine("wtfJobsToSites()")
-  wtfJobsToSites()
+  logLine("awtJobsToSites()")
+  awtJobsToSites()
 
   logLine("anySiteJobs()")
   anySiteJobs()

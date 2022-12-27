@@ -103,7 +103,7 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.stage_id,'
              'jobs.wfs_job_id,'
              'jobs.site_id,'
-             'jobs.for_wtf,'
+             'jobs.for_awt,'
              'jobs.min_processors,'
              'jobs.max_processors,'
              'jobs.min_rss_bytes,'
@@ -142,7 +142,7 @@ def makeJobDict(jobsubID, cookie = None):
            "site_enabled"     : job['enabled'],
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
-           "for_wtf"          : job['for_wtf'],
+           "for_awt"          : job['for_awt'],
            "max_distance"     : job['max_distance'],
            "min_processors"   : job['min_processors'],
            "max_processors"   : job['max_processors'],
@@ -184,7 +184,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
+def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -220,7 +220,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
   addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
 
   # Create a list of RSEs for Workflow Test jobs
-  if forWtf:
+  if forAwt:
     try:
       query = ('SELECT rse_name,write_protocol,distance,wan_pfn,lan_pfn '
                'FROM storages '
@@ -230,24 +230,24 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
                'LEFT JOIN replicas '
                'ON replicas.request_id=%d AND replicas.rse_id=storages.rse_id '
                'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL' % 
-               (jobDict['site_id'], wfs.db.wtfRequestID) )
+               (jobDict['site_id'], wfs.db.awtRequestID) )
 
       rseRows = wfs.db.select(query)
     except:
       return None
 
-    wtfRseFile = ''
+    awtRseFile = ''
     for rseRow in rseRows:
       if rseRow['lan_pfn'] and rseRow['distance'] == 0:
         pfn = rseRow['lan_pfn']
       else:
         pfn = rseRow['wan_pfn']
              
-      wtfRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
+      awtRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
                                     rseRow['write_protocol'],
                                     pfn)
       
-    addFileToTarFile(tar, 'wfs-wtf-rse-list.txt', wtfRseFile)
+    addFileToTarFile(tar, 'wfs-awt-rse-list.txt', awtRseFile)
                   
   # Create an ordered output RSE list specific to this stage
   #
@@ -268,7 +268,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forWtf):
              'WHERE (use_for_output OR '
              'stages_output_storages.rse_id IS NOT NULL) AND '
              'sites_storages.distance IS NOT NULL AND '
-             'storages.rse_write AND '
+             'storages.rucio_write AND '
+             'storages.wfs_write AND '
              'storages.occupancy < 1.0 '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
@@ -451,9 +452,9 @@ def getStageMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Workflow allocator fails to record get_stage time')
 
-  if jobDict['for_wtf']:
+  if jobDict['for_awt']:
     # Special job for Workflow Testing Framework
-    stage = { 'request_id'  : wfs.db.wtfRequestID,
+    stage = { 'request_id'  : wfs.db.awtRequestID,
               'stage_id'    : 1 }
 
   else:
@@ -508,7 +509,7 @@ def getStageMethod(startResponse, jsonDict):
                      + str(e))
 
 #  print('Before makeTarFile', file=sys.stderr)
-  tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_wtf'])
+  tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_awt'])
   
   if not tarFile:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -798,16 +799,16 @@ def processOutputDids(outputDids, requestID, stageID, wfsJobID):
                         'stage_id='           + str(stageID + 1)
                        )
 
-def saveWtfResults(wfsJobID, siteID, bootstrapLog):
+def saveAwtResults(wfsJobID, siteID, bootstrapLog):
 
-#  print('WTF %d %d in saveWtfResults' % (wfsJobID, siteID), 
+#  print('AWT %d %d in saveAwtResults' % (wfsJobID, siteID), 
 #         file=sys.stderr)
 
   for line in bootstrapLog.splitlines():
-#    print('WTF %d %d %s' % (wfsJobID, siteID, line), 
+#    print('AWT %d %d %s' % (wfsJobID, siteID, line), 
 #            file=sys.stderr)
-    if line.startswith('==wtf== '):
-#      print('WTF %d %d %s' % (wfsJobID, siteID, line), 
+    if line.startswith('==awt== '):
+#      print('AWT %d %d %s' % (wfsJobID, siteID, line), 
 #            file=sys.stderr)
       lineSplitted = line.split()
       
@@ -824,15 +825,15 @@ def saveWtfResults(wfsJobID, siteID, bootstrapLog):
                                lineSplitted[2])
                            )
       except Exception as e:
-        print('Update wtf results fails with %s' % str(e), 
+        print('Update awt results fails with %s' % str(e), 
               file=sys.stderr)
 
   try:
-    wfs.db.insertUpdate('UPDATE sites SET last_wtf_time=NOW() '
+    wfs.db.insertUpdate('UPDATE sites SET last_awt_time=NOW() '
                         'WHERE site_id=%d' % siteID)
 
   except Exception as e:
-    print('Update wtf last time fails with %s' % str(e), 
+    print('Update awt last time fails with %s' % str(e), 
           file=sys.stderr)
 
 # Before uploading output files the generic jobs record any results from 
@@ -860,7 +861,7 @@ def recordResultsMethod(startResponse, jsonDict):
                          'Invalid DID or PFN in ' + name)
       
   try:
-    query = ('SELECT wfs_job_id, request_id, stage_id, for_wtf, site_id '
+    query = ('SELECT wfs_job_id, request_id, stage_id, for_awt, site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = wfs.db.select(query, justOne = True)
@@ -869,7 +870,7 @@ def recordResultsMethod(startResponse, jsonDict):
     requestID = int(row['request_id'])
     stageID   = int(row['stage_id'])
     siteID    = int(row['site_id'])
-    forWtf    = row['for_wtf']
+    forAwt    = row['for_awt']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -967,8 +968,8 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed saving job log: ' + str(e))
 
-  if forWtf:
-    saveWtfResults(wfsJobID, 
+  if forAwt:
+    saveAwtResults(wfsJobID, 
                    siteID, 
                    base64.b64decode(jsonDict['bootstrap_log']).decode())
 

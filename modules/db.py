@@ -57,8 +57,8 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
 
 jobStallSeconds = 3600
 
-wtfRequestID = 1
-wtfFileID    = 1
+awtRequestID = 1
+awtFileID    = 1
 
 maxAllocations = 6
 
