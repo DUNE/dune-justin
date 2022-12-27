@@ -42,6 +42,8 @@ import random
 import MySQLdb
 import MySQLdb.constants.ER
 
+wsgiCallsCount = 0
+
 rseAvailabilityDelete = 1
 rseAvailabilityWrite  = 2
 rseAvailabilityRead   = 4

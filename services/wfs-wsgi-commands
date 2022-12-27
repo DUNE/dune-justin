@@ -1,5 +1,5 @@
 #
-#  wfs-api-commands - Workflow System commands API service
+#  wfs-wsgi-commands - Workflow System commands API service
 #
 #  Andrew McNab, University of Manchester.
 #  Copyright (c) 2013-22. All rights reserved.
@@ -41,6 +41,7 @@
 #
 #  Environment=OPENSSL_ALLOW_PROXY_CERTS=1
 
+import os
 import re
 import sys
 import time
@@ -469,7 +470,7 @@ def createRequestCmd(startResponse, jsonDict, userID):
                      '500 Internal Server Error', 
                      'Error updating workflow database ' + str(e))
 
-  return httpOK(startResponse, str(requestID))
+  return httpOK(startResponse, str(requestID) + '\n')
 
 def quickRequestCmd(startResponse, jsonDict, userID):
 
@@ -660,7 +661,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
                          '500 Internal Server Error', 
                           'Error updating workflow database ' + str(e))
 
-  return httpOK(startResponse, str(requestID))
+  return httpOK(startResponse, str(requestID) + '\n')
 
 def submitRequestCmd(startResponse, jsonDict):
 
@@ -1112,6 +1113,10 @@ def getUserID(environ, startResponse):
 # Entry point from mod_wsgi
 #
 def application(environ, startResponse):
+
+  wfs.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
+        file=sys.stderr)
 
   # Avoid leftovers from partial, failed transactions in this instance
   wfs.db.conn.rollback()

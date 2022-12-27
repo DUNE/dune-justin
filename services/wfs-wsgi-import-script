@@ -1,5 +1,5 @@
 #
-#  wfs-api-import-script - WSGI Import Script for Workflow System services
+#  wfs-wsgi-import-script - WSGI Import Script for Workflow System services
 #
 #  Andrew McNab, University of Manchester.
 #  Copyright (c) 2013-22. All rights reserved.

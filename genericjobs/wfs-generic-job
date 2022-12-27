@@ -19,9 +19,9 @@ function job_aborted() {
 {
   "method"         : "job_aborted",
   "jobsub_id"      : "$JOBSUBJOBID",
-  "http_code"      :  $1,
-  "aborted_method" : "$2",
-  "rse_name"       : "$3"
+  "http_code"      :  $2,
+  "aborted_method" : "$3",
+  "rse_name"       : "$4"
 }
 EOF
 
@@ -33,15 +33,11 @@ EOF
      --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
      --data @wfs-job-aborted.json \
-     https://wfs-pro.dune.hep.ac.uk/api/allocator/job_aborted_$1
+     https://wfs-pro.dune.hep.ac.uk/api/allocator/job_aborted_$2
 
-  if [ "$1" = "404" ] ; then
-    # Not finding any work isn't a failure
-    exit 0
-  else
-    # Do not generate failures: they're WFS failures, not job failures
-    exit 0
-  fi
+  # If in a subshell, this just exits that, not the job, so must be caught
+  # The 1st argument lets the caller choose the exit code on errors
+  exit $1
 }
 
 #echo '### date ; pwd ; printenv'
@@ -293,7 +289,7 @@ else
 fi
 
 #if [ "$retval" != 0 ] ; then
-#  job_aborted 900 "Bootstrap script error $retval"
+#  job_aborted 0 0 900 "Bootstrap script error $retval"
 #fi
 
 echo '#### wfs-bootstrap.log'
@@ -403,7 +399,7 @@ cat record-results.log
 echo "=====End record-results.log=="
 
 if [ "$http_code" != 200 ] ; then
-  job_aborted $http_code record_results
+  job_aborted 0 $http_code record_results
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
@@ -435,13 +431,13 @@ export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
 
 rucio --config $WFS_PATH/rucio.cfg --version
 if [ $? != 0 ] ; then
-  job_aborted 900 'Rucio test fails'
+  job_aborted 1 900 'Rucio test fails'
 fi
 
 metacat auth login -m x509 dunepro
 metacat auth whoami
 if [ $? != 0 ] ; then
-  job_aborted 900 'MetaCat whoami fails'
+  job_aborted 1 900 'MetaCat whoami fails'
 fi
 
 touch wfs-output-dids-rses.txt
@@ -453,12 +449,26 @@ do
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="
 
-  log_line "Declare file in MetaCat"
+  log_line "Try to declare file in MetaCat (1/3)"
   metacat file declare --json tmp.json "$dataset"
-  if [ $? = 0 ] ; then
+  metacat_return_code=$?
+  if [ $metacat_return_code != 0 ] ; then
+    sleep 1
+    log_line "Retry declare file in MetaCat (2/3)"
+    metacat file declare --json tmp.json "$dataset"
+    metacat_return_code=$?
+    if [ $metacat_return_code != 0 ] ; then
+      sleep 1
+      log_line "Last chance to declare file in MetaCat (3/3)"
+      metacat file declare --json tmp.json "$dataset"
+      metacat_return_code=$?
+    fi
+  fi
+
+  if [ $metacat_return_code = 0 ] ; then
     if [ "$lifetime" -gt 0 ] ; then
-      $lifetime_option="--lifetime $lifetime"
-    fi  
+      lifetime_option="--lifetime $lifetime"
+    fi
     log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
     rucio --config $WFS_PATH/rucio.cfg --verbose \
           upload \
@@ -474,16 +484,16 @@ do
             --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         log_line "rucio attach fails"
-        job_aborted 900 "rucio attach error"      
+        job_aborted 1 900 "rucio attach error"
       fi
       echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> wfs-output-dids-rses.txt
     else
       log_line "rucio upload fails"
-      job_aborted 900 "rucio upload error" "$OUTPUT_RSE"
+      job_aborted 1 900 "rucio upload error" "$OUTPUT_RSE"
     fi
   else
-    log_line "metacat file declare fails"
-    job_aborted 900 "metacat file declare error"
+    log_line "metacat file declaration fails"
+    job_aborted 1 900 "metacat file declare error"
   fi 
 done
 
@@ -533,7 +543,7 @@ cat confirm-results.log
 echo "=====End confirm-results.log=="
 
 if [ "$http_code" != 200 ] ; then
-  job_aborted $http_code confirm_results
+  job_aborted 0 $http_code confirm_results
 fi
 
 log_line '====End of wfs-generic-job===='

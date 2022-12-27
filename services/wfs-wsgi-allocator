@@ -1,5 +1,5 @@
 #
-#  wfa-api-allocator - Workflow System allocator API service
+#  wfa-wsgi-allocator - Workflow System allocator API service
 #
 #  Andrew McNab, University of Manchester.
 #  Copyright (c) 2013-22. All rights reserved.
@@ -53,6 +53,8 @@ import string
 import tarfile
 
 import wfs
+
+callsCount = 0
 
 def httpError(startResponse, code, message):
 
@@ -1113,6 +1115,10 @@ def getAllocatorLock(timeoutSeconds):
 # Entry point from mod_wsgi
 #
 def application(environ, startResponse):
+
+  wfs.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
+        file=sys.stderr)
 
   # Avoid leftovers from partial, failed transactions in this instance
   wfs.db.conn.rollback()

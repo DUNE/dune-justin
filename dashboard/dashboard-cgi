@@ -386,38 +386,6 @@ def showStage(cgiValues):
   numFailed       = int(stageRow["num_failed"])
   numFiles        = (numFinding + numUnallocated + numAllocated + 
                     numProcessed + numNotfound + numFailed)
-
-  print('<tr><td>Total files</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d">%d</a></td></tr>'
-        % (requestID, stageID,numFiles))
-    
-  print('<tr><td>Finding</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=finding">%d</a></td></tr>'
-        % (requestID, stageID, numFinding))
-    
-  print('<tr><td>Unallocated</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=unallocated">%d</a></td></tr>'
-        % (requestID, stageID, numUnallocated))
-    
-  print('<tr><td>Allocated</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=allocated">%d</a></td></tr>'
-        % (requestID, stageID, numAllocated))
-    
-  print('<tr><td>Outputting</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=outputting">%d</a></td></tr>'
-        % (requestID, stageID, numOutputting))
-        
-  print('<tr><td>Processed</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=processed">%d</a></td></tr>'
-        % (requestID, stageID, numProcessed))
-        
-  print('<tr><td>Not found</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=notfound">%d</a></td></tr>'
-        % (requestID, stageID, numNotfound))
-        
-  print('<tr><td>Failed</td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%d&stage_id=%d&state=failed">%d</a></td></tr>'
-        % (requestID, stageID, numFailed))
         
   print('</table>')
     
@@ -445,6 +413,87 @@ def showStage(cgiValues):
 
   print('</table>') 
 
+  # File states
+
+  print('<h2>File states</h2>')
+  print('<table')
+  print("<tr><th>Total files</th><th>Finding</th>"
+        "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
+        "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
+
+  print('<tr><td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
+        '</tr>' % 
+          (requestID, stageID, numFiles, 
+           requestID, stageID, numFinding, 
+           requestID, stageID, numUnallocated, 
+           requestID, stageID, numAllocated, 
+           requestID, stageID, numOutputting, 
+           requestID, stageID, numProcessed,
+           requestID, stageID, numNotfound,
+           requestID, stageID, numFailed))
+
+  print("</table>")
+
+  # Job states
+
+  query = ('SELECT '
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="processing") '
+           ' AS number_processing,'
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="outputting") '
+           ' AS number_outputting,'
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="finished") '
+           ' AS number_finished,'
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="aborted") '
+           ' AS number_aborted,'
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="stalled") '
+           ' AS number_stalled'
+           % (requestID, stageID, 
+              requestID, stageID,
+              requestID, stageID,
+              requestID, stageID,
+              requestID, stageID))
+
+  wfs.db.cur.execute(query)
+  jobNumberRow = wfs.db.cur.fetchone()
+
+  print('<h2>Job states</h2>')
+  print('<table')
+  print('<tr><th>Processing</th><th>Outputting</th><th>Finished</th>'
+        '<th>Aborted</th><th>Stalled</th></tr>')
+
+  print('<tr>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=processing">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=outputting">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=finished">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=aborted">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=stalled">%d</a></td>'
+        '</tr>'
+        % (requestID, stageID, jobNumberRow['number_processing'],
+           requestID, stageID, jobNumberRow['number_outputting'],
+           requestID, stageID, jobNumberRow['number_finished'],
+           requestID, stageID, jobNumberRow['number_aborted'],
+           requestID, stageID, jobNumberRow['number_stalled']
+          ))
+
+  print('</table>')
+
   # RSE counts
 
   rseCounts = {}
@@ -459,11 +508,13 @@ def showStage(cgiValues):
   rseRows = wfs.db.cur.fetchall()
   
   for rseRow in rseRows:
-  
+
     if rseRow['rse_name'] not in rseCounts:
       rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
 
     rseCounts[rseRow['rse_name']]['inputs'] = rseRow['file_count']
+
+#  print('<p>',str(rseCounts))
 
   query = ('SELECT rse_name,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
@@ -477,9 +528,15 @@ def showStage(cgiValues):
   for rseRow in rseRows:
   
     if rseRow['rse_name'] not in rseCounts:
+#      if rseRow['rse_name'] is None:
+#        print('<p>',str(rseRow))
+        
       rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
 
     rseCounts[rseRow['rse_name']]['outputs'] = rseRow['file_count']
+
+#  print('<p>',str(rseCounts))
+#  print('<p>',query)
     
   if rseCounts:
     print("<h2>RSEs used</h2>")
@@ -531,7 +588,7 @@ def showStage(cgiValues):
     resetCounts[resetRow['site_name']]['outputting'] = resetRow['site_count']
 
   if resetCounts:
-    print("<h2>File reset events</h2>")
+    print("<h2>File reset events, by site</h2>")
     print('<table><tr><th>Site</th><th>Allocated</th><th>Outputting</th></tr>')
 
     for siteName in resetCounts:
@@ -1037,7 +1094,8 @@ def listJobs(cgiValues, pageNumber, pageLength):
   allocationState = str(cgiValues.getfirst("allocation_state"))
 
   if allocationState in ['submitted','started','processing','outputting',
-                         'finished', 'notused','failed']:
+                         'finished', 'notused','failed','aborted',
+                         'stalled']:
     filters.append('jobs.allocation_state="%s"' % allocationState)
     urlTemplate += '&allocation_state=' + allocationState
     titleSuffixes.append('Allocation State %s' % allocationState)
@@ -1065,6 +1123,27 @@ def listJobs(cgiValues, pageNumber, pageLength):
   header("WFS: Jobs" + titleSuffix)
 
   print("<h1>Jobs%s</h1>" % titleSuffix)
+  
+  if not filter:   
+    try:
+      query = ('SELECT '
+               ' (SELECT COUNT(*) FROM jobs '
+               ' WHERE allocation_state="submitted") AS number_submitted,'
+               ' (SELECT COUNT(*) FROM jobs '
+               ' WHERE allocation_state="processing") AS number_processing,'
+               ' (SELECT COUNT(*) FROM jobs '
+               ' WHERE allocation_state="outputting") AS number_outputting')
+               
+      row = wfs.db.select(query, justOne = True)
+
+      print('<p>%d job(s) in submitted state, %d in processing state, '
+            '%d in outputting state</p>' %
+            (row['number_submitted'], 
+             row['number_processing'],
+             row['number_outputting']))
+
+    except Exception as e:
+      print(str(e))
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
