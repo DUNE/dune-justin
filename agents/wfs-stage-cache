@@ -146,8 +146,7 @@ def findStage(jobDict):
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rucio_read "
  "AND storages.wfs_read "
- "ORDER BY stage_rank DESC,sites_storages.distance,"
- "files.request_id,files.file_id "
+ "ORDER BY stage_rank DESC,sites_storages.distance,rand() "
  "LIMIT 1" %
  (
   jobDict["site_id"],

@@ -63,7 +63,7 @@ def httpError(startResponse, code, message):
   except:
     pass
 
-  print('wfdb-cgi fails with %s (%s)' % 
+  print('wfs-wsgi-allocator fails with %s (%s)' % 
         (code, str(message)), file=sys.stderr)
 
   startResponse(code,
@@ -315,6 +315,7 @@ def updateAllocationState(jobsub_id, state):
   try:
     wfs.db.insertUpdate(
              'UPDATE jobs SET allocation_state="%s",'
+             'heartbeat_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' % (state, jobsub_id))
     wfs.db.conn.commit()
@@ -598,6 +599,7 @@ def jobAbortedMethod(startResponse, jsonDict):
   try:
     wfs.db.insertUpdate(
              'UPDATE jobs SET allocation_state="%s",'
+             'heartbeat_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
@@ -729,7 +731,8 @@ def getFileMethod(startResponse, jsonDict):
     if jobDict['allocation_state'] == 'started':
       try:
         wfs.db.insertUpdate(
-                 'UPDATE jobs SET allocation_state="processing" '
+                 'UPDATE jobs SET allocation_state="processing",'
+                 'heartbeat_time=NOW() '
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                            )
 
@@ -950,6 +953,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
   try:
     wfs.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
+                        'heartbeat_time=NOW(),'
                         'outputting_time=NOW() '
                         'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
   except Exception as e:
@@ -1048,6 +1052,7 @@ def confirmResultsMethod(startResponse, jsonDict):
   
   try:
     wfs.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
+                        'heartbeat_time=NOW(),'
                         'finished_time=NOW() '
                         'WHERE wfs_job_id=%d AND allocation_state="outputting"'
                         % wfsJobID)

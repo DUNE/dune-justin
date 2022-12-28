@@ -55,7 +55,7 @@ jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled' ]
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
-jobStallSeconds = 3600
+jobStallSeconds = 3660
 
 awtRequestID = 1
 awtFileID    = 1

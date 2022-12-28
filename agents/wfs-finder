@@ -569,7 +569,7 @@ def findStalledAbortedJobs():
       # If not here due to 'aborted', we mark the job as stalled
       try:
         query = ('UPDATE jobs SET allocation_state="stalled",finished_time=NOW() '
-               'WHERE wfs_job_id=%d' % jobRow['wfs_job_id'])
+                 'WHERE wfs_job_id=%d' % jobRow['wfs_job_id'])
     
         wfs.db.cur.execute(query)
       except Exception as e: 
