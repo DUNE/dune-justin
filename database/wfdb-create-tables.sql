@@ -147,7 +147,7 @@ CREATE TABLE `files` (
   INDEX `wfs_job_id` (`wfs_job_id`,`request_id`,`stage_id`),
   INDEX `request_stage_state_id` (`request_id`,`stage_id`,`state`),
   KEY `state_file_id` (`state`,`file_id`),
-  INDEX `request_stage_state` (`request_id`,`stage_id`,`state`),
+  INDEX `request_stage_state_file` (`request_id`,`stage_id`,`state`,`file_id`),
   INDEX `creator_wfs_job_id` (`creator_wfs_job_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

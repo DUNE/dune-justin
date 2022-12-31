@@ -519,8 +519,8 @@ def getStageMethod(startResponse, jsonDict):
                      'Failed to create tar file')
         
 #  print('Before updateStageCounts', file=sys.stderr)
-  wfs.allocator.updateStageCounts(stage['request_id'], 
-                                  stage['stage_id'])
+#  wfs.allocator.updateStageCounts(stage['request_id'], 
+#                                  stage['stage_id'])
    
   try:
     wfs.db.conn.commit()
@@ -736,8 +736,8 @@ def getFileMethod(startResponse, jsonDict):
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                            )
 
-        wfs.allocator.updateStageCounts(jobDict['request_id'], 
-                                        jobDict['stage_id'])
+#        wfs.allocator.updateStageCounts(jobDict['request_id'], 
+#                                        jobDict['stage_id'])
 
       except Exception as e:
         return httpError(startResponse,
@@ -890,7 +890,7 @@ def recordResultsMethod(startResponse, jsonDict):
              % (wfsJobID, wfs.db.event_FILE_ALLOCATED))
              
     jobFiles = wfs.db.select(query)
-    
+
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -977,8 +977,8 @@ def recordResultsMethod(startResponse, jsonDict):
                    siteID, 
                    base64.b64decode(jsonDict['bootstrap_log']).decode())
 
-  # Update counts for this stage
-  wfs.allocator.updateStageCounts(requestID, stageID)
+#  # Update counts for this stage
+#  wfs.allocator.updateStageCounts(requestID, stageID)
 
   return httpOK(startResponse, '')
 
@@ -1068,7 +1068,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Updating job state to finished')
   
-  wfs.allocator.updateStageCounts(requestID, stageID)
+#  wfs.allocator.updateStageCounts(requestID, stageID)
 
   return httpOK(startResponse, '')
 

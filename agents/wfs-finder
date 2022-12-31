@@ -292,12 +292,34 @@ def findFiles():
     
       findFilesMetaCat(request['request_id'], request['mql'])
 
-    # Update the stats for the first stage
-    wfs.allocator.updateStageCounts(request['request_id'], 1)
+#    # Update the stats for the first stage
+#    wfs.allocator.updateStageCounts(request['request_id'], 1)
     wfs.db.conn.commit()
 
 def findReplicas():
   # Find replicas of files in the finding state
+
+  query = (
+    'SELECT requests.request_id,stages.stage_id '
+    'FROM requests '
+    'LEFT JOIN stages ON requests.request_id=stages.request_id '
+    'LEFT JOIN files ON requests.request_id=files.request_id AND '
+    'stages.stage_id=files.stage_id '
+    'WHERE requests.state="running" AND files.state="finding" '
+    'GROUP BY requests.request_id,stages.stage_id '
+    'ORDER BY stage_rank DESC,RAND() LIMIT 1')
+
+  try:
+    stageRow = wfs.db.select(query, justOne = True)
+    requestID = stageRow['request_id']
+    stageID   = stageRow['stage_id']
+
+  except Exception as e:
+    logLine('Finding request/stage to find replicas for fails: %s' % str(e))
+    return
+
+  logLine('Looking for replicas in finding state for request=%d stage=%d'
+          % (requestID, stageID))
 
   # Make a list of up to maxFileFindsPerCycle files to work on 
   # but only for Rucio DIDs in scope:name format
@@ -305,12 +327,16 @@ def findReplicas():
 
   try:
     fileRows = wfs.db.select(
-           'SELECT files.request_id,files.stage_id,file_id,file_did FROM files '
+           'SELECT files.request_id,files.stage_id,file_id,file_did '
+           'FROM files '
            'LEFT JOIN requests ON requests.request_id=files.request_id '
-           'WHERE files.state="finding" '
+           'WHERE files.request_id=%d '
+           'AND files.stage_id=%d '
+           'AND files.state="finding" '
            'AND requests.state="running" '
-           'AND file_did LIKE "%:%" '
-           'ORDER BY file_id LIMIT ' + str(maxFileFindsPerCycle))
+           'AND file_did LIKE "%%:%%" '
+           'ORDER BY file_id LIMIT %d'
+           % (requestID, stageID, maxFileFindsPerCycle))
 
   except Exception as e:
     logLine('Finding list of files to find fails: ' + str(e))
@@ -471,9 +497,9 @@ def findReplicas():
         # We give up if this happens, without the commit
         return
 
-  # Update all the stages for which we've updated a file
-  for (requestID, stageID) in requestsStages:
-    wfs.allocator.updateStageCounts(requestID, stageID)
+#  # Update all the stages for which we've updated a file
+#  for (requestID, stageID) in requestsStages:
+#    wfs.allocator.updateStageCounts(requestID, stageID)
     
   # All ok, so commit it all to the DB
   wfs.db.conn.commit()

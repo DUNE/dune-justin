@@ -92,7 +92,10 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
     # Do not add more distant replicas of files already seen.
     # This deduplication in the Python agent reduces the big scans of
     # the database which block other services.
-    if replicaRow['file_id'] in filesSeen or len(filesSeen) >= 350:
+    if len(filesSeen) >= 500:
+      break
+     
+    if replicaRow['file_id'] in filesSeen:
       continue
       
     filesSeen.add(replicaRow['file_id'])

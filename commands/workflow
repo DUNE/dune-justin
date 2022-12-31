@@ -41,7 +41,7 @@ import ssl
 import urllib.request
 import argparse
 
-versionNumber = '00.01.00'
+versionNumber = '00.01.01'
 
 def body(buf): 
 
@@ -56,7 +56,6 @@ parser = argparse.ArgumentParser()
 commands = [ "create-request", 
              "submit-request", 
              "start-request",
-             "add-file",
              "pause-request",
              "finish-request",
              "create-stage", 
@@ -66,7 +65,9 @@ commands = [ "create-request",
              "create-site-storage",
              "show-requests", "show-stages", "show-bootstrap",
              "show-stage-outputs",
-             "show-files", "show-replicas", "show-storages",
+             "show-files",
+             "fail-files",
+             "show-replicas", "show-storages",
              "show-sites-storages", "show-jobs" ]
 
 parser.add_argument("command",

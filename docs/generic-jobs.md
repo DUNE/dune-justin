@@ -19,7 +19,7 @@ states given here:
 - **processing** - the bootstrap script has successfully been allocated at 
   least one input file to process by the 
   Workflow Allocator.
-- *outputting** - the bootstrap script has finished and the generic job has
+- **outputting** - the bootstrap script has finished and the generic job has
   reported to the Workflow Allocator the list of
   input files it processed and the names of the output files it intends to
   register with MetaCat and Rucio and to upload 

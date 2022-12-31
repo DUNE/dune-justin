@@ -584,6 +584,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
 
   try:
     wfs.db.insertUpdate("INSERT INTO stages SET "
+          "stage_rank=0,"
           "request_id=%d,"
           "stage_id=1,"
           "processors=%d,"
@@ -809,6 +810,7 @@ def createStageCmd(startResponse, jsonDict):
 
   try:
     wfs.db.insertUpdate("INSERT INTO stages SET "
+                        "stage_rank=0,"
                         "request_id=%d,"
                         "stage_id=%d,"
                         "processors=%d,"
@@ -963,7 +965,7 @@ def createBootstrapCmd(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-def addFileCmd(startResponse, jsonDict):
+def failFilesCmd(startResponse, jsonDict):
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -973,60 +975,22 @@ def addFileCmd(startResponse, jsonDict):
                      'Request ID must be given')
 
   try:
-    stageID = int(jsonDict['stage_id'])
+    stageID  = int(jsonDict['stage_id'])
+    stageStr = 'AND stage_id=%d' % stageID
   except:
-    stageID = 1
+    stageStr = ''
 
   try:
-    fileDID = str(jsonDict['file_did'])
-  except:
-    fileDID = None
-
-  if fileDID is None:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'File DID must be given')
-
-  rseList = []
-
-  try:
-    for rseName in jsonDict['rse_name']:
-      rseList.append(re.sub('[^A-Za-z0-9._-]+', '', str(rseName)))
-  except:
-    rseList = []
-    
-  if len(rseList) == 0:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'At least one RSE name must be given')
-
-  try:
-    wfs.db.insertUpdate("INSERT INTO files SET "
-          "request_id=%d,"
-          "stage_id=%d,"
-          "file_did='%s',"
-          "state='unallocated'" % 
-          (requestID, stageID, fileDID))
+    wfs.db.insertUpdate('UPDATE files SET state="failed" '
+          'WHERE request_id=%d %s '
+          'AND state IN ("finding", "unallocated", "allocated", "outputting")'
+          % (requestID, stageStr))
 
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Error updating workflow database ' + str(e))
 
-  fileID = wfs.db.cur.lastrowid
-
-  for rseName in rseList:
-    try:
-      wfs.db.insertUpdate("INSERT INTO replicas SET "
-            "rse_id=(SELECT rse_id FROM storages WHERE rse_name='%s'),"
-            "file_id=%d,request_id=%d,stage_id=%d" % 
-            (rseName, fileID, requestID, stageID))
-
-    except Exception as e:
-      return httpError(startResponse, 
-                       '500 Internal Server Error', 
-                       'Error updating workflow database ' + str(e))
-      
   return httpOK(startResponse, '')
 
 def showJobsCmd(startResponse, jsonDict):
@@ -1172,6 +1136,9 @@ def application(environ, startResponse):
   if jsonDict['command'] == 'show-files':
     return showFilesCmd(startResponse, jsonDict)
 
+  if jsonDict['command'] == 'fail-files':
+    return failFilesCmd(startResponse, jsonDict)
+
   if jsonDict['command'] == 'show-replicas':
     return showReplicasCmd(startResponse, jsonDict)
 
@@ -1204,9 +1171,6 @@ def application(environ, startResponse):
 
   if jsonDict['command'] == 'create-bootstrap':
     return createBootstrapCmd(startResponse, jsonDict)
-
-  if jsonDict['command'] == 'add-file':
-    return addFileCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)

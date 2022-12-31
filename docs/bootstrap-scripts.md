@@ -2,6 +2,7 @@
 
 The bootstrap scripts supplied when creating a stage are shell scripts 
 which the generic jobs execute on the worker nodes matched to that stage.  
+
 They are started in an empty workspace directory.  Several environment 
 variables are made available to the scripts, all prefixed with WFS_, 
 including $WFS_REQUEST_ID, $WFS_STAGE_ID and $WFS_COOKIE which allows the 

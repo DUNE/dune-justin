@@ -205,18 +205,6 @@ output gives the site name, RSE name, and then their relative distance
 between 0 (same site) and 100 (maximally remote).
 
 .HP
-.B "add-file --request-id ID [--stage-id ID] --file-did DID --rse-name NAME --pfn URL"
-.br
-Adds one file to the list of files to be processed in a stage, with the
-given Rucio file Data Identifier (DID). 
-.B Normally this should only be done for the first stage, 
-which is the default. Files are created in the "unallocated" state, ready
-for processing. Exactly RSE which has a replica of the file must be
-given along with one PFN to access the replica on that RSE. This subcommand is
-only intended for testing, as normally the Finder agent builds the lists of 
-files and replicas for the first stage of a request using MetaCat and Rucio.
-
-.HP
 .B "show-files [--request-id ID] [--stage-id ID] [--file-did DID]"
 .br
 Shows files information cached in the Workflow Database, either limited by 
@@ -227,6 +215,16 @@ state, are then allocated to an instance of the stage's script by the
 Workflow Allocator, and then either return to "unallocated" or move to
 "processed" depending on whether the script is able to process them
 correctly.
+
+.HP
+.B "fail-files --request-id ID [--stage-id ID]"
+.br
+Set all the files of the given request, and optionally stage, to the failed
+state when they are already in the finding, unallocated, allocated, or
+outputting state. Files in the processed, failed, or notfound states are
+unchanged. This allows requests with a handful of pathological files to
+be terminated, as the Finder agent will see all the files are now in terminal
+states and mark the request as finished.
 
 .HP
 .B "show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]"

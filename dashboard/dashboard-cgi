@@ -246,54 +246,84 @@ def showRequest(cgiValues):
         spaceForUnixEpoch(requestRow['finished']))
   
   print("</table>")
-  
+
+  # Get the stages of this request
   query = ("SELECT * "
            "FROM stages "
            "WHERE request_id=%d "
            "ORDER BY stage_id" % requestID)
 
   wfs.db.cur.execute(query)
-  stagesRows = wfs.db.cur.fetchall()
+  stageRows = wfs.db.cur.fetchall()
+
+  # Get counts of file states for all stages
+  stateCounts = []
+  for i in range(0, len(stageRows) + 1):
+    stateCounts.append({ 'recorded'    : 0,
+                         'finding'     : 0,
+                         'unallocated' : 0,
+                         'allocated'   : 0,
+                         'outputting'  : 0,
+                         'processed'   : 0,
+                         'notfound'    : 0,
+                         'failed'      : 0,
+                         'output'      : 0  })
   
+  query = ('SELECT state,stage_id,COUNT(*) AS count '
+           'FROM files '
+           'WHERE request_id=%d '
+           'GROUP BY state,stage_id' % requestID)
+             
+  stateRows = wfs.db.select(query)
+  
+  for stateRow in stateRows:
+    stateCounts[stateRow['stage_id']][stateRow['state']] = stateRow['count']
+
+  # Output a table with the stages
+
   print('<h2>Stages</h2>')
   print('<table')
   print("<tr><th>Stage ID</th><th>Rank</th><th>Files</th><th>Finding</th>"
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
-  for stageRow in stagesRows:
-    numFinding      = int(stageRow["num_finding"])
-    numUnallocated  = int(stageRow["num_unallocated"])
-    numAllocated    = int(stageRow["num_allocated"])
-    numOutputting   = int(stageRow["num_outputting"])
-    numProcessed    = int(stageRow["num_processed"])
-    numNotfound     = int(stageRow["num_notfound"])
-    numFailed       = int(stageRow["num_failed"])
-    numFiles        = (numFinding + numUnallocated + numAllocated + 
-                      numOutputting + numProcessed + numNotfound + numFailed)
-    
+  for stageRow in stageRows:    
     print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%s</a></td>'
           '<td>%d</td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%d</a></td>'
           '</tr>' % 
           (stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
            stageRow["stage_rank"],
-           stageRow["request_id"], stageRow["stage_id"], numFiles, 
-           stageRow["request_id"], stageRow["stage_id"], numFinding, 
-           stageRow["request_id"], stageRow["stage_id"], numUnallocated, 
-           stageRow["request_id"], stageRow["stage_id"], numAllocated, 
-           stageRow["request_id"], stageRow["stage_id"], numOutputting, 
-           stageRow["request_id"], stageRow["stage_id"], numProcessed,
-           stageRow["request_id"], stageRow["stage_id"], numNotfound,
-           stageRow["request_id"], stageRow["stage_id"], numFailed))
+           stageRow["request_id"], stageRow["stage_id"], 
+            stateCounts[stageRow['stage_id']]['finding'] +
+            stateCounts[stageRow['stage_id']]['unallocated'] +
+            stateCounts[stageRow['stage_id']]['allocated'] +
+            stateCounts[stageRow['stage_id']]['outputting'] +
+            stateCounts[stageRow['stage_id']]['processed'] +
+            stateCounts[stageRow['stage_id']]['notfound'] +
+            stateCounts[stageRow['stage_id']]['failed'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['finding'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['unallocated'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['allocated'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['outputting'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['processed'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['notfound'],
+           stageRow["request_id"], stageRow["stage_id"], 
+            stateCounts[stageRow['stage_id']]['failed']))
 
   print("</table>")
 
@@ -318,13 +348,6 @@ def showStage(cgiValues):
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
-           "stages.num_finding,"
-           "stages.num_unallocated,"
-           "stages.num_allocated,"
-           "stages.num_outputting,"
-           "stages.num_processed,"
-           "stages.num_notfound,"
-           "stages.num_failed,"
            "bootstraps.bootstrap "
            "FROM stages "
            "LEFT JOIN bootstraps ON bootstraps.request_id=stages.request_id"
@@ -376,16 +399,6 @@ def showStage(cgiValues):
       print("%s " % rseRow['rse_name'])
         
   print('</td></tr>')
-
-  numFinding      = int(stageRow["num_finding"])
-  numUnallocated  = int(stageRow["num_unallocated"])
-  numAllocated    = int(stageRow["num_allocated"])
-  numOutputting   = int(stageRow["num_outputting"])
-  numProcessed    = int(stageRow["num_processed"])
-  numNotfound     = int(stageRow["num_notfound"])
-  numFailed       = int(stageRow["num_failed"])
-  numFiles        = (numFinding + numUnallocated + numAllocated + 
-                    numProcessed + numNotfound + numFailed)
         
   print('</table>')
     
@@ -414,7 +427,26 @@ def showStage(cgiValues):
   print('</table>') 
 
   # File states
-
+  stateCounts = { 'recorded'    : 0,
+                  'finding'     : 0,
+                  'unallocated' : 0,
+                  'allocated'   : 0,
+                  'outputting'  : 0,
+                  'processed'   : 0,
+                  'notfound'    : 0,
+                  'failed'      : 0,
+                  'output'      : 0  }                  
+  
+  query = ('SELECT state,COUNT(*) AS count '
+           'FROM files '
+           'WHERE request_id=%d AND stage_id=%d '
+           'GROUP BY state' % (requestID, stageID))
+  
+  stateRows = wfs.db.select(query)
+  
+  for stateRow in stateRows:
+    stateCounts[stateRow['state']] = stateRow['count']    
+  
   print('<h2>File states</h2>')
   print('<table')
   print("<tr><th>Total files</th><th>Finding</th>"
@@ -430,14 +462,20 @@ def showStage(cgiValues):
         '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
         '</tr>' % 
-          (requestID, stageID, numFiles, 
-           requestID, stageID, numFinding, 
-           requestID, stageID, numUnallocated, 
-           requestID, stageID, numAllocated, 
-           requestID, stageID, numOutputting, 
-           requestID, stageID, numProcessed,
-           requestID, stageID, numNotfound,
-           requestID, stageID, numFailed))
+          (requestID, stageID, stateCounts['finding']
+                             + stateCounts['unallocated']
+                             + stateCounts['allocated'] 
+                             + stateCounts['outputting']
+                             + stateCounts['processed']
+                             + stateCounts['notfound']
+                             + stateCounts['failed'],
+           requestID, stageID, stateCounts['finding'], 
+           requestID, stageID, stateCounts['unallocated'], 
+           requestID, stageID, stateCounts['allocated'], 
+           requestID, stageID, stateCounts['outputting'],
+           requestID, stageID, stateCounts['processed'],
+           requestID, stageID, stateCounts['notfound'],
+           requestID, stageID, stateCounts['failed']))
 
   print("</table>")
 

@@ -31,9 +31,8 @@ As part of its definition, a request may include one or more stages, each
 of which can apply a sequence of processing steps to the input or output 
 files. Each stage specifies a 
 [bootstrap script](bootstrap-scripts.md) used by generic jobs to run 
-the relevant applications. The script specifies the requirements on the 
-worker nodes (for example memory) and the maximum number of input files to 
-be issued to the job executing that stage.
+the relevant applications. The stage definition specifies the requirements on 
+the worker nodes (for example memory and job duration).
 
 The request definition will usually include a MetaCat MQL query 
 to generate a list of files to be processed in the first stage. This list of 
@@ -46,5 +45,3 @@ Once the request has moved to the running state the
 stage, and looks up the replicas of each file. Once replicas are available,
 then generic jobs submitted by the [Generic Job Factory](job-factory.md)
 will begin to match unallocated files and processing can begin.
-
-
