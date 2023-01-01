@@ -13,8 +13,7 @@ mysqlHostname = None
 mysqlDbName   = None
 
 def readConf():
-  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
-         wfsLibDir, wfsLogDir, wfsRunDir
+  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName
 
   parser = configparser.RawConfigParser()
 
@@ -34,26 +33,11 @@ def readConf():
   # Options for the [shared] section
 
   try:
-    wfsLibDir = parser.get('shared','wfs_lib_dir').strip()
-  except:
-    wfsLibDir = '/var/lib/wfs'
-
-  try:
     f = open(wfsLibDir + '/VERSION', 'r')
     wfsVersion = f.readline().split('=',1)[1].strip()
     f.close()
   except:
     wfsVersion = '00.00.00'
-
-  try:
-    wfsLogDir = parser.get('shared','wfs_log_dir').strip()
-  except:
-    wfsLogDir = '/var/log/wfs'
-
-  try:
-    wfsRunDir = parser.get('shared','wfs_run_dir').strip()
-  except:
-    wfsRunDir = '/var/run/wfs'
 
   # Options for the [database section]
 

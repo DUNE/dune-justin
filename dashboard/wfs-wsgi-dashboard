@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 #
-#  dashboard-cgi - Workflow System dashboard
+#  wfs-wsgi-dashboard - Workflow System dashboard
 #
 #  Andrew McNab, University of Manchester.
-#  Copyright (c) 2013-22. All rights reserved.
+#  Copyright (c) 2013-23. All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or
 #  without modification, are permitted provided that the following
@@ -31,12 +31,14 @@
 #  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 #
+#  This WSGI script relies on wfs-api-import-script being run by
+#  the mod_wsgi directive WSGIImportScript
+#
 
 import os
 import io
 import re
 import sys
-import cgi
 import time
 import json
 import uuid
@@ -46,21 +48,12 @@ import urllib.parse
 import string
 import MySQLdb
 
-# wfs/conf.py must define these variables in a way that is both
-# valid Python and valid Bash!
-#
-# mysqlUser='username'
-# mysqlPassword='PAsSWoRd'
-#
 import wfs
 
 def header(title):
-  print("Status: 200 OK")
-  print("Content-Type: text/html")
-  print()
-  print("<html><head><title>%s</title>" % title)
-  print(
-"""<style>
+
+  return ("""<html><head><title>%s</title>
+<style>
 table { border-collapse: collapse; border: medium solid black;}
 tr { text-align: left }
 td,th { border: thin solid black; padding: 0.75ex }
@@ -76,21 +69,19 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="/dashboard/?method=awt-results">AWT</a> .
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
-""")
+""" % title)
 
 def footer():
-  print("<hr>Time now: %s" % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
-  print("</body></html>")
-  sys.exit()
+  return ("<hr>Time now: %s\n</body></html>" 
+          % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
 def errorPage(message):
-  header("Error")
-  print("<h1>Error</h1>")
-  print("<p>%s</p>" % message)
-  footer()
+  output = header("Error")
+  output += "<h1>Error</h1>\n<p>%s</p>" % message
+  output += footer()
+  return output
 
 def spaceForUnixEpoch(s):
-#  print('<!-- %s %s -->' % (wfs.db.unixEpoch, s))
   if str(s) == wfs.db.unixEpoch:
     return '&nbsp;'
   else:
@@ -106,42 +97,46 @@ def daysHoursMinutes(seconds):
     
   return '%dm' % int(seconds / 60)
 
-def printPager(pageNumber, pageLength, rowsLen, urlTemplate):
+def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
 
-  print('<p>Page: ')
+  output = '<p>Page: '
 
   for pageno in range(pageNumber + 1):
     if pageno == pageNumber:
-      print(' %d ' % (pageno + 1))
+      output += ' %d ' % (pageno + 1)
     else:
-      print((' <a href="' + urlTemplate + '">%d</a> ') % 
-            (pageno, pageLength, pageno + 1))
+      output += ((' <a href="' + urlTemplate + '">%d</a> ') % 
+                 (pageno, pageLength, pageno + 1))
             
   if rowsLen > pageLength:
-    print((' <a href="' + urlTemplate + '">Next</a> ') % 
-          (pageNumber + 1, pageLength))
+    output += ((' <a href="' + urlTemplate + '">Next</a> ') % 
+               (pageNumber + 1, pageLength))
+               
+  return output
   
 def mainPage():
-  header("WFS: Dashboard")
 
-  print("<h1>Dashboard</h1>")
+  output = header("WFS: Dashboard")
+
+  output += ("""<h1>Dashboard</h1>
+<ul>
+<li><a href="/dashboard/?method=list-requests">Requests</a></li>
+<li><a href="/dashboard/?method=list-jobs">Jobs</a></li>
+<li><a href="/dashboard/?method=list-events">Events</a></li>
+<li><a href="/dashboard/?method=list-sites">Sites</a></li>
+<li><a href="/dashboard/?method=list-storages">Storages</a></li>
+<li><a href="/dashboard/?method=awt-results">Automated Workflow Tests</a></li>
+<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>
+</ul>""")
   
-  print('<ul>')
-  print('<li><a href="/dashboard/?method=list-requests">Requests</a></li>')
-  print('<li><a href="/dashboard/?method=list-jobs">Jobs</a></li>')
-  print('<li><a href="/dashboard/?method=list-events">Events</a></li>')
-  print('<li><a href="/dashboard/?method=list-sites">Sites</a></li>')
-  print('<li><a href="/dashboard/?method=list-storages">Storages</a></li>')
-  print('<li><a href="/dashboard/?method=awt-results">Automated Workflow Tests</a></li>')
-  print('<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>')
-  print('</ul>')
-  
-  footer()
+  output += footer()
+  return output
 
 def listRequests(cgiValues, pageNumber, pageLength):
-  header("WFS: Requests")
 
-  print("<h1>Requests</h1>")
+  output = header("WFS: Requests")
+
+  output += "<h1>Requests</h1>"
   
   query = ('SELECT request_id,name,username,state,mql,created,submitted,'
            'started,finished '
@@ -153,16 +148,16 @@ def listRequests(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   rows = wfs.db.cur.fetchall()
 
-  printPager(pageNumber, pageLength, len(rows), 
+  output += makePager(pageNumber, pageLength, len(rows), 
              "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
              
-  print('<p><table')
-  print('<tr><th>Request ID</th><th>Name</th><th>User</th><th>State</th>'
-        '<th>MQL</th><th>Created</th><th>Submitted</th><th>Started</th>'
-        '<th>Finished</th><tr>')
+  output += '<p><table>'
+  output += ('<tr><th>Request ID</th><th>Name</th><th>User</th><th>State</th>'
+             '<th>MQL</th><th>Created</th><th>Submitted</th><th>Started</th>'
+             '<th>Finished</th><tr>')
 
   for row in rows[:pageLength]:
-    print('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
           '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '</tr>' % 
@@ -178,19 +173,21 @@ def listRequests(cgiValues, pageNumber, pageLength):
           )
          )
 
-  print("</table>")
+  output += "</table>"
   
-  printPager(pageNumber, pageLength, len(rows), 
+  output += makePager(pageNumber, pageLength, len(rows), 
              "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
-  footer()
+  output += footer()
+  
+  return output
 
 def showRequest(cgiValues):
   try:
-    requestID = int(cgiValues.getfirst("request_id"))
+    requestID = int(cgiValues['request_id'])
   except:
-    errorPage("request_id must be given")
+    return errorPage("request_id must be given")
   
-  header("WFS: Request %d" % requestID)
+  output = header("WFS: Request %d" % requestID)
 
   query = ("SELECT requests.name,requests.state,"
            "users.username,"
@@ -208,44 +205,43 @@ def showRequest(cgiValues):
   
   state = requestRow['state']
 
-  print("<h1>Request %d</h1>" % requestID)
-  
-  print('<table')
+  output += "<h1>Request %d</h1>" % requestID
+  output += '<table>'
+  output += ('<tr><td>Name</td><td>%s</td></tr>' 
+             % html.escape(requestRow['name'], quote=True))
 
-  print('<tr><td>Name</td><td>%s</td></tr>' % 
-        html.escape(requestRow['name'], quote=True))
-  print('<tr><td>State</td><td>%s</td></tr>' % state)
-  print('<tr><td>MQL</td><td>%s</td></tr>' % 
-        html.escape(requestRow['mql'], quote=True))
+  output += ('<tr><td>State</td><td>%s</td></tr>' % state)
+  output += ('<tr><td>MQL</td><td>%s</td></tr>' 
+             % html.escape(requestRow['mql'], quote=True))
 
   if requestRow['refind_seconds'] == 0:
-    print('<tr><td>Finding</td><td>once</td></tr>')
+    output += '<tr><td>Finding</td><td>once</td></tr>'
   else:
-    print('<tr><td>Finding</td><td>every %d hour(s), %s to %s</td></tr>' %
-          (int(requestRow['refind_seconds'] / 3600), 
-           requestRow['refind_start_time'],
-           requestRow['refind_end_time'])
-         )
+    output += ('<tr><td>Finding</td><td>every %d hour(s), %s to %s</td></tr>'
+               % (int(requestRow['refind_seconds'] / 3600), 
+                  requestRow['refind_start_time'],
+                  requestRow['refind_end_time'])
+              )
       
-  print('<tr><td>Created by</td><td>%s</td></tr>' % 
-        requestRow['username'])
+  output += ('<tr><td>Created by</td><td>%s</td></tr>' 
+             % requestRow['username'])
 
-  print('<tr><td>Created</td><td>%s</td></tr>' % 
-        spaceForUnixEpoch(requestRow['created']))
+  output += ('<tr><td>Created</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(requestRow['created']))
 
-  print('<tr><td>Submitted</td><td>%s</td></tr>' % 
-        spaceForUnixEpoch(requestRow['submitted']))
+  output += ('<tr><td>Submitted</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(requestRow['submitted']))
 
-  print('<tr><td>Started</td><td>%s</td></tr>' % 
-        spaceForUnixEpoch(requestRow['started']))
+  output += ('<tr><td>Started</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(requestRow['started']))
 
-  print('<tr><td>Checking</td><td>%s</td></tr>' % 
-        spaceForUnixEpoch(requestRow['checking']))
+  output += ('<tr><td>Checking</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(requestRow['checking']))
 
-  print('<tr><td>Finished</td><td>%s</td></tr>' % 
-        spaceForUnixEpoch(requestRow['finished']))
+  output += ('<tr><td>Finished</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(requestRow['finished']))
   
-  print("</table>")
+  output += "</table>"
 
   # Get the stages of this request
   query = ("SELECT * "
@@ -281,14 +277,14 @@ def showRequest(cgiValues):
 
   # Output a table with the stages
 
-  print('<h2>Stages</h2>')
-  print('<table')
-  print("<tr><th>Stage ID</th><th>Rank</th><th>Files</th><th>Finding</th>"
-        "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
-        "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
+  output += '<h2>Stages</h2>'
+  output += '<table>'
+  output += ("<tr><th>Stage ID</th><th>Rank</th><th>Files</th><th>Finding</th>"
+             "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
+             "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:    
-    print('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%s</a></td>'
           '<td>%d</td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
@@ -325,22 +321,22 @@ def showRequest(cgiValues):
            stageRow["request_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['failed']))
 
-  print("</table>")
-
-  footer()
+  output += "</table>"
+  output += footer()
+  return output
 
 def showStage(cgiValues):
   try:
-    requestID = int(cgiValues.getfirst("request_id"))
+    requestID = int(cgiValues["request_id"])
   except:
-    errorPage("request_id must be given")
+    return errorPage("request_id must be given")
   
   try:
-    stageID = int(cgiValues.getfirst("stage_id"))
+    stageID = int(cgiValues["stage_id"])
   except:
-    errorPage("stage_id must be given")
+    return errorPage("stage_id must be given")
   
-  header("WFS: Request %d, Stage %d" % (requestID, stageID))
+  output = header("WFS: Request %d, Stage %d" % (requestID, stageID))
 
   query = ("SELECT "
            "stages.stage_rank,"
@@ -358,28 +354,28 @@ def showStage(cgiValues):
   wfs.db.cur.execute(query)
   stageRow = wfs.db.cur.fetchone()
   
-  print("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
+  output += ("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
   
-  print('<table')
+  output += '<table>'
 
-  print('<tr><td>Rank</td>'
+  output += ('<tr><td>Rank</td>'
         '<td>%d</td></tr>' % stageRow["stage_rank"])
 
-  print('<tr><td>Processors</td>'
+  output += ('<tr><td>Processors</td>'
         '<td>%s</td></tr>' % stageRow["processors"])
 
-  print('<tr><td>Wall seconds</td>'
+  output += ('<tr><td>Wall seconds</td>'
         '<td>%s</td></tr>' % stageRow["wall_seconds"])
 
-  print('<tr><td>RSS bytes</td>'
+  output += ('<tr><td>RSS bytes</td>'
         '<td>%s (%d MB)</td></tr>' % 
         (stageRow["rss_bytes"], 
          int(stageRow["rss_bytes"]) / 1048576))
 
-  print('<tr><td>Max distance for inputs</td>'
+  output += ('<tr><td>Max distance for inputs</td>'
         '<td>%.1f</td></tr>' % stageRow["max_distance"])
 
-  print('<tr><td>Output RSEs</td>'
+  output += ('<tr><td>Output RSEs</td>'
         '<td>')
         
   query = ("SELECT rse_name "
@@ -393,17 +389,17 @@ def showStage(cgiValues):
   rseRows = wfs.db.cur.fetchall()
   
   if (len(rseRows) == 0):
-    print("(any)")
+    output += ("(any)")
   else:
     for rseRow in rseRows:
-      print("%s " % rseRow['rse_name'])
+      output += ("%s " % rseRow['rse_name'])
         
-  print('</td></tr>')
+  output += ('</td></tr>')
         
-  print('</table>')
+  output += ('</table>')
     
-  print("<h2>Output patterns</h2>")
-  print('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
+  output += ("<h2>Output patterns</h2>")
+  output += ('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
         '<th>Lifetime</th><th>For next stage</th></tr>') 
 
   query = ("SELECT dataset,file_scope,file_pattern,"
@@ -417,14 +413,14 @@ def showStage(cgiValues):
   patternRows = wfs.db.cur.fetchall()
 
   for patternRow in patternRows:
-    print("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>" %
+    output += ("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>" %
            (patternRow["dataset"],
             patternRow["file_scope"],
             html.escape(patternRow["file_pattern"], quote=True),
             patternRow["lifetime_seconds"],
             bool(patternRow["for_next_stage"])))
 
-  print('</table>') 
+  output += ('</table>') 
 
   # File states
   stateCounts = { 'recorded'    : 0,
@@ -447,13 +443,13 @@ def showStage(cgiValues):
   for stateRow in stateRows:
     stateCounts[stateRow['state']] = stateRow['count']    
   
-  print('<h2>File states</h2>')
-  print('<table')
-  print("<tr><th>Total files</th><th>Finding</th>"
+  output += '<h2>File states</h2>'
+  output += '<table>'
+  output += ("<tr><th>Total files</th><th>Finding</th>"
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
-  print('<tr><td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+  output += ('<tr><td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
@@ -477,7 +473,7 @@ def showStage(cgiValues):
            requestID, stageID, stateCounts['notfound'],
            requestID, stageID, stateCounts['failed']))
 
-  print("</table>")
+  output += ("</table>")
 
   # Job states
 
@@ -506,12 +502,12 @@ def showStage(cgiValues):
   wfs.db.cur.execute(query)
   jobNumberRow = wfs.db.cur.fetchone()
 
-  print('<h2>Job states</h2>')
-  print('<table')
-  print('<tr><th>Processing</th><th>Outputting</th><th>Finished</th>'
+  output += ('<h2>Job states</h2>')
+  output += ('<table>')
+  output += ('<tr><th>Processing</th><th>Outputting</th><th>Finished</th>'
         '<th>Aborted</th><th>Stalled</th></tr>')
 
-  print('<tr>'
+  output += ('<tr>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=processing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
@@ -530,7 +526,7 @@ def showStage(cgiValues):
            requestID, stageID, jobNumberRow['number_stalled']
           ))
 
-  print('</table>')
+  output += ('</table>')
 
   # RSE counts
 
@@ -552,7 +548,7 @@ def showStage(cgiValues):
 
     rseCounts[rseRow['rse_name']]['inputs'] = rseRow['file_count']
 
-#  print('<p>',str(rseCounts))
+#  output += ('<p>',str(rseCounts))
 
   query = ('SELECT rse_name,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
@@ -567,27 +563,27 @@ def showStage(cgiValues):
   
     if rseRow['rse_name'] not in rseCounts:
 #      if rseRow['rse_name'] is None:
-#        print('<p>',str(rseRow))
+#        output += ('<p>',str(rseRow))
         
       rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
 
     rseCounts[rseRow['rse_name']]['outputs'] = rseRow['file_count']
 
-#  print('<p>',str(rseCounts))
-#  print('<p>',query)
+#  output += ('<p>',str(rseCounts))
+#  output += ('<p>',query)
     
   if rseCounts:
-    print("<h2>RSEs used</h2>")
-    print('<table><tr><th>Name</th><th>Inputs</th><th>Outputs</th></tr>')
+    output += ("<h2>RSEs used</h2>")
+    output += ('<table><tr><th>Name</th><th>Inputs</th><th>Outputs</th></tr>')
 
     for rseName in rseCounts:
-      print("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
+      output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
             (rseName,
              rseCounts[rseName]['inputs'],
              rseCounts[rseName]['outputs']
             ))
 
-    print('</table>') 
+    output += ('</table>') 
 
   # Reset event counts
 
@@ -626,58 +622,61 @@ def showStage(cgiValues):
     resetCounts[resetRow['site_name']]['outputting'] = resetRow['site_count']
 
   if resetCounts:
-    print("<h2>File reset events, by site</h2>")
-    print('<table><tr><th>Site</th><th>Allocated</th><th>Outputting</th></tr>')
+    output += ("<h2>File reset events, by site</h2>")
+    output += ('<table><tr><th>Site</th><th>Allocated</th><th>Outputting</th></tr>')
 
     for siteName in resetCounts:
-      print("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
+      output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
             (siteName,
              resetCounts[siteName]['allocated'],
              resetCounts[siteName]['outputting']
             ))
 
-    print('</table>') 
+    output += ('</table>') 
 
-  print("<h2>Bootstrap script</h2>")
-  print('<table><tr><td><pre>') 
+  output += ("<h2>Bootstrap script</h2>")
+  output += ('<table><tr><td><pre>') 
 
-  print(html.escape(
+  output += (html.escape(
    stageRow["bootstrap"].encode('ascii',errors='ignore').decode(), 
    quote=True))
   
-  print('</pre></td></tr></table>') 
+  output += ('</pre></td></tr></table>') 
 
-  footer()
+  output += footer()
+  return output
 
 def listFiles(cgiValues, pageNumber, pageLength):
 
   try:
-    requestID = int(cgiValues.getfirst("request_id"))
+    requestID = int(cgiValues["request_id"])
   except:
-    errorPage("request_id must be given")
+    return errorPage("request_id must be given")
   
   try:
-    stageID = int(cgiValues.getfirst("stage_id"))
+    stageID = int(cgiValues["stage_id"])
   except:
-    errorPage("stage_id must be given")
+    return errorPage("stage_id must be given")
 
-  state = str(cgiValues.getfirst("state"))
+  stateFilter = ''
+  stateText = ''
 
-  if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-     or state == 'outputting' or state == 'processed' or state == 'notfound' \
-     or state == 'failed':
-    stateFilter = 'AND files.state="' + state + '"'
-    stateText = ' (state = ' + state + ')'
-  else:
-    stateFilter = ''
-    stateText = ''
+  try:
+    state = str(cgiValues["state"])
+  except:
     state = ''
+  else:
+    if state == 'finding' or state == 'unallocated' or state == 'allocated' \
+        or state == 'outputting' or state == 'processed' \
+        or state == 'notfound' or state == 'failed':
+      stateFilter = 'AND files.state="' + state + '"'
+      stateText = ' (state = ' + state + ')'
     
-  header("WFS: Files for Request %d, Stage %d%s" 
-         % (requestID, stageID, stateText))
+  output = header("WFS: Files for Request %d, Stage %d%s" 
+                  % (requestID, stageID, stateText))
 
-  print("<h1>Files  for Request %d, Stage %d%s</h1>" 
-         % (requestID, stageID, stateText))
+  output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
+             % (requestID, stageID, stateText))
   
   query = ("SELECT files.file_did,files.state,event_time,"
            "storages.rse_name,jobs.jobsub_id,sites.site_name,"
@@ -696,19 +695,19 @@ def listFiles(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
 
-  printPager(pageNumber, pageLength, len(filesRows),
+  output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&request_id=' + str(requestID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
-  print(
+  output += (
 """<p><table>
 <tr><th rowspan="2">DID</th><th rowspan="2">Attempts</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows[:pageLength]:
-    print('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%d</td><td>%s</td>' % 
           (requestID, 
            stageID, 
@@ -719,7 +718,7 @@ def listFiles(cgiValues, pageNumber, pageLength):
          )
          
     if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
-      print('<td>%s</td>'
+      output += ('<td>%s</td>'
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
@@ -730,57 +729,58 @@ def listFiles(cgiValues, pageNumber, pageLength):
             )
            )
     else:
-      print('<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
+      output += ('<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
       
-  print("</table>")
+  output += ("</table>")
   
-  printPager(pageNumber, pageLength, len(filesRows),
+  output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&request_id=' + str(requestID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
-  footer()
+  output += footer()
+  return output
 
 def showFile(cgiValues):
 
   try:
-    fileDID = cgiValues.getfirst("file_did")
+    fileDID = cgiValues["file_did"]
   except:
-    errorPage("file_did must be given")
+    return errorPage("file_did must be given")
 
   if '"' in fileDID:
-    errorPage("Bad format of file_did")
+    return errorPage("Bad format of file_did")
       
   try:
-    requestID = int(cgiValues.getfirst("request_id"))
+    requestID = int(cgiValues["request_id"])
   except:
-    errorPage("request_id must be given")
+    return errorPage("request_id must be given")
   
   try:
-    stageID = int(cgiValues.getfirst("stage_id"))
+    stageID = int(cgiValues["stage_id"])
   except:
-    errorPage("stage_id must be given")
+    return errorPage("stage_id must be given")
 
-  header("WFS: File %s" 
-         % html.escape(fileDID, quote=True))
+  output = header("WFS: File %s" 
+                  % html.escape(fileDID, quote=True))
 
-  print("<h1>File %s</h1>"
-         % html.escape(fileDID, quote=True))
+  output += ("<h1>File %s</h1>"
+             % html.escape(fileDID, quote=True))
   
   query = ('SELECT file_id,state '
            'FROM files '
            'WHERE request_id=%d AND stage_id=%d and file_did="%s"' %
            (requestID, stageID, fileDID))
 
-  wfs.db.cur.execute(query)
-  filesRows = wfs.db.cur.fetchall()
+  fileRow = wfs.db.select(query, justOne = True)
 
   try:
-    fileID = int(filesRows[0]["file_id"])
+    fileID = int(fileRow["file_id"])
 
-  except:
-    errorPage("invalid file_id")
+  except Exception as e:
+    return errorPage("invalid file_id (%d,%d,%s): %s\n%s" 
+                     % (requestID, stageID, fileDID, str(e), query))
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
            "site_name,rse_name FROM events "
@@ -801,70 +801,70 @@ def showFile(cgiValues):
   wfs.db.cur.execute(query)
   replicaRows = wfs.db.cur.fetchall()
 
-  print('<p><table>')
+  output += ('<p><table>')
   
-  print('<tr><td>Request ID</td>'
-        '<td><a href="/dashboard/?method=show-request&request_id=%d">%d</a></td></tr>'
-        % (requestID, requestID))
+  output += ('<tr><td>Request ID</td>'
+             '<td><a href="/dashboard/?method=show-request&request_id=%d">%d</a></td></tr>'
+             % (requestID, requestID))
         
-  print('<tr><td>Stage ID</td>'
-        '<td><a href="/dashboard/?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
-        % (requestID, stageID, stageID))
+  output += ('<tr><td>Stage ID</td>'
+             '<td><a href="/dashboard/?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
+             % (requestID, stageID, stageID))
         
-  print('<tr><td>State</td>'
-        '<td>%s</td></tr>'
-        % filesRows[0]["state"])
+  output += ('<tr><td>State</td>'
+             '<td>%s</td></tr>'
+             % fileRow["state"])
       
-  print('<tr><td>Replicas</td><td>')
+  output += '<tr><td>Replicas</td><td>'
   
   for replicaRow in replicaRows:  
   
     if replicaRow["lan_pfn"]:
-      print('<small>%s (wan): %s </small><br>' % 
+      output += ('<small>%s (wan): %s </small><br>' % 
             (replicaRow["rse_name"], 
              replicaRow["wan_pfn"]))
-      print('<small>%s (lan): %s </small><br>' % 
+      output += ('<small>%s (lan): %s </small><br>' % 
             (replicaRow["rse_name"], 
              replicaRow["lan_pfn"]))
 
     else:
-      print('<small>%s: %s </small><br>' % 
+      output += ('<small>%s: %s </small><br>' % 
             (replicaRow["rse_name"], 
              replicaRow["wan_pfn"]))
 
-  print('</td></tr>')
+  output += '</td></tr>'
 
-  print('<tr><td>Jobs</td><td>')
+  output += '<tr><td>Jobs</td><td>'
   
   for jobRow in jobsRows:
   
-    print('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> '
-          '(%s &nbsp; %s &nbsp; %s)<br>' % 
-          (jobRow["jobsub_id"], jobRow["jobsub_id"], 
-           jobRow["allocation_state"],
-           jobRow["site_name"],
-           jobRow["rse_name"])
-         )
+    output += ('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> '
+               '(%s &nbsp; %s &nbsp; %s)<br>' 
+               % (jobRow["jobsub_id"], jobRow["jobsub_id"], 
+                  jobRow["allocation_state"],
+                  jobRow["site_name"],
+                  jobRow["rse_name"])
+              )
 
-  print('</td></tr>')
+  output += '</td></tr>'
 
-  print('<tr><td colspan=2><a href="'
+  output += ('<tr><td colspan=2><a href="'
    'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
    'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
 
-  print("</table>")
-  
-  footer()
+  output += "</table>"  
+  output += footer()
+  return output
 
 def showJob(cgiValues):
   try:
-    jobsubID = cgiValues.getfirst("jobsub_id")
+    jobsubID = cgiValues["jobsub_id"]
   except:
-    errorPage("jobsub_id must be given")
+    return errorPage("jobsub_id must be given")
       
-  header("WFS: Jobsub ID %s" % jobsubID)
+  output = header("WFS: Jobsub ID %s" % jobsubID)
 
-  print("<h1>Jobsub ID %s</h1>" % jobsubID)
+  output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
   query = ("SELECT jobs.wfs_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,username,"
@@ -904,164 +904,164 @@ def showJob(cgiValues):
   wfs.db.cur.execute(query)
   outputFilesRows = wfs.db.cur.fetchall()
 
-  print('<table>')
+  output += '<table>'
   
-#  print('<tr><td>Jobsub state</td>'
+#  output += ('<tr><td>Jobsub state</td>'
 #        '<td>%s</td></tr>'
 #        % jobRow["jobsub_state"])
       
-  print('<tr><td>Allocation state</td>'
-        '<td>%s</td></tr>'
-        % jobRow["allocation_state"])
+  output += ('<tr><td>Allocation state</td>'
+             '<td>%s</td></tr>'
+             % jobRow["allocation_state"])
       
-  print('<tr><td>Jobsub ID</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobsubID, quote=True))
+  output += ('<tr><td>Jobsub ID</td>'
+             '<td>%s</td></tr>'
+             % html.escape(jobsubID, quote=True))
 
-  print('<tr><td>Site job ID</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobRow['site_job_id'], quote=True))
+  output += ('<tr><td>Site job ID</td>'
+             '<td>%s</td></tr>'
+             % html.escape(jobRow['site_job_id'], quote=True))
 
   if jobRow['for_awt']: 
-    print('<tr><td>Workflow Testing</td>'
-          '<td>Yes</td></tr>')
+    output += ('<tr><td>Workflow Testing</td>'
+               '<td>Yes</td></tr>')
 
-  print('<tr><td>Submitted time</td>'
-        '<td>%s</td></tr>'
-        % jobRow["submitted_time"])
+  output += ('<tr><td>Submitted time</td>'
+             '<td>%s</td></tr>'
+             % jobRow["submitted_time"])
       
-  print('<tr><td>Last heartbeat</td>'
-        '<td>%s</td></tr>'
-        % spaceForUnixEpoch(jobRow["heartbeat_time"]))
+  output += ('<tr><td>Last heartbeat</td>'
+             '<td>%s</td></tr>'
+             % spaceForUnixEpoch(jobRow["heartbeat_time"]))
       
-  print('<tr><td>Allocator name</td>'
-        '<td>%s</td></tr>'
-        % html.escape(jobRow["allocator_name"], quote=True))
+  output += ('<tr><td>Allocator name</td>'
+             '<td>%s</td></tr>'
+             % html.escape(jobRow["allocator_name"], quote=True))
 
   if jobRow["site_name"]:
-    print('<tr><td>Site</td>'
-          '<td><a href="/dashboard/?method=show-site&site_name=%s">'
-          '%s</a></td></tr>'
-          % (jobRow["site_name"], jobRow["site_name"]))
+    output += ('<tr><td>Site</td>'
+               '<td><a href="/dashboard/?method=show-site&site_name=%s">'
+               '%s</a></td></tr>'
+               % (jobRow["site_name"], jobRow["site_name"]))
   else:
-    print('<tr><td>Site</td><td> </td></tr>')
+    output += '<tr><td>Site</td><td> </td></tr>'
 
-  print('<tr><td>Slot</td><td>'
-        '%d &lt; processors &le; %d<br>'
-        '%d &lt; rss bytes &le; %d<br>'
-        'wall seconds &le; %d</td></tr>'
-        % (jobRow["min_processors"], jobRow["max_processors"],
-           jobRow["min_rss_bytes"], jobRow["max_rss_bytes"],
-           jobRow["max_wall_seconds"]
-          )
-       )
+  output += ('<tr><td>Slot</td><td>'
+             '%d &lt; processors &le; %d<br>'
+             '%d &lt; rss bytes &le; %d<br>'
+             'wall seconds &le; %d</td></tr>'
+             % (jobRow["min_processors"], jobRow["max_processors"],
+                jobRow["min_rss_bytes"], jobRow["max_rss_bytes"],
+                jobRow["max_wall_seconds"]
+               )
+            )
 
   if jobRow["hostname"]:
-    print('<tr><td>Hostname</td>'
-          '<td>%s</td></tr>'
-          % html.escape(jobRow["hostname"], quote=True))
+    output += ('<tr><td>Hostname</td>'
+               '<td>%s</td></tr>'
+               % html.escape(jobRow["hostname"], quote=True))
   
   if jobRow["cpuinfo"]:
-    print('<tr><td>cpuinfo</td>'
-          '<td>%s</td></tr>'
-          % html.escape(jobRow["cpuinfo"], quote=True))
+    output += ('<tr><td>cpuinfo</td>'
+               '<td>%s</td></tr>'
+               % html.escape(jobRow["cpuinfo"], quote=True))
 
   if jobRow["os_release"]:
-    print('<tr><td>OS release</td>'
-          '<td>%s</td></tr>'
-          % html.escape(jobRow["os_release"], quote=True))
+    output += ('<tr><td>OS release</td>'
+               '<td>%s</td></tr>'
+               % html.escape(jobRow["os_release"], quote=True))
 
   if jobRow["rss_bytes"]:
-    print('<tr><td>RSS bytes</td>'
-          '<td>%s (%d MB)</td></tr>' % 
-          (jobRow["rss_bytes"], 
-           int(jobRow["rss_bytes"]) / 1048576))
+    output += ('<tr><td>RSS bytes</td>'
+               '<td>%s (%d MB)</td></tr>' 
+               % (jobRow["rss_bytes"], 
+                  int(jobRow["rss_bytes"]) / 1048576))
 
   if jobRow["processors"]:
-    print('<tr><td>Processors</td>'
-          '<td>%s</td></tr>'
-          % jobRow["processors"])
+    output += ('<tr><td>Processors</td>'
+               '<td>%s</td></tr>'
+               % jobRow["processors"])
 
   if jobRow["wall_seconds"]:
-    print('<tr><td>Wall seconds limit</td>'
-          '<td>%s (%d hours)</td></tr>'
-          % (jobRow["wall_seconds"],
-             int(jobRow["wall_seconds"]) / 3600))
+    output += ('<tr><td>Wall seconds limit</td>'
+               '<td>%s (%d hours)</td></tr>'
+               % (jobRow["wall_seconds"],
+                  int(jobRow["wall_seconds"]) / 3600))
 
-  print('<tr><td>Request by</td>')
+  output += '<tr><td>Request by</td>'
   
   if jobRow['username']:
-    print('<td>%s</td></tr>' % jobRow['username'])
+    output += '<td>%s</td></tr>' % jobRow['username']
   else:
-    print('<td>&nbsp;</td></tr>')
+    output += '<td>&nbsp;</td></tr>'
 
-  print('<tr><td>Request ID</td>')
+  output += '<tr><td>Request ID</td>'
   
   if jobRow['request_id']:
-    print('<td><a href="/dashboard/?method=show-request&request_id=%s">'
-          '%s</a></td></tr>'
-           % (jobRow["request_id"],
-              jobRow["request_id"]))
+    output += ('<td><a href="/dashboard/?method=show-request&request_id=%s">'
+               '%s</a></td></tr>'
+               % (jobRow["request_id"],
+                  jobRow["request_id"]))
   else:
-    print('<td>&nbsp;</td></tr>')
+    output += '<td>&nbsp;</td></tr>'
         
-  print('<tr><td>Stage ID</td>')
+  output += '<tr><td>Stage ID</td>'
   
   if jobRow['stage_id']:
-    print('<td><a href="/dashboard/?method=show-stage&request_id=%s&'
-          'stage_id=%s">%s</a></td></tr>'
-          % (jobRow["request_id"], jobRow["stage_id"],
-             jobRow["stage_id"]))
+    output += ('<td><a href="/dashboard/?method=show-stage&request_id=%s&'
+               'stage_id=%s">%s</a></td></tr>'
+               % (jobRow["request_id"], jobRow["stage_id"],
+                  jobRow["stage_id"]))
   else:
-    print('<td>&nbsp;</td></tr>')
+    output += '<td>&nbsp;</td></tr>'
         
-  print('<tr><td>Started</td>'
-        '<td>%s</td></tr>'
-        % spaceForUnixEpoch(jobRow["allocation_time"]))
+  output += ('<tr><td>Started</td>'
+             '<td>%s</td></tr>'
+             % spaceForUnixEpoch(jobRow["allocation_time"]))
 
-  print('<tr><td>Outputting started</td>'
-        '<td>%s</td></tr>'
-        % spaceForUnixEpoch(jobRow["outputting_time"]))
+  output += ('<tr><td>Outputting started</td>'
+             '<td>%s</td></tr>'
+             % spaceForUnixEpoch(jobRow["outputting_time"]))
 
-  print('<tr><td>Finished</td>'
-        '<td>%s</td></tr>'
-        % spaceForUnixEpoch(jobRow["finished_time"]))
+  output += ('<tr><td>Finished</td>'
+             '<td>%s</td></tr>'
+             % spaceForUnixEpoch(jobRow["finished_time"]))
 
-  print('<tr><td>Input files</td><td>')
+  output += '<tr><td>Input files</td><td>'
   
   for inputFileRow in inputFilesRows:
     try:
-      print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
-          '%s</a><br>' % 
-          (jobRow["request_id"], 
-           jobRow["stage_id"],
-           urllib.parse.quote(str(inputFileRow["file_did"]), safe=''),
-           html.escape(inputFileRow["file_did"], quote=True)
-          )
-         )
+      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+                 '%s</a><br>' 
+                 % (jobRow["request_id"], 
+                    jobRow["stage_id"],
+                    urllib.parse.quote(str(inputFileRow["file_did"]), safe=''),
+                    html.escape(inputFileRow["file_did"], quote=True)
+                   )
+                )
     except Exception as e:
-      print('<!-- %s -->' % str(e))
+      output += '<!-- %s -->' % str(e)
       
-  print('</td></tr>')
+  output += '</td></tr>'
 
-  print('<tr><td>Output files</td><td>')
+  output += '<tr><td>Output files</td><td>'
   
   for outputFileRow in outputFilesRows:
     try:
-      print('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
-          '%s</a><br>' % 
-          (jobRow["request_id"], 
-           outputFileRow["stage_id"],
-           urllib.parse.quote(str(outputFileRow["file_did"]), safe=''),
-           html.escape(outputFileRow["file_did"], quote=True)
-          )
-         )
+      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+                 '%s</a><br>'  
+                 % (jobRow["request_id"], 
+                    outputFileRow["stage_id"],
+                    urllib.parse.quote(str(outputFileRow["file_did"]), safe=''),
+                    html.escape(outputFileRow["file_did"], quote=True)
+                   )
+                )
     except Exception as e:
-      print('<!-- %s -->' % str(e))
+      output += '<!-- %s -->' % str(e)
       
-  print('</td></tr>')
+  output += '</td></tr>'
 
-  print('<tr><td colspan=2>'
+  output += ('<tr><td colspan=2>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
         '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
@@ -1069,43 +1069,43 @@ def showJob(cgiValues):
         '</td></tr>'
         % (jobsubID, jobsubID))
 
-  print("</table>")
+  output += "</table>"
 
   if jobRow['bootstrap_log']:
-    print("<h2>Bootstrap log</h2>")
-    print('<table><tr><td><pre>') 
+    output += "<h2>Bootstrap log</h2>"
+    output += '<table><tr><td><pre>'
  
-    print(html.escape(jobRow["bootstrap_log"].strip(), 
-          quote=True))
+    output += html.escape(jobRow["bootstrap_log"].strip(), quote=True)
   
-    print('</pre></td></tr></table>')
+    output += '</pre></td></tr></table>'
 
 #  if os.path.isfile('/var/spool/wfs/fetchlog/%s' % jobsubID.replace('@','_')):
 #    
 #    try:
-#      showJobsubLog = cgiValues.getfirst("show_jobsub_log")
+#      showJobsubLog = cgiValues["show_jobsub_log"]
 #    except:
 #      showJobsubLog = 'false'
 #
-#    print('<h2 id="jobsublog">Jobsub log</h2>')
+#    output += ('<h2 id="jobsublog">Jobsub log</h2>')
 #
 #    if showJobsubLog == 'true':
-#      print('<table><tr><td><pre>') 
+#      output += ('<table><tr><td><pre>') 
 #
-#      print(html.escape(
+#      output += (html.escape(
 #       open('/var/spool/wfs/fetchlog/%s' %
 #           jobsubID.replace('@','_')).read().encode('ascii',
 #                                                    errors='ignore').decode(), 
 #       quote=True))
 #  
-#      print('</pre></td></tr></table>') 
+#      output += ('</pre></td></tr></table>') 
 #      
 #    else:
-#      print('<p><a href="/dashboard/show?method=show-job&jobsub_id=%s'
+#      output += ('<p><a href="/dashboard/show?method=show-job&jobsub_id=%s'
 #            '&show_jobsub_log=true#jobsublog">Show jobsub log</a></p>'
 #            % jobsubID)
 
-  footer()
+  output += footer()
+  return output
 
 def listJobs(cgiValues, pageNumber, pageLength):
       
@@ -1114,7 +1114,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
   titleSuffixes = []
 
   try:
-    requestID    = int(cgiValues.getfirst("request_id"))
+    requestID    = int(cgiValues["request_id"])
     urlTemplate += ('&request_id=%d' % requestID)
     titleSuffixes.append('Request %d' % requestID) 
     filters.append('jobs.request_id=%d' % requestID)
@@ -1122,29 +1122,34 @@ def listJobs(cgiValues, pageNumber, pageLength):
     pass
   
   try:
-    stageID      = int(cgiValues.getfirst("stage_id"))
+    stageID      = int(cgiValues["stage_id"])
     urlTemplate += '&stage_id=' + str(stageID)
     titleSuffixes.append('Stage %d' % stageID) 
     filters.append('jobs.stage_id=%d' % stageID)
   except:
     pass
 
-  allocationState = str(cgiValues.getfirst("allocation_state"))
-
-  if allocationState in ['submitted','started','processing','outputting',
-                         'finished', 'notused','failed','aborted',
-                         'stalled']:
-    filters.append('jobs.allocation_state="%s"' % allocationState)
-    urlTemplate += '&allocation_state=' + allocationState
-    titleSuffixes.append('Allocation State %s' % allocationState)
-  else:
+  try:
+    allocationState = str(cgiValues["allocation_state"])
+  except:
     pass
+  else:
+    if allocationState in ['submitted','started','processing','outputting',
+                           'finished', 'notused','failed','aborted',
+                           'stalled']:
+      filters.append('jobs.allocation_state="%s"' % allocationState)
+      urlTemplate += '&allocation_state=' + allocationState
+      titleSuffixes.append('Allocation State %s' % allocationState)
 
-  siteName = cgiValues.getfirst("site_name")
-  if siteName and wfs.db.stringIsSite(siteName):
-    filters.append('sites.site_name="%s"' % siteName)
-    urlTemplate += '&site_name=' + siteName
-    titleSuffixes.append('Site %s' % siteName)
+  try:
+    siteName = cgiValues["site_name"]
+  except:
+    pass
+  else:
+    if siteName and wfs.db.stringIsSite(siteName):
+      filters.append('sites.site_name="%s"' % siteName)
+      urlTemplate += '&site_name=' + siteName
+      titleSuffixes.append('Site %s' % siteName)
 
   filter = ' AND '.join(filters)
 
@@ -1158,9 +1163,9 @@ def listJobs(cgiValues, pageNumber, pageLength):
   else:
     titleSuffix = ''
     
-  header("WFS: Jobs" + titleSuffix)
+  output = header("WFS: Jobs" + titleSuffix)
 
-  print("<h1>Jobs%s</h1>" % titleSuffix)
+  output += "<h1>Jobs%s</h1>" % titleSuffix
   
   if not filter:   
     try:
@@ -1174,14 +1179,14 @@ def listJobs(cgiValues, pageNumber, pageLength):
                
       row = wfs.db.select(query, justOne = True)
 
-      print('<p>%d job(s) in submitted state, %d in processing state, '
+      output += ('<p>%d job(s) in submitted state, %d in processing state, '
             '%d in outputting state</p>' %
             (row['number_submitted'], 
              row['number_processing'],
              row['number_outputting']))
 
     except Exception as e:
-      print(str(e))
+      output += str(e)
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
@@ -1198,11 +1203,11 @@ def listJobs(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   jobRows = wfs.db.cur.fetchall()
 
-  printPager(pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
-  print('<p><table>')
+  output += '<p><table>'
   
-  print('<tr>'
+  output += ('<tr>'
         '<th>Jobsub ID</th>'
         '<th>Allocation state</th>'
         '<th>Site</th>'
@@ -1228,17 +1233,17 @@ def listJobs(cgiValues, pageNumber, pageLength):
     else:
       if jobRow['request_id']:
         requestStageStr = ('<td><a href="/dashboard/?method=show-request&'
-                      'request_id=%s">%s</a></td>' %
-                      (jobRow["request_id"], jobRow["request_id"]))
+                           'request_id=%s">%s</a></td>' 
+                           % (jobRow["request_id"], jobRow["request_id"]))
       else:
         requestStageStr = '<td> </td>'
       
       if jobRow['stage_id']:
         requestStageStr += (
              '<td><a href="/dashboard/?method=show-stage&request_id=%s&'
-             'stage_id=%s">%s</a></td>' %
-             (jobRow["request_id"], 
-              jobRow["stage_id"], jobRow["stage_id"]))
+             'stage_id=%s">%s</a></td>' 
+             % (jobRow["request_id"], 
+                jobRow["stage_id"], jobRow["stage_id"]))
       else:
         requestStageStr += '<td> </td>'
   
@@ -1248,7 +1253,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
     else:
       siteNameStr = '<td> </td>'
 
-    print('<tr>'
+    output += ('<tr>'
           '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
 #          '<td>%s</td>'
           '<td>%s</td>'
@@ -1271,25 +1276,24 @@ def listJobs(cgiValues, pageNumber, pageLength):
             )
          )    
 
-  print("</table>")
-
-  printPager(pageNumber, pageLength, len(jobRows), urlTemplate)
-
-  footer()
+  output += ("</table>")
+  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += footer()
+  return output
 
 def listSites(cgiValues):
       
-  header("WFS: Sites")
+  output = header("WFS: Sites")
 
-  print("<h1>Sites</h1>")
+  output += ("<h1>Sites</h1>")
   
   query = "SELECT * FROM sites WHERE site_id > 0 ORDER BY site_name"
   wfs.db.cur.execute(query)
   siteRows = wfs.db.cur.fetchall()
 
-  print('<table>')
+  output += ('<table>')
   
-  print('<tr>'
+  output += ('<tr>'
         '<th>Site name</th>'
         '<th>Enabled?</th>'
         '<th>Last job</th>'
@@ -1307,7 +1311,7 @@ def listSites(cgiValues):
     else:
       lastGetStageStr = str(siteRow['last_get_stage_time'])
   
-    print('<tr>'
+    output += ('<tr>'
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
@@ -1341,14 +1345,15 @@ def listSites(cgiValues):
             )
          )    
 
-  print("</table>")
-  footer()
+  output += ("</table>")
+  output += footer()
+  return output
 
 def listStorages(cgiValues):
       
-  header("WFS: Storages")
+  output = header("WFS: Storages")
 
-  print("<h1>Storages</h1>")
+  output += ("<h1>Storages</h1>")
   
   query = ("SELECT rse_name,occupancy,"
            "rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,"
@@ -1358,9 +1363,9 @@ def listStorages(cgiValues):
   wfs.db.cur.execute(query)
   storageRows = wfs.db.cur.fetchall()
 
-  print('<table>')
+  output += ('<table>')
   
-  print('<tr>'
+  output += ('<tr>'
         '<th>RSE name</th>'
         '<th>Occupancy</th>'
         '<th>Read</th>'
@@ -1372,7 +1377,7 @@ def listStorages(cgiValues):
         '</tr>')
   
   for storageRow in storageRows:  
-    print('<tr>'
+    output += ('<tr>'
           '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%.2f</td>'
           '<td>%s</td>'
@@ -1395,41 +1400,42 @@ def listStorages(cgiValues):
             )
          )    
 
-  print("</table>")
-  footer()
+  output += ("</table>")
+  output += footer()
+  return output
 
 def showSite(cgiValues):
       
   try:
-    siteName = cgiValues.getfirst("site_name")
+    siteName = cgiValues["site_name"]
   except:
-    errorPage("site_name must be given")
+    return errorPage("site_name must be given")
     
   if not wfs.db.stringIsSite(siteName):
-    errorPage("Invalid site name!")
+    return errorPage("Invalid site name!")
         
-  header("WFS: Site " + siteName)
+  output = header("WFS: Site " + siteName)
 
-  print("<h1>Site %s</h1>" % siteName)
+  output += ("<h1>Site %s</h1>" % siteName)
   
   query = 'SELECT * FROM sites WHERE site_name="%s"' % siteName
   wfs.db.cur.execute(query)
   siteRow = wfs.db.cur.fetchone()
 
-  print('<table>')
+  output += ('<table>')
   
-  print('<tr><td>Site name</td><td>%s</td></tr>' % siteName)
+  output += ('<tr><td>Site name</td><td>%s</td></tr>' % siteName)
   
-  print('<tr><td>Jobsub site name</td><td>%s</td></tr>' 
+  output += ('<tr><td>Jobsub site name</td><td>%s</td></tr>' 
         % siteRow['jobsub_site_name'])
 
-  print('<tr><td>WLCG site name</td><td>%s</td></tr>' 
+  output += ('<tr><td>WLCG site name</td><td>%s</td></tr>' 
         % siteRow['wlcg_site_name'])
 
-  print('<tr><td>Enabled?</td><td>%s</td></tr>' 
+  output += ('<tr><td>Enabled?</td><td>%s</td></tr>' 
         % bool(siteRow['enabled']))
 
-  print('<tr><td>Last submitted</td><td>%s</td></tr>' 
+  output += ('<tr><td>Last submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])
 
   if str(siteRow['last_get_stage_time']) == wfs.db.unixEpoch:
@@ -1437,25 +1443,25 @@ def showSite(cgiValues):
   else:
     lastGetStageStr = str(siteRow['last_get_stage_time'])
 
-  print('<tr><td>Last job started</td><td>%s</td></tr>' % lastGetStageStr)
+  output += ('<tr><td>Last job started</td><td>%s</td></tr>' % lastGetStageStr)
 
-  print('<tr><td>Last AWT test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
+  output += ('<tr><td>Last AWT test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
 
-  print('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
+  output += ('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 
-  print('<tr><td>Jobs</td><td>'
+  output += ('<tr><td>Jobs</td><td>'
         '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' %
         siteName)
         
   for state in ['submitted', 'started', 'processing', 'outputting',
                 'finished', 'notused', 'failed']:
-    print('<a href="/dashboard/?method=list-jobs&allocation_state=%s&'
+    output += ('<a href="/dashboard/?method=list-jobs&allocation_state=%s&'
           'site_name=%s">%s</a> ' %
           (state, siteName, state.capitalize()))
 
-  print('</td></tr>')
+  output += ('</td></tr>')
   
-  print('<tr><td>External info</td><td><a '
+  output += ('<tr><td>External info</td><td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a> '
         '<form method="post" style="display:inline" '
@@ -1464,9 +1470,9 @@ def showSite(cgiValues):
           '<input type="submit" value="GOCDB"></form></td>'
           '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name']))
 
-  print("</table>")
+  output += ("</table>")
 
-  print("<h2>Storages by distance</h2>")
+  output += ("<h2>Storages by distance</h2>")
 
   query = ('SELECT rse_name,occupancy,'
            'rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,'
@@ -1481,12 +1487,12 @@ def showSite(cgiValues):
   wfs.db.cur.execute(query)
   storageRows = wfs.db.cur.fetchall()
 
-  print("<p>Test values are xrdcp read and rucio write exit codes for jobs "
+  output += ("<p>Test values are xrdcp read and rucio write exit codes for jobs "
         "at each site contacting each RSE. 0 = success.</p>")
 
-  print('<table>')
+  output += ('<table>')
   
-  print('<tr>'
+  output += ('<tr>'
         '<th>RSE name</th>'
         '<th>Distance</th>'
         '<th>Occupancy</th>'
@@ -1497,7 +1503,7 @@ def showSite(cgiValues):
         '</tr>')
   
   for storageRow in storageRows:  
-    print('<tr>'
+    output += ('<tr>'
           '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%.2f</td>'
@@ -1512,36 +1518,37 @@ def showSite(cgiValues):
          )    
          
     if int(storageRow['read_result']) == 255:
-      print('<td> </td>')
+      output += ('<td> </td>')
     else:
-      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
             (storageRow['jobsub_id'], int(storageRow['read_result'])))
 
     if int(storageRow['write_result']) == 255:
-      print('<td> </td></tr>')
+      output += ('<td> </td></tr>')
     else:
-      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
             (storageRow['jobsub_id'], int(storageRow['write_result'])))
 
-  print("</table>")
+  output += ("</table>")
 
-  footer()
+  output += footer()
+  return output
 
 def showStorage(cgiValues):
       
   try:
-    rseName = cgiValues.getfirst("rse_name")
+    rseName = cgiValues["rse_name"]
   except:
-    errorPage("rse_name must be given")
+    return errorPage("rse_name must be given")
     
   if not wfs.db.stringIsSite(rseName):
-    errorPage("Invalid RSE name!")
+    return errorPage("Invalid RSE name!")
         
-  header("WFS: Storage " + rseName)
+  output = header("WFS: Storage " + rseName)
 
-  print("<h1>Storage %s</h1>" % rseName)
+  output += ("<h1>Storage %s</h1>" % rseName)
   
   query = ('SELECT occupancy,rse_id,'
            'rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,'
@@ -1552,30 +1559,30 @@ def showStorage(cgiValues):
   wfs.db.cur.execute(query)
   storageRow = wfs.db.cur.fetchone()
 
-  print('<table>')
+  output += ('<table>')
   
-  print('<tr><td>RSE name</td><td>%s</td></tr>' % rseName)
+  output += ('<tr><td>RSE name</td><td>%s</td></tr>' % rseName)
   
-  print('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
+  output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
-  print('<tr><td>Read</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
+  output += ('<tr><td>Read</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
         % (bool(storageRow['has_read']), 
            bool(storageRow['rucio_read']), 
            bool(storageRow['wfs_read'])))
 
-  print('<tr><td>Write</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
+  output += ('<tr><td>Write</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
         % (bool(storageRow['has_write']), 
            bool(storageRow['rucio_write']), 
            bool(storageRow['wfs_write'])))
 
-  print('<tr><td>Deterministic</td><td>%s</td></tr>' 
+  output += ('<tr><td>Deterministic</td><td>%s</td></tr>' 
         % bool(storageRow['deterministic_rse']))
-  print('<tr><td>Write protocol</td><td>%s</td></tr>' 
+  output += ('<tr><td>Write protocol</td><td>%s</td></tr>' 
         % storageRow['write_protocol'])
 
-  print('</table>')
+  output += ('</table>')
 
-  print("<h2>Sites by distance</h2>")
+  output += ("<h2>Sites by distance</h2>")
 
   query = ('SELECT site_name,distance,enabled,'
            'read_result,write_result,jobsub_id '
@@ -1588,12 +1595,12 @@ def showStorage(cgiValues):
   wfs.db.cur.execute(query)
   siteRows = wfs.db.cur.fetchall()
 
-  print("<p>Test values are xrdcp read and rucio write exit codes for jobs "
+  output += ("<p>Test values are xrdcp read and rucio write exit codes for jobs "
         "at each site contacting each RSE. 0 = success.</p>")
 
-  print('<table>')
+  output += ('<table>')
   
-  print('<tr>'
+  output += ('<tr>'
         '<th>Site name</th>'
         '<th>Distance</th>'
         '<th>Enabled</th>'
@@ -1602,7 +1609,7 @@ def showStorage(cgiValues):
         '</tr>')
   
   for siteRow in siteRows:  
-    print('<tr>'
+    output += ('<tr>'
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%s</td>'
@@ -1613,42 +1620,46 @@ def showStorage(cgiValues):
          )    
 
     if int(siteRow['read_result']) == 255:
-      print('<td> </td>')
+      output += ('<td> </td>')
     else:
-      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
             (siteRow['jobsub_id'], int(siteRow['read_result'])))
 
     if int(siteRow['write_result']) == 255:
-      print('<td> </td></tr>')
+      output += ('<td> </td></tr>')
     else:
-      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
             (siteRow['jobsub_id'], int(siteRow['write_result'])))
 
-  print("</table>")
+  output += ("</table>")
 
-  footer()
+  output += footer()
+  return output
 
 def listEvents(cgiValues, pageNumber, pageLength):
 
   whereList = []
   queryList = ''
 
-  jobsubID = cgiValues.getfirst("jobsub_id")
-  
-  if jobsubID:
-    whereList.append('jobsub_id="%s"' % jobsubID)
-    queryList += '&jobsub_id=' + jobsubID
+  try:
+    jobsubID = cgiValues["jobsub_id"]
+  except:
+    pass
+  else:
+    if jobsubID:
+      whereList.append('jobsub_id="%s"' % jobsubID)
+      queryList += '&jobsub_id=' + jobsubID
 
   if whereList:
     whereString = ' WHERE ' + 'AND'.join(whereList)
   else:
     whereString = ''
     
-  header("WFS: Events")
+  output = header("WFS: Events")
 
-  print("<h1>Events</h1>")
+  output += ("<h1>Events</h1>")
   
   query = ('SELECT event_id,event_type_id,events.request_id,events.stage_id,'
            'file_did,jobsub_id,site_name,rse_name,event_time '
@@ -1664,11 +1675,11 @@ def listEvents(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   eventsRows = wfs.db.cur.fetchall()
 
-  printPager(pageNumber, pageLength, len(eventsRows),
+  output += makePager(pageNumber, pageLength, len(eventsRows),
              '/dashboard/?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
-  print(
+  output += (
 """<p><table>
 <tr>
 <th>Event</th><th>Type</th><th>Time</th>
@@ -1680,7 +1691,7 @@ def listEvents(cgiValues, pageNumber, pageLength):
 </tr>""")
 
   for eventRow in eventsRows[:pageLength]:
-    print('<tr><td>%d</td><td>%s</td><td>%s</td>' %
+    output += ('<tr><td>%d</td><td>%s</td><td>%s</td>' %
            (eventRow['event_id'], 
             wfs.db.eventTypes[eventRow['event_type_id']][0],
             eventRow['event_time']
@@ -1688,67 +1699,68 @@ def listEvents(cgiValues, pageNumber, pageLength):
          )
 
     if eventRow['request_id']: 
-      print('<td><a href="/dashboard/?method=show-request&request_id=%d">'
+      output += ('<td><a href="/dashboard/?method=show-request&request_id=%d">'
             '%d</a></td>' 
             % (eventRow['request_id'], 
                eventRow['request_id']))
     else:
-      print('<td>&nbsp;</td>')
+      output += ('<td>&nbsp;</td>')
          
     if eventRow['stage_id']: 
-      print('<td><a href="/dashboard/?method=show-stage&request_id=%d'
+      output += ('<td><a href="/dashboard/?method=show-stage&request_id=%d'
             '&stage_id=%d">%d</a></td>' 
             % (eventRow['request_id'], 
                eventRow['stage_id'], 
                eventRow['stage_id']))
     else:
-      print('<td>&nbsp;</td>')
+      output += ('<td>&nbsp;</td>')
          
     if eventRow['file_did']:
-      print('<td><a href="/dashboard/?method=show-file&request_id=%d'
+      output += ('<td><a href="/dashboard/?method=show-file&request_id=%d'
             '&stage_id=%d&file_did=%s">%s</td>' 
             % (eventRow['request_id'], 
                eventRow['stage_id'], 
                eventRow['file_did'], 
                eventRow['file_did']))
     else:
-      print('<td>&nbsp;</td>')
+      output += ('<td>&nbsp;</td>')
          
     if eventRow['jobsub_id']: 
-      print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
             % (eventRow['jobsub_id'], eventRow['jobsub_id']))
     else:
-      print('<td>&nbsp;</td>')
+      output += ('<td>&nbsp;</td>')
          
     if eventRow['site_name']: 
-      print('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+      output += ('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
             % (eventRow['site_name'], eventRow['site_name']))
     else:
-      print('<td>&nbsp;</td>')
+      output += ('<td>&nbsp;</td>')
          
     if eventRow['rse_name']: 
-      print('<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+      output += ('<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             % (eventRow['rse_name'], eventRow['rse_name']))
     else:
-      print('<td>&nbsp;</td>')
+      output += ('<td>&nbsp;</td>')
 
-    print('</tr>')
+    output += ('</tr>')
                
-  print("</table>")
+  output += ("</table>")
   
-  printPager(pageNumber, pageLength, len(eventsRows),
+  output += makePager(pageNumber, pageLength, len(eventsRows),
              '/dashboard/?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
-  footer()
+  output += footer()
+  return output
 
 def awtResults(cgiValues):
               
-  header("WFS: Automated Workflow Tests")
+  output = header("WFS: Automated Workflow Tests")
 
-  print("<h1>Automated Workflow Tests</h1>")
+  output += ("<h1>Automated Workflow Tests</h1>")
 
-  print("<p>Values are xrdcp read and rucio write exit codes for jobs at "
+  output += ("<p>Values are xrdcp read and rucio write exit codes for jobs at "
         "each site contacting each RSE. 0 = success. Enabled sites and "
         "storages allowed for output are in bold.</p>")
 
@@ -1796,10 +1808,10 @@ def awtResults(cgiValues):
     sitesStoragesMatrix[results['site_name']][results['rse_name']] = \
       [results['read_result'], results['write_result'], results['jobsub_id']]
 
-  print('<table>')
+  output += ('<table>')
 
   # List of storages
-  print('<tr><td> </td>'
+  output += ('<tr><td> </td>'
         '<td><div style="writing-mode: vertical-lr">'
         'Last&nbsp;AWT&nbsp;job</div></td>')
   
@@ -1808,11 +1820,11 @@ def awtResults(cgiValues):
       cellType = 'th'
     else:
       cellType = 'td'
-    print('<%s><div style="writing-mode: vertical-lr">'
+    output += ('<%s><div style="writing-mode: vertical-lr">'
           '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
           '</div></%s>' % (cellType, rseName, rseName, cellType))
 
-  print('<td> </td></tr>')
+  output += ('<td> </td></tr>')
 
   # Go through the sites, Row by row 
 
@@ -1822,14 +1834,14 @@ def awtResults(cgiValues):
     else:
       cellType = 'td'
     
-    print('<tr><%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
+    output += ('<tr><%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
           '</a></%s>' % 
           (cellType, siteName, siteName, cellType))
 
     if lastJobTimes[siteName] == 0:
-      print('<td> </td>')
+      output += ('<td> </td>')
     else:
-      print('<td style="text-align: right">%s</td>' % 
+      output += ('<td style="text-align: right">%s</td>' % 
             daysHoursMinutes(int(time.time()) - lastJobTimes[siteName]))
   
     for rseName in rseNames:
@@ -1837,7 +1849,7 @@ def awtResults(cgiValues):
                       sitesStoragesMatrix[siteName][rseName]
 
       if readResult == 255 and writeResult == 255:
-        print('<td>&nbsp; &nbsp;</td>')
+        output += ('<td>&nbsp; &nbsp;</td>')
         
       else:
         if readResult == 255:
@@ -1850,15 +1862,15 @@ def awtResults(cgiValues):
         else:
           s += '/%d' % writeResult
           
-        print('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s'
+        output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s'
               '</a></td>' % (jobsubID, s))
 
-    print('<%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
+    output += ('<%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
           '</a></%s></tr>' % 
           (cellType, siteName, siteName, cellType))
 
   # List of storages
-  print('<tr><td> </td>'
+  output += ('<tr><td> </td>'
         '<td><div style="writing-mode: vertical-lr">'
         'Last&nbsp;AWT&nbsp;job</div></td>')
   
@@ -1867,92 +1879,106 @@ def awtResults(cgiValues):
       cellType = 'th'
     else:
       cellType = 'td'
-    print('<%s><div style="writing-mode: vertical-lr">'
+    output += ('<%s><div style="writing-mode: vertical-lr">'
           '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
           '</div></%s>' % (cellType, rseName, rseName, cellType))
 
-  print('<td> </td></tr>')
-
-  print("</table>")
-
-  footer()
+  output += '<td> </td></tr>'
+  output += "</table>"
+  output += footer()
+  return output
 
 #
-# PROGRAM MAIN
+# Entry point from mod_wsgi
 #
+def application(environ, startResponse):
 
-wfs.conf.readConf()
+  wfs.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
+        file=sys.stderr)
 
-try:
-  wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
-                                user=wfs.conf.mysqlUsername, 
-                                passwd=wfs.conf.mysqlPassword, 
-                                db=wfs.conf.mysqlDbName)
-  wfs.db.conn.autocommit(False)
-  wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor) 
-except:
-  print('Status: 500 Internal Server Error')
-  print()
-  print('Problem with database connection')
-  sys.exit(0)
-
-cgiValues = cgi.FieldStorage()
-
-method = cgiValues.getfirst("method")
-
-if method is None:
-  mainPage()
-  
-try:
-  pageNumber = int(cgiValues.getfirst("page_number"))
-except:
+  method     = None 
   pageNumber = 0
-    
-try:
-  pageLength = int(cgiValues.getfirst("page_length"))
-except:
   pageLength = 30
+  cgiValues  = { }
 
-if method == "list-requests":
-  listRequests(cgiValues, pageNumber, pageLength)
+  try:
+    rawValues = urllib.parse.parse_qs(environ['QUERY_STRING'])
+    for i in rawValues:
+      cgiValues[i] = rawValues[i][0]
+  except:
+    pass # Use defaults: produces a method error page at the end
+  else:
+    try:
+      method = cgiValues['method']
+    except:
+      pass # Use default
 
-if method == "show-request":
-  showRequest(cgiValues)
+    try:
+      pageNumber = int(cgiValues['page_number'])
+    except:
+      pass # Use default
 
-if method == "show-stage":
-  showStage(cgiValues)
+    try:
+      pageLength = int(cgiValues['page_length'])
+    except:
+      pass # Use default
 
-if method == "list-files":
-  listFiles(cgiValues, pageNumber, pageLength)
+  if method is None:
+    output = mainPage()
+  
+  elif method == "list-requests":
+    output = listRequests(cgiValues, pageNumber, pageLength)
 
-if method == "show-file":
-  showFile(cgiValues)
+  elif method == "show-request":
+    output = showRequest(cgiValues)
 
-if method == "show-job":
-  showJob(cgiValues)
+  elif method == "show-stage":
+    output = showStage(cgiValues)
 
-if method == "list-jobs":
-  listJobs(cgiValues, pageNumber, pageLength)
+  elif method == "list-files":
+    output = listFiles(cgiValues, pageNumber, pageLength)
 
-if method == "list-sites":
-  listSites(cgiValues)
+  elif method == "show-file":
+    output = showFile(cgiValues)
 
-if method == "list-storages":
-  listStorages(cgiValues)
+  elif method == "show-job":
+    output = showJob(cgiValues)
 
-if method == "show-site":
-  showSite(cgiValues)
+  elif method == "list-jobs":
+    output = listJobs(cgiValues, pageNumber, pageLength)
 
-if method == "show-storage":
-  showStorage(cgiValues)
+  elif method == "list-sites":
+    output = listSites(cgiValues)
 
-if method == "list-events":
-  listEvents(cgiValues, pageNumber, pageLength)
+  elif method == "list-storages":
+    output = listStorages(cgiValues)
 
-if method == "awt-results":
-  awtResults(cgiValues)
+  elif method == "show-site":
+    output = showSite(cgiValues)
 
-print('Status: 400 Bad Request')
-print()
-print('Method not recognised')
-sys.exit(0)
+  elif method == "show-storage":
+    output = showStorage(cgiValues)
+
+  elif method == "list-events":
+    output = listEvents(cgiValues, pageNumber, pageLength)
+
+  elif method == "awt-results":
+    output = awtResults(cgiValues)
+  
+  else:
+    output = 'Method not recognised: %s' % str(method)
+    startResponse('400 Bad Request',
+                [('Content-type',   'text/plain'),
+                 ('Content-length', str(len(output)))
+                ])
+  
+    return [output.encode('UTF-8')]
+
+  # Valid method was found, so return the string it output
+  startResponse('200 OK',
+                [('Content-type',   'text/html'),
+                 ('Content-length', str(len(output)))
+                ])
+
+  return [output.encode('UTF-8')]
