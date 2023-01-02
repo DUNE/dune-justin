@@ -115,11 +115,11 @@ CREATE TABLE `events` (
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `milliseconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`event_id`),
-  INDEX `request_id` (`request_id`,`stage_id`),
-  INDEX `file_id` (`file_id`),
-  INDEX `wfs_job_id` (`wfs_job_id`),
-  INDEX `site_id` (`site_id`),
-  INDEX `rse_id` (`rse_id`)
+  INDEX `request_id` (`request_id`,`stage_id`,`event_type_id`,`rse_id`),
+  INDEX `file_id` (`file_id`,`event_id`),
+  INDEX `wfs_job_id` (`wfs_job_id`,`event_id`),
+  INDEX `site_id` (`site_id`,`event_id`),
+  INDEX `rse_id` (`rse_id`,`event_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -148,7 +148,8 @@ CREATE TABLE `files` (
   INDEX `request_stage_state_id` (`request_id`,`stage_id`,`state`),
   KEY `state_file_id` (`state`,`file_id`),
   INDEX `request_stage_state_file` (`request_id`,`stage_id`,`state`,`file_id`),
-  INDEX `creator_wfs_job_id` (`creator_wfs_job_id`)
+  INDEX `creator_wfs_job_id` (`creator_wfs_job_id`),
+  INDEX `request_stage_state_processed` (`request_id`,`stage_id`,`state`,`processed_time`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -278,13 +279,6 @@ CREATE TABLE `stages` (
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `max_distance` float NOT NULL DEFAULT 0.0,
-  `num_finding` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `num_unallocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `num_allocated` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `num_outputting` mediumint(8) unsigned NOT NULL DEFAUlT 0,
-  `num_processed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
-  `num_notfound` mediumint(8) unsigned NOT NULL DEFAUlT 0,
-  `num_failed` mediumint(8) unsigned NOT NULL DEFAUlT 0,
   UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -334,6 +334,7 @@ def showStage(uriPrefix, cgiValues):
     return errorPage("stage_id must be given")
   
   output = header(uriPrefix, "WFS: Request %d, Stage %d" % (requestID, stageID))
+  output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
            "stages.stage_rank,"
@@ -382,6 +383,7 @@ def showStage(uriPrefix, cgiValues):
            "ORDER BY rse_name" %
            (requestID, stageID))
 
+  output += '<!-- %s -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   rseRows = wfs.db.cur.fetchall()
   
@@ -406,6 +408,7 @@ def showStage(uriPrefix, cgiValues):
            "ORDER BY dataset,file_scope,file_pattern" %
            (requestID, stageID))
 
+  output += '<!-- %s -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   patternRows = wfs.db.cur.fetchall()
 
@@ -496,6 +499,7 @@ def showStage(uriPrefix, cgiValues):
               requestID, stageID,
               requestID, stageID))
 
+  output += '<!-- %s SELECT (SELECT -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   jobNumberRow = wfs.db.cur.fetchone()
 
@@ -526,18 +530,18 @@ def showStage(uriPrefix, cgiValues):
   output += ('</table>')
 
   # RSE counts
-
   rseCounts = {}
 
-  query = ('SELECT rse_name,COUNT(*) AS file_count FROM events '
+  query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
-           'GROUP BY rse_name ORDER BY file_count DESC' %
+           'GROUP BY events.rse_id ORDER BY file_count DESC' %
            (requestID, stageID, wfs.db.event_FILE_ALLOCATED))
 
+  output += '<!-- %s SELECT ALLOCATED -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   rseRows = wfs.db.cur.fetchall()
-  
+
   for rseRow in rseRows:
 
     if rseRow['rse_name'] not in rseCounts:
@@ -545,14 +549,13 @@ def showStage(uriPrefix, cgiValues):
 
     rseCounts[rseRow['rse_name']]['inputs'] = rseRow['file_count']
 
-#  output += ('<p>',str(rseCounts))
-
-  query = ('SELECT rse_name,COUNT(*) AS file_count FROM events '
+  query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
-           'GROUP BY rse_name ORDER BY file_count DESC' %
+           'GROUP BY events.rse_id ORDER BY file_count DESC' %
            (requestID, stageID, wfs.db.event_FILE_CREATED))
 
+  output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   rseRows = wfs.db.cur.fetchall()
   
@@ -586,6 +589,7 @@ def showStage(uriPrefix, cgiValues):
            'GROUP BY site_name ORDER BY site_count DESC' %
            (requestID, stageID, wfs.db.event_FILE_ALLOCATED_RESET))
 
+  output += '<!-- %s -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   resetRows = wfs.db.cur.fetchall()
   
@@ -602,6 +606,7 @@ def showStage(uriPrefix, cgiValues):
            'GROUP BY site_name ORDER BY site_count DESC' %
            (requestID, stageID, wfs.db.event_FILE_OUTPUTTING_RESET))
 
+  output += '<!-- %s -->\n' % str(time.time())
   wfs.db.cur.execute(query)
   resetRows = wfs.db.cur.fetchall()
   
