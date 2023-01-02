@@ -1127,9 +1127,6 @@ def application(environ, startResponse):
   print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
         file=sys.stderr)
 
-  # Avoid leftovers from partial, failed transactions in this instance
-  wfs.db.conn.rollback()
-
   # Quickly reject random GETs etc (if not handled by Apache already)
   if environ['REQUEST_METHOD'] != 'POST':
     return httpError(startResponse,
@@ -1146,7 +1143,8 @@ def application(environ, startResponse):
                      '500 Internal Server Error',
                      'DB connection lost and cannot reconnect: ' + str(e))
 
-
+  # Avoid leftovers from partial, failed transactions in this instance
+  wfs.db.conn.rollback()
 
   try:
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
