@@ -1009,7 +1009,8 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Failed finding job')
 
   try:
-    wfs.db.insertUpdate('UPDATE files SET state="processed" WHERE '
+    wfs.db.insertUpdate('UPDATE files '
+                        'SET state="processed",processed_time=NOW() WHERE '
                         'state="outputting" AND wfs_job_id=%d' % wfsJobID)
   except:
     return httpError(startResponse,

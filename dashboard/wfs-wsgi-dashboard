@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+#SELECT state,count(*),FLOOR((UNIX_TIMESTAMP(processed_time)-1672261127)/7200) as bucket FROM files WHERE request_id=177 AND stage_id=1 and state='processed' GROUP BY bucket;
+
+
 #
 #  wfs-wsgi-dashboard - Workflow System dashboard
 #
