@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #
 #  wfs-wsgi-dashboard - Workflow System dashboard
 #
@@ -36,21 +36,15 @@
 #
 
 import os
-import io
-import re
 import sys
 import time
-import json
-import uuid
 import html
 import urllib
 import urllib.parse
-import string
-import MySQLdb
 
 import wfs
 
-def header(title):
+def header(uriPrefix, title):
 
   return ("""<html><head><title>%s</title>
 <style>
@@ -60,23 +54,24 @@ td,th { border: thin solid black; padding: 0.75ex }
 </style>
 </head><body>
 <p>
-<a href="/dashboard/">Dashboard</a> . 
-<a href="/dashboard/?method=list-requests">Requests</a> . 
-<a href="/dashboard/?method=list-jobs">Jobs</a> . 
-<a href="/dashboard/?method=list-events">Events</a> . 
-<a href="/dashboard/?method=list-sites">Sites</a> . 
-<a href="/dashboard/?method=list-storages">Storages</a> .
-<a href="/dashboard/?method=awt-results">AWT</a> .
+<a href="%s">Dashboard</a> . 
+<a href="%s?method=list-requests">Requests</a> . 
+<a href="%s?method=list-jobs">Jobs</a> . 
+<a href="%s?method=list-events">Events</a> . 
+<a href="%s?method=list-sites">Sites</a> . 
+<a href="%s?method=list-storages">Storages</a> .
+<a href="%s?method=awt-results">AWT</a> .
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
-""" % title)
+""" % (title, uriPrefix, uriPrefix, uriPrefix, uriPrefix, uriPrefix,
+       uriPrefix, uriPrefix))
 
 def footer():
   return ("<hr>Time now: %s\n</body></html>" 
           % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
 def errorPage(message):
-  output = header("Error")
+  output = header(uriPrefix, "Error")
   output += "<h1>Error</h1>\n<p>%s</p>" % message
   output += footer()
   return output
@@ -97,7 +92,7 @@ def daysHoursMinutes(seconds):
     
   return '%dm' % int(seconds / 60)
 
-def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
+def makePager(uriPrefix, pageNumber, pageLength, rowsLen, urlTemplate):
 
   output = '<p>Page: '
 
@@ -106,35 +101,35 @@ def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
       output += ' %d ' % (pageno + 1)
     else:
       output += ((' <a href="' + urlTemplate + '">%d</a> ') % 
-                 (pageno, pageLength, pageno + 1))
+                 (uriPrefix, pageno, pageLength, pageno + 1))
             
   if rowsLen > pageLength:
     output += ((' <a href="' + urlTemplate + '">Next</a> ') % 
-               (pageNumber + 1, pageLength))
+               (uriPrefix, pageNumber + 1, pageLength))
                
   return output
   
-def mainPage():
+def mainPage(uriPrefix):
 
-  output = header("WFS: Dashboard")
+  output = header(uriPrefix, "WFS: Dashboard")
 
   output += ("""<h1>Dashboard</h1>
 <ul>
-<li><a href="/dashboard/?method=list-requests">Requests</a></li>
-<li><a href="/dashboard/?method=list-jobs">Jobs</a></li>
-<li><a href="/dashboard/?method=list-events">Events</a></li>
-<li><a href="/dashboard/?method=list-sites">Sites</a></li>
-<li><a href="/dashboard/?method=list-storages">Storages</a></li>
-<li><a href="/dashboard/?method=awt-results">Automated Workflow Tests</a></li>
+<li><a href="%s?method=list-requests">Requests</a></li>
+<li><a href="%s?method=list-jobs">Jobs</a></li>
+<li><a href="%s?method=list-events">Events</a></li>
+<li><a href="%s?method=list-sites">Sites</a></li>
+<li><a href="%s?method=list-storages">Storages</a></li>
+<li><a href="%s?method=awt-results">Automated Workflow Tests</a></li>
 <li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>
-</ul>""")
+</ul>""" % (uriPrefix, uriPrefix, uriPrefix, uriPrefix, uriPrefix, uriPrefix))
   
   output += footer()
   return output
 
-def listRequests(cgiValues, pageNumber, pageLength):
+def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
 
-  output = header("WFS: Requests")
+  output = header(uriPrefix, "WFS: Requests")
 
   output += "<h1>Requests</h1>"
   
@@ -148,8 +143,8 @@ def listRequests(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   rows = wfs.db.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(rows), 
-             "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
+  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
+                      "%s?method=list-requests&page_number=%d&page_length=%d") 
              
   output += '<p><table>'
   output += ('<tr><th>Request ID</th><th>Name</th><th>User</th><th>State</th>'
@@ -157,11 +152,12 @@ def listRequests(cgiValues, pageNumber, pageLength):
              '<th>Finished</th><tr>')
 
   for row in rows[:pageLength]:
-    output += ('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
+    output += ('<tr><td><a href="%s?method=show-request&request_id=%s">'
           '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '</tr>' % 
-          (row["request_id"], row["request_id"],
+          (uriPrefix,
+           row["request_id"], row["request_id"],
            html.escape(row["name"], quote=True),
            row["username"],
            row["state"],
@@ -175,19 +171,19 @@ def listRequests(cgiValues, pageNumber, pageLength):
 
   output += "</table>"
   
-  output += makePager(pageNumber, pageLength, len(rows), 
-             "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
+  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
+                      "%s?method=list-requests&page_number=%d&page_length=%d")
   output += footer()
   
   return output
 
-def showRequest(cgiValues):
+def showRequest(uriPrefix, cgiValues):
   try:
     requestID = int(cgiValues['request_id'])
   except:
     return errorPage("request_id must be given")
   
-  output = header("WFS: Request %d" % requestID)
+  output = header(uriPrefix, "WFS: Request %d" % requestID)
 
   query = ("SELECT requests.name,requests.state,"
            "users.username,"
@@ -284,21 +280,22 @@ def showRequest(cgiValues):
              "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:    
-    output += ('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
-          '%s</a></td>'
+    output += ('<tr><td><a href="%s?method=show-stage&request_id=%s&stage_id=%s">'
+          '%d</a></td>'
           '<td>%d</td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=allocated">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=outputting">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=processed">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=notfound">%d</a></td>'
+          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=failed">%d</a></td>'
           '</tr>' % 
-          (stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
+          (uriPrefix,
+           stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
            stageRow["stage_rank"],
-           stageRow["request_id"], stageRow["stage_id"], 
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['finding'] +
             stateCounts[stageRow['stage_id']]['unallocated'] +
             stateCounts[stageRow['stage_id']]['allocated'] +
@@ -306,26 +303,26 @@ def showRequest(cgiValues):
             stateCounts[stageRow['stage_id']]['processed'] +
             stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
-           stageRow["request_id"], stageRow["stage_id"],
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finding'],
-           stageRow["request_id"], stageRow["stage_id"],
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['unallocated'],
-           stageRow["request_id"], stageRow["stage_id"],
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['allocated'],
-           stageRow["request_id"], stageRow["stage_id"],
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
-           stageRow["request_id"], stageRow["stage_id"],
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['processed'],
-           stageRow["request_id"], stageRow["stage_id"],
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['notfound'],
-           stageRow["request_id"], stageRow["stage_id"], 
+           uriPrefix, stageRow["request_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['failed']))
 
   output += "</table>"
   output += footer()
   return output
 
-def showStage(cgiValues):
+def showStage(uriPrefix, cgiValues):
   try:
     requestID = int(cgiValues["request_id"])
   except:
@@ -336,7 +333,7 @@ def showStage(cgiValues):
   except:
     return errorPage("stage_id must be given")
   
-  output = header("WFS: Request %d, Stage %d" % (requestID, stageID))
+  output = header(uriPrefix, "WFS: Request %d, Stage %d" % (requestID, stageID))
 
   query = ("SELECT "
            "stages.stage_rank,"
@@ -449,29 +446,29 @@ def showStage(cgiValues):
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
-  output += ('<tr><td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
+  output += ('<tr><td><a href="%s?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
+        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
         '</tr>' % 
-          (requestID, stageID, stateCounts['finding']
-                             + stateCounts['unallocated']
-                             + stateCounts['allocated'] 
-                             + stateCounts['outputting']
-                             + stateCounts['processed']
-                             + stateCounts['notfound']
-                             + stateCounts['failed'],
-           requestID, stageID, stateCounts['finding'], 
-           requestID, stageID, stateCounts['unallocated'], 
-           requestID, stageID, stateCounts['allocated'], 
-           requestID, stageID, stateCounts['outputting'],
-           requestID, stageID, stateCounts['processed'],
-           requestID, stageID, stateCounts['notfound'],
-           requestID, stageID, stateCounts['failed']))
+          (uriPrefix, requestID, stageID, stateCounts['finding']
+                                        + stateCounts['unallocated']
+                                        + stateCounts['allocated'] 
+                                        + stateCounts['outputting']
+                                        + stateCounts['processed']
+                                        + stateCounts['notfound']
+                                        + stateCounts['failed'],
+           uriPrefix, requestID, stageID, stateCounts['finding'], 
+           uriPrefix, requestID, stageID, stateCounts['unallocated'], 
+           uriPrefix, requestID, stageID, stateCounts['allocated'], 
+           uriPrefix, requestID, stageID, stateCounts['outputting'],
+           uriPrefix, requestID, stageID, stateCounts['processed'],
+           uriPrefix, requestID, stageID, stateCounts['notfound'],
+           uriPrefix, requestID, stageID, stateCounts['failed']))
 
   output += ("</table>")
 
@@ -508,22 +505,22 @@ def showStage(cgiValues):
         '<th>Aborted</th><th>Stalled</th></tr>')
 
   output += ('<tr>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="%s?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=processing">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="%s?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=outputting">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="%s?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=finished">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="%s?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=aborted">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="%s?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
         '</tr>'
-        % (requestID, stageID, jobNumberRow['number_processing'],
-           requestID, stageID, jobNumberRow['number_outputting'],
-           requestID, stageID, jobNumberRow['number_finished'],
-           requestID, stageID, jobNumberRow['number_aborted'],
-           requestID, stageID, jobNumberRow['number_stalled']
+        % (uriPrefix, requestID, stageID, jobNumberRow['number_processing'],
+           uriPrefix, requestID, stageID, jobNumberRow['number_outputting'],
+           uriPrefix, requestID, stageID, jobNumberRow['number_finished'],
+           uriPrefix, requestID, stageID, jobNumberRow['number_aborted'],
+           uriPrefix, requestID, stageID, jobNumberRow['number_stalled']
           ))
 
   output += ('</table>')
@@ -562,15 +559,9 @@ def showStage(cgiValues):
   for rseRow in rseRows:
   
     if rseRow['rse_name'] not in rseCounts:
-#      if rseRow['rse_name'] is None:
-#        output += ('<p>',str(rseRow))
-        
       rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
 
     rseCounts[rseRow['rse_name']]['outputs'] = rseRow['file_count']
-
-#  output += ('<p>',str(rseCounts))
-#  output += ('<p>',query)
     
   if rseCounts:
     output += ("<h2>RSEs used</h2>")
@@ -646,7 +637,7 @@ def showStage(cgiValues):
   output += footer()
   return output
 
-def listFiles(cgiValues, pageNumber, pageLength):
+def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
 
   try:
     requestID = int(cgiValues["request_id"])
@@ -672,7 +663,7 @@ def listFiles(cgiValues, pageNumber, pageLength):
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
     
-  output = header("WFS: Files for Request %d, Stage %d%s" 
+  output = header(uriPrefix, "WFS: Files for Request %d, Stage %d%s" 
                   % (requestID, stageID, stateText))
 
   output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
@@ -695,8 +686,8 @@ def listFiles(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   filesRows = wfs.db.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(filesRows),
-             '/dashboard/?method=list-files&page_number=%d&page_length=%d'
+  output += makePager(uriPrefix, pageNumber, pageLength, len(filesRows),
+             '%s?method=list-files&page_number=%d&page_length=%d'
              '&request_id=' + str(requestID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
@@ -707,9 +698,10 @@ def listFiles(cgiValues, pageNumber, pageLength):
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows[:pageLength]:
-    output += ('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+    output += ('<tr><td><a href="%s?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%d</td><td>%s</td>' % 
-          (requestID, 
+          (uriPrefix,
+           requestID, 
            stageID, 
            urllib.parse.quote(fileRow["file_did"], safe=''),
            html.escape(fileRow["file_did"], quote=True),
@@ -719,13 +711,13 @@ def listFiles(cgiValues, pageNumber, pageLength):
          
     if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
       output += ('<td>%s</td>'
-            '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
-            '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
-            '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
+            '<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
+            '<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
+            '<td><a href="%s?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
             (str(fileRow["event_time"]),
-             str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
-             str(fileRow["site_name"]), str(fileRow["site_name"]),
-             str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
+             uriPrefix, str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
+             uriPrefix, str(fileRow["site_name"]), str(fileRow["site_name"]),
+             uriPrefix, str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
             )
            )
     else:
@@ -733,8 +725,8 @@ def listFiles(cgiValues, pageNumber, pageLength):
       
   output += ("</table>")
   
-  output += makePager(pageNumber, pageLength, len(filesRows),
-             '/dashboard/?method=list-files&page_number=%d&page_length=%d'
+  output += makePager(uriPrefix, pageNumber, pageLength, len(filesRows),
+             '%s?method=list-files&page_number=%d&page_length=%d'
              '&request_id=' + str(requestID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
@@ -742,7 +734,7 @@ def listFiles(cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def showFile(cgiValues):
+def showFile(uriPrefix, cgiValues):
 
   try:
     fileDID = cgiValues["file_did"]
@@ -762,7 +754,7 @@ def showFile(cgiValues):
   except:
     return errorPage("stage_id must be given")
 
-  output = header("WFS: File %s" 
+  output = header(uriPrefix, "WFS: File %s" 
                   % html.escape(fileDID, quote=True))
 
   output += ("<h1>File %s</h1>"
@@ -804,12 +796,12 @@ def showFile(cgiValues):
   output += ('<p><table>')
   
   output += ('<tr><td>Request ID</td>'
-             '<td><a href="/dashboard/?method=show-request&request_id=%d">%d</a></td></tr>'
-             % (requestID, requestID))
+             '<td><a href="%s?method=show-request&request_id=%d">%d</a></td></tr>'
+             % (uriPrefix, requestID, requestID))
         
   output += ('<tr><td>Stage ID</td>'
-             '<td><a href="/dashboard/?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
-             % (requestID, stageID, stageID))
+             '<td><a href="%s?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
+             % (uriPrefix, requestID, stageID, stageID))
         
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
@@ -838,9 +830,10 @@ def showFile(cgiValues):
   
   for jobRow in jobsRows:
   
-    output += ('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> '
+    output += ('<a href="%s?method=show-job&jobsub_id=%s">%s</a> '
                '(%s &nbsp; %s &nbsp; %s)<br>' 
-               % (jobRow["jobsub_id"], jobRow["jobsub_id"], 
+               % (uriPrefix,
+                  jobRow["jobsub_id"], jobRow["jobsub_id"], 
                   jobRow["allocation_state"],
                   jobRow["site_name"],
                   jobRow["rse_name"])
@@ -856,13 +849,13 @@ def showFile(cgiValues):
   output += footer()
   return output
 
-def showJob(cgiValues):
+def showJob(uriPrefix, cgiValues):
   try:
     jobsubID = cgiValues["jobsub_id"]
   except:
     return errorPage("jobsub_id must be given")
       
-  output = header("WFS: Jobsub ID %s" % jobsubID)
+  output = header(uriPrefix, "WFS: Jobsub ID %s" % jobsubID)
 
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
@@ -940,9 +933,9 @@ def showJob(cgiValues):
 
   if jobRow["site_name"]:
     output += ('<tr><td>Site</td>'
-               '<td><a href="/dashboard/?method=show-site&site_name=%s">'
+               '<td><a href="%s?method=show-site&site_name=%s">'
                '%s</a></td></tr>'
-               % (jobRow["site_name"], jobRow["site_name"]))
+               % (uriPrefix, jobRow["site_name"], jobRow["site_name"]))
   else:
     output += '<tr><td>Site</td><td> </td></tr>'
 
@@ -998,19 +991,18 @@ def showJob(cgiValues):
   output += '<tr><td>Request ID</td>'
   
   if jobRow['request_id']:
-    output += ('<td><a href="/dashboard/?method=show-request&request_id=%s">'
+    output += ('<td><a href="%s?method=show-request&request_id=%s">'
                '%s</a></td></tr>'
-               % (jobRow["request_id"],
-                  jobRow["request_id"]))
+               % (uriPrefix, jobRow["request_id"], jobRow["request_id"]))
   else:
     output += '<td>&nbsp;</td></tr>'
         
   output += '<tr><td>Stage ID</td>'
   
   if jobRow['stage_id']:
-    output += ('<td><a href="/dashboard/?method=show-stage&request_id=%s&'
+    output += ('<td><a href="%s?method=show-stage&request_id=%s&'
                'stage_id=%s">%s</a></td></tr>'
-               % (jobRow["request_id"], jobRow["stage_id"],
+               % (uriPrefix, jobRow["request_id"], jobRow["stage_id"],
                   jobRow["stage_id"]))
   else:
     output += '<td>&nbsp;</td></tr>'
@@ -1031,9 +1023,10 @@ def showJob(cgiValues):
   
   for inputFileRow in inputFilesRows:
     try:
-      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+      output += ('<a href="%s?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>' 
-                 % (jobRow["request_id"], 
+                 % (uriPrefix,
+                    jobRow["request_id"], 
                     jobRow["stage_id"],
                     urllib.parse.quote(str(inputFileRow["file_did"]), safe=''),
                     html.escape(inputFileRow["file_did"], quote=True)
@@ -1048,9 +1041,10 @@ def showJob(cgiValues):
   
   for outputFileRow in outputFilesRows:
     try:
-      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+      output += ('<a href="%s?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>'  
-                 % (jobRow["request_id"], 
+                 % (uriPrefix,
+                    jobRow["request_id"], 
                     outputFileRow["stage_id"],
                     urllib.parse.quote(str(outputFileRow["file_did"]), safe=''),
                     html.escape(outputFileRow["file_did"], quote=True)
@@ -1062,12 +1056,12 @@ def showJob(cgiValues):
   output += '</td></tr>'
 
   output += ('<tr><td colspan=2>'
-        '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
+        '<a href="%s?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
         '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
         'Landscape job page</a> '
         '</td></tr>'
-        % (jobsubID, jobsubID))
+        % (uriPrefix, jobsubID, jobsubID))
 
   output += "</table>"
 
@@ -1100,16 +1094,16 @@ def showJob(cgiValues):
 #      output += ('</pre></td></tr></table>') 
 #      
 #    else:
-#      output += ('<p><a href="/dashboard/show?method=show-job&jobsub_id=%s'
+#      output += ('<p><a href="%sshow?method=show-job&jobsub_id=%s'
 #            '&show_jobsub_log=true#jobsublog">Show jobsub log</a></p>'
-#            % jobsubID)
+#            % (uriPrefix, jobsubID))
 
   output += footer()
   return output
 
-def listJobs(cgiValues, pageNumber, pageLength):
+def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
       
-  urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
+  urlTemplate   = '%s?method=list-jobs&page_number=%d&page_length=%d'
   filters       = []
   titleSuffixes = []
 
@@ -1163,7 +1157,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
   else:
     titleSuffix = ''
     
-  output = header("WFS: Jobs" + titleSuffix)
+  output = header(uriPrefix, "WFS: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
   
@@ -1203,7 +1197,7 @@ def listJobs(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   jobRows = wfs.db.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += makePager(uriPrefix, pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table>'
   
@@ -1232,30 +1226,32 @@ def listJobs(cgiValues, pageNumber, pageLength):
       
     else:
       if jobRow['request_id']:
-        requestStageStr = ('<td><a href="/dashboard/?method=show-request&'
+        requestStageStr = ('<td><a href="%s?method=show-request&'
                            'request_id=%s">%s</a></td>' 
-                           % (jobRow["request_id"], jobRow["request_id"]))
+                           % (uriPrefix, 
+                              jobRow["request_id"],
+                              jobRow["request_id"]))
       else:
         requestStageStr = '<td> </td>'
       
       if jobRow['stage_id']:
         requestStageStr += (
-             '<td><a href="/dashboard/?method=show-stage&request_id=%s&'
+             '<td><a href="%s?method=show-stage&request_id=%s&'
              'stage_id=%s">%s</a></td>' 
-             % (jobRow["request_id"], 
+             % (uriPrefix, jobRow["request_id"], 
                 jobRow["stage_id"], jobRow["stage_id"]))
       else:
         requestStageStr += '<td> </td>'
   
     if jobRow['site_name']:
-      siteNameStr = ('<td><a href="/dashboard/?method=show-site&site_name=%s">'
-                     '%s</a></td>' % (jobRow['site_name'], jobRow['site_name']))
+      siteNameStr = ('<td><a href="%s?method=show-site&site_name=%s">'
+                     '%s</a></td>' 
+                     % (uriPrefix, jobRow['site_name'], jobRow['site_name']))
     else:
       siteNameStr = '<td> </td>'
 
     output += ('<tr>'
-          '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
-#          '<td>%s</td>'
+          '<td><a href="%s?method=show-job&jobsub_id=%s">%s</a></td>'
           '<td>%s</td>'
           '%s'
           '<td>%s</td>'
@@ -1264,8 +1260,8 @@ def listJobs(cgiValues, pageNumber, pageLength):
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>'
-          % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
-#             jobRow['jobsub_state'],
+          % (uriPrefix,
+             jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
              jobRow['allocation_state'],
              siteNameStr,
              usernameStr,
@@ -1277,13 +1273,13 @@ def listJobs(cgiValues, pageNumber, pageLength):
          )    
 
   output += ("</table>")
-  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += makePager(uriPrefix, pageNumber, pageLength, len(jobRows), urlTemplate)
   output += footer()
   return output
 
-def listSites(cgiValues):
+def listSites(uriPrefix, cgiValues):
       
-  output = header("WFS: Sites")
+  output = header(uriPrefix, "WFS: Sites")
 
   output += ("<h1>Sites</h1>")
   
@@ -1299,8 +1295,6 @@ def listSites(cgiValues):
         '<th>Last job</th>'
         '<th>RSS(MB) / Processors</th>'
         '<th>Max Wall Seconds</th>'
-#        '<th>Submitted jobs</th>'
-#        '<th>Running jobs</th>'
         '<th>Max jobs</th>'
         '<th colspan=2>&nbsp;</th>'
         '</tr>')
@@ -1312,13 +1306,11 @@ def listSites(cgiValues):
       lastGetStageStr = str(siteRow['last_get_stage_time'])
   
     output += ('<tr>'
-          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+          '<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
           '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
           '<td style="text-align: right">%d / %d = %d</td>'
           '<td style="text-align: right">%d</td>'
-#          '<td style="text-align: right">%d</td>'
-#          '<td style="text-align: right">%d</td>'
           '<td style="text-align: right">%d</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
@@ -1328,7 +1320,8 @@ def listSites(cgiValues):
           '<input type="hidden" name="SearchString" value="%s">'
           '<input type="submit" value="GOCDB"></form></td>'
           '</tr>'
-          % (siteRow['site_name'], siteRow['site_name'],
+          % (uriPrefix,
+             siteRow['site_name'], siteRow['site_name'],
              'bold' if siteRow['enabled'] else 'normal',
              'TRUE' if siteRow['enabled'] else 'False',
              lastGetStageStr,
@@ -1337,8 +1330,6 @@ def listSites(cgiValues):
               int((siteRow['max_rss_bytes'] 
                     / siteRow['max_processors']) / 1048576),
              siteRow['max_wall_seconds'],
-#             siteRow['submitted_jobs'],
-#             siteRow['running_jobs'],
              siteRow['max_jobs'],
              siteRow['site_name'],
              siteRow['wlcg_site_name']
@@ -1349,9 +1340,9 @@ def listSites(cgiValues):
   output += footer()
   return output
 
-def listStorages(cgiValues):
+def listStorages(uriPrefix, cgiValues):
       
-  output = header("WFS: Storages")
+  output = header(uriPrefix, "WFS: Storages")
 
   output += ("<h1>Storages</h1>")
   
@@ -1378,7 +1369,7 @@ def listStorages(cgiValues):
   
   for storageRow in storageRows:  
     output += ('<tr>'
-          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+          '<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%.2f</td>'
           '<td>%s</td>'
           '<td>(%s/%s)</td>'
@@ -1387,7 +1378,8 @@ def listStorages(cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
-          % (storageRow['rse_name'], storageRow['rse_name'],
+          % (uriPrefix,
+             storageRow['rse_name'], storageRow['rse_name'],
              storageRow['occupancy'],
              bool(storageRow['has_read']),
              bool(storageRow['rucio_read']),
@@ -1404,7 +1396,7 @@ def listStorages(cgiValues):
   output += footer()
   return output
 
-def showSite(cgiValues):
+def showSite(uriPrefix, cgiValues):
       
   try:
     siteName = cgiValues["site_name"]
@@ -1414,7 +1406,7 @@ def showSite(cgiValues):
   if not wfs.db.stringIsSite(siteName):
     return errorPage("Invalid site name!")
         
-  output = header("WFS: Site " + siteName)
+  output = header(uriPrefix, "WFS: Site " + siteName)
 
   output += ("<h1>Site %s</h1>" % siteName)
   
@@ -1450,14 +1442,14 @@ def showSite(cgiValues):
   output += ('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 
   output += ('<tr><td>Jobs</td><td>'
-        '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' %
-        siteName)
-        
+             '<a href="%s?method=list-jobs&site_name=%s">All</a> ' 
+             % (uriPrefix, siteName))
+
   for state in ['submitted', 'started', 'processing', 'outputting',
                 'finished', 'notused', 'failed']:
-    output += ('<a href="/dashboard/?method=list-jobs&allocation_state=%s&'
-          'site_name=%s">%s</a> ' %
-          (state, siteName, state.capitalize()))
+    output += ('<a href="%s?method=list-jobs&allocation_state=%s&'
+               'site_name=%s">%s</a> ' 
+               % (uriPrefix, state, siteName, state.capitalize()))
 
   output += ('</td></tr>')
   
@@ -1504,12 +1496,13 @@ def showSite(cgiValues):
   
   for storageRow in storageRows:  
     output += ('<tr>'
-          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+          '<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%.2f</td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          % (storageRow['rse_name'], storageRow['rse_name'],
+          % (uriPrefix,
+             storageRow['rse_name'], storageRow['rse_name'],
              int(storageRow['distance']),
              storageRow['occupancy'],
              bool(storageRow['has_read']),
@@ -1520,23 +1513,23 @@ def showSite(cgiValues):
     if int(storageRow['read_result']) == 255:
       output += ('<td> </td>')
     else:
-      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
-            '%d</a></td>' % 
-            (storageRow['jobsub_id'], int(storageRow['read_result'])))
+      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
+          '%d</a></td>' % 
+          (uriPrefix, storageRow['jobsub_id'], int(storageRow['read_result'])))
 
     if int(storageRow['write_result']) == 255:
       output += ('<td> </td></tr>')
     else:
-      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
-            '%d</a></td>' % 
-            (storageRow['jobsub_id'], int(storageRow['write_result'])))
+      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
+        '%d</a></td>' % 
+        (uriPrefix, storageRow['jobsub_id'], int(storageRow['write_result'])))
 
   output += ("</table>")
 
   output += footer()
   return output
 
-def showStorage(cgiValues):
+def showStorage(uriPrefix, cgiValues):
       
   try:
     rseName = cgiValues["rse_name"]
@@ -1546,7 +1539,7 @@ def showStorage(cgiValues):
   if not wfs.db.stringIsSite(rseName):
     return errorPage("Invalid RSE name!")
         
-  output = header("WFS: Storage " + rseName)
+  output = header(uriPrefix, "WFS: Storage " + rseName)
 
   output += ("<h1>Storage %s</h1>" % rseName)
   
@@ -1610,10 +1603,11 @@ def showStorage(cgiValues):
   
   for siteRow in siteRows:  
     output += ('<tr>'
-          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+          '<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%s</td>'
-          % (siteRow['site_name'], siteRow['site_name'],
+          % (uriPrefix,
+             siteRow['site_name'], siteRow['site_name'],
              int(siteRow['distance']),
              bool(siteRow['enabled'])
             )
@@ -1622,23 +1616,23 @@ def showStorage(cgiValues):
     if int(siteRow['read_result']) == 255:
       output += ('<td> </td>')
     else:
-      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
-            (siteRow['jobsub_id'], int(siteRow['read_result'])))
+            (uriPrefix, siteRow['jobsub_id'], int(siteRow['read_result'])))
 
     if int(siteRow['write_result']) == 255:
       output += ('<td> </td></tr>')
     else:
-      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
-            (siteRow['jobsub_id'], int(siteRow['write_result'])))
+            (uriPrefix, siteRow['jobsub_id'], int(siteRow['write_result'])))
 
   output += ("</table>")
 
   output += footer()
   return output
 
-def listEvents(cgiValues, pageNumber, pageLength):
+def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
 
   whereList = []
   queryList = ''
@@ -1657,7 +1651,7 @@ def listEvents(cgiValues, pageNumber, pageLength):
   else:
     whereString = ''
     
-  output = header("WFS: Events")
+  output = header(uriPrefix, "WFS: Events")
 
   output += ("<h1>Events</h1>")
   
@@ -1675,8 +1669,8 @@ def listEvents(cgiValues, pageNumber, pageLength):
   wfs.db.cur.execute(query)
   eventsRows = wfs.db.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(eventsRows),
-             '/dashboard/?method=list-events&page_number=%d&page_length=%d'
+  output += makePager(uriPrefix, pageNumber, pageLength, len(eventsRows),
+             '%s?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
   output += (
@@ -1699,26 +1693,29 @@ def listEvents(cgiValues, pageNumber, pageLength):
          )
 
     if eventRow['request_id']: 
-      output += ('<td><a href="/dashboard/?method=show-request&request_id=%d">'
+      output += ('<td><a href="%s?method=show-request&request_id=%d">'
             '%d</a></td>' 
-            % (eventRow['request_id'], 
+            % (uriPrefix,
+               eventRow['request_id'], 
                eventRow['request_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['stage_id']: 
-      output += ('<td><a href="/dashboard/?method=show-stage&request_id=%d'
+      output += ('<td><a href="%s?method=show-stage&request_id=%d'
             '&stage_id=%d">%d</a></td>' 
-            % (eventRow['request_id'], 
+            % (uriPrefix,
+               eventRow['request_id'], 
                eventRow['stage_id'], 
                eventRow['stage_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['file_did']:
-      output += ('<td><a href="/dashboard/?method=show-file&request_id=%d'
+      output += ('<td><a href="%s?method=show-file&request_id=%d'
             '&stage_id=%d&file_did=%s">%s</td>' 
-            % (eventRow['request_id'], 
+            % (uriPrefix,
+               eventRow['request_id'], 
                eventRow['stage_id'], 
                eventRow['file_did'], 
                eventRow['file_did']))
@@ -1726,20 +1723,20 @@ def listEvents(cgiValues, pageNumber, pageLength):
       output += ('<td>&nbsp;</td>')
          
     if eventRow['jobsub_id']: 
-      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
-            % (eventRow['jobsub_id'], eventRow['jobsub_id']))
+      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">%s</a></td>'
+            % (uriPrefix, eventRow['jobsub_id'], eventRow['jobsub_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['site_name']: 
-      output += ('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
-            % (eventRow['site_name'], eventRow['site_name']))
+      output += ('<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
+            % (uriPrefix, eventRow['site_name'], eventRow['site_name']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['rse_name']: 
-      output += ('<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
-            % (eventRow['rse_name'], eventRow['rse_name']))
+      output += ('<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
+            % (uriPrefix, eventRow['rse_name'], eventRow['rse_name']))
     else:
       output += ('<td>&nbsp;</td>')
 
@@ -1747,16 +1744,16 @@ def listEvents(cgiValues, pageNumber, pageLength):
                
   output += ("</table>")
   
-  output += makePager(pageNumber, pageLength, len(eventsRows),
-             '/dashboard/?method=list-events&page_number=%d&page_length=%d'
+  output += makePager(uriPrefix, pageNumber, pageLength, len(eventsRows),
+             '%s?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
   output += footer()
   return output
 
-def awtResults(cgiValues):
+def awtResults(uriPrefix, cgiValues):
               
-  output = header("WFS: Automated Workflow Tests")
+  output = header(uriPrefix, "WFS: Automated Workflow Tests")
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
@@ -1821,8 +1818,8 @@ def awtResults(cgiValues):
     else:
       cellType = 'td'
     output += ('<%s><div style="writing-mode: vertical-lr">'
-          '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>' % (cellType, rseName, rseName, cellType))
+          '<a href="%s?method=show-storage&rse_name=%s">%s</a>'
+          '</div></%s>' % (cellType, uriPrefix, rseName, rseName, cellType))
 
   output += ('<td> </td></tr>')
 
@@ -1834,9 +1831,9 @@ def awtResults(cgiValues):
     else:
       cellType = 'td'
     
-    output += ('<tr><%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
+    output += ('<tr><%s><a href="%s?method=show-site&site_name=%s">%s'
           '</a></%s>' % 
-          (cellType, siteName, siteName, cellType))
+          (cellType, uriPrefix, siteName, siteName, cellType))
 
     if lastJobTimes[siteName] == 0:
       output += ('<td> </td>')
@@ -1862,12 +1859,12 @@ def awtResults(cgiValues):
         else:
           s += '/%d' % writeResult
           
-        output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s'
-              '</a></td>' % (jobsubID, s))
+        output += ('<td><a href="%s?method=show-job&jobsub_id=%s">%s'
+              '</a></td>' % (uriPrefix, jobsubID, s))
 
-    output += ('<%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
+    output += ('<%s><a href="%s?method=show-site&site_name=%s">%s'
           '</a></%s></tr>' % 
-          (cellType, siteName, siteName, cellType))
+          (cellType, uriPrefix, siteName, siteName, cellType))
 
   # List of storages
   output += ('<tr><td> </td>'
@@ -1880,8 +1877,8 @@ def awtResults(cgiValues):
     else:
       cellType = 'td'
     output += ('<%s><div style="writing-mode: vertical-lr">'
-          '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>' % (cellType, rseName, rseName, cellType))
+          '<a href="%s?method=show-storage&rse_name=%s">%s</a>'
+          '</div></%s>' % (cellType, uriPrefix, rseName, rseName, cellType))
 
   output += '<td> </td></tr>'
   output += "</table>"
@@ -1897,11 +1894,16 @@ def application(environ, startResponse):
   print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
         file=sys.stderr)
 
+  try:
+    uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'
+  except:
+    uriPrefix = '/dashboard/'
+
   method     = None 
   pageNumber = 0
   pageLength = 30
   cgiValues  = { }
-
+  
   try:
     rawValues = urllib.parse.parse_qs(environ['QUERY_STRING'])
     for i in rawValues:
@@ -1925,46 +1927,46 @@ def application(environ, startResponse):
       pass # Use default
 
   if method is None:
-    output = mainPage()
+    output = mainPage(uriPrefix)
   
   elif method == "list-requests":
-    output = listRequests(cgiValues, pageNumber, pageLength)
+    output = listRequests(uriPrefix, cgiValues, pageNumber, pageLength)
 
   elif method == "show-request":
-    output = showRequest(cgiValues)
+    output = showRequest(uriPrefix, cgiValues)
 
   elif method == "show-stage":
-    output = showStage(cgiValues)
+    output = showStage(uriPrefix, cgiValues)
 
   elif method == "list-files":
-    output = listFiles(cgiValues, pageNumber, pageLength)
+    output = listFiles(uriPrefix, cgiValues, pageNumber, pageLength)
 
   elif method == "show-file":
-    output = showFile(cgiValues)
+    output = showFile(uriPrefix, cgiValues)
 
   elif method == "show-job":
-    output = showJob(cgiValues)
+    output = showJob(uriPrefix, cgiValues)
 
   elif method == "list-jobs":
-    output = listJobs(cgiValues, pageNumber, pageLength)
+    output = listJobs(uriPrefix, cgiValues, pageNumber, pageLength)
 
   elif method == "list-sites":
-    output = listSites(cgiValues)
+    output = listSites(uriPrefix, cgiValues)
 
   elif method == "list-storages":
-    output = listStorages(cgiValues)
+    output = listStorages(uriPrefix, cgiValues)
 
   elif method == "show-site":
-    output = showSite(cgiValues)
+    output = showSite(uriPrefix, cgiValues)
 
   elif method == "show-storage":
-    output = showStorage(cgiValues)
+    output = showStorage(uriPrefix, cgiValues)
 
   elif method == "list-events":
-    output = listEvents(cgiValues, pageNumber, pageLength)
+    output = listEvents(uriPrefix, cgiValues, pageNumber, pageLength)
 
   elif method == "awt-results":
-    output = awtResults(cgiValues)
+    output = awtResults(uriPrefix, cgiValues)
   
   else:
     output = 'Method not recognised: %s' % str(method)
