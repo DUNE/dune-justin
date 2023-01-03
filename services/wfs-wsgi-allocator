@@ -304,8 +304,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   else:
     # Add the user defined ones
     for envRow in envRows:
-      bootstrapEnvList += ('export %s="%s"'
-                           % (envRow['env_name'], envRow['env_value']))
+      bootstrapEnvList.append('export %s="%s"'
+                              % (envRow['env_name'], envRow['env_value']))
 
   addFileToTarFile(tar,
                    'wfs-bootstrap-env.sh',
