@@ -1905,6 +1905,24 @@ def application(environ, startResponse):
         file=sys.stderr)
 
   try:
+    # True should provoke a reconnection attempt.
+    # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
+    # (Not sure if there is a more authoritative source for this API.)
+    wfs.db.conn.ping(True)
+  except Exception as e:
+    message = 'DB connection lost and cannot reconnect: ' + str(e)
+
+    print('wfs-wsgi-dashboard fails with %s (%s)' % 
+          (code, str(message)), file=sys.stderr)
+
+    startResponse('500 Internal Server Error',
+                  [('Content-type',   'text/plain'),
+                   ('Content-length', str(len(message)))
+                  ])
+
+    return [message.encode('UTF-8')]
+
+  try:
     uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'
   except:
     uriPrefix = '/dashboard/'

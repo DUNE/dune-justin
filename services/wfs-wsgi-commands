@@ -660,6 +660,36 @@ def quickRequestCmd(startResponse, jsonDict, userID):
                          '500 Internal Server Error', 
                           'Error updating workflow database ' + str(e))
 
+  if jsonDict['env']:
+    for envNameValue in jsonDict['env']:    
+      try:        
+        (envName,envValue) = envNameValue.split('=',1)
+      except:
+        return httpError(startResponse,
+                         '400 Bad Request',
+                         'Failed to parse --env option')
+
+      if not wfs.db.stringIsEnvName(envName):
+        return httpError(startResponse, 
+                         '400 Bad Request', 
+                         'Invalid environment variable name')
+
+      try:
+        wfs.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+              'request_id=%d,'
+              'stage_id=1,'
+              'env_name="%s",'
+              'env_value="%s"' % 
+              (requestID, 
+               envName, 
+               envValue.replace('\\','\\\\').replace('"','\\"')
+              ))
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating workflow database ' + str(e))
+
   return httpOK(startResponse, str(requestID) + '\n')
 
 def submitRequestCmd(startResponse, jsonDict):
@@ -921,6 +951,37 @@ def createStageCmd(startResponse, jsonDict):
               'stage_id=%d,'
               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
               (requestID, stageID, rseName))
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating workflow database ' + str(e))
+
+  if jsonDict['env']:
+    for envNameValue in jsonDict['env']:    
+      try:        
+        (envName,envValue) = envNameValue.split('=',1)
+      except:
+        return httpError(startResponse,
+                         '400 Bad Request',
+                         'Failed to parse --env option')
+
+      if not wfs.db.stringIsEnvName(envName):
+        return httpError(startResponse, 
+                         '400 Bad Request', 
+                         'Invalid environment variable name')
+
+      try:
+        wfs.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'env_name="%s",'
+              'env_value="%s"' % 
+              (requestID, 
+               stageID, 
+               envName, 
+               envValue.replace('\\','\\\\').replace('"','\\"')
+              ))
 
       except Exception as e:
         return httpError(startResponse, 

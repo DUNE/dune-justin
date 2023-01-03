@@ -172,6 +172,9 @@ def stringIsDomain(s):
 def stringIsSite(s):
   return re.search('[^A-Za-z0-9_-]', s) is None
 
+def stringIsEnvName(s):
+  return re.search('[^A-Za-z0-9_]', s) is None
+
 def stringNoQuotes(s):
   return re.search('["`\']', s) is None
 
