@@ -56,7 +56,7 @@ td,th { border: thin solid black; padding: 0.75ex }
 </style>
 </head><body>
 <p>
-<a href="%s">Dashboard</a> . 
+<a href="%s">%s</a> . 
 <a href="%s?method=list-requests">Requests</a> . 
 <a href="%s?method=list-jobs">Jobs</a> . 
 <a href="%s?method=list-events">Events</a> . 
@@ -65,7 +65,10 @@ td,th { border: thin solid black; padding: 0.75ex }
 <a href="%s?method=awt-results">AWT</a> .
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
 </p>
-""" % (title, uriPrefix, uriPrefix, uriPrefix, uriPrefix, uriPrefix,
+""" % (title, 
+       uriPrefix,
+       'Dashboard' if uriPrefix.startswith('/dashboard/') else uriPrefix,
+       uriPrefix, uriPrefix, uriPrefix, uriPrefix,
        uriPrefix, uriPrefix))
 
 def footer():

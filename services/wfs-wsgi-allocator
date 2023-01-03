@@ -2,7 +2,7 @@
 #  wfa-wsgi-allocator - Workflow System allocator API service
 #
 #  Andrew McNab, University of Manchester.
-#  Copyright (c) 2013-22. All rights reserved.
+#  Copyright (c) 2013-23. All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or
 #  without modification, are permitted provided that the following
@@ -289,15 +289,38 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                                    rseRow['write_protocol'])
       
   addFileToTarFile(tar, 'wfs-output-rse-list.txt', outputRseFile)
+
+  # User defined environment variables for the bootstrap script
+  bootstrapEnvList = []
+
+  try:
+    query = ('SELECT env_name,env_value FROM stages_environment '
+             'WHERE request_id=%d AND stage_id=%d ORDER BY env_name' 
+             % (stage['request_id'], stage['stage_id']))
+
+    envRows = wfs.db.select(query)
+  except:
+    return None
+  else:
+    # Add the user defined ones
+    for envRow in envRows:
+      bootstrapEnvList += ('export %s="%s"'
+                           % (envRow['env_name'], envRow['env_value']))
+
+  addFileToTarFile(tar,
+                   'wfs-bootstrap-env.sh',
+                   '\n'.join(bootstrapEnvList) + '\n')
+
+  # Standard WFS environment variables
+  wfsEnvList = [ 'export WFS_SITE_NAME=' + str(jobDict['site_name']),
+                 'export WFS_REQUEST_ID=' + str(stage['request_id']),
+                 'export WFS_STAGE_ID=' + str(stage['stage_id']),
+                 'export WFS_COOKIE="' + cookie + '"' 
+               ]
                   
-  addFileToTarFile(tar, 'wfs-env.sh', 
-       (
-         'export WFS_SITE_NAME=' + str(jobDict['site_name']) + '\n' +
-         'export WFS_REQUEST_ID=' + str(stage['request_id']) + '\n' +
-         'export WFS_STAGE_ID=' + str(stage['stage_id']) + '\n' +
-         'export WFS_COOKIE="' + cookie + '"\n' 
-       )  
-                  )
+  addFileToTarFile(tar, 'wfs-env.sh', '\n'.join(wfsEnvList) + '\n')
+
+  # JSON file to for wfs-get-file command to use to contact allocator
   addFileToTarFile(tar, 'wfs-get-file.json', 
        (
          '{\n' +

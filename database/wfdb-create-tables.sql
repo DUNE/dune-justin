@@ -316,6 +316,22 @@ CREATE TABLE `stages_output_storages` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `stages_environment`
+--
+
+DROP TABLE IF EXISTS `stages_environment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `stages_environment` (
+  `request_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `env_name` varchar(255) NOT NULL,
+  `env_value` text NOT NULL DEFAULT '',
+  UNIQUE KEY `multiple` (`request_id`,`stage_id`,`env_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `get_stage_cache`
 --
 

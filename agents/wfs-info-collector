@@ -3,7 +3,7 @@
 #  wfs-info-collector - WFS Info Collector agent
 # 
 #  Andrew McNab, University of Manchester.
-#  Copyright (c) 2013-22. All rights reserved.
+#  Copyright (c) 2013-23. All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or
 #  without modification, are permitted provided that the following
@@ -331,7 +331,7 @@ def updateStorages():
   # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
   wfs.db.cur.execute('INSERT INTO storages SET rse_id=%d,'
     'rse_name="MONTECARLO",occupancy=1,rucio_write=FALSE,'
-    'rucio_read=TRUE,wfs_write=FALSE,wfs_read=FALSE '
+    'rucio_read=TRUE,wfs_write=FALSE,wfs_read=TRUE '
     'ON DUPLICATE KEY UPDATE occupancy=1'
     % wfs.conf.MonteCarloRseID)
 

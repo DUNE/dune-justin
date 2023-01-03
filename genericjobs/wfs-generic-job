@@ -250,6 +250,7 @@ done
 if [ "$http_code" != "200" ] ; then
   log_line "curl call to WFA to get stage fails with code $http_code"
   cat wfs-files.tar
+  echo
   exit 0
 fi
 
@@ -262,6 +263,14 @@ fi
 echo '====Start wfs-output-patterns.txt===='
 cat wfs-output-patterns.txt
 echo '====End wfs-output-patterns.txt===='
+
+echo '====Start wfs-env.sh===='
+cat wfs-env.sh
+echo '====End wfs-env.sh===='
+
+echo '====Start wfs-bootstrap-env.sh===='
+cat wfs-bootstrap-env.sh
+echo '====End wfs-bootstrap-env.sh===='
 
 echo '====Start wfs-get-file.json===='
 cat wfs-get-file.json
@@ -278,7 +287,10 @@ if [ -f wfs-bootstrap.sh ] ; then
   mkdir workspace
   echo '====Run wfs-bootstrap.sh===='
   export WFS_BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
-  ( cd workspace ; stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) > workspace/wfs-bootstrap.log 2>&1
+  ( . ./wfs-bootstrap-env.sh
+    cd workspace
+    stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) \
+      > workspace/wfs-bootstrap.log 2>&1
   retval=$?
   export WFS_BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
   echo '====After wfs-bootstrap.sh===='
