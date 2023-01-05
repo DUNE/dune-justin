@@ -1,6 +1,8 @@
 #!/bin/sh
 #
-# Test of RCDS/cvmfs tar files access from WFS jobs
+# Test of RCDS/cvmfs tar files access from WFS jobs. You need to install
+# the workflow and wfs-cvmfs-upload commands from the Workflow System GitHub:
+# https://github.com/DUNE/dune-wfs/tree/main/commands
 #
 # 1) Create a tar file 
 #    date > hello_world.txt
