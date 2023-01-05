@@ -75,7 +75,7 @@ def footer():
   return ("<hr>Time now: %s\n</body></html>" 
           % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
-def errorPage(message):
+def errorPage(uriPrefix, message):
   output = header(uriPrefix, "Error")
   output += "<h1>Error</h1>\n<p>%s</p>" % message
   output += footer()
@@ -186,7 +186,7 @@ def showRequest(uriPrefix, cgiValues):
   try:
     requestID = int(cgiValues['request_id'])
   except:
-    return errorPage("request_id must be given")
+    return errorPage(uriPrefix, "request_id must be given")
   
   output = header(uriPrefix, "WFS: Request %d" % requestID)
 
@@ -331,12 +331,12 @@ def showStage(uriPrefix, cgiValues):
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage("request_id must be given")
+    return errorPage(uriPrefix, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage("stage_id must be given")
+    return errorPage(uriPrefix, "stage_id must be given")
   
   output = header(uriPrefix, "WFS: Request %d, Stage %d" % (requestID, stageID))
   output += '<!-- %s -->\n' % str(time.time())
@@ -652,12 +652,12 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage("request_id must be given")
+    return errorPage(uriPrefix, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage("stage_id must be given")
+    return errorPage(uriPrefix, "stage_id must be given")
 
   stateFilter = ''
   stateText = ''
@@ -749,20 +749,20 @@ def showFile(uriPrefix, cgiValues):
   try:
     fileDID = cgiValues["file_did"]
   except:
-    return errorPage("file_did must be given")
+    return errorPage(uriPrefix, "file_did must be given")
 
   if '"' in fileDID:
-    return errorPage("Bad format of file_did")
+    return errorPage(uriPrefix, "Bad format of file_did")
       
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage("request_id must be given")
+    return errorPage(uriPrefix, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage("stage_id must be given")
+    return errorPage(uriPrefix, "stage_id must be given")
 
   output = header(uriPrefix, "WFS: File %s" 
                   % html.escape(fileDID, quote=True))
@@ -781,7 +781,7 @@ def showFile(uriPrefix, cgiValues):
     fileID = int(fileRow["file_id"])
 
   except Exception as e:
-    return errorPage("invalid file_id (%d,%d,%s): %s\n%s" 
+    return errorPage(uriPrefix, "invalid file_id (%d,%d,%s): %s\n%s" 
                      % (requestID, stageID, fileDID, str(e), query))
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
@@ -863,7 +863,7 @@ def showJob(uriPrefix, cgiValues):
   try:
     jobsubID = cgiValues["jobsub_id"]
   except:
-    return errorPage("jobsub_id must be given")
+    return errorPage(uriPrefix, "jobsub_id must be given")
       
   output = header(uriPrefix, "WFS: Jobsub ID %s" % jobsubID)
 
@@ -886,8 +886,10 @@ def showJob(uriPrefix, cgiValues):
            "LEFT JOIN jobs_logs ON jobs_logs.wfs_job_id=jobs.wfs_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
-  wfs.db.cur.execute(query)
-  jobRow = wfs.db.cur.fetchone()
+  jobRow = wfs.db.select(query, justOne = True)
+
+  if not jobRow:
+    return errorPage(uriPrefix, "Job not found in database")
 
   query = ("SELECT file_did FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
@@ -1411,10 +1413,10 @@ def showSite(uriPrefix, cgiValues):
   try:
     siteName = cgiValues["site_name"]
   except:
-    return errorPage("site_name must be given")
+    return errorPage(uriPrefix, "site_name must be given")
     
   if not wfs.db.stringIsSite(siteName):
-    return errorPage("Invalid site name!")
+    return errorPage(uriPrefix, "Invalid site name!")
         
   output = header(uriPrefix, "WFS: Site " + siteName)
 
@@ -1544,10 +1546,10 @@ def showStorage(uriPrefix, cgiValues):
   try:
     rseName = cgiValues["rse_name"]
   except:
-    return errorPage("rse_name must be given")
+    return errorPage(uriPrefix, "rse_name must be given")
     
   if not wfs.db.stringIsSite(rseName):
-    return errorPage("Invalid RSE name!")
+    return errorPage(uriPrefix, "Invalid RSE name!")
         
   output = header(uriPrefix, "WFS: Storage " + rseName)
 
@@ -1912,8 +1914,8 @@ def application(environ, startResponse):
   except Exception as e:
     message = 'DB connection lost and cannot reconnect: ' + str(e)
 
-    print('wfs-wsgi-dashboard fails with %s (%s)' % 
-          (code, str(message)), file=sys.stderr)
+    print('wfs-wsgi-dashboard fails with 500 Internal Server Error (%s)' % 
+          str(message), file=sys.stderr)
 
     startResponse('500 Internal Server Error',
                   [('Content-type',   'text/plain'),
