@@ -1033,8 +1033,11 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   try:
     wfs.db.insertUpdate('UPDATE files '
-                        'SET state="processed",processed_time=NOW() WHERE '
-                        'state="outputting" AND wfs_job_id=%d' % wfsJobID)
+                        'SET state="processed",processed_time=NOW(),'
+                        'processed_hour=FLOOR(UNIX_TIMESTAMP()/3600),'
+                        'processed_site_id=%d '
+                        'WHERE state="outputting" AND wfs_job_id=%d' 
+                        % (siteID, wfsJobID))
   except:
     return httpError(startResponse,
                      '500 Internal Server Error', 

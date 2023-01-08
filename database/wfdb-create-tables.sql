@@ -140,16 +140,17 @@ CREATE TABLE `files` (
                'recorded', 'output') NOT NULL DEFAULT 'finding',
   `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `processed_hour` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `processed_site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `creator_wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `allocations` tinyint(1) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`),
   INDEX `wfs_job_id` (`wfs_job_id`,`request_id`,`stage_id`),
-  INDEX `request_stage_state_id` (`request_id`,`stage_id`,`state`),
   KEY `state_file_id` (`state`,`file_id`),
   INDEX `request_stage_state_file` (`request_id`,`stage_id`,`state`,`file_id`),
   INDEX `creator_wfs_job_id` (`creator_wfs_job_id`),
-  INDEX `request_stage_state_processed` (`request_id`,`stage_id`,`state`,`processed_time`)
+  INDEX `request_stage_state_processed_site` (`request_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

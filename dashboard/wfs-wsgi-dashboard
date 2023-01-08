@@ -1,6 +1,3 @@
-#SELECT state,count(*),FLOOR((UNIX_TIMESTAMP(processed_time)-1672261127)/7200) as bucket FROM files WHERE request_id=177 AND stage_id=1 and state='processed' GROUP BY bucket;
-
-
 #
 #  wfs-wsgi-dashboard - Workflow System dashboard
 #
@@ -44,7 +41,57 @@ import html
 import urllib
 import urllib.parse
 
+# install with  pip3 install pygal
+import pygal
+
 import wfs
+
+class wfsStackedLine(pygal.StackedLine):
+
+  def __init__(self, imageSize, firstTime, hoursPerBin, numBins,
+               legend_at_bottom_columns=3):
+    self.imageSize = imageSize
+    pygal.StackedLine.__init__(self, include_x_axis=True, 
+                               stroke_style={'width': 2}, 
+                               legend_at_bottom=True, 
+                               show_x_guides=True, 
+                               style=pygal.style.LightColorizedStyle, 
+                               x_label_rotation=30, 
+                               width=800, 
+                               height=500, 
+                               x_title='Bin start times',
+                               y_title='Number per bin',
+                               legend_at_bottom_columns=legend_at_bottom_columns)
+    self.x_labels = [ time.strftime('%b-%d %H:%M', 
+                                    time.gmtime(
+                             i * hoursPerBin * 3600 + firstTime
+                                               ))
+                        for i in range(0, numBins) ]
+
+  def _points(self, x_pos):
+        # Unfilled series to be overlayed rather than stacked
+        """
+        Convert given data values into drawable points (x, y)
+        and interpolated points if interpolate option is specified
+        """
+        for series_group in (self.series, self.secondary_series):
+            accumulation = [0] * self._len
+            for serie in series_group[::-1 if self.stack_from_top else 1]:
+              if serie.fill == False: # <--- this is the significant change
+                serie.points = [ (x_pos[i], v) for i, v in enumerate(serie.values) ]
+                if serie.points and self.interpolate:
+                    serie.interpolated = self._interpolate(x_pos, serie.values)
+                else:
+                    serie.interpolated = []                
+              else:
+                accumulation = list(map(sum, zip(accumulation, serie.values)))
+                serie.points = [
+                    (x_pos[i], v)
+                    for i, v in enumerate(accumulation)]
+                if serie.points and self.interpolate:
+                    serie.interpolated = self._interpolate(x_pos, accumulation)
+                else:
+                    serie.interpolated = []
 
 def header(uriPrefix, title):
 
@@ -54,6 +101,8 @@ table { border-collapse: collapse; border: medium solid black;}
 tr { text-align: left }
 td,th { border: thin solid black; padding: 0.75ex }
 </style>
+<script type="text/javascript" 
+ src="https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js"></script>
 </head><body>
 <p>
 <a href="%s">%s</a> . 
@@ -402,9 +451,7 @@ def showStage(uriPrefix, cgiValues):
         
   output += ('</table>')
     
-  output += ("<h2>Output patterns</h2>")
-  output += ('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
-        '<th>Lifetime</th><th>For next stage</th></tr>') 
+  # Output patterns
 
   query = ("SELECT dataset,file_scope,file_pattern,"
            "for_next_stage,lifetime_seconds "
@@ -414,18 +461,45 @@ def showStage(uriPrefix, cgiValues):
            (requestID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  patternRows = wfs.db.cur.fetchall()
+  patternRows = wfs.db.select(query)
 
-  for patternRow in patternRows:
-    output += ("<tr><td>%s</td><td>%s</td><td>%s</td><td>%d</td><td>%s</td></tr>" %
-           (patternRow["dataset"],
-            patternRow["file_scope"],
-            html.escape(patternRow["file_pattern"], quote=True),
-            patternRow["lifetime_seconds"],
-            bool(patternRow["for_next_stage"])))
+  if patternRows:
+    output += ("<h2>Output patterns</h2>")
+    output += ('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
+               '<th>Lifetime</th><th>For next stage</th></tr>') 
 
-  output += ('</table>') 
+    for patternRow in patternRows:
+      output += ("<tr><td>%s</td><td>%s</td><td>%s</td>"
+                 "<td>%d</td><td>%s</td></tr>" 
+                 % (patternRow["dataset"],
+                    patternRow["file_scope"],
+                    html.escape(patternRow["file_pattern"], quote=True),
+                    patternRow["lifetime_seconds"],
+                    bool(patternRow["for_next_stage"])))
+
+    output += ('</table>')
+
+  # Environment
+
+  query = ("SELECT env_name,env_value "
+           "FROM stages_environment "
+           "WHERE request_id=%d AND stage_id=%d "
+           "ORDER BY env_name" %
+           (requestID, stageID))
+
+  envRows = wfs.db.select(query)
+
+  if envRows:
+    output += '<!-- %s -->\n' % str(time.time())
+    output += ('<h2>Environment variables</h2>')
+    output += ('<table><tr><th>Name</th><th>Value</th></tr>')
+ 
+    for envRow in envRows:
+      output += ("<tr><td>%s</td><td>%s</td></tr>" %
+                 (html.escape(envRow["env_name"]),
+                  html.escape(envRow["env_value"])))
+
+    output += ('</table>') 
 
   # File states
   stateCounts = { 'recorded'    : 0,
@@ -533,6 +607,59 @@ def showStage(uriPrefix, cgiValues):
           ))
 
   output += ('</table>')
+
+  # Progress chart based on file process_time values
+
+  query = ('SELECT site_name,processed_hour,'
+           'count(*) AS processed_count '
+           'FROM files '
+           'LEFT JOIN sites ON sites.site_id=files.processed_site_id '
+           'WHERE request_id=%d AND stage_id=%d AND '
+           'state="processed" GROUP BY processed_hour,processed_site_id '
+           'ORDER BY processed_hour'
+           % (requestID, stageID))
+
+  binRows = wfs.db.select(query)
+
+  if binRows:
+    firstHour   = binRows[0]['processed_hour']
+    lastHour    = binRows[-1]['processed_hour']
+    hoursPerBin = int((1 + lastHour - firstHour) / 20.0 + 0.999)
+    numBins     = int((1 + lastHour - firstHour) / hoursPerBin + 0.999)
+
+    # Add padding before and after data
+    firstHour -= hoursPerBin
+    lastHour  += hoursPerBin
+    numBins   += 2
+    bins       = {}
+
+    for binRow in binRows:
+
+      if binRow['site_name'] not in bins:
+        bins[binRow['site_name']] = [0] * numBins
+
+      i = int((binRow['processed_hour'] - firstHour) / hoursPerBin)
+      bins[binRow['site_name']][i] += binRow['processed_count']
+
+#    output += '<p>%d %d %d-%d %s\n' % (numBins, hoursPerBin, firstHour, lastHour, str(bins))
+
+    chart = wfsStackedLine(1000, 
+                           firstHour * 3600,
+                           hoursPerBin,
+                           numBins)
+  
+    chart.title = 'File processed times'
+    
+    for siteName in bins:
+      chart.add(siteName, bins[siteName], fill = True, show_dots = False)
+
+    output += ('<a href="' + chart.render_data_uri() + '" target="_blank" '
+               'style="text-decoration: none">' + 
+               '<figure style="width:%dpx; display: inline-block">'  
+               % chart.imageSize)
+
+    output += chart.render().decode('utf-8')
+    output += '</figure></a> '
 
   # RSE counts
   rseCounts = {}
@@ -770,7 +897,7 @@ def showFile(uriPrefix, cgiValues):
   output += ("<h1>File %s</h1>"
              % html.escape(fileDID, quote=True))
   
-  query = ('SELECT file_id,state '
+  query = ('SELECT file_id,state,processed_time '
            'FROM files '
            'WHERE request_id=%d AND stage_id=%d and file_did="%s"' %
            (requestID, stageID, fileDID))
@@ -816,6 +943,10 @@ def showFile(uriPrefix, cgiValues):
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
              % fileRow["state"])
+      
+  output += ('<tr><td>Processed</td>'
+             '<td>%s</td></tr>'
+             % spaceForUnixEpoch(fileRow["processed_time"]))
       
   output += '<tr><td>Replicas</td><td>'
   
@@ -1923,6 +2054,9 @@ def application(environ, startResponse):
                   ])
 
     return [message.encode('UTF-8')]
+
+  # Avoid leftovers from partial, failed transactions in this instance
+  wfs.db.conn.rollback()
 
   try:
     uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'
