@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Script for use within bootstrap script to get the DIDs of all files 
+# allocated to this job
+#
+# Bootstrap scripts can execute this script as: $WFS_PATH/wfs-allocated-files
+#
+# Error messages to stderr
+# Zero or more DIDs to stdout, one per line
+#
+# This script must be converted to base64 with something like the following 
+# and included in the here document near the start of wfs-generic-job :
+#
+# (macOS) base64 -b 76 wfs-allocated-files > wfs-allocated-files.b64
+# (Linux) base64       wfs-allocated-files > wfs-allocated-files.b64
+
+if [ ! -r "$WFS_PATH/wfs-allocated-files.json" ] ; then
+  echo "$WFS_PATH/wfs-allocated-files.json not found!" >&2
+  exit 2
+fi
+
+ALLOCATED_FILES_TMP=`mktemp /tmp/wfs_allocated_files_XXXXXX`
+
+http_code=`curl \
+--user-agent 'wfs-allocated-files' \
+--silent \
+--header "X-Jobid: $JOBSUBJOBID" \
+--header "Accept: text/plain" \
+--capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--data @$WFS_PATH/wfs-get-file.json \
+--output $ALLOCATED_FILES_TMP \
+--write-out "%{http_code}\n" \
+https://wfs-pro.dune.hep.ac.uk/api/allocator/get_allocated_files 2>/dev/null`
+
+if [ "$http_code" = 200 ] ; then
+ cat $ALLOCATED_FILES_TMP
+ retcode=0
+elif [ "$http_code" = 404 ] ; then
+ echo "Job not found!" >&2
+ retcode=1
+else
+ echo "wfs-allocated-files receives:" >&2
+ cat $ALLOCATED_FILES_TMP >&2
+ echo "wfs-allocated-files fails with HTTP code $http_code!" >&2
+ retcode=3
+fi
+
+rm -f $ALLOCATED_FILES_TMP
+exit $retcode

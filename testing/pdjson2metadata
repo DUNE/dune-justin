@@ -69,7 +69,7 @@ for name, value in inputMetadata.items():
     for parent in value:
       matchingDid = None
       for did in allInputDids:
-        if did.endswith(parent["file_name"]):
+        if did.endswith('/' + parent["file_name"]):
           matchingDid = did
           break
 
