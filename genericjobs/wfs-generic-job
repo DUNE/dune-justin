@@ -93,7 +93,7 @@ CiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9UTVAKZXhpdCAkcmV0Y29kZQo=
 EOF
 chmod +x $WFS_PATH/wfs-get-file
 
-# Create the wfs-get-file command
+# Create the wfs-allocated-files command
 base64 -d <<EOF > $WFS_PATH/wfs-allocated-files
 IyEvYmluL3NoCiMKIyBTY3JpcHQgZm9yIHVzZSB3aXRoaW4gYm9vdHN0cmFwIHNjcmlwdCB0byBn
 ZXQgdGhlIERJRHMgb2YgYWxsIGZpbGVzIAojIGFsbG9jYXRlZCB0byB0aGlzIGpvYgojCiMgQm9v
