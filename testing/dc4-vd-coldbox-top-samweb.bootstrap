@@ -114,13 +114,16 @@ if [ $larExit -eq 0 ] ; then
     --campaign ${campaign} > $outFile.ext.json  
   extractorExit=$?
   echo "extractor_prod.py exit code $extractorExit"
+    
+  # Get the list of file DIDs allocated to this job so we can do PFN->DID maps
+  $WFS_PATH/wfs-allocated-files > all-input-dids.txt
+  wafExit=$?
 
-  touch all-input-dids.txt # <-- QUICK FIX
   pdjson2metadata $outFile.ext.json all-input-dids.txt > $outFile.json
   p2mExit=$?
   echo "pdjson2metadata exit code $p2mExit"
 
-  if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
+  if [ $extractorExit -eq 0 -a $wafExit -eq 0 -a $p2mExit -eq 0 ] ; then
     echo "Metadata extraction succeeds"
     echo "$pfn" > wfs-processed-pfns.txt
     echo "===Metadata JSON==="
