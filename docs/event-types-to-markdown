@@ -2,7 +2,7 @@
 
 import sys
 sys.path.insert(1, '../modules')
-import db
+import events
 
 f = open('event-types.md','w')
 
@@ -19,11 +19,11 @@ in the Dashboard.
 |------|----|-----------|
 """)
 
-for eventTypeID in db.eventTypes:
+for eventTypeID in events.eventTypes:
 
   f.write('|%d|%s|%s|\n' % (eventTypeID,  
-                          db.eventTypes[eventTypeID][0],  
-                          db.eventTypes[eventTypeID][1]))  
+                          events.eventTypes[eventTypeID][0],  
+                          events.eventTypes[eventTypeID][1]))  
                         
 f.write("""
 

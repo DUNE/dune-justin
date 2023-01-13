@@ -20,5 +20,6 @@ find a grid style X.509 proxy file in /tmp/x509up_uUUUU or in the file given
 by $X509_USER_PROXY. VOMS extensions are not required but will be safely
 ignored if present. 
 
-
- 
+The command `workflow time` can be used to test the installation of the 
+command and your registration with the Workflow System. It contacts the
+WFS central service, authenticates, and obtains the current time. 

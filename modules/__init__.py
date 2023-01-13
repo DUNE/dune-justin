@@ -16,6 +16,7 @@
 
 from wfs.conf      import *
 from wfs.db        import *
+from wfs.events    import *
 from wfs.allocator import *
 
-__all__ = [ 'conf', 'db', 'allocator' ]
+__all__ = [ 'conf', 'db', 'events', 'allocator' ]

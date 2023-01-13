@@ -38,35 +38,41 @@ SUBCOMMANDS
               Output the version number of the workflow command.
 
 
-       create-request   [--name   NAME]   [--mql   QUERY|--monte-carlo  COUNT]
-              [--refind-start-date  YYYYMMDD]  [--refind-duration-days   DAYS]
+       time
+              Contact the Workflow System to get the current time as a string.
+              This can be used to check that the client is installed correctly
+              and that the user is properly registered in the Workflow System.
+
+
+       create-request  [--name   NAME]   [--mql   QUERY|--monte-carlo   COUNT]
+              [--refind-start-date   YYYYMMDD]  [--refind-duration-days  DAYS]
               [--refind-interval-hours HOURS]
               Create a new, empty request in the database, optionally with the
-              given human-readable name and either a  MetaCat  Query  Language
-              expression  or  the count of the number of Monte Carlo instances
-              to run. If a name is not given, a name based on a  timestamp  is
+              given  human-readable  name  and either a MetaCat Query Language
+              expression or the count of the number of Monte  Carlo  instances
+              to  run.  If a name is not given, a name based on a timestamp is
               created.  Requests are created in the state "draft" and the com-
-              mand returns the new request's ID number.  Once the  request  is
-              in  the  running  state,  the  Workflow  System will use the MQL
-              expression to find the list of  input  files  from  MetaCat.  If
-              --refind-interval-hours  is  given, the MQL query will be resub-
-              mitted at that interval to add any new matching files  from  the
+              mand  returns  the new request's ID number.  Once the request is
+              in the running state, the  Workflow  System  will  use  the  MQL
+              expression  to  find  the  list  of input files from MetaCat. If
+              --refind-interval-hours is given, the MQL query will  be  resub-
+              mitted  at  that interval to add any new matching files from the
               start of the day given by --refind-start-date (default: today in
-              UTC) for the number  of  days  given  by  --refind-duration-days
+              UTC)  for  the  number  of  days given by --refind-duration-days
               (default: 1).
 
 
        show-requests [--request-id ID]
-              Show  details of all requests or optionally of a single request.
-              Each line of the output gives the request  ID,  state,  creation
+              Show details of all requests or optionally of a single  request.
+              Each  line  of  the output gives the request ID, state, creation
               time, name, and MetaCat query of one request.
 
 
        submit-request --request-id ID
               Currently not used.  Changes the state of the given request from
               "draft" to "submitted". In the future, this will allow automated
-              sanity  checking  and prioritisation of requests. For very large
-              requests it may give an opportunity for manual approval  by  the
+              sanity checking and prioritisation of requests. For  very  large
+              requests  it  may give an opportunity for manual approval by the
               operations team.
 
 
@@ -77,8 +83,8 @@ SUBCOMMANDS
 
 
        pause-request --request-id ID
-              Changes  the  state of the given request to "paused". This state
-              temporarily excludes a  request  from  the  workflow  allocation
+              Changes the state of the given request to "paused".  This  state
+              temporarily  excludes  a  request  from  the workflow allocation
               process.
 
 
@@ -88,62 +94,65 @@ SUBCOMMANDS
 
 
        create-stage --request-id ID --stage-id ID --file FILENAME [--wall-sec-
-              onds  N]  [--rss-mb  N]  [--processors  N] [--max-distance DIST]
+              onds N] [--rss-mb  N]  [--processors  N]  [--max-distance  DIST]
               [--output-pattern SCOPE:DATASET:PATTERN] [--output-pattern-next-
-              stage  SCOPE:DATASET:PATTERN]  [--output-rse  NAME] [--lifetime-
-              days DAYS]
-              Creates a new stage for the given  request  ID  with  the  given
+              stage SCOPE:DATASET:PATTERN]  [--output-rse  NAME]  [--lifetime-
+              days DAYS] [--env NAME=VALUE]
+              Creates  a  new  stage  for  the given request ID with the given
               stage ID. Stages must be numbered consecutively from 1, and each
-              request must have at least one stage. Each  stage  must  have  a
-              boostrap  shell  script  associated with it, given by the --file
-              option which will be executed on worker  nodes  to  process  its
+              request  must  have  at  least one stage. Each stage must have a
+              boostrap shell script associated with it, given  by  the  --file
+              option  which  will  be  executed on worker nodes to process its
               files.
 
               If the maximum wallclock time needed is not given by --wall-sec-
-              onds then the default of 80000 seconds is used. If  the  maximum
-              amount  of  resident memory needed is not given by --rss-mb then
-              the default of 2000MiB is used. The resident memory  corresponds
-              to  the  physical  memory  managed by HTCondor's ResidentSetSize
+              onds  then  the default of 80000 seconds is used. If the maximum
+              amount of resident memory needed is not given by  --rss-mb  then
+              the  default of 2000MiB is used. The resident memory corresponds
+              to the physical memory  managed  by  HTCondor's  ResidentSetSize
               value.
 
               If the script can make use of multiple processors then --proces-
-              sors  can be used to give the number needed, with a default of 1
+              sors can be used to give the number needed, with a default of  1
               if not given.
 
               By default, input files will only be allocated to a script which
-              are  on  storages  at  the  same  site (distance=0). This can be
-              changed by setting --max-distance DIST to allow input  files  to
-              be  allocated on storages at greater distances, up to a value of
+              are on storages at the  same  site  (distance=0).  This  can  be
+              changed  by  setting --max-distance DIST to allow input files to
+              be allocated on storages at greater distances, up to a value  of
               100 which represents maximally remote storages.
 
               If one or more options --output-pattern SCOPE:DATASET:PATTERN is
-              given  then  the  generic job will look for files created by the
-              script which match the pattern given as PATTERN. The pattern  is
-              a  Bash  shell pattern using *, ? and [...] expressions. See the
-              bash(1) Pattern Matching section for details. Any  output  files
-              found  by  this  matching will be uploaded and registered by the
-              generic job in the Rucio dataset given by SCOPE:DATASET, with  a
+              given then the generic job will look for files  created  by  the
+              script  which match the pattern given as PATTERN. The pattern is
+              a Bash shell pattern using *, ? and [...] expressions.  See  the
+              bash(1)  Pattern  Matching section for details. Any output files
+              found by this matching will be uploaded and  registered  by  the
+              generic  job in the Rucio dataset given by SCOPE:DATASET, with a
               DID composed of the scope given and the found filename. Further-
               more, if the found files have a corresponding JSON metadata file
-              with  the  same  name  but  with  ".json" appended, that will be
+              with the same name but  with  ".json"  appended,  that  will  be
               recorded for that file in MetaCat.
 
-              Alternatively --output-pattern-next-stage  SCOPE:DATASET:PATTERN
+              Alternatively  --output-pattern-next-stage SCOPE:DATASET:PATTERN
               can be given in which the output file will also be registered in
-              the Workflow Database as an unprocessed input file for the  next
-              stage  and available for allocation to instances of that stage's
+              the  Workflow Database as an unprocessed input file for the next
+              stage and available for allocation to instances of that  stage's
               script.
 
-              If one or more options --output-rse NAME is given, then the  RSE
-              used  for  uploads of output files will be chosen from that list
-              of RSEs, with preference given to RSEs which are closer in  dis-
+              If  one or more options --output-rse NAME is given, then the RSE
+              used for uploads of output files will be chosen from  that  list
+              of  RSEs, with preference given to RSEs which are closer in dis-
               tance. If this option is not used, or none of the given RSEs are
-              available, then the default algorithm for choosing  the  closest
+              available,  then  the default algorithm for choosing the closest
               available RSE is used.
 
-              --lifetime-days  DAYS  sets  the  Rucio  lifetime for all output
-              files that are uploaded. The lifetime defaults to 1 day  if  not
+              --lifetime-days DAYS sets the  Rucio  lifetime  for  all  output
+              files  that  are uploaded. The lifetime defaults to 1 day if not
               specified.
+
+              --env NAME=VALUE can be used one or more times to  set  environ-
+              ment variables when the stage's bootstrap script is executed.
 
 
        quick-request   [--name   NAME]   [--mql   QUERY|--monte-carlo   COUNT]
@@ -151,7 +160,7 @@ SUBCOMMANDS
               [--refind-interval-hours  HOURS] --file FILENAME [--wall-seconds
               N] [--rss-mb N] [--processors N] [--max-distance  DIST]  [--out-
               put-pattern  SCOPE:DATASET:PATTERN] [--output-rse NAME] [--life-
-              time-days DAYS]
+              time-days DAYS] [--env NAME=VALUE]
               Combines the create-request, create-stage and start-request sub-
               commands  into  a  single  operation,  for use with single-stage
               requests.
