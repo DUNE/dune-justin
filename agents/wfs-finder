@@ -46,7 +46,7 @@ import xml.dom.minidom
 # Needs MySQL-python RPM
 import MySQLdb
 
-# Installed by pip install of Rucio
+# Installed by pip3 install of Rucio
 import rucio.client
 
 # wfs/conf.py must define these variables in a way that is both

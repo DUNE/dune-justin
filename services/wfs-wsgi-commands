@@ -2,7 +2,7 @@
 #  wfs-wsgi-commands - Workflow System commands API service
 #
 #  Andrew McNab, University of Manchester.
-#  Copyright (c) 2013-22. All rights reserved.
+#  Copyright (c) 2013-23. All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or
 #  without modification, are permitted provided that the following
@@ -75,6 +75,11 @@ def httpOK(startResponse, outputString):
 
   return [outputString.encode('UTF-8')]
   
+def timeCmd(startResponse):
+
+  return httpOK(startResponse, 
+                datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S\n'))
+
 def showRequestsCmd(startResponse, jsonDict):
 
   try:
@@ -1181,6 +1186,9 @@ def application(environ, startResponse):
     return httpError(startResponse,
                      '400 Bad Request', 
                      'Missing command in JSON')
+
+  if jsonDict['command'] == 'time':
+    return timeCmd(startResponse)
 
   if jsonDict['command'] == 'show-requests':
     return showRequestsCmd(startResponse, jsonDict)

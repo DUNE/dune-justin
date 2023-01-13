@@ -36,6 +36,13 @@ option is only needed during development and testing.
 Output the version number of the workflow command.
 
 .HP
+.B "time"
+.br
+Contact the Workflow System to get the current time as a string. This can be
+used to check that the client is installed correctly and that the user is
+properly registered in the Workflow System.
+
+.HP
 .B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
 .br
 Create a new, empty request in the database, optionally with the given 

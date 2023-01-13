@@ -315,7 +315,11 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   wfsEnvList = [ 'export WFS_SITE_NAME=' + str(jobDict['site_name']),
                  'export WFS_REQUEST_ID=' + str(stage['request_id']),
                  'export WFS_STAGE_ID=' + str(stage['stage_id']),
-                 'export WFS_COOKIE="' + cookie + '"' 
+                 'export WFS_COOKIE="' + cookie + '"',
+                 'export WFS_SAM_WEB_URI='
+                 '"https://wfs.dune.hep.ac.uk/api/samweb/' + 
+                 str(jsonDict['jobsub_id']) + '/' +
+                 cookie + '"'
                ]
                   
   addFileToTarFile(tar, 'wfs-env.sh', '\n'.join(wfsEnvList) + '\n')
@@ -759,18 +763,19 @@ def getFileMethod(startResponse, jsonDict):
                  'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                            )
 
-#        wfs.allocator.updateStageCounts(jobDict['request_id'], 
-#                                        jobDict['stage_id'])
-
       except Exception as e:
         return httpError(startResponse,
                          '500 Internal Server Error',
                          'Unable to update job to processing: ' + str(e))
 
-    return httpOK(startResponse,
-                  oneFile['file_did'] + ' ' +
-                  oneFile['pfn'] + ' ' +
-                  oneFile['rse_name'])
+    if jsonDict['method'] == 'samweb_getnextfile':
+      return httpOK(startResponse, oneFile['pfn'])
+
+    else: # method = 'get_file'
+      return httpOK(startResponse,
+                    oneFile['file_did'] + ' ' +
+                    oneFile['pfn'] + ' ' +
+                    oneFile['rse_name'])
 
   # No file eligible to be processed by this job
   return httpError(startResponse, 
@@ -881,7 +886,7 @@ def recordResultsMethod(startResponse, jsonDict):
                        'Missing value (%s) in JSON' % name)
 
     for fileDID in jsonDict[name]:
-      if not wfs.db.stringNoQuotes(fileDID):    
+      if not wfs.db.stringNoQuotes(fileDID):
         return httpError(startResponse,
                          '400 Bad Request',
                          'Invalid DID or PFN in ' + name)
@@ -1000,14 +1005,76 @@ def recordResultsMethod(startResponse, jsonDict):
                    siteID, 
                    base64.b64decode(jsonDict['bootstrap_log']).decode())
 
-#  # Update counts for this stage
-#  wfs.allocator.updateStageCounts(requestID, stageID)
+  return httpOK(startResponse, '')
+
+# Legacy support for samweb's updateFileStatus method 
+# Only used for putting "consumed" files into the WFS "outputting" state
+def samwebUpdateFileStatusMethod(startResponse, jsonDict):
+
+  if 'jobsub_id' not in jsonDict or \
+     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+    return httpError(startResponse, 
+                     '400 Bad Request',
+                     'Missing jobsub ID in request URI')
+
+  if 'status' not in jsonDict or jsonDict['status'] != 'consumed':
+    # Anything other than "consumed" status just gets an OK
+    return httpOK(startResponse, '')
+
+  if 'filename' not in jsonDict or \
+     not wfs.db.stringNoQuotes(jsonDict['filename']):
+    return httpError(startResponse, '400 Bad Request', 'valid filename missing')
+      
+  try:
+    query = ('SELECT wfs_job_id,jobs.request_id,jobs.stage_id,'
+             'FROM jobs WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
+
+    row = wfs.db.select(query, justOne = True)
+
+    wfsJobID  = int(row['wfs_job_id'])
+    requestID = int(row['request_id'])
+    stageID   = int(row['stage_id'])
+  except:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Failed finding job')
+
+  try:
+    query = ('SELECT files.file_id FROM files '
+             'LEFT JOIN replicas ON replicas.file_id=files.file_id '
+             'WHERE files.request_id=%d AND files.stage_id=%d '
+             'AND files.wfs_job_id=%d '
+             'AND (wan_pfn="%s" OR lan_pfn="%s")' 
+             % (requestID, stageID, wfsJobID, 
+                jsonDict['filename'], jsonDict['filename']))
+
+    fileRow = wfs.db.select(query, justOne=True)
+    fileID = fileRow['file_id']
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Failed finding file from PFN: ' + str(e))
+
+  try:
+    query = ('UPDATE files SET state="outputting" '
+             'WHERE file_id=%d '
+             'AND wfs_job_id=%d '
+             'AND request_id=%d '
+             'AND stage_id=%d '
+             'AND state="allocated"'
+             % (fileID, wfsJobID, requestID, stageID))
+
+    wfs.db.insertUpdate(query)
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Failed updating file statuses: ' + str(e))
 
   return httpOK(startResponse, '')
 
 # After the output files have been successfully uploaded, the generic job
 # comes back with this method which changes the state of input files from
-# uploading to processed, and of output files from recorded to finding.
+# outputting to processed, and of output files from recorded to finding.
 def confirmResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
@@ -1094,8 +1161,6 @@ def confirmResultsMethod(startResponse, jsonDict):
     return httpError(startResponse, 
                      '500 Internal Server Error',
                      'Updating job state to finished')
-  
-#  wfs.allocator.updateStageCounts(requestID, stageID)
 
   return httpOK(startResponse, '')
 
@@ -1172,14 +1237,33 @@ def application(environ, startResponse):
   # Avoid leftovers from partial, failed transactions in this instance
   wfs.db.conn.rollback()
 
-  try:
-    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-    inputString = environ['wsgi.input'].read(inputLength)
-    jsonDict = json.loads(inputString)
-  except Exception as e:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Failed to read and parse JSON')
+  if environ['REQUEST_URI'].startswith('/api/samweb/'):
+    # Legacy samweb support: put values into dictionary
+    try:
+      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+      inputString = environ['wsgi.input'].read(inputLength)
+      jsonDict = parse_qs(request_body)
+
+      # URIs like /api/samweb/JOBSUBJOBID/COOKIE/processes/N/METHOD
+      uriSplit = environ['REQUEST_URI'].split('/')
+      jsonDict['method']    = 'samweb_' + uriSplit[-1].lower()
+      jsonDict['jobsub_id'] = str(uriSplit[3])
+      jsonDict['cookie']    = str(uriSplit[4])
+
+    except Exception as e:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'Failed to read and parse request')
+  else:
+    # Standard WFS API based on JSON
+    try:
+      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+      inputString = environ['wsgi.input'].read(inputLength)
+      jsonDict = json.loads(inputString)
+    except Exception as e:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'Failed to read and parse JSON')
 
   if 'jobsub_id' not in jsonDict or \
      not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
@@ -1191,23 +1275,16 @@ def application(environ, startResponse):
   if 'method' not in jsonDict:
     return httpError(startResponse,
                      '400 Bad Request',
-                     'Missing method in JSON')
+                     'Missing method in JSON')  
 
-#try:
-#  getAllocatorLock(10 if jsonDict['method'] == 'get_stage' else 60)
-#except Exception as e:
-#  if jsonDict['method'] == 'get_stage':
-#    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-#
-#  httpError('503 Service Unavailable',
-#       'Unable to get allocator lock for %s method. Too busy? Exception: %s' 
-#        % (str(jsonDict['method']), str(e)))
-  
+  if jsonDict['method'] == 'samweb_updatefilestatus':
+    return samwebUpdateFileStatusMethod(startResponse, jsonDict)
 
   # Get one or more files to process
   # This request comes from bootstrap scripts using cookies so we 
   # do not run checkJobUser() as getFileMethod() checks the cookie
-  if jsonDict['method'] == 'get_file':
+  if jsonDict['method'] == 'get_file' or \
+     jsonDict['method'] == 'samweb_getnextfile':
     return getFileMethod(startResponse, jsonDict)
 
   # All other methods are called by the generic job using its identity
@@ -1219,13 +1296,6 @@ def application(environ, startResponse):
 
   # Get the stage for the job to work on
   if jsonDict['method'] == 'get_stage':
-#  try:
-#    getAllocatorLock(10)
-#  except Exception as e:
-#    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-#    httpError('503 Service Unavailable',
-#              'Unable to get allocator lock for get_stage method. '
-#              'Too busy? Exception: %s' % str(e))  
     return getStageMethod(startResponse, jsonDict)
 
   # Record heartbeats from the generic jobs

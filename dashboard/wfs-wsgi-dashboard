@@ -648,7 +648,7 @@ def showStage(uriPrefix, cgiValues):
                            hoursPerBin,
                            numBins)
   
-    chart.title = 'File processed times'
+    chart.title = 'Files processed'
     
     for siteName in bins:
       chart.add(siteName, bins[siteName], fill = True, show_dots = False)
