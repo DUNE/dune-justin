@@ -1309,7 +1309,8 @@ def application(environ, startResponse):
                      'Missing method in JSON')  
 
   # Legacy samweb updateFileStatus method (only "consumed" does anything)
-  if jsonDict['method'] == 'samweb_updatefilestatus':
+  if jsonDict['method'] == 'samweb_updatefilestatus' or \
+     jsonDict['method'] == 'samweb_setstatus':
     return samwebUpdateFileStatusMethod(startResponse, jsonDict)
 
   # Return list of file DIDs allocated to this job
