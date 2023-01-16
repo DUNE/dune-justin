@@ -86,7 +86,7 @@ setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
 now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
 
 # define output filename
-outFile=${WFS_REQUEST_ID}_${WFS_STAGE_ID}}_reco_data_${now}.root
+outFile=${WFS_REQUEST_ID}_${WFS_STAGE_ID}_reco_data_${now}.root
 echo $outFile
 
 # put here the right value, this is just an example 
@@ -99,7 +99,7 @@ echo "$LD_PRELOAD"
 
 # to test with only 2 events
 lar -c $fclFile -n 2 -o $outFile --sam-web-uri "$WFS_SAM_WEB_URI" \
- > ${outFile}.log 2>&1
+ --sam-process-id 0 > ${outFile}.log 2>&1
 #lar -c $fclFile "$pfn" -o $outFile  > ${fname}_reco_${now}.log 2>&1
 )
 

@@ -27,7 +27,7 @@ http_code=`curl \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Accept: text/plain" \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
---data @$WFS_PATH/wfs-get-file.json \
+--data @$WFS_PATH/wfs-allocated-files.json \
 --output $ALLOCATED_FILES_TMP \
 --write-out "%{http_code}\n" \
 https://wfs-pro.dune.hep.ac.uk/api/allocator/get_allocated_files 2>/dev/null`
@@ -38,6 +38,7 @@ if [ "$http_code" = 200 ] ; then
 else
  echo "wfs-allocated-files receives:" >&2
  cat $ALLOCATED_FILES_TMP >&2
+ echo >&2
  echo "wfs-allocated-files fails with HTTP code $http_code!" >&2
  retcode=1
 fi

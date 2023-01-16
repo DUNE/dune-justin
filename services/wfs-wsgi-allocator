@@ -37,6 +37,7 @@ import uuid
 import base64
 import string
 import tarfile
+import urllib
 
 import wfs
 
@@ -1013,10 +1014,10 @@ def getAllocatedFilesMethod(startResponse, jsonDict):
 
     row = wfs.db.select(query, justOne = True)
     wfsJobID  = int(row['wfs_job_id'])
-  except:
+  except Exception as e:
     return httpError(startResponse,
                      '404 Not Found',
-                     'Failed to find job')
+                     'Failed to find job: ' + str(e))
 
   try:
     # Use the event records to find the right replicas for this job
@@ -1273,7 +1274,7 @@ def application(environ, startResponse):
     try:
       inputLength = int(environ.get('CONTENT_LENGTH', '0'))
       inputString = environ['wsgi.input'].read(inputLength)
-      jsonDict = parse_qs(request_body)
+      jsonDict = urllib.parse.parse_qs(inputString)
 
       # URIs like /api/samweb/JOBSUBJOBID/COOKIE/processes/N/METHOD
       uriSplit = environ['REQUEST_URI'].split('/')
@@ -1284,7 +1285,7 @@ def application(environ, startResponse):
     except Exception as e:
       return httpError(startResponse, 
                        '400 Bad Request', 
-                       'Failed to read and parse request')
+                       'Failed to read and parse request: ' + str(e))
   else:
     # Standard WFS API based on JSON
     try:
