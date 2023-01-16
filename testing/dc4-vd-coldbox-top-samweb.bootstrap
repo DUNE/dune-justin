@@ -107,8 +107,8 @@ lar -c $fclFile -n 2 -o $outFile --sam-web-uri "$WFS_SAM_WEB_URI" \
 larExit=$?
 echo "lar exit code $larExit"
 
-if [ $larExit -eq 0 ] ; then
-  # write metadata file if lar succeeded
+if [ $larExit -eq 0 -a -f "$outFile"] ; then
+  # write metadata file if lar succeeded and output file is exists
   extractor_prod.py --infile "$outFile" --no_crc --appname reco \
     --appversion ${DUNEVERSION} --appfamily art \
     --campaign ${campaign} > $outFile.ext.json  
