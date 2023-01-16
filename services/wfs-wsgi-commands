@@ -483,6 +483,16 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   else:
     maxDistance = 0.0
 
+  if 'max_files_per_job' in jsonDict and jsonDict['max_files_per_job']:
+    try:
+      maxFilesPerJob = int(jsonDict['max_files_per_job'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--max-files-per-job option requires an integer')
+  else:
+    maxFilesPerJob = 1
+
   if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
     try:
       mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
@@ -581,9 +591,10 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           "processors=%d,"
           "wall_seconds=%d,"
           "rss_bytes=%d,"
-          "max_distance=%f" % 
-          (requestID, processors,
-           wallSeconds, rssBytes, maxDistance))
+          "max_distance=%f,"
+          "max_files_per_job=%d" 
+          % (requestID, processors,
+             wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
     wfs.db.insertUpdate('INSERT INTO bootstraps SET '
           'request_id=%d,'
@@ -822,6 +833,16 @@ def createStageCmd(startResponse, jsonDict):
   else:
     maxDistance = 0.0
 
+  if 'max_files_per_job' in jsonDict and jsonDict['max_files_per_job']:
+    try:
+      maxFilesPerJob = int(jsonDict['max_files_per_job'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--max-files-per-job option requires an integer')
+  else:
+    maxFilesPerJob = 1
+
   if 'file' in jsonDict and jsonDict['file']:
     bootstrap = jsonDict['file']
   else:
@@ -837,9 +858,11 @@ def createStageCmd(startResponse, jsonDict):
                         "processors=%d,"
                         "wall_seconds=%d,"
                         "rss_bytes=%d,"
-                        "max_distance=%f" % 
-                        (requestID, stageID, processors,
-                         wallSeconds, rssBytes, maxDistance))
+                        "max_distance=%f," 
+                        "max_files_per_job=%d"
+                        % (requestID, stageID, processors,
+                           wallSeconds, rssBytes, maxDistance,
+                           maxFilesPerJob))
           
     wfs.db.insertUpdate('INSERT INTO bootstraps SET '
                         'request_id=%d,'

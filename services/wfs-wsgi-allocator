@@ -86,6 +86,7 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.allocation_state,'
              'jobs.cookie,'
              'stages.max_distance,'
+             'stages.max_files_per_job,'
              'jobs.request_id,'
              'jobs.stage_id,'
              'jobs.wfs_job_id,'
@@ -96,6 +97,7 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.min_rss_bytes,'
              'jobs.max_rss_bytes,'
              'jobs.max_wall_seconds,'
+             'jobs.allocation_count,'
              'sites.site_name,'
              'sites.max_jobs,'
              'sites.running_jobs,'
@@ -129,8 +131,10 @@ def makeJobDict(jobsubID, cookie = None):
            "site_enabled"     : job['enabled'],
            "wfs_job_id"       : job['wfs_job_id'],
            "allocation_state" : job['allocation_state'],
+           "allocation_count" : job['allocation_count'],
            "for_awt"          : job['for_awt'],
            "max_distance"     : job['max_distance'],
+           "max_files_per_job": job['max_files_per_job'],
            "min_processors"   : job['min_processors'],
            "max_processors"   : job['max_processors'],
            "min_rss_bytes"    : job['min_rss_bytes'],
@@ -735,7 +739,15 @@ def getFileMethod(startResponse, jsonDict):
                      '403 Forbidden', 
                      'Job in wrong state to find file (%s)' % 
                      jobDict['allocation_state'])
-    
+
+  if jobDict['allocation_count'] >= jobDict['max_files_per_job']:
+    # Reached files limit for this job so refuse to allocated another one 
+    # We return 404 in case clients only understand that
+    return httpError(startResponse, 
+                     '404 Not Found', 
+                     'No suitable file because max_files_per_job=%d reached'
+                     % jobDict['max_files_per_job'])
+
   # Create a stage dictionary with the next file in this stage  
   oneFile = findCachedFile(jobDict)
 
@@ -745,18 +757,16 @@ def getFileMethod(startResponse, jsonDict):
                      'Failed finding one file: ' + oneFile['error_message'])
   
   if oneFile['file_did']:
-    if jobDict['allocation_state'] == 'started':
-      try:
-        wfs.db.insertUpdate(
-                 'UPDATE jobs SET allocation_state="processing",'
-                 'heartbeat_time=NOW() '
-                 'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
-                           )
-
-      except Exception as e:
-        return httpError(startResponse,
-                         '500 Internal Server Error',
-                         'Unable to update job to processing: ' + str(e))
+    try:
+      wfs.db.insertUpdate(
+                   'UPDATE jobs SET allocation_state="processing",'
+                   'heartbeat_time=NOW(),allocation_count=allocation_count+1 '
+                   'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
+                         )
+    except Exception as e:
+       return httpError(startResponse,
+                        '500 Internal Server Error',
+                        'Unable to update job to processing: ' + str(e))
 
     if jsonDict['method'] == 'samweb_getnextfile':
       return httpOK(startResponse, oneFile['pfn'])
@@ -1049,16 +1059,30 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
                      '400 Bad Request',
                      'Missing jobsub ID in request URI')
 
-  if 'status' not in jsonDict or jsonDict['status'] != 'consumed':
-    # Anything other than "consumed" status just gets an OK
+  try:
+   print('==samwebUpdateFileStatusMethod ' + str(jsonDict), file=sys.stderr)
+  except:
+   pass
+
+  try:
+    status = jsonDict['status'][0]
+  except:
     return httpOK(startResponse, '')
 
-  if 'filename' not in jsonDict or \
-     not wfs.db.stringNoQuotes(jsonDict['filename']):
-    return httpError(startResponse, '400 Bad Request', 'valid filename missing')
+  if status != 'consumed':
+    # Anything other than 'consumed' status just gets an OK
+    return httpOK(startResponse, '')
+
+  try:
+    pfn = jsonDict['filename'][0]
+
+    if not wfs.db.stringNoQuotes(pfn):
+      raise
+  except:
+    return httpError(startResponse, '400 Bad Request', 'Valid filename missing')
       
   try:
-    query = ('SELECT wfs_job_id,jobs.request_id,jobs.stage_id,'
+    query = ('SELECT wfs_job_id,request_id,stage_id '
              'FROM jobs WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
 
     row = wfs.db.select(query, justOne = True)
@@ -1077,8 +1101,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
              'WHERE files.request_id=%d AND files.stage_id=%d '
              'AND (wan_pfn="%s" OR lan_pfn="%s") '
              'ORDER BY files.file_id LIMIT 1' 
-             % (requestID, stageID,
-                jsonDict['filename'], jsonDict['filename']))
+             % (requestID, stageID, pfn, pfn))
 
     fileRow = wfs.db.select(query, justOne=True)
     fileID = fileRow['file_id']
@@ -1273,8 +1296,9 @@ def application(environ, startResponse):
     # Legacy samweb support: put values into dictionary
     try:
       inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-      inputString = environ['wsgi.input'].read(inputLength)
+      inputString = environ['wsgi.input'].read(inputLength).decode()
       jsonDict = urllib.parse.parse_qs(inputString)
+      print('inputString ' + inputString, file=sys.stderr)
 
       # URIs like /api/samweb/JOBSUBJOBID/COOKIE/processes/N/METHOD
       uriSplit = environ['REQUEST_URI'].split('/')

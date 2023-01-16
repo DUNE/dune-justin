@@ -97,7 +97,12 @@ Changes the state of the given request to "finished". This state
 excludes a request from the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern SCOPE:DATASET:PATTERN] [--output-pattern-next-stage SCOPE:DATASET:PATTERN] [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]"
+.B "create-stage --request-id ID --stage-id ID --file FILENAME 
+.B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
+.B [--max-files-per-job N] 
+.B [--output-pattern SCOPE:DATASET:PATTERN] 
+.B [--output-pattern-next-stage SCOPE:DATASET:PATTERN] [--output-rse NAME] 
+.B [--lifetime-days DAYS] [--env NAME=VALUE]"
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
@@ -124,6 +129,11 @@ storages at the same site (distance=0). This can be changed by setting
 .B --max-distance DIST
 to allow input files to be allocated on storages at greater distances, up to
 a value of 100 which represents maximally remote storages.
+
+.B --max-files-per-job N
+limits the number of files which will be allocated to a job. This can be
+used to ensure that bootstraps which request files to work on, one after 
+another, do not run for too long. Default 1.
 
 If one or more options 
 .B --output-pattern SCOPE:DATASET:PATTERN
@@ -160,13 +170,21 @@ can be used one or more times to set environment variables when the stage's
 bootstrap script is executed.
 
 .HP
-.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS] --file FILENAME [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] [--output-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]"
+.B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] 
+.B [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] 
+.B [--refind-interval-hours HOURS] --file FILENAME [--wall-seconds N] 
+.B [--max-files-per-job N] 
+.B [--rss-mb N] [--processors N] [--max-distance DIST] 
+.B [--output-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME] 
+.B [--lifetime-days DAYS] [--env NAME=VALUE]"
 .br
 Combines the 
 .B create-request, create-stage
 and
 .B start-request
-subcommands into a single operation, for use with single-stage requests.
+subcommands into a single operation, for use with single-stage requests. The
+options available to the two subcommands are described in their respective
+sections above.
 
 .HP
 .B "show-stages --request-id ID [--stage-id ID]"

@@ -381,6 +381,7 @@ def showStage(uriPrefix, cgiValues):
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
+           "stages.max_files_per_job,"
            "bootstraps.bootstrap "
            "FROM stages "
            "LEFT JOIN bootstraps ON bootstraps.request_id=stages.request_id"
@@ -411,6 +412,9 @@ def showStage(uriPrefix, cgiValues):
 
   output += ('<tr><td>Max distance for inputs</td>'
         '<td>%.1f</td></tr>' % stageRow["max_distance"])
+
+  output += ('<tr><td>Max files per job</td>'
+        '<td>%d</td></tr>' % stageRow["max_files_per_job"])
 
   output += ('<tr><td>Output RSEs</td>'
         '<td>')
@@ -2056,7 +2060,7 @@ def application(environ, startResponse):
   try:
     rawValues = urllib.parse.parse_qs(environ['QUERY_STRING'])
     for i in rawValues:
-      cgiValues[i] = rawValues[i][0]
+      cgiValues[str(i)] = str(rawValues[i][0])
   except:
     pass # Use defaults: produces a method error page at the end
   else:
