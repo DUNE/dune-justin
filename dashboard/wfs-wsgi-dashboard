@@ -956,14 +956,15 @@ def showFile(uriPrefix, cgiValues):
 
   output += '</td></tr>'
 
-  output += '<tr><td>Jobs</td><td>'
+  output += '<tr><td>Allocations</td><td>'
   
   for jobRow in jobsRows:
   
     output += ('<a href="%s?method=show-job&jobsub_id=%s">%s</a> '
-               '(%s &nbsp; %s &nbsp; %s)<br>' 
+               '%s (%s &nbsp; %s &nbsp; %s)<br>' 
                % (uriPrefix,
                   jobRow["jobsub_id"], jobRow["jobsub_id"], 
+                  jobRow["event_time"],
                   jobRow["allocation_state"],
                   jobRow["site_name"],
                   jobRow["rse_name"])

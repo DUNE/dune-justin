@@ -908,6 +908,51 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Failed finding job')
 
   try:
+    wfs.db.insertUpdate(
+        'INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
+        'bootstrap_log="%s"' %
+        base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
+                       )                           
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Failed saving job log: ' + str(e))
+
+  if forAwt:
+    saveAwtResults(wfsJobID, 
+                   siteID, 
+                   base64.b64decode(jsonDict['bootstrap_log']).decode())
+
+  if 'bootstrap_exit' in jsonDict and jsonDict['bootstrap_exit'] != 0:
+    # Bootstrap said it failed by exiting with non-zero value
+
+    # Record job as finished due to bootstrap_error
+    try:
+#### REPLACE "aborted" WITH "bootstrap_error" ONCE IN DATABASE DEFINITION
+      wfs.db.insertUpdate('UPDATE jobs SET allocation_state="aborted",'
+                          'heartbeat_time=NOW(),'
+                          'finished_time=NOW() '
+                          'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+    except Exception as e:
+      return httpError(startResponse,
+                       '500 Internal Server Error',
+                       'Failed updating job: ' + str(e))
+     
+    # Do file allocation resets
+    try:
+      wfs.db.insertUpdate('UPDATE files SET '
+                          'state=IF(allocations < ' + 
+                          str(wfs.db.maxAllocations) + ','
+                          '"unallocated","failed") '
+                          'WHERE wfs_job_id=%d' % wfsJobID)
+    except Exception as e:
+      return httpError(startResponse,
+                       '500 Internal Server Error',
+                       'Failed resetting allocated files: ' + str(e))
+     
+    return httpOK(startResponse, '')
+
+  try:
     # Use the event records to find the right replicas for this job
     query = ('SELECT events.file_id,file_did,wan_pfn,lan_pfn '
              'FROM events '
@@ -988,22 +1033,6 @@ def recordResultsMethod(startResponse, jsonDict):
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'Failed updating jobs: ' + str(e))
-
-  try:
-    wfs.db.insertUpdate(
-        'INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
-        'bootstrap_log="%s"' %
-        base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
-                       )                           
-  except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error',
-                     'Failed saving job log: ' + str(e))
-
-  if forAwt:
-    saveAwtResults(wfsJobID, 
-                   siteID, 
-                   base64.b64decode(jsonDict['bootstrap_log']).decode())
 
   return httpOK(startResponse, '')
 

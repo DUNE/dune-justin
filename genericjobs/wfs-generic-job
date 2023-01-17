@@ -321,7 +321,7 @@ if [ -f wfs-bootstrap.sh ] ; then
     cd workspace
     stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) \
       > workspace/wfs-bootstrap.log 2>&1
-  retval=$?
+  export BOOTSTRAP_EXIT=$?
   export WFS_BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
   echo '====After wfs-bootstrap.sh===='
 else
@@ -330,13 +330,13 @@ else
   exit 0
 fi
 
-#if [ "$retval" != 0 ] ; then
-#  job_aborted 0 0 900 "Bootstrap script error $retval"
-#fi
-
 echo '#### wfs-bootstrap.log'
 cat workspace/wfs-bootstrap.log
 echo '####'
+
+#if [ "$retval" != 0 ] ; then
+#  job_aborted 0 900 "Bootstrap script error $BOOTSTRAP_EXIT"
+#fi
 
 # Make the lists of output files and files for the next stage
 echo -n > wfs-outputs.txt
@@ -411,7 +411,8 @@ cat <<EOF >wfs-record-results.json
   "processed_pfns": [$processed_pfns],
   "output_dids": [$output_dids],
   "next_stage_dids": [$next_stage_dids],
-  "bootstrap_log": "`cat wfs-bootstrap.log.b64`"
+  "bootstrap_log": "`cat wfs-bootstrap.log.b64`",
+  "bootstrap_exit": $BOOTSTRAP_EXIT
 }
 EOF
 
@@ -442,6 +443,10 @@ echo "=====End record-results.log=="
 
 if [ "$http_code" != 200 ] ; then
   job_aborted 0 $http_code record_results
+fi
+
+if [ "$BOOTSTRAP_EXIT" != 0 ; then
+  job_aborted 0 900 bootstrap exit $BOOTSTRAP_EXIT
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors

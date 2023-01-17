@@ -45,7 +45,7 @@ CREATE TABLE `jobs` (
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
-                  'finished','notused','aborted','stalled','script_error') 
+                  'finished','notused','aborted','stalled','bootstrap_error') 
                   NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',

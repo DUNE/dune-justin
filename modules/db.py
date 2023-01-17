@@ -36,7 +36,8 @@ rseAvailabilityRead   = 4
 
 unixEpoch = '1970-01-01 00:00:00'
 
-jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled' ]
+jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
+                      'bootstrap_error' ]
 
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal

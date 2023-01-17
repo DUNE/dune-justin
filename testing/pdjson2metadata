@@ -69,14 +69,16 @@ for name, value in inputMetadata.items():
     for parent in value:
       matchingDid = None
       for did in allInputDids:
-        if did.endswith('/' + parent["file_name"]):
+        if did.endswith(parent["file_name"]):
           matchingDid = did
           break
 
       if matchingDid:
         parentDids.append({ "did" : matchingDid })
       else:
-        print("No matching input DID for file %s - exiting" % str(parent))
+        print("No matching input DID for file %s with parent file_name %s- exiting" 
+              % (str(parent), str(parent["file_name"])),
+              file=sys.stderr)
         sys.exit(3)
     
     # Add the list of { "did": "..." } dictionaries to top level

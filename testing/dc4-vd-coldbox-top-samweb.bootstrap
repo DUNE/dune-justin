@@ -56,17 +56,18 @@ bnB1dERpZHM6CiAgICAgICAgaWYgZGlkLmVuZHN3aXRoKHBhcmVudFsiZmlsZV9uYW1lIl0pOgog
 ICAgICAgICAgbWF0Y2hpbmdEaWQgPSBkaWQKICAgICAgICAgIGJyZWFrCgogICAgICBpZiBtYXRj
 aGluZ0RpZDoKICAgICAgICBwYXJlbnREaWRzLmFwcGVuZCh7ICJkaWQiIDogbWF0Y2hpbmdEaWQg
 fSkKICAgICAgZWxzZToKICAgICAgICBwcmludCgiTm8gbWF0Y2hpbmcgaW5wdXQgRElEIGZvciBm
-aWxlICVzIC0gZXhpdGluZyIgJSBzdHIocGFyZW50KSkKICAgICAgICBzeXMuZXhpdCgzKQogICAg
-CiAgICAjIEFkZCB0aGUgbGlzdCBvZiB7ICJkaWQiOiAiLi4uIiB9IGRpY3Rpb25hcmllcyB0byB0
-b3AgbGV2ZWwKICAgIG91dHB1dE1ldGFkYXRhWyJwYXJlbnRzIl0gPSBwYXJlbnREaWRzCiAgICAg
-IAogIGVsc2U6CiAgICBpZiAnLicgbm90IGluIG5hbWU6CiAgICAgIGlmIG5hbWUgaW4gY29yZUF0
-dHJpYnV0ZXM6CiAgICAgICAgbmFtZSA9IGNvcmVBdHRyaWJ1dGVzW25hbWVdCiAgICAgIGVsc2U6
-CiAgICAgICAgbmFtZSA9ICd4LicgKyBuYW1lCiAgICAgICAgICAgIAogICAgb3V0cHV0TWV0YWRh
-dGFbIm1ldGFkYXRhIl1bbmFtZV0gPSB2YWx1ZQogICAgCm91dHB1dE1ldGFkYXRhWyJtZXRhZGF0
-YSJdLnNldGRlZmF1bHQoImNvcmUuZXZlbnRfY291bnQiLCAKICAgICAgICAgICAgICAgIGxlbihv
-dXRwdXRNZXRhZGF0YVsibWV0YWRhdGEiXS5nZXQoImNvcmUuZXZlbnRzIiwgW10pKSkKIApqc29u
-LmR1bXAob3V0cHV0TWV0YWRhdGEsIHN5cy5zdGRvdXQsIGluZGVudD00LCBzb3J0X2tleXM9VHJ1
-ZSkK
+aWxlICVzIHdpdGggcGFyZW50IGZpbGVfbmFtZSAlcy0gZXhpdGluZyIgCiAgICAgICAgICAgICAg
+JSAoc3RyKHBhcmVudCksIHN0cihwYXJlbnRbImZpbGVfbmFtZSJdKSksCiAgICAgICAgICAgICAg
+ZmlsZT1zeXMuc3RkZXJyKQogICAgICAgIHN5cy5leGl0KDMpCiAgICAKICAgICMgQWRkIHRoZSBs
+aXN0IG9mIHsgImRpZCI6ICIuLi4iIH0gZGljdGlvbmFyaWVzIHRvIHRvcCBsZXZlbAogICAgb3V0
+cHV0TWV0YWRhdGFbInBhcmVudHMiXSA9IHBhcmVudERpZHMKICAgICAgCiAgZWxzZToKICAgIGlm
+ICcuJyBub3QgaW4gbmFtZToKICAgICAgaWYgbmFtZSBpbiBjb3JlQXR0cmlidXRlczoKICAgICAg
+ICBuYW1lID0gY29yZUF0dHJpYnV0ZXNbbmFtZV0KICAgICAgZWxzZToKICAgICAgICBuYW1lID0g
+J3guJyArIG5hbWUKICAgICAgICAgICAgCiAgICBvdXRwdXRNZXRhZGF0YVsibWV0YWRhdGEiXVtu
+YW1lXSA9IHZhbHVlCiAgICAKb3V0cHV0TWV0YWRhdGFbIm1ldGFkYXRhIl0uc2V0ZGVmYXVsdCgi
+Y29yZS5ldmVudF9jb3VudCIsIAogICAgICAgICAgICAgICAgbGVuKG91dHB1dE1ldGFkYXRhWyJt
+ZXRhZGF0YSJdLmdldCgiY29yZS5ldmVudHMiLCBbXSkpKQogCmpzb24uZHVtcChvdXRwdXRNZXRh
+ZGF0YSwgc3lzLnN0ZG91dCwgaW5kZW50PTQsIHNvcnRfa2V5cz1UcnVlKQo=
 EOF
 chmod +x pdjson2metadata
 
@@ -107,7 +108,7 @@ lar -c $fclFile -n 2 -o $outFile --sam-web-uri "$WFS_SAM_WEB_URI" \
 larExit=$?
 echo "lar exit code $larExit"
 
-if [ $larExit -eq 0 -a -f "$outFile"] ; then
+if [ $larExit -eq 0 -a -f "$outFile" ] ; then
   # write metadata file if lar succeeded and output file is exists
   extractor_prod.py --infile "$outFile" --no_crc --appname reco \
     --appversion ${DUNEVERSION} --appfamily art \
@@ -118,6 +119,10 @@ if [ $larExit -eq 0 -a -f "$outFile"] ; then
   # Get the list of file DIDs allocated to this job so we can do PFN->DID maps
   $WFS_PATH/wfs-allocated-files > all-input-dids.txt
   wafExit=$?
+  
+  echo '===start all-input-dids.txt==='
+  cat all-input-dids.txt
+  echo '===end all-input-dids.txt==='
 
   pdjson2metadata $outFile.ext.json all-input-dids.txt > $outFile.json
   p2mExit=$?
@@ -125,11 +130,13 @@ if [ $larExit -eq 0 -a -f "$outFile"] ; then
 
   if [ $extractorExit -eq 0 -a $wafExit -eq 0 -a $p2mExit -eq 0 ] ; then
     echo "Metadata extraction succeeds"
-    echo "$pfn" > wfs-processed-pfns.txt
     echo "===Metadata JSON==="
     cat $outFile.json
     echo
     echo "==================="
+    # Create compressed tar file with all log files including the bootstrap.log
+    tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log
+    exit 0
   fi
 fi
 
@@ -137,3 +144,4 @@ ls -lRS
 
 # Create compressed tar file with all log files including the bootstrap.log
 tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log
+exit 1
