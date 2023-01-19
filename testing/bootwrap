@@ -17,21 +17,25 @@
 
 # Script to allow interactive testing of Workflow System bootstrap scripts
 # 1. Make sure you have rucio and metacat setup from cvmfs
-# 2. Create a directory and put your bootstrap script in it
-# 3. Change to that directory and run this script with something like
+# 2. Run this script with something like
 #    bootwrap pfns-hello-world.bootstrap \
 #     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 1"
 #    where "files from..." is an MQL expression for MetaCat
-# 4. A workdir-TIMESTAMP subdirectory is created and the bootstrap script is
-#    run in the workspace subdirectory of that and puts its outputs there
+# 3. A temporary directory is created in /tmp and the bootstrap script is
+#    run in the workspace subdirectory of that with outputs left there
 
-bootstrap="$PWD/$1"
-chmod +x $bootstrap
+export WFS_PATH=`mktemp -d /tmp/bootwrap.XXXXXX`
+echo "Files created under $WFS_PATH"
+echo
 
-if [ ! -x "$1" ] ; then
- echo "Cannot find executable bootstrap script $1 in this directory"
+if [ ! -f "$1" ] ; then
+ echo "Cannot find bootstrap script $1"
  exit 1
 fi
+
+cp "$1" $WFS_PATH/bootstrap.sh
+bootstrap="$WFS_PATH/bootstrap.sh"
+chmod +x $bootstrap
 
 shift
 mql="$*"
@@ -60,13 +64,13 @@ if [ "$pfn" = "" ] ; then
 fi
 
 # Fake up the generic job environment
-export WFS_PATH=$PWD/workdir-`date +'%s'`
 mkdir -p "$WFS_PATH/workspace"
 echo "#!/bin/sh"           >$WFS_PATH/wfs-get-file
 echo "echo $did $pfn XXX" >>$WFS_PATH/wfs-get-file
 chmod +x $WFS_PATH/wfs-get-file
 
 echo "====Start of bootstrap script execution===="
-( cd $WFS_PATH/workspace ; stdbuf -oL -eL $bootstrap ) 
+( cd $WFS_PATH/workspace ; stdbuf -oL -eL $WFS_PATH/bootstrap.sh ) 
 echo "====End of bootstrap script execution===="
 
+ls -lR "$WFS_PATH/workspace"
