@@ -124,7 +124,7 @@ if [ $larExit -eq 0 -a -f "$outFile" ] ; then
   cat all-input-dids.txt
   echo '===end all-input-dids.txt==='
 
-  pdjson2metadata $outFile.ext.json all-input-dids.txt > $outFile.json
+  ./pdjson2metadata $outFile.ext.json all-input-dids.txt > $outFile.json
   p2mExit=$?
   echo "pdjson2metadata exit code $p2mExit"
 
