@@ -1,15 +1,29 @@
 #!/bin/sh
 #
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # Script to allow interactive testing of Workflow System bootstrap scripts
 # 1. Make sure you have rucio and metacat setup from cvmfs
 # 2. Create a directory and put your bootstrap script in it
 # 3. Change to that directory and run this script with something like
-#   ./bootwrap pfns-hello-world.bootstrap dc4-hd-protodune:dc4_np04hd_507141310_00497651-30da-41b5-90d2-2d5db7d57671-gen_protodunehd_1GeV_56895801_0_g4_detsim_a.root
-#    where dc4-hd-... etc is the DID of a file registered in Rucio
-#    (This will change to an MQL expression soon)
+#    bootwrap pfns-hello-world.bootstrap \
+#     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 1"
+#    where "files from..." is an MQL expression for MetaCat
 # 4. A workdir-TIMESTAMP subdirectory is created and the bootstrap script is
 #    run in the workspace subdirectory of that and puts its outputs there
-#
 
 bootstrap="$PWD/$1"
 chmod +x $bootstrap
@@ -19,32 +33,30 @@ if [ ! -x "$1" ] ; then
  exit 1
 fi
 
-# UNCOMMENT THIS ONCE METACAT IS ACCESSIBLE AGAIN
-#shift
-#mql="$*"
-#if [ "$mql" = "" ] ; then
-#  echo "You must give an MQL expression!"
-#  exit 2
-#fi
-#
-#echo "Execute metacat query $mql | head -1"
-#did=`metacat query "$mql" | head -1`
-#if [ $? != 0 ] ; then
-#  echo "metacat query failed!"
-#  exit 3
-#fi
+shift
+mql="$*"
+if [ "$mql" = "" ] ; then
+  echo "You must give an MQL expression!"
+  exit 2
+fi
 
-did="$2"
+echo "Execute metacat query $mql | head -1"
+did=`metacat query "$mql" | head -1`
+if [ $? != 0 ] ; then
+  echo "metacat query failed!"
+  exit 3
+fi
+
 if [ "$did" = "" ] ; then
  echo "Need a DID"
- exit 3
+ exit 4
 fi
 
 echo "Execute rucio list-file-replicas --pfns $did"
 pfn=`rucio list-file-replicas --protocols root --pfns $did | head -1`
 if [ "$pfn" = "" ] ; then
   echo "No PFN obtained from Rucio!"
-  exit 4
+  exit 5
 fi
 
 # Fake up the generic job environment
