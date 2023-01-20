@@ -82,31 +82,89 @@ def header(uriPrefix, title):
 
   return ("""<html><head><title>%s</title>
 <style>
-table { border-collapse: collapse; border: medium solid black;}
+html,body { 
+  font-family: Tahoma, Verdana, Arial, sans-serif; 
+  font-size: 16px;
+  color: #616161;
+  background-color: #ffffff;
+  margin: 0;
+  padding: 0;
+}
+a {
+  color: #337AB7;
+  text-decoration: none;
+}
+
+#top_strip,#bottomstrip { 
+  color: #FFFFFF;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background-color: #234D93;
+}
+            
+#top_strip a { color: #FFFFFF; text-decoration: none; }
+ 
+#main_box {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  Xjustify-content: center;
+  flex-direction: column;
+}
+
+table { border-collapse: collapse; border: medium solid #87ADD1; }
 tr { text-align: left }
-td,th { border: thin solid black; padding: 0.75ex }
+td,th { border: thin solid #87ADD1; padding: 0.75ex }
+
+.main_page_table table { border: 20px solid white; 
+                         border-collapse: separate;
+                         padding: 10px; 
+                       }
+.main_page_table td    { background-color: #234D93; 
+                         color: #FFFFFF; 
+                         border: 20px solid white;
+                         text-align: center;
+                         font-size: 32px;
+                         font-weight: bold;
+                         width: 300px; 
+                         height: 100px; 
+                       }
+.main_page_table a     { color: #E1703D; 
+                         text-decoration: none;  
+                       }
+
 </style>
 <script type="text/javascript" 
  src="https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js"></script>
-</head><body>
-<p>
-<a href="%s">%s</a> . 
-<a href="%s?method=list-requests">Requests</a> . 
-<a href="%s?method=list-jobs">Jobs</a> . 
-<a href="%s?method=list-events">Events</a> . 
-<a href="%s?method=list-sites">Sites</a> . 
-<a href="%s?method=list-storages">Storages</a> .
-<a href="%s?method=awt-results">AWT</a> .
+</head>
+<body>
+<div id="top_strip">
+<a href="%s" style="font-size: 48px; color: #E1703D;">WFS</a> &nbsp; &nbsp;
+<!-- <a href="%s"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp; -->
+<a href="%s">%s</a> &nbsp; &nbsp; &nbsp;
+<a href="%s?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
+<a href="%s?method=list-jobs">Jobs</a> &nbsp; &nbsp; &nbsp;
+<a href="%s?method=list-events">Events</a> &nbsp; &nbsp; &nbsp;
+<a href="%s?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
+<a href="%s?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
+<a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
 <a href="https://dune.github.io/dune-wfs/">Docs</a>
-</p>
+</div>
+<div id="main_box"><div>
 """ % (title, 
+       uriPrefix,
+       uriPrefix,
        uriPrefix,
        'Dashboard' if uriPrefix.startswith('/dashboard/') else uriPrefix,
        uriPrefix, uriPrefix, uriPrefix, uriPrefix,
        uriPrefix, uriPrefix))
 
 def footer():
-  return ("<hr>Time now: %s\n</body></html>" 
+  return ('</div></div>'
+          '<div id="bottomstrip">Time now: %s</div>\n</body></html>' 
           % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
 def errorPage(uriPrefix, message):
@@ -152,18 +210,55 @@ def mainPage(uriPrefix):
 
   output = header(uriPrefix, "WFS: Dashboard")
 
-  output += ("""<h1>Dashboard</h1>
-<ul>
-<li><a href="%s?method=list-requests">Requests</a></li>
-<li><a href="%s?method=list-jobs">Jobs</a></li>
-<li><a href="%s?method=list-events">Events</a></li>
-<li><a href="%s?method=list-sites">Sites</a></li>
-<li><a href="%s?method=list-storages">Storages</a></li>
-<li><a href="%s?method=awt-results">Automated Workflow Tests</a></li>
-<li><a href="https://dune.github.io/dune-wfs/">Docs</a></li>
-</ul>""" % (uriPrefix, uriPrefix, uriPrefix, uriPrefix, uriPrefix, uriPrefix))
-  
-  output += footer()
+  output += '<h1>WFS Dashboard</h1><table class="main_page_table">'
+
+  cells = [
+   { 'startRow'  : True,
+     'endRow'    : False,
+     'uri'       : uriPrefix + '?method=list-requests',
+     'text'      : 'Requests' },
+   { 'startRow'  : False,
+     'endRow'    : True,
+     'uri'       : uriPrefix + '?method=list-jobs',
+     'text'      : 'Jobs' },
+   { 'startRow'  : True,
+     'endRow'    : False,
+     'uri'       : uriPrefix + '?method=list-events',
+     'text'      : 'Events' },
+   { 'startRow'  : False,
+     'endRow'    : True,
+     'uri'       : uriPrefix + '?method=awt-results',
+     'text'      : 'Automated Workflow Tests' },
+   { 'startRow'  : True,
+     'endRow'    : False,
+     'uri'       : uriPrefix + '?method=list-sites',
+     'text'      : 'Sites' },
+   { 'startRow'  : False,
+     'endRow'    : True,
+     'uri'       : uriPrefix + '?method=list-storages',
+     'text'      : 'Storages' },
+   { 'startRow'  : True,
+     'endRow'    : True,
+     'uri'       : 'https://dune.github.io/dune-wfs/',
+     'text'      : 'Documentation' }
+  ]
+
+  for cellDict in cells:
+ 
+    if cellDict['startRow'] and cellDict['endRow']:
+      output += '<tr><td colspan=2 '
+    elif cellDict['startRow']:
+      output += '<tr><td '
+    else:
+      output += '<td '
+
+    output += ('onclick="location.href=\'%s\'"><a href="%s">%s</a></td>' 
+               % (cellDict['uri'], cellDict['uri'], cellDict['text']) )
+   
+    if cellDict['endRow']:
+      output += '</tr>'
+
+  output += '</table>' + footer()
   return output
 
 def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):

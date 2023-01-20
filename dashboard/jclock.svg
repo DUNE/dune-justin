@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" 
+ xmlns:xlink="http://www.w3.org/1999/xlink" x="0" y="0" 
+ width="1000" height="1000" viewBox="0, 0, 1000, 1000">
+<circle cx="500" cy="500" r="499" fill="white" stroke="white" stroke-width="1" />
+<circle cx="500" cy="500" r="450" fill="white" stroke="#234D93" stroke-width="40" />
+<line x1="500" y1="570" x2="500" y2="250" stroke="#87ADD1" stroke-linecap="round" stroke-width="40" />
+<path d="M 500 575 A 125 125, 0 0 1, 250 575" stroke="#87ADD1" stroke-width="40" fill="transparent" stroke-linecap="round" />
+<circle cx="500" cy="500" r="50" stroke="#87ADD1" fill="#87ADD1" stroke-width="1" />
+<line x1="825" y1="500" x2="875" y2="500" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="781" y1="662" x2="824" y2="687" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="662" y1="781" x2="687" y2="824" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="500" y1="825" x2="500" y2="875" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="338" y1="781" x2="313" y2="824" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="219" y1="662" x2="176" y2="687" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="175" y1="500" x2="125" y2="500" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="219" y1="338" x2="176" y2="313" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="338" y1="219" x2="313" y2="176" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="500" y1="175" x2="500" y2="125" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="662" y1="219" x2="687" y2="176" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+<line x1="781" y1="338" x2="824" y2="313" stroke="#E1703D" stroke-linecap="round" stroke-width="40" />
+</svg>
