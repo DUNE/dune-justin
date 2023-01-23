@@ -725,8 +725,6 @@ def showStage(uriPrefix, cgiValues):
       i = int((binRow['processed_hour'] - firstHour) / hoursPerBin)
       bins[binRow['site_name']][i] += binRow['processed_count']
 
-#    output += '<p>%d %d %d-%d %s\n' % (numBins, hoursPerBin, firstHour, lastHour, str(bins))
-
     chart = wfsStackedLine(1000, 
                            firstHour * 3600,
                            hoursPerBin,
@@ -741,6 +739,43 @@ def showStage(uriPrefix, cgiValues):
                'style="text-decoration: none">' + 
                '<figure style="width:%dpx; display: inline-block">'  
                % chart.imageSize)
+
+    output += chart.render().decode('utf-8')
+    output += '</figure></a> '
+
+  # RSE pie charts
+  output += '<!-- %s start of RSE pie chart -->\n' % str(time.time())
+
+  query = ('SELECT rse_name,COUNT(*) AS replica_count FROM replicas '
+           'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
+           'WHERE request_id=%d AND stage_id=%d '
+           'GROUP BY replicas.rse_id ORDER BY replica_count DESC'
+           % (requestID, stageID))
+
+  wfs.db.select(query)
+  replicaRows = wfs.db.select(query)
+
+  if replicaRows:
+
+    totalReplicas = 0
+    for replicaRow in replicaRows:
+      totalReplicas += replicaRow['replica_count']
+
+    chart = pygal.Pie(style=pygal.style.LightColorizedStyle, 
+                      legend_at_bottom=True,
+                      width=800)    
+    chart.title = 'Replicas per RSE'
+
+    for replicaRow in replicaRows:
+      chart.add('%s (%d%%)' 
+                % (replicaRow['rse_name'], 
+                   int((100.0 * replicaRow['replica_count']) / totalReplicas)), 
+                replicaRow['replica_count'])
+
+    output += ('<a href="' + chart.render_data_uri() + '" target="_blank" '
+               'style="text-decoration: none">' + 
+               '<figure style="width:%dpx; display: inline-block">'  
+               % 800)
 
     output += chart.render().decode('utf-8')
     output += '</figure></a> '

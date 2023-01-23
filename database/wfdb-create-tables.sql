@@ -169,10 +169,13 @@ CREATE TABLE `replicas` (
   `wan_pfn` varchar(255) NOT NULL,
   `lan_pfn` varchar(255) NOT NULL,
   `accessible_until` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
+  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY(`replica_id`),
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
   UNIQUE KEY `pfn` (`wan_pfn`,`file_id`),
-  INDEX `file_id` (`file_id`)
+  INDEX `file_id` (`file_id`),
+  INDEX `request_stage_rse` (`request_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
