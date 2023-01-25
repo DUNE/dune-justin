@@ -113,6 +113,29 @@ a {
   align-items: center;
   Xjustify-content: center;
   flex-direction: column;
+  overflow-x: auto;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: white;
+  color: #000000;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
 }
 
 table { border-collapse: collapse; border: medium solid #87ADD1; }
@@ -882,13 +905,13 @@ def showStage(uriPrefix, cgiValues):
     output += ('</table>') 
 
   output += ("<h2>Bootstrap script</h2>")
-  output += ('<table><tr><td><pre>') 
+  output += ('<pre style="white-space: pre-wrap;">') 
 
   output += (html.escape(
    stageRow["bootstrap"].encode('ascii',errors='ignore').decode(), 
    quote=True))
   
-  output += ('</pre></td></tr></table>') 
+  output += ('</pre>') 
 
   output += footer()
   return output
@@ -1330,36 +1353,9 @@ def showJob(uriPrefix, cgiValues):
 
   if jobRow['bootstrap_log']:
     output += "<h2>Bootstrap log</h2>"
-    output += '<table><tr><td><pre>'
- 
+    output += '<pre style="white-space:pre-wrap;">'
     output += html.escape(jobRow["bootstrap_log"].strip(), quote=True)
-  
-    output += '</pre></td></tr></table>'
-
-#  if os.path.isfile('/var/spool/wfs/fetchlog/%s' % jobsubID.replace('@','_')):
-#    
-#    try:
-#      showJobsubLog = cgiValues["show_jobsub_log"]
-#    except:
-#      showJobsubLog = 'false'
-#
-#    output += ('<h2 id="jobsublog">Jobsub log</h2>')
-#
-#    if showJobsubLog == 'true':
-#      output += ('<table><tr><td><pre>') 
-#
-#      output += (html.escape(
-#       open('/var/spool/wfs/fetchlog/%s' %
-#           jobsubID.replace('@','_')).read().encode('ascii',
-#                                                    errors='ignore').decode(), 
-#       quote=True))
-#  
-#      output += ('</pre></td></tr></table>') 
-#      
-#    else:
-#      output += ('<p><a href="%sshow?method=show-job&jobsub_id=%s'
-#            '&show_jobsub_log=true#jobsublog">Show jobsub log</a></p>'
-#            % (uriPrefix, jobsubID))
+    output += '</pre>'
 
   output += footer()
   return output
@@ -2113,17 +2109,30 @@ def awtResults(uriPrefix, cgiValues):
         
       else:
         if readResult == 255:
-          s = '?'
+          s = 'Read=?'
         else:
-          s = '%d' % readResult
+          s = 'Read=%d' % readResult
 
         if writeResult == 255:
-          s += '/?'
+          s += ' Write=?'
         else:
-          s += '/%d' % writeResult
+          s += ' Write=%d' % writeResult
+
+        if (readResult and readResult != 255) or \
+           (writeResult and writeResult != 255):
+          boxColor = 'red'
+        elif readResult == 0 and writeResult == 0:
+          boxColor = 'green'
+        else:
+          boxColor = 'white'
           
-        output += ('<td><a href="%s?method=show-job&jobsub_id=%s">%s'
-              '</a></td>' % (uriPrefix, jobsubID, s))
+        output += ('<td class="tooltip" style="background-color: %s">'
+                   '<a href="%s?method=show-job&jobsub_id=%s">'
+                   % (boxColor, uriPrefix, jobsubID))
+
+        output += '<span class="tooltiptext">%s</span>' % s
+
+        output += '</a></td>'
 
     output += ('<%s><a href="%s?method=show-site&site_name=%s">%s'
           '</a></%s></tr>' % 
