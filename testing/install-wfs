@@ -1,0 +1,39 @@
+#!/bin/sh
+
+if [ "$1" = "" ] ; then
+  echo "install-wfs PATH.TO.TOP.DIRECTORY.OF.dune-wfs.REPO"
+  exit 1
+fi
+
+WFS_DIR="$1"
+
+cp -f $WFS_DIR/services/wfs-wsgi-import-script \
+      $WFS_DIR/services/wfs-wsgi-commands \
+      $WFS_DIR/services/wfs-wsgi-allocator \
+      $WFS_DIR/dashboard/wfs-wsgi-dashboard \
+      /var/www/wsgi/
+
+cp -f $WFS_DIR/services/wfs.conf \
+      /etc/httpd/conf.d/
+
+cp -f $WFS_DIR/agents/wfs-info-collector \
+      $WFS_DIR/agents/wfs-finder \
+      $WFS_DIR/agents/wfs-finder-fnal \
+      $WFS_DIR/agents/wfs-job-factory \
+      $WFS_DIR/agents/wfs-stage-cache \
+      /usr/sbin/
+
+cp -f $WFS_DIR/agents/wfs.logrotate \
+      /etc/logrotate.d/wfs
+
+cp -f $WFS_DIR/modules/__init__.py \
+      $WFS_DIR/modules/allocator.py \
+      $WFS_DIR/modules/conf.py \
+      $WFS_DIR/modules/db.py \
+      $WFS_DIR/modules/events.py \
+      /usr/lib/python3.6/site-packages/wfs/
+
+cp -f $WFS_DIR/genericjobs/run-jobsub-submit \
+      $WFS_DIR/genericjobs/wfs-generic-job \
+      /var/lib/wfs/
+
