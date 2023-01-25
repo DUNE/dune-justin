@@ -13,6 +13,7 @@ fi
 
 WFS_DIR="$1"
 
+mkdir -p /var/www/wsgi
 cp -f $WFS_DIR/services/wfs-wsgi-import-script \
       $WFS_DIR/services/wfs-wsgi-commands \
       $WFS_DIR/services/wfs-wsgi-allocator \
@@ -32,7 +33,7 @@ cp -f $WFS_DIR/agents/wfs-info-collector \
 cp -f $WFS_DIR/agents/wfs.logrotate \
       /etc/logrotate.d/wfs
 
-mkdir -p /usr/lib/python3.6/site-packages/wfs/
+mkdir -p /usr/lib/python3.6/site-packages/wfs
 cp -f $WFS_DIR/modules/__init__.py \
       $WFS_DIR/modules/allocator.py \
       $WFS_DIR/modules/conf.py \
@@ -40,6 +41,7 @@ cp -f $WFS_DIR/modules/__init__.py \
       $WFS_DIR/modules/events.py \
       /usr/lib/python3.6/site-packages/wfs/
 
+mkdir -p /var/lib/wfs
 cp -f $WFS_DIR/genericjobs/run-jobsub-submit \
       $WFS_DIR/genericjobs/wfs-generic-job \
       /var/lib/wfs/
