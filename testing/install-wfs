@@ -1,4 +1,10 @@
 #!/bin/sh
+#
+# Script to install wfs components. Do something like:
+#
+# git clone https://github.com/DUNE/dune-wfs.git
+# dune-wfs/testing/install-wfs dune-wfs
+#
 
 if [ "$1" = "" ] ; then
   echo "install-wfs PATH.TO.TOP.DIRECTORY.OF.dune-wfs.REPO"
