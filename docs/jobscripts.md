@@ -1,7 +1,8 @@
 ## Jobscripts
 
 The jobscripts supplied when creating a stage are shell scripts 
-which the generic jobs execute on the worker nodes matched to that stage.  
+which the generic jobs execute for the user, on the worker nodes matched 
+to that stage.  
 
 They are started in an empty workspace directory.  Several environment 
 variables are made available to the scripts, all prefixed with JUSTIN_, 
