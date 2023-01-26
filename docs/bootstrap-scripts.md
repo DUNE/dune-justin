@@ -7,7 +7,7 @@ They are started in an empty workspace directory.  Several environment
 variables are made available to the scripts, all prefixed with JUSTIN_, 
 including $JUSTIN_REQUEST_ID, $JUSTIN_STAGE_ID and $JUSTIN_COOKIE which allows the 
 bootstrap script to authenticate to the 
-[allocator service](workflow-allocator.md). $JUSTIN_PATH is 
+[allocator service](allocator-service.md). $JUSTIN_PATH is 
 used to reference files and scripts provided by justIn.
 
 To get the details of an input file to work on, the command 

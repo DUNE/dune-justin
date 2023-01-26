@@ -7,7 +7,7 @@ database](database.md), and site limits set in the database to determine
 how many generic jobs to submit and have waiting at each site.
 
 Once a generic job lands on a worker node, it contacts the 
-[allocator service](workflow-allocator.md) which
+[allocator service](allocator-service.md) which
 determines which unallocated files from one stage best match that 
 worker node.
 
