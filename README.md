@@ -1,2 +1,2 @@
 # dune-justin
-justIN - DUNE Workflow System
+justIN - DUNE workflow system
