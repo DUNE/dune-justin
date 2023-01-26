@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Temporary script to initialise the justIn Database with some values
+# Temporary script to initialise the justIN Database with some values
 # which justin-info-collector cannot discover itself
 #
 # Creates justindb-populate.sql which can be fed straight into the mysql 

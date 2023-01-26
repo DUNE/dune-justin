@@ -60,7 +60,7 @@ cp ${JSB_TMP}/JOBSUB_ERR_FILE \
 extractor_prod.py \
  --infile $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root) \
  --appfamily art --appname reco --appversion v09_09_01 \
- --campaign "justIn-$JUSTIN_REQUEST_ID" --no_crc --data_stream physics \
+ --campaign "justIN-$JUSTIN_REQUEST_ID" --no_crc --data_stream physics \
  > $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root).json
 
 mv michelremoving.root \
@@ -72,7 +72,7 @@ mv Pandora_Events.pndr \
 pandora_metadata.py \
  --infile $(ls *_Pandora_Events.pndr)  \
  --appfamily art --appname reco \
- --appversion v09_09_01 --campaign "justIn-$JUSTIN_REQUEST_ID" \
+ --appversion v09_09_01 --campaign "justIN-$JUSTIN_REQUEST_ID" \
  --no_crc --data_stream physics \
  --input_json $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root.json) \
  > $(ls *_Pandora_Events.pndr).json
@@ -80,7 +80,7 @@ pandora_metadata.py \
 pandora_metadata.py \
  --infile $(ls *_michelremoving.root)  \
  --appfamily art --appname calana --appversion v09_09_01 \
- --campaign "justIn-$JUSTIN_REQUEST_ID" \
+ --campaign "justIN-$JUSTIN_REQUEST_ID" \
  --no_crc --data_stream physics \
  --input_json $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root.json) \
  --data_tier root-tuple --file_format rootntuple --strip_parents \

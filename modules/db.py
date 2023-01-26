@@ -1,5 +1,5 @@
 #
-# justIn database globals and functions
+# justIN database globals and functions
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 

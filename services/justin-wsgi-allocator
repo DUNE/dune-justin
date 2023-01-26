@@ -1,5 +1,5 @@
 #
-# wfa-wsgi-allocator - justIn allocator API service
+# wfa-wsgi-allocator - justIN allocator API service
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -434,7 +434,7 @@ def getStageMethod(startResponse, jsonDict):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error',
-                     'justIn allocator service fails to update job with site_id '
+                     'justIN allocator service fails to update job with site_id '
                      '(site_name=%s): %s' %
                      (str(jsonDict['site_name']), str(e)))
     
@@ -472,7 +472,7 @@ def getStageMethod(startResponse, jsonDict):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error',
-                     'justIn allocator service fails to record get_stage time')
+                     'justIN allocator service fails to record get_stage time')
 
   if jobDict['for_awt']:
     # Special job for Workflow Testing Framework
@@ -489,7 +489,7 @@ def getStageMethod(startResponse, jsonDict):
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
                        '500 Internal Server Error', 
-                       'justIn allocator service fails finding stage: ' + str(e))
+                       'justIN allocator service fails finding stage: ' + str(e))
 
   if not stage:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
@@ -527,7 +527,7 @@ def getStageMethod(startResponse, jsonDict):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'justIn allocator service failed updating allocated job: ' 
+                     'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
 #  print('Before makeTarFile', file=sys.stderr)
@@ -573,7 +573,7 @@ def sendHeartbeatMethod(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'justIn allocator service failed recording heartbeat: ' 
+                     'justIN allocator service failed recording heartbeat: ' 
                      + str(e))
 
   return httpOK(startResponse, '')
@@ -627,7 +627,7 @@ def jobAbortedMethod(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'justIn allocator service job_aborted failed: ' + str(e))
+                     'justIN allocator service job_aborted failed: ' + str(e))
 
   if 'rse_name' in jsonDict:
     rseName = jsonDict['rse_name']
@@ -1340,7 +1340,7 @@ def application(environ, startResponse):
                        '400 Bad Request', 
                        'Failed to read and parse request: ' + str(e))
   else:
-    # Standard justIn API based on JSON
+    # Standard justIN API based on JSON
     try:
       inputLength = int(environ.get('CONTENT_LENGTH', '0'))
       inputString = environ['wsgi.input'].read(inputLength)

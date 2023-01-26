@@ -1,6 +1,6 @@
 # Install in /usr/lib/systemd/system
 [Unit]
-Description=justIn Finder daemon
+Description=justIN Finder daemon
 Documentation=man:justin-finder(8)
 
 [Service]

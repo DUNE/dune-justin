@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Test of RCDS/cvmfs tar files access from JUSTIN jobs. You need to install
-# the justin and justin-cvmfs-upload commands from the justIn GitHub:
+# the justin and justin-cvmfs-upload commands from the justIN GitHub:
 # https://github.com/DUNE/dune-justin/tree/main/commands
 #
 # 1) Create a tar file 

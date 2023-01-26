@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# Script to allow interactive testing of justIn bootstrap scripts
+# Script to allow interactive testing of justIN bootstrap scripts
 # 1. Make sure you have rucio and metacat setup from cvmfs
 # 2. Run this script with something like
 #    bootwrap pfns-hello-world.bootstrap \

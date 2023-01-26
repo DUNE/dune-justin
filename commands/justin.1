@@ -1,13 +1,13 @@
 .TH JUSTIN  "2022" "justin" "justin Manual"
 .SH NAME
 .B justin
-\- justIn workflow system utility command
+\- justIN workflow system utility command
 .SH SYNOPSIS
 .B justin subcommand [options]
 .SH DESCRIPTION
 .B justin
 is a command-line utility for managing requests, stages, files, and replicas
-in the justIn Database (JDB).
+in the justIN Database (JDB).
 
 .SH GENERAL OPTIONS
 
@@ -19,12 +19,12 @@ Show help message and exit
 .HP 
 .B "-v, --verbose"
 .br
-Turn on verbose logging of the communication with justIn service.
+Turn on verbose logging of the communication with justIN service.
 
 .HP 
 .B "--url URL"
 .br
-Use an alternative justIn service, rather than 
+Use an alternative justIN service, rather than 
 https://justin.dune.hep.ac.uk/api/commands This 
 option is only needed during development and testing.
 
@@ -38,9 +38,9 @@ Output the version number of the justin command.
 .HP
 .B "time"
 .br
-Contact justIn to get the current time as a string. This can be
+Contact justIN to get the current time as a string. This can be
 used to check that the client is installed correctly and that the user is
-properly registered in justIn.
+properly registered in justIN.
 
 .HP
 .B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
@@ -51,7 +51,7 @@ the count of the number of Monte Carlo instances to run. If a name is not
 given, a name based on a timestamp is created. 
 Requests are created in the state "draft" and the command returns the new 
 request's ID number.
-Once the request is in the running state, justIn will use the 
+Once the request is in the running state, justIN will use the 
 MQL expression to find the list of input files from MetaCat. If 
 .B --refind-interval-hours
 is given, the MQL query will be resubmitted at that interval to add any
@@ -151,7 +151,7 @@ that file in MetaCat.
 Alternatively
 .B --output-pattern-next-stage SCOPE:DATASET:PATTERN
 can be given in which the output file will also be registered in the
-justIn Database as an unprocessed input file for the next stage and
+justIN Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
 
 If one or more options
@@ -218,7 +218,7 @@ request, and then the dataset, scope, and files pattern themselves.
 .HP
 .B "show-storages [--rse-name NAME]"
 .br
-Shows information about Rucio Storage Elements cached in the justIn
+Shows information about Rucio Storage Elements cached in the justIN
 Database, optionally limiting output to a single RSE using its name. Each
 line of the output consists of the RSE name followed by the occupancy
 fraction obtained from Rucio in the range 0.0 to 1.0, and the Read, Write
@@ -236,11 +236,11 @@ between 0 (same site) and 100 (maximally remote).
 .HP
 .B "show-files [--request-id ID] [--stage-id ID] [--file-did DID]"
 .br
-Shows files information cached in the justIn Database, either limited by 
+Shows files information cached in the justIN Database, either limited by 
 request ID and stage ID or by file DID. For each file, the request ID, stage
 ID, file state, and file DID are shown. The file state is one of "finding",
 "unallocated", "allocated", or "processed". Files wait in the "unallocated"
-state, are then allocated to an instance of the stage's script by justIn's
+state, are then allocated to an instance of the stage's script by justIN's
 allocator service, and then either return to "unallocated" or move to
 "processed" depending on whether the script is able to process them
 correctly.
@@ -258,7 +258,7 @@ states and mark the request as finished.
 .HP
 .B "show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]"
 .br
-Shows file and replica information in the justIn Database, either limited by 
+Shows file and replica information in the justIN Database, either limited by 
 request ID and stage ID or by file DID. For each replica of each file, the 
 request ID, stage ID, file state, RSE name, and file DID are shown. 
 
@@ -277,9 +277,9 @@ They are started in an empty workspace directory.
 Several environment variables are made available to the
 scripts, all prefixed with JUSTIN_, including $JUSTIN_REQUEST_ID, 
 $JUSTIN_STAGE_ID and
-$JUSTIN_COOKIE which allows the bootstrap script to authenticate to justIn's
+$JUSTIN_COOKIE which allows the bootstrap script to authenticate to justIN's
 allocator service. $JUSTIN_PATH is used to reference files and scripts 
-provided by justIn. 
+provided by justIN. 
 
 To get the details of an input file to work on, the command 
 $JUSTIN_PATH/justin-get-file is executed by the bootstrap script.
@@ -300,14 +300,14 @@ to stderr.
 justin-get-file can be called multiple times to process more than one file in
 the same bootstrap script. This can be done all at the start or repeatedly
 during the lifetime of the job. justin-get-file is itself a simple wrapper around
-the curl command and it would also be possible to access the justIn 
+the curl command and it would also be possible to access the justIN 
 allocator service's REST API directly from an application.
 
 Each file returned by justin-get-file is marked as allocated and will not be 
 processed by any other jobs. When the bootstrap script finishes, it 
 .B must
 leave files with lists of the processed files in its
-workspace directory. These lists are sent to the justIn allocator service by
+workspace directory. These lists are sent to the justIN allocator service by
 the generic job, which either marks input files as being successfully 
 processed or resets their state to unallocated, ready for matching by another
 job. 
@@ -333,7 +333,7 @@ corresponding metadata files for MetaCat.
 
 .SH REQUEST PROCESSING
 
-Once a request enters the running state, it is processed by justIn's
+Once a request enters the running state, it is processed by justIN's
 finder agent. Usually this is just done once, but it can be
 repeated if the --refind-interval-hours option is given when creating the 
 request. When the request is processed, the finder uses the requests's MQL 
@@ -358,7 +358,7 @@ number.
 
 .SH FILES
 
-An X.509 user proxy file is currently needed to contact justIn,
+An X.509 user proxy file is currently needed to contact justIN,
 which is either given by 
 .B $X509_USER_PROXY 
 or 

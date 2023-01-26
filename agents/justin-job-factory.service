@@ -1,6 +1,6 @@
 # Install in /usr/lib/systemd/system
 [Unit]
-Description=justIn Job Factory daemon
+Description=justIN Job Factory daemon
 Documentation=man:justin-job-factory(8)
 
 [Service]

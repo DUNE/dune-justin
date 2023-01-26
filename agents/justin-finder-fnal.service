@@ -1,6 +1,6 @@
 # Install in /usr/lib/systemd/system
 [Unit]
-Description=justIn Finder for FNAL daemon
+Description=justIN Finder for FNAL daemon
 Documentation=man:justin-finder-fnal(8)
 
 [Service]

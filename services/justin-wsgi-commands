@@ -1,5 +1,5 @@
 #
-# justin-wsgi-commands - justIn commands API service
+# justin-wsgi-commands - justIN commands API service
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -82,7 +82,7 @@ def showRequestsCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -114,7 +114,7 @@ def showStagesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -148,7 +148,7 @@ def showBootstrapCmd(startResponse, jsonDict):
   except Exception as e:
    return httpError(startResponse, 
                     '500 Internal Server Error', 
-                    'Error reading justIn database ' + str(e))
+                    'Error reading justIN database ' + str(e))
 
   return httpOK(startResponse, rows[0]['bootstrap'])
 
@@ -172,7 +172,7 @@ def showStageOutputsCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -223,7 +223,7 @@ def showFilesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -290,7 +290,7 @@ def showReplicasCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -327,7 +327,7 @@ def showStoragesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -373,7 +373,7 @@ def showSitesStoragesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -457,7 +457,7 @@ def createRequestCmd(startResponse, jsonDict, userID):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, str(requestID) + '\n')
 
@@ -559,7 +559,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   try:
     processors = int(jsonDict['processors'])
@@ -605,7 +605,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   try:
     lifetimeDays = int(jsonDict['lifetime_days'])
@@ -643,7 +643,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       except Exception as e:
         return httpError(startResponse, 
                         '500 Internal Server Error', 
-                        'Error updating justIn database ' + str(e))
+                        'Error updating justIN database ' + str(e))
 
   if jsonDict['output_rse']:
     for rseName in jsonDict['output_rse']:
@@ -660,7 +660,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                          'Error updating justIn database ' + str(e))
+                          'Error updating justIN database ' + str(e))
 
   if jsonDict['env']:
     for envNameValue in jsonDict['env']:    
@@ -690,7 +690,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating justIn database ' + str(e))
+                         'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, str(requestID) + '\n')
 
@@ -712,7 +712,7 @@ def submitRequestCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -741,7 +741,7 @@ def startRequestCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -763,7 +763,7 @@ def pauseRequestCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -785,7 +785,7 @@ def finishRequestCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -874,7 +874,7 @@ def createStageCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   try:
     lifetimeDays = int(jsonDict['lifetime_days'])
@@ -914,7 +914,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating justIn database ' + str(e))
+                         'Error updating justIN database ' + str(e))
 
   if jsonDict['output_pattern_next_stage']:
     for i in jsonDict['output_pattern_next_stage']:
@@ -949,7 +949,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating justIn database ' + str(e))
+                         'Error updating justIN database ' + str(e))
           
   if jsonDict['output_rse']:
     for rseName in jsonDict['output_rse']:
@@ -969,7 +969,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating justIn database ' + str(e))
+                         'Error updating justIN database ' + str(e))
 
   if jsonDict['env']:
     for envNameValue in jsonDict['env']:    
@@ -1000,7 +1000,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating justIn database ' + str(e))
+                         'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -1036,7 +1036,7 @@ def createBootstrapCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -1064,7 +1064,7 @@ def failFilesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating justIn database ' + str(e))
+                     'Error updating justIN database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -1112,7 +1112,7 @@ def showJobsCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading justIn database ' + str(e))
+                     'Error reading justIN database ' + str(e))
 
   outputString = ''
   for row in rows:

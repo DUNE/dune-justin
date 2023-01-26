@@ -1,5 +1,5 @@
 #
-# justIn allocator module
+# justIN allocator module
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 

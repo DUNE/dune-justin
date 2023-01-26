@@ -8,7 +8,7 @@ f = open('event-types.md','w')
 
 f.write("""## Event types
 
-These event types are used within justIn to record state transitions
+These event types are used within justIN to record state transitions
 and can be viewed in the [Dashboard](dashboard.md). They are especially useful
 for cross
 referencing requests, files, jobs, sites and storages, as the identity of

@@ -1,6 +1,6 @@
 # Install in /usr/lib/systemd/system
 [Unit]
-Description=justIn Stage Cache daemon
+Description=justIN Stage Cache daemon
 Documentation=man:justin-stage-cache(8)
 
 [Service]

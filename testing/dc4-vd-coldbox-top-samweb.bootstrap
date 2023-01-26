@@ -91,7 +91,7 @@ outFile=${JUSTIN_REQUEST_ID}_${JUSTIN_STAGE_ID}_reco_data_${now}.root
 echo $outFile
 
 # put here the right value, this is just an example 
-campaign="justIn.Request-${JUSTIN_REQUEST_ID}.Stage-${JUSTIN_STAGE_ID}"
+campaign="justIN.Request-${JUSTIN_REQUEST_ID}.Stage-${JUSTIN_STAGE_ID}"
 
 (
 # Do the scary preload stuff in a subshell!

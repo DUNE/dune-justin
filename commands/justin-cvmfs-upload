@@ -17,8 +17,8 @@
 # limitations under the License.
 #
 
-# Test of RCDS/cvmfs tar files access from justIn jobs. You need to install
-# the justin and justin-cvmfs-upload commands from the justIn GitHub:
+# Test of RCDS/cvmfs tar files access from justIN jobs. You need to install
+# the justin and justin-cvmfs-upload commands from the justIN GitHub:
 # https://github.com/DUNE/dune-justin/tree/main/commands
 #
 # 1) Create a tar file 

@@ -1,5 +1,5 @@
 #
-# justIn events
+# justIN events
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 

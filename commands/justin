@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# justin - justIn command line utility
+# justin - justIN command line utility
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -175,7 +175,7 @@ parser.add_argument("--state",
 
 parser.add_argument("--url",
                     type = str,
-                    help = "justIn service to contact")
+                    help = "justIN service to contact")
 
 args = parser.parse_args()
 jsonDict = vars(args)
@@ -198,7 +198,7 @@ if args.command not in commands:
 if jsonDict['verbose']:
   print(jsonDict)
 
-# Set up request contexts to send the command to justIn 
+# Set up request contexts to send the command to justIN 
 
 if jsonDict['url']:
   url = jsonDict['url']
