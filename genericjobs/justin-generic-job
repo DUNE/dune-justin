@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Generic Job script which will get a stage's bootstrap script from the
-# Workflow Allocator
+# justIn allocator service
 #
 
 # Everything goes to stdout
@@ -11,11 +11,11 @@ function log_line() {
 echo `date -u +'%Y-%m-%d %H:%M:%S '`$1
 }
 
-log_line '====Start of wfs-generic-job===='
+log_line '====Start of justin-generic-job===='
 
 function job_aborted() {
 
-  cat <<EOF >wfs-job-aborted.json
+  cat <<EOF >justin-job-aborted.json
 {
   "method"         : "job_aborted",
   "jobsub_id"      : "$JOBSUBJOBID",
@@ -26,14 +26,14 @@ function job_aborted() {
 EOF
 
   curl \
-     --user-agent 'wfs-generic-job' \
+     --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
      --key $X509_USER_PROXY \
      --cert $X509_USER_PROXY \
      --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
-     --data @wfs-job-aborted.json \
-     https://wfs-pro.dune.hep.ac.uk/api/allocator/job_aborted_$2
+     --data @justin-job-aborted.json \
+     https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/job_aborted_$2
 
   # If in a subshell, this just exits that, not the job, so must be caught
   # The 1st argument lets the caller choose the exit code on errors
@@ -61,10 +61,10 @@ ls -lt
 echo '##############'
 
 # Used by bootstrap script to find files from this generic job
-export WFS_PATH=`pwd`
+export JUSTIN_PATH=`pwd`
 
-# Create the wfs-get-file command
-base64 -d <<EOF > $WFS_PATH/wfs-get-file
+# Create the justin-get-file command
+base64 -d <<EOF > $JUSTIN_PATH/justin-get-file
 IyEvYmluL3NoCiMKIyBTY3JpcHQgZm9yIHVzZSB3aXRoaW4gYm9vdHN0cmFwIHNjcmlwdCB0byBn
 ZXQgdGhlIERJRCwgUEZOLCBhbmQgUlNFCiMgb2YgYSBmaWxlIHRvIHByb2Nlc3Mgd2l0aGluIHRo
 ZSBzdGFnZSBhc3NpZ25lZCB0byB0aGUgam9iLgojCiMgQm9vdHN0cmFwIHNjcmlwdHMgY2FuIGV4
@@ -91,10 +91,10 @@ ZXRfZmlsZSByZWNlaXZlczoiID4mMgogY2F0ICRHRVRfRklMRV9UTVAgPiYyCiBlY2hvICJnZXQt
 ZmlsZSBmYWlscyB3aXRoIEhUVFAgY29kZSAkaHR0cF9jb2RlIGZyb20gYWxsb2NhdG9yISIgPiYy
 CiByZXRjb2RlPTMKZmkKCnJtIC1mICRHRVRfRklMRV9UTVAKZXhpdCAkcmV0Y29kZQo=
 EOF
-chmod +x $WFS_PATH/wfs-get-file
+chmod +x $JUSTIN_PATH/justin-get-file
 
-# Create the wfs-allocated-files command
-base64 -d <<EOF > $WFS_PATH/wfs-allocated-files
+# Create the justin-allocated-files command
+base64 -d <<EOF > $JUSTIN_PATH/justin-allocated-files
 IyEvYmluL3NoCiMKIyBTY3JpcHQgZm9yIHVzZSB3aXRoaW4gYm9vdHN0cmFwIHNjcmlwdCB0byBn
 ZXQgdGhlIERJRHMgb2YgYWxsIGZpbGVzIAojIGFsbG9jYXRlZCB0byB0aGlzIGpvYgojCiMgQm9v
 dHN0cmFwIHNjcmlwdHMgY2FuIGV4ZWN1dGUgdGhpcyBzY3JpcHQgYXM6ICRXRlNfUEFUSC93ZnMt
@@ -121,10 +121,10 @@ T0NBVEVEX0ZJTEVTX1RNUCA+JjIKIGVjaG8gPiYyCiBlY2hvICJ3ZnMtYWxsb2NhdGVkLWZpbGVz
 IGZhaWxzIHdpdGggSFRUUCBjb2RlICRodHRwX2NvZGUhIiA+JjIKIHJldGNvZGU9MQpmaQoKcm0g
 LWYgJEFMTE9DQVRFRF9GSUxFU19UTVAKZXhpdCAkcmV0Y29kZQo=
 EOF
-chmod +x $WFS_PATH/wfs-allocated-files
+chmod +x $JUSTIN_PATH/justin-allocated-files
 
-# Create the wfs-metadata command
-base64 -d <<EOF > $WFS_PATH/wfs-metadata
+# Create the justin-metadata command
+base64 -d <<EOF > $JUSTIN_PATH/justin-metadata
 IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwojCiMgQ2hlY2sgYW55IG1ldGFkYXRhIEpTT04gZnJvbSBi
 b290c3RyYXAgc2NyaXB0IGZvciBhIGdpdmVuIGZpbGUgYW5kIGFkZAojwqBXRlMgbWV0YWRhdGEg
 dG8gaXQuIFRoZSBvdXRwdXQgZmlsZSBhbmQgaXRzIEpTT04gZmlsZSB3aWxsIGJlIGxvb2tlZCBm
@@ -160,12 +160,12 @@ U19PU19SRUxFQVNFJ10KbWV0YWRhdGFbJ21ldGFkYXRhJ11bJ0RVTkUud29ya2Zsb3cnXVsnam9i
 X2lkJ10gXAogPSBvcy5lbnZpcm9uWydKT0JTVUJKT0JJRCddCgpwcmludChqc29uLmR1bXBzKG1l
 dGFkYXRhLCBpbmRlbnQgPSA0LCBzb3J0X2tleXMgPSBUcnVlKSkK
 EOF
-chmod +x $WFS_PATH/wfs-metadata
+chmod +x $JUSTIN_PATH/justin-metadata
 
 # Assemble values to record
-export WFS_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
-export WFS_OS_RELEASE=`head -1 /etc/redhat-release`
-export WFS_HOSTNAME=${HOSTNAME:-`hostname`}
+export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
+export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
+export JUSTIN_HOSTNAME=${HOSTNAME:-`hostname`}
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FNAL" ] ; then
   export site_name=US_FNAL
@@ -198,7 +198,7 @@ if [ $? -ne 0 ] ; then
  exit 0
 fi
 
-cat <<EOF >wfs-send-heartbeat.json
+cat <<EOF >justin-send-heartbeat.json
 {
   "method"       : "send_heartbeat",
   "jobsub_id"    : "$JOBSUBJOBID"
@@ -211,34 +211,34 @@ EOF
 while :
 do
   # Stop if JSON file is missing or deleted
-  if [ ! -r wfs-send-heartbeat.json ] ; then
+  if [ ! -r justin-send-heartbeat.json ] ; then
     exit 0
   fi
 
   curl \
-     --user-agent 'wfs-generic-job' \
+     --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
      --key $X509_USER_PROXY \
      --cert $X509_USER_PROXY \
      --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
-     --data @wfs-send-heartbeat.json \
-     https://wfs-pro.dune.hep.ac.uk/api/allocator/send_heartbeat
+     --data @justin-send-heartbeat.json \
+     https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/send_heartbeat
 
   sleep 600
 done
 
-) >wfs-heartbeat.log 2>&1 &
+) >justin-heartbeat.log 2>&1 &
 
 # Create the JSON to send to the allocator
-cat <<EOF >wfs-get-stage.json
+cat <<EOF >justin-get-stage.json
 {
   "method"       : "get_stage",
   "jobsub_id"    : "$JOBSUBJOBID",
   "site_name"    : "${site_name:-XX-UNKNOWN}",
-  "cpuinfo"      : "${WFS_CPUINFO:-Unknown}",
-  "os_release"   : "${WFS_OS_RELEASE:-Unknown}",
-  "hostname"     : "${WFS_HOSTNAME:-unknown}",
+  "cpuinfo"      : "${JUSTIN_CPUINFO:-Unknown}",
+  "os_release"   : "${JUSTIN_OS_RELEASE:-Unknown}",
+  "hostname"     : "${JUSTIN_HOSTNAME:-unknown}",
   "rss_bytes"    : ${rss_bytes:-0},
   "processors"   : ${processors:-0},
   "wall_seconds" : ${wall_seconds:-0},
@@ -246,9 +246,9 @@ cat <<EOF >wfs-get-stage.json
 }
 EOF
 
-echo '====start wfs-get-stage.json===='
-cat wfs-get-stage.json
-echo '====end wfs-get-stage.json===='
+echo '====start justin-get-stage.json===='
+cat justin-get-stage.json
+echo '====end justin-get-stage.json===='
 
 for i in 1 2 3 4 5 
 do
@@ -259,16 +259,16 @@ sleep `expr $RANDOM / 512`
 # Make the call to the Workflow Allocator
 http_code=`curl \
 --retry 0 \
---user-agent 'wfs-generic-job' \
+--user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
 --capath $X509_CERTIFICATES \
---data @wfs-get-stage.json \
---output wfs-files.tar \
+--data @justin-get-stage.json \
+--output justin-files.tar \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/api/allocator/get_stage`
+https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_stage`
 
 log_line "($i/5) curl returns HTTP code $http_code"
 
@@ -279,59 +279,59 @@ done
 
 if [ "$http_code" != "200" ] ; then
   log_line "curl call to WFA to get stage fails with code $http_code"
-  cat wfs-files.tar
+  cat justin-files.tar
   echo
   exit 0
 fi
 
-tar xvf wfs-files.tar
+tar xvf justin-files.tar
 
-if [ -r wfs-env.sh ] ; then
-  . ./wfs-env.sh
+if [ -r justin-env.sh ] ; then
+  . ./justin-env.sh
 fi
 
-echo '====Start wfs-output-patterns.txt===='
-cat wfs-output-patterns.txt
-echo '====End wfs-output-patterns.txt===='
+echo '====Start justin-output-patterns.txt===='
+cat justin-output-patterns.txt
+echo '====End justin-output-patterns.txt===='
 
-echo '====Start wfs-env.sh===='
-cat wfs-env.sh
-echo '====End wfs-env.sh===='
+echo '====Start justin-env.sh===='
+cat justin-env.sh
+echo '====End justin-env.sh===='
 
-echo '====Start wfs-bootstrap-env.sh===='
-cat wfs-bootstrap-env.sh
-echo '====End wfs-bootstrap-env.sh===='
+echo '====Start justin-bootstrap-env.sh===='
+cat justin-bootstrap-env.sh
+echo '====End justin-bootstrap-env.sh===='
 
-echo '====Start wfs-get-file.json===='
-cat wfs-get-file.json
-echo '====End wfs-get-file.json===='
+echo '====Start justin-get-file.json===='
+cat justin-get-file.json
+echo '====End justin-get-file.json===='
 
 # Run the bootstrap script
-if [ -f wfs-bootstrap.sh ] ; then
-  chmod +x wfs-bootstrap.sh
+if [ -f justin-bootstrap.sh ] ; then
+  chmod +x justin-bootstrap.sh
 
-  echo '====Start wfs-bootstrap.sh===='
-  cat wfs-bootstrap.sh
-  echo '====End wfs-bootstrap.sh===='
+  echo '====Start justin-bootstrap.sh===='
+  cat justin-bootstrap.sh
+  echo '====End justin-bootstrap.sh===='
 
   mkdir workspace
-  echo '====Run wfs-bootstrap.sh===='
-  export WFS_BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
-  ( . ./wfs-bootstrap-env.sh
+  echo '====Run justin-bootstrap.sh===='
+  export JUSTIN_BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
+  ( . ./justin-bootstrap-env.sh
     cd workspace
-    stdbuf -oL -eL $WFS_PATH/wfs-bootstrap.sh ) \
-      > workspace/wfs-bootstrap.log 2>&1
+    stdbuf -oL -eL $JUSTIN_PATH/justin-bootstrap.sh ) \
+      > workspace/justin-bootstrap.log 2>&1
   export BOOTSTRAP_EXIT=$?
-  export WFS_BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
-  echo '====After wfs-bootstrap.sh===='
+  export JUSTIN_BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
+  echo '====After justin-bootstrap.sh===='
 else
   # How can this happen???
-  log_line No wfs-bootstrap.sh found
+  log_line No justin-bootstrap.sh found
   exit 0
 fi
 
-echo '#### wfs-bootstrap.log'
-cat workspace/wfs-bootstrap.log
+echo '#### justin-bootstrap.log'
+cat workspace/justin-bootstrap.log
 echo '####'
 
 #if [ "$retval" != 0 ] ; then
@@ -339,15 +339,15 @@ echo '####'
 #fi
 
 # Make the lists of output files and files for the next stage
-echo -n > wfs-outputs.txt
-echo -n > wfs-output-dids.txt
-echo -n > wfs-next-stage-dids.txt
+echo -n > justin-outputs.txt
+echo -n > justin-output-dids.txt
+echo -n > justin-next-stage-dids.txt
 
 echo '### Contents of workspace directory ###'
 ls -lR workspace
 echo '###'
 
-cat wfs-output-patterns.txt | (
+cat justin-output-patterns.txt | (
 while read lifetime for_next_stage dataset scope pattern
 do  
   (
@@ -356,15 +356,15 @@ do
     for fn in $pattern
     do
       if [ -r "$fn" ] ; then
-        # wfs-outputs.txt gets DATASET SCOPE FILENAME on each line
-        echo "$lifetime $dataset $scope $fn" >> $WFS_PATH/wfs-outputs.txt
+        # justin-outputs.txt gets DATASET SCOPE FILENAME on each line
+        echo "$lifetime $dataset $scope $fn" >> $JUSTIN_PATH/justin-outputs.txt
 
         if [ "$for_next_stage" = "True" ] ; then
-          # wfs-next-stage-dids gets a list of DIDs
-          echo "$scope:$fn" >> $WFS_PATH/wfs-next-stage-dids.txt
+          # justin-next-stage-dids gets a list of DIDs
+          echo "$scope:$fn" >> $JUSTIN_PATH/justin-next-stage-dids.txt
         else
-          # wfs-output-dids.txt gets DID = SCOPE:FILENAME
-          echo "$scope:$fn" >> $WFS_PATH/wfs-output-dids.txt
+          # justin-output-dids.txt gets DID = SCOPE:FILENAME
+          echo "$scope:$fn" >> $JUSTIN_PATH/justin-output-dids.txt
         fi
       fi
     done
@@ -372,38 +372,38 @@ do
 done
 )
 
-echo '#### wfs-outputs.txt'
-cat $WFS_PATH/wfs-outputs.txt
+echo '#### justin-outputs.txt'
+cat $JUSTIN_PATH/justin-outputs.txt
 echo '####'
 echo
-echo '#### wfs-output-dids.txt'
-cat $WFS_PATH/wfs-output-dids.txt
+echo '#### justin-output-dids.txt'
+cat $JUSTIN_PATH/justin-output-dids.txt
 echo '####'
 echo
-echo '#### wfs-next-stage-dids.txt'
-cat $WFS_PATH/wfs-next-stage-dids.txt
+echo '#### justin-next-stage-dids.txt'
+cat $JUSTIN_PATH/justin-next-stage-dids.txt
 echo '####'
 echo
-echo '#### wfs-output-rse-list.txt'
-cat $WFS_PATH/wfs-output-rse-list.txt
+echo '#### justin-output-rse-list.txt'
+cat $JUSTIN_PATH/justin-output-rse-list.txt
 echo '####'
 
-output_dids=`echo \`sed 's/.*/"&"/' wfs-output-dids.txt\`|sed 's/ /,/g'`
+output_dids=`echo \`sed 's/.*/"&"/' justin-output-dids.txt\`|sed 's/ /,/g'`
 
-next_stage_dids=`echo \`sed 's/.*/"&"/' wfs-next-stage-dids.txt\`|sed 's/ /,/g'`
+next_stage_dids=`echo \`sed 's/.*/"&"/' justin-next-stage-dids.txt\`|sed 's/ /,/g'`
 
-# wfs-bootstrap.sh should produce lists of successfully processed input files
-if [ -f workspace/wfs-processed-dids.txt ] ; then
-  processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-dids.txt\`|sed 's/ /,/g'`
+# justin-bootstrap.sh should produce lists of successfully processed input files
+if [ -f workspace/justin-processed-dids.txt ] ; then
+  processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/justin-processed-dids.txt\`|sed 's/ /,/g'`
 fi
 
-if [ -f workspace/wfs-processed-pfns.txt ] ; then
-  processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/wfs-processed-pfns.txt\`|sed 's/ /,/g'`
+if [ -f workspace/justin-processed-pfns.txt ] ; then
+  processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/justin-processed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
-tail -c 10000 workspace/wfs-bootstrap.log | base64 --wrap=0 > wfs-bootstrap.log.b64
+tail -c 10000 workspace/justin-bootstrap.log | base64 --wrap=0 > justin-bootstrap.log.b64
 
-cat <<EOF >wfs-record-results.json
+cat <<EOF >justin-record-results.json
 {
   "method": "record_results",
   "jobsub_id": "$JOBSUBJOBID",
@@ -411,29 +411,29 @@ cat <<EOF >wfs-record-results.json
   "processed_pfns": [$processed_pfns],
   "output_dids": [$output_dids],
   "next_stage_dids": [$next_stage_dids],
-  "bootstrap_log": "`cat wfs-bootstrap.log.b64`",
+  "bootstrap_log": "`cat justin-bootstrap.log.b64`",
   "bootstrap_exit": $BOOTSTRAP_EXIT
 }
 EOF
 
-echo "=====Start wfs-record-results.json=="
-cat wfs-record-results.json
-echo "=====End wfs-record-results.json=="
+echo "=====Start justin-record-results.json=="
+cat justin-record-results.json
+echo "=====End justin-record-results.json=="
 
 http_code=`curl \
 --retry 5 \
 --retry-max-time 300 \
 --max-time 600 \
---user-agent 'wfs-generic-job' \
+--user-agent 'justin-generic-job' \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
 --header "X-Jobid: $JOBSUBJOBID" \
 --capath $X509_CERTIFICATES \
---data @wfs-record-results.json \
+--data @justin-record-results.json \
 --output record-results.log \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/api/allocator/record_results`
+https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/record_results`
 
 log_line "record_results returns HTTP code $http_code"
 echo "=====Start record-results.log=="
@@ -450,13 +450,13 @@ if [ "$BOOTSTRAP_EXIT" != 0 ; then
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
-export OUTPUT_RSE=`head -1 wfs-output-rse-list.txt | cut -f1 -d' '`
-export OUTPUT_PROTOCOL=`head -1 wfs-output-rse-list.txt | cut -f2 -d' '`
+export OUTPUT_RSE=`head -1 justin-output-rse-list.txt | cut -f1 -d' '`
+export OUTPUT_PROTOCOL=`head -1 justin-output-rse-list.txt | cut -f2 -d' '`
 log_line "Using $OUTPUT_RSE for output"
 
-cat $WFS_PATH/wfs-outputs.txt | (
+cat $JUSTIN_PATH/justin-outputs.txt | (
 
-cat <<EOF >$WFS_PATH/rucio.cfg
+cat <<EOF >$JUSTIN_PATH/rucio.cfg
 [client]
 rucio_host = https://dune-rucio.fnal.gov
 auth_host = https://auth-dune-rucio.fnal.gov
@@ -466,7 +466,7 @@ request_retries = 3
 EOF
 
 echo '====Start rucio.cfg===='
-cat $WFS_PATH/rucio.cfg
+cat $JUSTIN_PATH/rucio.cfg
 echo '====End rucio.cfg===='
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
@@ -476,7 +476,7 @@ setup metacat
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
 
-rucio --config $WFS_PATH/rucio.cfg --version
+rucio --config $JUSTIN_PATH/rucio.cfg --version
 if [ $? != 0 ] ; then
   job_aborted 1 900 'Rucio test fails'
 fi
@@ -487,11 +487,11 @@ if [ $? != 0 ] ; then
   job_aborted 1 900 'MetaCat whoami fails'
 fi
 
-touch wfs-output-dids-rses.txt
+touch justin-output-dids-rses.txt
 
 while read lifetime dataset scope fn
 do
-  $WFS_PATH/wfs-metadata "$scope" "$fn" > tmp.json
+  $JUSTIN_PATH/justin-metadata "$scope" "$fn" > tmp.json
   echo "==== Start MetaCat JSON for $fn ===="
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="
@@ -517,7 +517,7 @@ do
       lifetime_option="--lifetime $lifetime"
     fi
     log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
-    rucio --config $WFS_PATH/rucio.cfg --verbose \
+    rucio --config $JUSTIN_PATH/rucio.cfg --verbose \
           upload \
           $lifetime_option \
           --rse "$OUTPUT_RSE" \
@@ -527,13 +527,13 @@ do
 
     if [ $? = 0 ] ; then
       log_line "Add $scope:$fn to $dataset"
-      rucio --config $WFS_PATH/rucio.cfg \
+      rucio --config $JUSTIN_PATH/rucio.cfg \
             --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         log_line "rucio attach fails"
         job_aborted 1 900 "rucio attach error"
       fi
-      echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> wfs-output-dids-rses.txt
+      echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> justin-output-dids-rses.txt
     else
       log_line "rucio upload fails"
       job_aborted 1 900 "rucio upload error" "$OUTPUT_RSE"
@@ -553,35 +553,35 @@ fi
 
 # If all ok, then confirm that to the Workflow Allocator
 
-cat <<EOF >wfs-confirm-results.json
+cat <<EOF >justin-confirm-results.json
 {
   "method": "confirm_results",
   "jobsub_id": "$JOBSUBJOBID",
   "output_dids": {
 EOF
 
-echo `cat wfs-output-dids-rses.txt` | sed 's/ /,/g' >>wfs-confirm-results.json
+echo `cat justin-output-dids-rses.txt` | sed 's/ /,/g' >>justin-confirm-results.json
 
-echo '} }' >>wfs-confirm-results.json
+echo '} }' >>justin-confirm-results.json
 
-echo "=====Start wfs-confirm-results.json=="
-cat wfs-confirm-results.json
-echo "=====End wfs-confirm-results.json=="
+echo "=====Start justin-confirm-results.json=="
+cat justin-confirm-results.json
+echo "=====End justin-confirm-results.json=="
 
 http_code=`curl \
 --retry 5 \
 --retry-max-time 300 \
 --max-time 600 \
---user-agent 'wfs-generic-job' \
+--user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
 --capath $X509_CERTIFICATES \
---data @wfs-confirm-results.json \
+--data @justin-confirm-results.json \
 --output confirm-results.log \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/api/allocator/confirm_results`
+https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/confirm_results`
 
 log_line "confirm_results returns HTTP code $http_code"
 echo "=====Start confirm-results.log=="
@@ -593,6 +593,6 @@ if [ "$http_code" != 200 ] ; then
   job_aborted 0 $http_code confirm_results
 fi
 
-log_line '====End of wfs-generic-job===='
+log_line '====End of justin-generic-job===='
 exit 0
 

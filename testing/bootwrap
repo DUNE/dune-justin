@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-# Script to allow interactive testing of Workflow System bootstrap scripts
+# Script to allow interactive testing of justIn bootstrap scripts
 # 1. Make sure you have rucio and metacat setup from cvmfs
 # 2. Run this script with something like
 #    bootwrap pfns-hello-world.bootstrap \
@@ -24,8 +24,8 @@
 # 3. A temporary directory is created in /tmp and the bootstrap script is
 #    run in the workspace subdirectory of that with outputs left there
 
-export WFS_PATH=`mktemp -d /tmp/bootwrap.XXXXXX`
-echo "Files created under $WFS_PATH"
+export JUSTIN_PATH=`mktemp -d /tmp/bootwrap.XXXXXX`
+echo "Files created under $JUSTIN_PATH"
 echo
 
 if [ ! -f "$1" ] ; then
@@ -33,8 +33,8 @@ if [ ! -f "$1" ] ; then
  exit 1
 fi
 
-cp "$1" $WFS_PATH/bootstrap.sh
-bootstrap="$WFS_PATH/bootstrap.sh"
+cp "$1" $JUSTIN_PATH/bootstrap.sh
+bootstrap="$JUSTIN_PATH/bootstrap.sh"
 chmod +x $bootstrap
 
 shift
@@ -64,13 +64,13 @@ if [ "$pfn" = "" ] ; then
 fi
 
 # Fake up the generic job environment
-mkdir -p "$WFS_PATH/workspace"
-echo "#!/bin/sh"           >$WFS_PATH/wfs-get-file
-echo "echo $did $pfn XXX" >>$WFS_PATH/wfs-get-file
-chmod +x $WFS_PATH/wfs-get-file
+mkdir -p "$JUSTIN_PATH/workspace"
+echo "#!/bin/sh"           >$JUSTIN_PATH/justin-get-file
+echo "echo $did $pfn XXX" >>$JUSTIN_PATH/justin-get-file
+chmod +x $JUSTIN_PATH/justin-get-file
 
 echo "====Start of bootstrap script execution===="
-( cd $WFS_PATH/workspace ; stdbuf -oL -eL $WFS_PATH/bootstrap.sh ) 
+( cd $JUSTIN_PATH/workspace ; stdbuf -oL -eL $JUSTIN_PATH/bootstrap.sh ) 
 echo "====End of bootstrap script execution===="
 
-ls -lR "$WFS_PATH/workspace"
+ls -lR "$JUSTIN_PATH/workspace"

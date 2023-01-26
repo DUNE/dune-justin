@@ -1,6 +1,6 @@
-## Workflow Database
+## justIn database
 
-The Workflow Database is the heart of the Workflow System. It holds cached
+The justIn database is the heart of the justIn workflow system. It holds cached
 information about sites, storages, files, and replicas obtained from other
 data sources; it receives requests to process data, and manages the state of
 requests and their stages, the files they need to process, and the jobs
@@ -36,16 +36,16 @@ The database is implemented as a MySQL/Mariadb SQL database.
 - x509 - X.509 DNs associated with each user
 
 A MySQL script to create a set of empty tables is in
-wfdb-create-tables.sql in the databases subdirectory of the GitHub repo,
+justindb-create-tables.sql in the databases subdirectory of the GitHub repo,
 and shows the full definition of each table.
 
 ### Configuration
 
-The global WFS configuration can include a [database] section which may
+The global justIn configuration can include a [database] section which may
 include some or all of the following options. Default values are shown in
 brackets.
 
 - hostname - the host name of the MySQL/MariaDB service (localhost)
 - username - the username to use (root)
 - password - the password to use (none)
-- db - the name of the database (wfdb)
+- db - the name of the database (justindb)

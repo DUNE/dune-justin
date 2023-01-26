@@ -1,6 +1,6 @@
 -- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
 --
--- Host: localhost    Database: wfdb
+-- Host: localhost    Database: justindb
 -- ------------------------------------------------------
 -- Server version	5.5.68-MariaDB
 
@@ -38,7 +38,7 @@ DROP TABLE IF EXISTS `jobs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `jobs` (
-  `wfs_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `justin_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
   `site_job_id` varchar(255) NOT NULL DEFAULT '',
@@ -71,7 +71,7 @@ CREATE TABLE `jobs` (
   `cookie` varchar(255) NOT NULL DEFAULT '',
   `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
   `for_awt` tinyint(1) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`wfs_job_id`),
+  PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
     `allocation_state`,`site_id`),
@@ -91,9 +91,9 @@ DROP TABLE IF EXISTS `jobs_logs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `jobs_logs` (
-  `wfs_job_id` int(10) unsigned NOT NULL,
+  `justin_job_id` int(10) unsigned NOT NULL,
   `bootstrap_log` text NOT NULL DEFAULT '',
-  PRIMARY KEY (`wfs_job_id`)
+  PRIMARY KEY (`justin_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -110,7 +110,7 @@ CREATE TABLE `events` (
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,
-  `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `rse_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -118,7 +118,7 @@ CREATE TABLE `events` (
   PRIMARY KEY (`event_id`),
   INDEX `request_id` (`request_id`,`stage_id`,`event_type_id`,`rse_id`),
   INDEX `file_id` (`file_id`,`event_id`),
-  INDEX `wfs_job_id` (`wfs_job_id`,`event_id`),
+  INDEX `justin_job_id` (`justin_job_id`,`event_id`),
   INDEX `site_id` (`site_id`,`event_id`),
   INDEX `rse_id` (`rse_id`,`event_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
@@ -139,18 +139,18 @@ CREATE TABLE `files` (
   `state` enum('finding','unallocated','allocated',
                'outputting','processed','notfound','failed',
                'recorded', 'output') NOT NULL DEFAULT 'finding',
-  `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `processed_hour` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `processed_site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `creator_wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `creator_justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `allocations` tinyint(1) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`),
-  INDEX `wfs_job_id` (`wfs_job_id`,`request_id`,`stage_id`),
+  INDEX `justin_job_id` (`justin_job_id`,`request_id`,`stage_id`),
   KEY `state_file_id` (`state`,`file_id`),
   INDEX `request_stage_state_file` (`request_id`,`stage_id`,`state`,`file_id`),
-  INDEX `creator_wfs_job_id` (`creator_wfs_job_id`),
+  INDEX `creator_justin_job_id` (`creator_justin_job_id`),
   INDEX `request_stage_state_processed_site` (`request_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -264,7 +264,7 @@ CREATE TABLE `sites_storages` (
   `distance` float NOT NULL DEFAULT 100.0,
   `read_result` tinyint(1) unsigned NOT NULL DEFAULT 255,
   `write_result` tinyint(1) unsigned NOT NULL DEFAULT 255,
-  `wfs_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   UNIQUE KEY `rse_id` (`rse_id`,`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -394,8 +394,8 @@ CREATE TABLE `storages` (
   `occupancy` float NOT NULL DEFAULT 0,
   `rucio_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `rucio_read` tinyint(1) NOT NULL DEFAULT TRUE,
-  `wfs_write` tinyint(1) NOT NULL DEFAULT TRUE,
-  `wfs_read` tinyint(1) NOT NULL DEFAULT TRUE,
+  `justin_write` tinyint(1) NOT NULL DEFAULT TRUE,
+  `justin_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
   `deterministic_rse` tinyint(1) NOT NULL DEFAULT TRUE,

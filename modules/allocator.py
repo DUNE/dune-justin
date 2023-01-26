@@ -1,5 +1,5 @@
 #
-# Workflow Allocator module
+# justIn allocator module
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -27,7 +27,7 @@ import string
 import tarfile
 import MySQLdb
 
-import wfs
+import justin
 
 # Populate the list unallocatedCounts with tuples for the number of
 # unallocated files for any running request or stage for each processor
@@ -40,7 +40,7 @@ def getUnallocatedCounts():
     for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024]:
       
       try:
-        matches = wfs.db.select('SELECT COUNT(*) AS count FROM files '
+        matches = justin.db.select('SELECT COUNT(*) AS count FROM files '
                                 'LEFT JOIN requests '
                                 'ON requests.request_id = files.request_id '
                                 'LEFT JOIN stages '

@@ -1,7 +1,7 @@
 ## Finder agent
 
 The Finder agent periodically executes searches in the 
-[Workflow Database](database.md) to discover updates that are required to
+[justIn database](database.md) to discover updates that are required to
 the state of requests, files, replicas and jobs.
 
 It processes requests using the specified MQL expression to generate a

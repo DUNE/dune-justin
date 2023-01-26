@@ -1,5 +1,5 @@
 #
-# wfs-wsgi-commands - Workflow System commands API service
+# justin-wsgi-commands - justIn commands API service
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# This WSGI script relies on wfs-api-import-script being run by
+# This WSGI script relies on justin-api-import-script being run by
 # the mod_wsgi directive WSGIImportScript
 
 # This WSGI script must be run from an Apache httpd server with
@@ -35,13 +35,13 @@ import json
 import string
 import datetime
 
-import wfs
+import justin
 
 def httpError(startResponse, code, message):
 
-  wfs.db.conn.rollback()
+  justin.db.conn.rollback()
 
-  print('wfs-wsgi-commands fails with %s (%s)' % 
+  print('justin-wsgi-commands fails with %s (%s)' % 
         (code, str(message)), file=sys.stderr)
 
   startResponse(code,
@@ -53,7 +53,7 @@ def httpError(startResponse, code, message):
   
 def httpOK(startResponse, outputString):
 
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
   startResponse('200 OK',
                 [('Content-type',   'text/plain'),
                  ('Content-length', str(len(outputString)))
@@ -77,12 +77,12 @@ def showRequestsCmd(startResponse, jsonDict):
     requestFilter = "WHERE request_id=" + str(requestID)
 
   try:
-    rows = wfs.db.select("SELECT * FROM requests %s ORDER BY created" 
+    rows = justin.db.select("SELECT * FROM requests %s ORDER BY created" 
                          % requestFilter)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -108,13 +108,13 @@ def showStagesCmd(startResponse, jsonDict):
     stageFilter = "AND stage_id=" + str(stageID)
 
   try:
-    rows = wfs.db.select("SELECT * FROM stages WHERE request_id=%d %s "
+    rows = justin.db.select("SELECT * FROM stages WHERE request_id=%d %s "
                          "ORDER BY request_id,stage_id" 
                          % (requestID, stageFilter))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -142,13 +142,13 @@ def showBootstrapCmd(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
 
   try:
-    rows = wfs.db.select("SELECT * FROM bootstraps "
+    rows = justin.db.select("SELECT * FROM bootstraps "
                          "WHERE request_id=%d AND stage_id=%d"
                          % (requestID, stageID))
   except Exception as e:
    return httpError(startResponse, 
                     '500 Internal Server Error', 
-                    'Error reading workflow database ' + str(e))
+                    'Error reading justIn database ' + str(e))
 
   return httpOK(startResponse, rows[0]['bootstrap'])
 
@@ -165,14 +165,14 @@ def showStageOutputsCmd(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
 
   try:
-    rows = wfs.db.select("SELECT * FROM stages_outputs "
+    rows = justin.db.select("SELECT * FROM stages_outputs "
                          "WHERE request_id=%d AND stage_id=%d "
                          "ORDER BY dataset,file_scope,file_pattern" 
                          % (requestID, stageID))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -218,12 +218,12 @@ def showFilesCmd(startResponse, jsonDict):
       filter += " AND file_did='%s'" % fileDID
 
   try:
-    rows = wfs.db.select("SELECT * FROM files WHERE " + filter +
+    rows = justin.db.select("SELECT * FROM files WHERE " + filter +
                          " ORDER BY request_id,stage_id,file_did")
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -279,7 +279,7 @@ def showReplicasCmd(startResponse, jsonDict):
     filter += " AND storages.rse_name='%s'" % rseName
 
   try:
-    rows = wfs.db.select("SELECT replicas.request_id,replicas.stage_id,"
+    rows = justin.db.select("SELECT replicas.request_id,replicas.stage_id,"
                          "files.state,"
                          "storages.rse_name,files.file_did "
                  "FROM replicas "
@@ -290,7 +290,7 @@ def showReplicasCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -314,20 +314,20 @@ def showStoragesCmd(startResponse, jsonDict):
     filter = ""
 
   try:
-    rows = wfs.db.select("SELECT rse_name,"
+    rows = justin.db.select("SELECT rse_name,"
                          "occupancy,"
                          "rucio_write,"
                          "rucio_read,"
-                         "wfs_write,"
-                         "wfs_read,"
-                         "(rucio_write AND wfs_write) AS has_write,"
-                         "(rucio_read AND wfs_read) AS has_read "
+                         "justin_write,"
+                         "justin_read,"
+                         "(rucio_write AND justin_write) AS has_write,"
+                         "(rucio_read AND justin_read) AS has_read "
                          "FROM storages " + filter + 
                          " ORDER BY rse_name,occupancy")
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -336,10 +336,10 @@ def showStoragesCmd(startResponse, jsonDict):
                       row['occupancy'],
                       'R' if row['has_read']    else '-',
                       'R' if row['rucio_read']  else '-',
-                      'R' if row['wfs_read']    else '-',
+                      'R' if row['justin_read']    else '-',
                       'W' if row['has_write']   else '-',
                       'W' if row['rucio_write'] else '-',
-                      'W' if row['wfs_write']   else '-'))
+                      'W' if row['justin_write']   else '-'))
 
   return httpOK(startResponse, outputString)
 
@@ -365,7 +365,7 @@ def showSitesStoragesCmd(startResponse, jsonDict):
     filter = ""
 
   try:
-    rows = wfs.db.select("SELECT * FROM sites_storages " 
+    rows = justin.db.select("SELECT * FROM sites_storages " 
                 "LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id "
                 "LEFT JOIN sites ON sites_storages.site_id=sites.site_id "
                 + filter +          
@@ -373,7 +373,7 @@ def showSitesStoragesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -441,7 +441,7 @@ def createRequestCmd(startResponse, jsonDict, userID):
     refindDurationDays = 1
 
   try:
-    requestID = wfs.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
+    requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
           'name="%s",'
           'mql="%s",'
           'user_id=%d,'
@@ -457,7 +457,7 @@ def createRequestCmd(startResponse, jsonDict, userID):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, str(requestID) + '\n')
 
@@ -540,7 +540,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       
 
   try:
-    requestID = wfs.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
+    requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
           'submitted=NOW(),'
           'started=NOW(),'
           'state="running",'
@@ -559,7 +559,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   try:
     processors = int(jsonDict['processors'])
@@ -584,7 +584,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
                      'Upload file is required')
 
   try:
-    wfs.db.insertUpdate("INSERT INTO stages SET "
+    justin.db.insertUpdate("INSERT INTO stages SET "
           "stage_rank=0,"
           "request_id=%d,"
           "stage_id=1,"
@@ -596,7 +596,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           % (requestID, processors,
              wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
-    wfs.db.insertUpdate('INSERT INTO bootstraps SET '
+    justin.db.insertUpdate('INSERT INTO bootstraps SET '
           'request_id=%d,'
           'stage_id=1,'
           'bootstrap="%s"' % 
@@ -605,7 +605,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   try:
     lifetimeDays = int(jsonDict['lifetime_days'])
@@ -624,7 +624,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       pattern      = ':'.join(splitList[2:])
 
       try:
-        wfs.db.insertUpdate('INSERT INTO stages_outputs SET '
+        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=1,'
               'dataset="%s:%s",'
@@ -643,16 +643,16 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       except Exception as e:
         return httpError(startResponse, 
                         '500 Internal Server Error', 
-                        'Error updating workflow database ' + str(e))
+                        'Error updating justIn database ' + str(e))
 
   if jsonDict['output_rse']:
     for rseName in jsonDict['output_rse']:
     
-      if not wfs.db.stringIsSite(rseName):
+      if not justin.db.stringIsSite(rseName):
         return httpError(startResponse, '400 Bad Request', 'Invalid RSE name')
 
       try:
-        wfs.db.insertUpdate('INSERT INTO stages_output_storages SET '
+        justin.db.insertUpdate('INSERT INTO stages_output_storages SET '
               'request_id=%d,'
               'stage_id=1,'
               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
@@ -660,7 +660,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                          'Error updating workflow database ' + str(e))
+                          'Error updating justIn database ' + str(e))
 
   if jsonDict['env']:
     for envNameValue in jsonDict['env']:    
@@ -671,13 +671,13 @@ def quickRequestCmd(startResponse, jsonDict, userID):
                          '400 Bad Request',
                          'Failed to parse --env option')
 
-      if not wfs.db.stringIsEnvName(envName):
+      if not justin.db.stringIsEnvName(envName):
         return httpError(startResponse, 
                          '400 Bad Request', 
                          'Invalid environment variable name')
 
       try:
-        wfs.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+        justin.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
               'request_id=%d,'
               'stage_id=1,'
               'env_name="%s",'
@@ -690,7 +690,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating workflow database ' + str(e))
+                         'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, str(requestID) + '\n')
 
@@ -706,13 +706,13 @@ def submitRequestCmd(startResponse, jsonDict):
 # change to handle errors properly eg no such request
 # and state not draft
   try:
-    wfs.db.insertUpdate("UPDATE requests SET "
+    justin.db.insertUpdate("UPDATE requests SET "
                         "state='submitted',submitted=NOW() "
                         "WHERE request_id=%d AND state='draft'" % requestID)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -728,12 +728,12 @@ def startRequestCmd(startResponse, jsonDict):
 # change to handle errors properly eg no such request
 # or not in draft or submitted states
   try:
-    wfs.db.insertUpdate("UPDATE requests SET started=NOW() "
+    justin.db.insertUpdate("UPDATE requests SET started=NOW() "
           "WHERE request_id=%d AND "
           "(state='draft' OR state='submitted')"
           % requestID)
 
-    wfs.db.insertUpdate("UPDATE requests SET state='running' "
+    justin.db.insertUpdate("UPDATE requests SET state='running' "
           "WHERE request_id=%d AND "
           "(state='draft' OR state='submitted' OR state='paused')"
           % requestID)
@@ -741,7 +741,7 @@ def startRequestCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -756,14 +756,14 @@ def pauseRequestCmd(startResponse, jsonDict):
 
 # change to handle errors properly eg no such request
   try:
-    wfs.db.insertUpdate("UPDATE requests SET state='paused' "
+    justin.db.insertUpdate("UPDATE requests SET state='paused' "
                         "WHERE request_id=%d "
                         "AND state='running'" % requestID)
 
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -778,14 +778,14 @@ def finishRequestCmd(startResponse, jsonDict):
 
 # change to handle errors properly eg no such request
   try:
-    wfs.db.insertUpdate("UPDATE requests SET state='finished' "
+    justin.db.insertUpdate("UPDATE requests SET state='finished' "
                         "WHERE request_id=%d "
                         "AND state<>'deleted'" % requestID)
 
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -851,7 +851,7 @@ def createStageCmd(startResponse, jsonDict):
                      'Upload file is required')
 
   try:
-    wfs.db.insertUpdate("INSERT INTO stages SET "
+    justin.db.insertUpdate("INSERT INTO stages SET "
                         "stage_rank=0,"
                         "request_id=%d,"
                         "stage_id=%d,"
@@ -864,7 +864,7 @@ def createStageCmd(startResponse, jsonDict):
                            wallSeconds, rssBytes, maxDistance,
                            maxFilesPerJob))
           
-    wfs.db.insertUpdate('INSERT INTO bootstraps SET '
+    justin.db.insertUpdate('INSERT INTO bootstraps SET '
                         'request_id=%d,'
                         'stage_id=%d,'
                         'bootstrap="%s"' % 
@@ -874,7 +874,7 @@ def createStageCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   try:
     lifetimeDays = int(jsonDict['lifetime_days'])
@@ -894,7 +894,7 @@ def createStageCmd(startResponse, jsonDict):
       pattern     = ':'.join(splitList[2:])
         
       try:
-        wfs.db.insertUpdate('INSERT INTO stages_outputs SET '
+        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
               'dataset="%s:%s",'
@@ -914,7 +914,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating workflow database ' + str(e))
+                         'Error updating justIn database ' + str(e))
 
   if jsonDict['output_pattern_next_stage']:
     for i in jsonDict['output_pattern_next_stage']:
@@ -929,7 +929,7 @@ def createStageCmd(startResponse, jsonDict):
       pattern      = ':'.join(splitList[2:])
 
       try:        
-        wfs.db.insertUpdate('INSERT INTO stages_outputs SET '
+        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
               'dataset="%s:%s",'
@@ -949,18 +949,18 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating workflow database ' + str(e))
+                         'Error updating justIn database ' + str(e))
           
   if jsonDict['output_rse']:
     for rseName in jsonDict['output_rse']:
     
-      if not wfs.db.stringIsSite(rseName):
+      if not justin.db.stringIsSite(rseName):
         return httpError(startResponse, 
                          '400 Bad Request', 
                          'Invalid RSE name')
 
       try:        
-        wfs.db.insertUpdate('INSERT INTO stages_output_storages SET '
+        justin.db.insertUpdate('INSERT INTO stages_output_storages SET '
               'request_id=%d,'
               'stage_id=%d,'
               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
@@ -969,7 +969,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating workflow database ' + str(e))
+                         'Error updating justIn database ' + str(e))
 
   if jsonDict['env']:
     for envNameValue in jsonDict['env']:    
@@ -980,13 +980,13 @@ def createStageCmd(startResponse, jsonDict):
                          '400 Bad Request',
                          'Failed to parse --env option')
 
-      if not wfs.db.stringIsEnvName(envName):
+      if not justin.db.stringIsEnvName(envName):
         return httpError(startResponse, 
                          '400 Bad Request', 
                          'Invalid environment variable name')
 
       try:
-        wfs.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+        justin.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
               'request_id=%d,'
               'stage_id=%d,'
               'env_name="%s",'
@@ -1000,7 +1000,7 @@ def createStageCmd(startResponse, jsonDict):
       except Exception as e:
         return httpError(startResponse, 
                          '500 Internal Server Error', 
-                         'Error updating workflow database ' + str(e))
+                         'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -1028,7 +1028,7 @@ def createBootstrapCmd(startResponse, jsonDict):
                      'Upload file is required')
 
   try:
-    wfs.db.insertUpdate('UPDATE bootstraps SET bootstrap="%s" '
+    justin.db.insertUpdate('UPDATE bootstraps SET bootstrap="%s" '
                         'WHERE request_id=%d AND stage_id=%d'
                         % (bootstrap.replace('\\','\\\\').replace('"','\\"'),
                            requestID, stageID))
@@ -1036,7 +1036,7 @@ def createBootstrapCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -1056,7 +1056,7 @@ def failFilesCmd(startResponse, jsonDict):
     stageStr = ''
 
   try:
-    wfs.db.insertUpdate('UPDATE files SET state="failed" '
+    justin.db.insertUpdate('UPDATE files SET state="failed" '
           'WHERE request_id=%d %s '
           'AND state IN ("finding", "unallocated", "allocated", "outputting")'
           % (requestID, stageStr))
@@ -1064,7 +1064,7 @@ def failFilesCmd(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error updating workflow database ' + str(e))
+                     'Error updating justIn database ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -1104,15 +1104,15 @@ def showJobsCmd(startResponse, jsonDict):
       pass
 
   try:
-    rows = wfs.db.select("SELECT jobsub_id,request_id,stage_id,"
+    rows = justin.db.select("SELECT jobsub_id,request_id,stage_id,"
                          "allocation_state,allocation_time "
                          "FROM jobs "
                          + filter +
-                         " ORDER BY wfs_job_id")
+                         " ORDER BY justin_job_id")
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Error reading workflow database ' + str(e))
+                     'Error reading justIn database ' + str(e))
 
   outputString = ''
   for row in rows:
@@ -1134,7 +1134,7 @@ def getUserID(environ, startResponse):
   clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
   try:
-    rows = wfs.db.select('SELECT user_id FROM x509 '
+    rows = justin.db.select('SELECT user_id FROM x509 '
                          'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
                          clientDN.replace('\\','\\\\').replace('"','\\"'))
   
@@ -1151,8 +1151,8 @@ def getUserID(environ, startResponse):
 #
 def application(environ, startResponse):
 
-  wfs.db.wsgiCallsCount += 1
-  print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
+  justin.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
         file=sys.stderr)
 
   # Quickly reject random GETs etc (if not hanlded by Apache already)
@@ -1165,14 +1165,14 @@ def application(environ, startResponse):
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    wfs.db.conn.ping(True)
+    justin.db.conn.ping(True)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'DB connection lost and cannot reconnect: ' + str(e))
 
   # Avoid leftovers from partial, failed transactions in this instance
-  wfs.db.conn.rollback()
+  justin.db.conn.rollback()
 
   # This returns an error if an authorized DN is not found
   response = getUserID(environ, startResponse)

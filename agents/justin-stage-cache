@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# wfs-stage-cache - WFS Stage Cache
+# justin-stage-cache - justIn Stage Cache
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -27,17 +27,17 @@ import subprocess
 # Needs MySQL-python RPM
 import MySQLdb
 
-# wfs/conf.py must define these variables in a way that is both
+# justin/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!
 #
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs
+import justin
 
 sleepSeconds      = 60
 
-class wfsError(Exception):
+class justinError(Exception):
   pass
 
 def logLine(text):
@@ -49,7 +49,7 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
   # to that site
 
   try:
-    replicaRows = wfs.db.select('SELECT files.file_id,'
+    replicaRows = justin.db.select('SELECT files.file_id,'
                    'replicas.replica_id,'
                    'replicas.rse_id,'
                    'distance '
@@ -63,7 +63,7 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
                    'files.state="unallocated" AND '
                    'distance<=%f AND '
                    'accessible_until > NOW() AND '
-                   'storages.rucio_read AND storages.wfs_read '
+                   'storages.rucio_read AND storages.justin_read '
                    'ORDER by distance,replicas.file_id LIMIT 1000' % 
                    (siteID, requestID, stageID, maxDistance))
   except Exception as e:
@@ -86,7 +86,7 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
     filesSeen.add(replicaRow['file_id'])
   
     try:
-      wfs.db.insertUpdate('INSERT INTO find_file_cache SET '
+      justin.db.insertUpdate('INSERT INTO find_file_cache SET '
                           'site_id=%d,'
                           'request_id=%d,'
                           'stage_id=%d,'
@@ -133,7 +133,7 @@ def findStage(jobDict):
  "AND sites_storages.distance IS NOT NULL "
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rucio_read "
- "AND storages.wfs_read "
+ "AND storages.justin_read "
  "ORDER BY stage_rank DESC,sites_storages.distance,rand() "
  "LIMIT 1" %
  (
@@ -145,7 +145,7 @@ def findStage(jobDict):
   jobDict["max_wall_seconds"]
  ))
     
-  fileRows = wfs.db.select(query)
+  fileRows = justin.db.select(query)
   
   if not fileRows:
     return None
@@ -166,7 +166,7 @@ def cacheFindStageResults():
   cutoffTime = int(time.time())
 
   try:
-    siteRows = wfs.db.select('SELECT site_id,site_name,'
+    siteRows = justin.db.select('SELECT site_id,site_name,'
                              'enabled,jobsub_site_name '
                              'FROM sites ORDER by site_name')
   except Exception as e:
@@ -174,7 +174,7 @@ def cacheFindStageResults():
     return
 
   for (processors,bytesPerProcessor,numberUnallocated) \
-   in wfs.allocator.getUnallocatedCounts():
+   in justin.allocator.getUnallocatedCounts():
     
     for siteRow in siteRows:
 
@@ -210,7 +210,7 @@ def cacheFindStageResults():
                 (requestID, stageID, siteRow['site_name']))
 
         try:
-          wfs.db.insertUpdate('INSERT INTO get_stage_cache SET '
+          justin.db.insertUpdate('INSERT INTO get_stage_cache SET '
                               'site_id=%d,'
                               'min_processors=%d,'
                               'max_processors=%d,'
@@ -246,19 +246,19 @@ def cacheFindStageResults():
                              maxDistance)
    
   try:
-    wfs.db.insertUpdate('DELETE FROM get_stage_cache '
+    justin.db.insertUpdate('DELETE FROM get_stage_cache '
                         'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
   except Exception as e:
     logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
 
   try:
-    wfs.db.insertUpdate('DELETE FROM find_file_cache '
+    justin.db.insertUpdate('DELETE FROM find_file_cache '
                         'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
   except Exception as e:
     logLine('Delete previous find_file_cache entries fails with: ' + str(e))
 
   # Commit what we did    
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
@@ -286,18 +286,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs('/var/run/wfs',         
+        os.makedirs('/var/run/justin',         
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
         pass
         
       try:
-        f = open('/var/run/wfs/stage-cache.pid', 'w')
+        f = open('/var/run/justin/stage-cache.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/wfs/stage-cache.pid - exiting')
+        print('Failed to create /var/run/justin/stage-cache.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -306,9 +306,9 @@ if __name__ == '__main__':
 
       while True:
 
-        # Ensure /var/log/wfs directory exists
+        # Ensure /var/log/justin directory exists
         try:
-          os.makedirs('/var/log/wfs', 
+          os.makedirs('/var/log/justin', 
                       stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
         except:
           pass
@@ -319,7 +319,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = open('/var/log/wfs/stage-cache', 'a+')
+        so = open('/var/log/justin/stage-cache', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -328,20 +328,20 @@ if __name__ == '__main__':
         except:
           pass
           
-        se = open('/var/log/wfs/stage-cache', 'a+')
+        se = open('/var/log/justin/stage-cache', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/wfs/stage-cache.pid', 'r')
+          pf = open('/var/run/justin/stage-cache.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new /var/run/wfs/stage-cache.pid - exiting')
+            print('new /var/run/justin/stage-cache.pid - exiting')
             break
 
         except:
-          print('no /var/run/wfs/stage-cache.pid - exiting')
+          print('no /var/run/justin/stage-cache.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
@@ -350,15 +350,15 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          wfs.conf.readConf()
+          justin.conf.readConf()
           
           try:
-            wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
-                                  user=wfs.conf.mysqlUsername,
-                                  passwd=wfs.conf.mysqlPassword, 
-                                  db=wfs.conf.mysqlDbName)
-            wfs.db.conn.autocommit(False)
-            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:

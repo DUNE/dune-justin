@@ -2,20 +2,20 @@
 #
 # Submit with something like this:
 #
-# ./workflow quick-request --monte-carlo 1 --file dids-hello-world.bootstrap
+# ./justin quick-request --monte-carlo 1 --file dids-hello-world.bootstrap
 #
-# Then monitor with dashboard or ./workflow show-jobs --request-id ID
+# Then monitor with dashboard or ./justin show-jobs --request-id ID
 # where ID is the value printed by the first command
 #
 
 # Get an unprocessed file from this stage
-did_pfn_rse=`$WFS_PATH/wfs-get-file`
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 did=`echo $did_pfn_rse | cut -f1 -d' '`
 pfn=`echo $did_pfn_rse | cut -f2 -d' '`
 rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
 # We say we processed whatever we were given
-echo "$did" > wfs-processed-dids.txt
+echo "$did" > justin-processed-dids.txt
 
 # Hello world
 echo "Hello world $pfn" 

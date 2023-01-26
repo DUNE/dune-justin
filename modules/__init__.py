@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-from wfs.conf      import *
-from wfs.db        import *
-from wfs.events    import *
-from wfs.allocator import *
+from justin.conf      import *
+from justin.db        import *
+from justin.events    import *
+from justin.allocator import *
 
 __all__ = [ 'conf', 'db', 'events', 'allocator' ]

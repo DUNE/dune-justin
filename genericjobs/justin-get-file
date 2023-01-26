@@ -3,34 +3,34 @@
 # Script for use within bootstrap script to get the DID, PFN, and RSE
 # of a file to process within the stage assigned to the job.
 #
-# Bootstrap scripts can execute this script as: $WFS_PATH/wfs-get-file
+# Bootstrap scripts can execute this script as: $JUSTIN_PATH/justin-get-file
 #
 # Error messages to stderr
 # DID PFN RSE to stdout on one line if a file is available
 #
 # This script must be converted to base64 with something like the following 
-# and included in the here document near the start of wfs-generic-job :
+# and included in the here document near the start of justin-generic-job :
 #
-# (macOS) base64 -b 76 wfs-get-file > wfs-get-file.b64
-# (Linux) base64       wfs-get-file > wfs-get-file.b64
+# (macOS) base64 -b 76 justin-get-file > justin-get-file.b64
+# (Linux) base64       justin-get-file > justin-get-file.b64
 
-if [ ! -r "$WFS_PATH/wfs-get-file.json" ] ; then
-  echo "$WFS_PATH/wfs-get-file.json not found!" >&2
+if [ ! -r "$JUSTIN_PATH/justin-get-file.json" ] ; then
+  echo "$JUSTIN_PATH/justin-get-file.json not found!" >&2
   exit 2
 fi
 
-GET_FILE_TMP=`mktemp /tmp/wfs_get_file_XXXXXX`
+GET_FILE_TMP=`mktemp /tmp/justin_get_file_XXXXXX`
 
 http_code=`curl \
---user-agent 'wfs-get-file' \
+--user-agent 'justin-get-file' \
 --silent \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Accept: text/plain" \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
---data @$WFS_PATH/wfs-get-file.json \
+--data @$JUSTIN_PATH/justin-get-file.json \
 --output $GET_FILE_TMP \
 --write-out "%{http_code}\n" \
-https://wfs-pro.dune.hep.ac.uk/api/allocator/get_file 2>/dev/null`
+https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_file 2>/dev/null`
 
 if [ "$http_code" = 200 ] ; then
  cat $GET_FILE_TMP

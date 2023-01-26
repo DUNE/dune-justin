@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  wfs-job-factory - WFS Job Factory
+# justin-job-factory - justIn Job Factory
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -27,13 +27,13 @@ import subprocess
 # Needs MySQL-python RPM
 import MySQLdb
 
-# wfs/conf.py must define these variables in a way that is both
+# justin/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!
 #
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs
+import justin
 
 sleepSeconds      = 60
 jobsPerCluster    = 192
@@ -43,7 +43,7 @@ jobsPerCluster    = 192
 # the database.
 alwaysIgnoreSitesList = [ 'UConn-HPC' ] 
 
-class wfsError(Exception):
+class justinError(Exception):
   pass
 
 def logLine(text):
@@ -53,7 +53,7 @@ def logLine(text):
 def updateSiteCounts():
 
   try:
-    wfs.db.cur.execute('UPDATE sites SET '
+    justin.db.cur.execute('UPDATE sites SET '
         'submitted_jobs='
         '(SELECT COUNT(*) FROM jobs WHERE '
          '(sites.site_id = jobs.site_id) AND '
@@ -66,7 +66,7 @@ def updateSiteCounts():
   except Exception as e:
     logLine('Update site counts fails with: ' + str(e))
   else:
-    wfs.db.conn.commit()
+    justin.db.conn.commit()
     logLine('Updated site job counts')
    
 def submitJobs(numberToSubmit, 
@@ -93,7 +93,7 @@ def submitJobs(numberToSubmit,
 
   try: 
     outcome = subprocess.run(
-               ["/var/lib/wfs/run-jobsub-submit",
+               ["/var/lib/justin/run-jobsub-submit",
                 str(numberToSubmit),
                 jobsubSiteName,
                 str(int(maxRssBytes / 1024)),
@@ -140,7 +140,7 @@ def submitJobs(numberToSubmit,
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
-      wfs.db.cur.execute('INSERT INTO jobs '
+      justin.db.cur.execute('INSERT INTO jobs '
                   'SET factory_name="%s",'
                   'site_id=%d,'
                   'min_processors=%d,'
@@ -170,7 +170,7 @@ def submitJobs(numberToSubmit,
 
   # Record that we've done a submission for this site
   try:
-    wfs.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
+    justin.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
                 'WHERE site_id=%d' % siteID
                )
 
@@ -179,12 +179,12 @@ def submitJobs(numberToSubmit,
     logLine('Update last_submitted_time fails with: ' + str(e))
 
   # Commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def anySiteJobs():
   
   for (processors, bytesPerProcessor, numberUnallocated) \
-   in wfs.allocator.getUnallocatedCounts():
+   in justin.allocator.getUnallocatedCounts():
     logLine('%d processor(s) %d MB: %d unallocated files' % 
             (processors, 
             int((bytesPerProcessor * processors) / (1024 * 1024)), 
@@ -194,7 +194,7 @@ def anySiteJobs():
       numberUnallocated = jobsPerCluster
 
     try:
-      ignoreRows = wfs.db.select('SELECT jobsub_site_name '
+      ignoreRows = justin.db.select('SELECT jobsub_site_name '
                      'FROM sites '
                      'LEFT JOIN get_stage_cache '
                      'ON get_stage_cache.site_id=sites.site_id '
@@ -221,7 +221,7 @@ def anySiteJobs():
       ignoreSites.append(ignoreRow['jobsub_site_name'])
 
     try:
-        submitted = wfs.db.select('SELECT COUNT(*) AS count FROM jobs '
+        submitted = justin.db.select('SELECT COUNT(*) AS count FROM jobs '
                                   'WHERE allocation_state = "submitted" AND '
                                   'processors = %d AND '
                                   'rss_bytes > %d AND '
@@ -257,7 +257,7 @@ def awtJobsToSites():
   # Go through the sites deciding where to submit AWT jobs
 
   try:
-    rows = wfs.db.select('SELECT site_id,'
+    rows = justin.db.select('SELECT site_id,'
       'site_name,'
       'jobsub_site_name '
       'FROM sites '
@@ -317,18 +317,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs('/var/run/wfs',         
+        os.makedirs('/var/run/justin',         
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
         pass
         
       try:
-        f = open('/var/run/wfs/job-factory.pid', 'w')
+        f = open('/var/run/justin/job-factory.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/wfs/job-factory.pid - exiting')
+        print('Failed to create /var/run/justin/job-factory.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -337,9 +337,9 @@ if __name__ == '__main__':
 
       while True:
 
-        # Ensure /var/log/wfs directory exists
+        # Ensure /var/log/justin directory exists
         try:
-          os.makedirs('/var/log/wfs', 
+          os.makedirs('/var/log/justin', 
                       stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
         except:
           pass
@@ -350,7 +350,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = open('/var/log/wfs/job-factory', 'a+')
+        so = open('/var/log/justin/job-factory', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -359,20 +359,20 @@ if __name__ == '__main__':
         except:
           pass
           
-        se = open('/var/log/wfs/job-factory', 'a+')
+        se = open('/var/log/justin/job-factory', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/wfs/job-factory.pid', 'r')
+          pf = open('/var/run/justin/job-factory.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new /var/run/wfs/job-factory.pid - exiting')
+            print('new /var/run/justin/job-factory.pid - exiting')
             break
 
         except:
-          print('no /var/run/wfs/job-factory.pid - exiting')
+          print('no /var/run/justin/job-factory.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
@@ -381,15 +381,15 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          wfs.conf.readConf()
+          justin.conf.readConf()
           
           try:
-            wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
-                                  user=wfs.conf.mysqlUsername,
-                                  passwd=wfs.conf.mysqlPassword, 
-                                  db=wfs.conf.mysqlDbName)
-            wfs.db.conn.autocommit(False)
-            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:

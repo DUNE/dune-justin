@@ -1,0 +1,14 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justsIn Info Collector daemon
+Documentation=man:justin-info-collector(8)
+
+[Service]
+Type=forking
+PIDFile=/var/run/justin/info-collector.pid
+ExecStart=/usr/sbin/justin-info-collector
+
+[Install]
+#WantedBy=multi-user.target
+
+

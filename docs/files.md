@@ -1,9 +1,9 @@
 ## Files
 
-The Workflow System keeps track of files within the context of a
+The justIn workflow system keeps track of files within the context of a
 request/stage. The same file may exist within multiple requests and stages
 with different states according to how it has been processed within each
-context. The Workflow System's interfaces refer to files using Rucio DIDs 
+context. justIn's interfaces refer to files using Rucio DIDs 
 (scope:name) and specifies the request and stage IDs too where necessary
 to avoid ambiguity.
 
@@ -35,8 +35,3 @@ following states:
   used as an input to the next stage of the request. It has been successfully 
   registered in MetaCat and Rucio and placed on storage. (Output files which 
   *will* be used as inputs to the next stage are placed in the finding state.)
-
-
-  
-
-

@@ -1,11 +1,11 @@
 #!/bin/sh
 #
-# Temporary script to initialise the Workflow Database with some values
-# which wfs-info-collector cannot discover itself
+# Temporary script to initialise the justIn Database with some values
+# which justin-info-collector cannot discover itself
 #
-# Creates wfdb-populate.sql which can be fed straight into the mysql command
-# AFTER wfs-info-collector HAS RUN ONCE since collector agent creates a 
-# distance of 100 between each known site and disk storage
+# Creates justindb-populate.sql which can be fed straight into the mysql 
+# command AFTER justin-info-collector HAS RUN ONCE since collector agent creates
+# a distance of 100 between each known site and disk storage
 #
 
 (
@@ -147,4 +147,4 @@ do
 done
 )
 
-) > wfdb-populate.sql
+) > justindb-populate.sql

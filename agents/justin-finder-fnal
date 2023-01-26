@@ -2,7 +2,7 @@
 
 #!/usr/bin/env python3
 #
-# wfs-finder-fnal - WFS Finder agent for FNAL
+# justin-finder-fnal - justIn Finder agent for FNAL
 # 
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -31,13 +31,13 @@ import tempfile
 # Needs MySQL-python RPM
 import MySQLdb
 
-# wfs/conf.py must define these variables in a way that is both
+# justin/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!
 #
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs
+import justin
 
 maxFileFindsPerCycle = 10
 sleepSeconds         = 60
@@ -45,7 +45,7 @@ maxPins              = 10
 pinSeconds           = 3600
 pinRecheckSeconds    = 1800
 
-class wfsError(Exception):
+class justinError(Exception):
   pass
 
 def logLine(text):
@@ -72,8 +72,8 @@ def createReplicasPins(rseID):
            'ORDER BY replicas.replica_id LIMIT ' + str(maxFileFindsPerCycle))
 
   try:
-    wfs.db.cur.execute(query)
-    replicas = wfs.db.cur.fetchall()
+    justin.db.cur.execute(query)
+    replicas = justin.db.cur.fetchall()
   except Exception as e:
     logLine('Reading list of replica_pins rows to create fails: '  + str(e))
     return
@@ -84,7 +84,7 @@ def createReplicasPins(rseID):
              replica['replica_id'])
              
     try:
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
     except Exception as e:
       logLine('Insert into replicas_pins fails: '  + str(e))
       continue
@@ -92,7 +92,7 @@ def createReplicasPins(rseID):
     logLine('Created %s entry in replicas_pins' % replica['pfn'])
 
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def sendPinRequest(pfnsPath):
   # Send a pin request to FNAL dCache using the bulk API
@@ -112,7 +112,7 @@ def sendPinRequest(pfnsPath):
   httpRequest = urllib.request.Request(
                    'https://fndca1.fnal.gov:3880/api/v1/bulk-requests',
                    data = json.dumps(jsonDict).encode(),
-                   headers = { 'User-Agent' : 'wfs-finder-fnal',
+                   headers = { 'User-Agent' : 'justin-finder-fnal',
                                'Content-Type' : 'application/json' },
                    method = 'POST')
 
@@ -160,8 +160,8 @@ def countPins(rseID):
            'AND pin_ref<>""')
 
   try:
-    wfs.db.cur.execute(query)
-    row = wfs.db.cur.fetchone()
+    justin.db.cur.execute(query)
+    row = justin.db.cur.fetchone()
     return int(row['count'])
 
   except Exception as e:
@@ -205,8 +205,8 @@ def pinReplicas(rseID):
            str(maxFileFindsPerCycle))
 
   try:
-    wfs.db.cur.execute(query)
-    needsPinReplicas = wfs.db.cur.fetchall()
+    justin.db.cur.execute(query)
+    needsPinReplicas = justin.db.cur.fetchall()
   except Exception as e:
     logLine('Reading list of FNAL replicas needing pinning fails with: ' 
             + str(e))
@@ -243,7 +243,7 @@ def pinReplicas(rseID):
                   sleepSeconds,
                   replica['replica_id']))
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas_pins for %s: %s' %
                 (replica['pfn'], str(e)))
@@ -252,13 +252,13 @@ def pinReplicas(rseID):
       logLine('Requested pin for %s and receive request URL %s' % 
               (replica['pfn'], pinURL))
 
-      wfs.db.logEvent(eventTypeID = wfs.db.event_REPLICA_STAGING_REQUESTED,
+      justin.db.logEvent(eventTypeID = justin.db.event_REPLICA_STAGING_REQUESTED,
                       requestID = replica['request_id'],
                       stageID = replica['stage_id'],
                       fileID = replica['file_id'],
                       rseID = rseID)
     
-      wfs.db.conn.commit()
+      justin.db.conn.commit()
 
 def checkPinRequest(pinURL):
   # Send a pin request to FNAL dCache using the bulk API
@@ -310,8 +310,8 @@ def checkPinRequests(rseID):
            str(maxFileFindsPerCycle))
 
   try:
-    wfs.db.cur.execute(query)
-    waitingPins = wfs.db.cur.fetchall()
+    justin.db.cur.execute(query)
+    waitingPins = justin.db.cur.fetchall()
   except Exception as e:
     logLine('Reading list of FNAL replicas waiting for pins fails with: ' 
             + str(e))
@@ -340,16 +340,16 @@ def checkPinRequests(rseID):
                  'pin_retry_time="%s",'
                  'pin_recheck_time="%s" '
                  'WHERE replica_id=%d' % 
-                 (wfs.db.unixEpoch, wfs.db.unixEpoch, pin['replica_id']))
+                 (justin.db.unixEpoch, justin.db.unixEpoch, pin['replica_id']))
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
 
         query = ('UPDATE replicas SET '
                  'accessible_until=FROM_UNIXTIME(%d) '
                  'WHERE replica_id=%d' % 
                  (pin['pin_expire_unixtime'], pin['replica_id']))
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas and pins for %s: %s' %
                 (pin['pfn'], str(e)))
@@ -358,7 +358,7 @@ def checkPinRequests(rseID):
       logLine('Updated replica %s to be pinned and accessible until %s' %
               (pin['pfn'], pin['pin_expire_time']))
 
-      wfs.db.logEvent(eventTypeID = wfs.db.event_REPLICA_STAGING_DONE,
+      justin.db.logEvent(eventTypeID = justin.db.event_REPLICA_STAGING_DONE,
                       requestID = pin['request_id'],
                       stageID = pin['stage_id'],
                       fileID = pin['file_id'],
@@ -376,14 +376,14 @@ def checkPinRequests(rseID):
                (pinRecheckSeconds, 
                 pin['replica_id']))
         
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
 
       except Exception as e:
         logLine('Failed updating recheck time for %s: %s' %
                 (pin['pfn'], str(e)))
        
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def deletePin(pinURL):
   # Send a delete pin request to FNAL dCache using the bulk API
@@ -432,11 +432,11 @@ def releasePins(rseID):
            'AND pin_expire_time > "%s" '
            'AND (pin_expire_time < NOW() OR files.state="processed" OR '
            'files.state="failed")'
-           'ORDER BY replicas_pins.replica_id' % wfs.db.unixEpoch)
+           'ORDER BY replicas_pins.replica_id' % justin.db.unixEpoch)
 
   try:
-    wfs.db.cur.execute(query)
-    unwantedPins = wfs.db.cur.fetchall()
+    justin.db.cur.execute(query)
+    unwantedPins = justin.db.cur.fetchall()
   except Exception as e:
     logLine('Reading list of unwanted FNAL replica pins fails with: ' 
             + str(e))
@@ -458,14 +458,14 @@ def releasePins(rseID):
         query = ('DELETE FROM replicas_pins WHERE replica_id=%d' %
                  pin['replica_id'])
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
 
         query = ('UPDATE replicas SET '
                  'accessible_until="%s" '
                  'WHERE replica_id=%d' % 
-                 (wfs.db.unixEpoch, pin['replica_id']))
+                 (justin.db.unixEpoch, pin['replica_id']))
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
     except Exception as e:
         logLine('Failed delete pin and updating replica info for %s: %s' %
                 (pin['pfn'], str(e)))
@@ -473,22 +473,22 @@ def releasePins(rseID):
     
     logLine('Deleted pin of %s' % pin['pfn'])
 
-    wfs.db.logEvent(eventTypeID = wfs.db.event_REPLICA_STAGING_CANCELLED,
+    justin.db.logEvent(eventTypeID = justin.db.event_REPLICA_STAGING_CANCELLED,
                     requestID = pin['request_id'],
                     stageID = pin['stage_id'],
                     fileID = pin['file_id'],
                     rseID = rseID)
 
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def getRseID(rseName):
 
   query = 'SELECT rse_id FROM storages WHERE rse_name="' + rseName + '"'
   
   try:
-    wfs.db.cur.execute(query)
-    row = wfs.db.cur.fetchone()
+    justin.db.cur.execute(query)
+    row = justin.db.cur.fetchone()
     rseID = int(row['rse_id'])
   except Exception as e:
     logLine('Finding rse_id of ' + rseName + ' fails with : ' + str(e))
@@ -532,18 +532,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs('/var/run/wfs',         
+        os.makedirs('/var/run/justin',         
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
         pass
         
       try:
-        f = open('/var/run/wfs/finder-fnal.pid', 'w')
+        f = open('/var/run/justin/finder-fnal.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/wfs/finder-fnal.pid - exiting')
+        print('Failed to create /var/run/justin/finder-fnal.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -552,9 +552,9 @@ if __name__ == '__main__':
 
       while True:
 
-        # Ensure /var/log/wfs directory exists
+        # Ensure /var/log/justin directory exists
         try:
-          os.makedirs('/var/log/wfs', 
+          os.makedirs('/var/log/justin', 
                       stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
         except:
           pass
@@ -565,7 +565,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = open('/var/log/wfs/finder-fnal', 'a+')
+        so = open('/var/log/justin/finder-fnal', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -574,20 +574,20 @@ if __name__ == '__main__':
         except:
           pass
           
-        se = open('/var/log/wfs/finder-fnal', 'a+')
+        se = open('/var/log/justin/finder-fnal', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/wfs/finder-fnal.pid', 'r')
+          pf = open('/var/run/justin/finder-fnal.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new /var/run/wfs/finder-fnal.pid - exiting')
+            print('new /var/run/justin/finder-fnal.pid - exiting')
             break
 
         except:
-          print('no /var/run/wfs/finder-fnal.pid - exiting')
+          print('no /var/run/justin/finder-fnal.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
@@ -596,15 +596,15 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
 
-          wfs.conf.readConf()
+          justin.conf.readConf()
           
           try:
-            wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
-                                  user=wfs.conf.mysqlUsername,
-                                  passwd=wfs.conf.mysqlPassword, 
-                                  db=wfs.conf.mysqlDbName)
-            wfs.db.conn.autocommit(False)
-            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:

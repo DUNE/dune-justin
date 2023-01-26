@@ -1,5 +1,5 @@
 #
-# wfs-wsgi-import-script - WSGI Import Script for Workflow System services
+# justin-wsgi-import-script - WSGI Import Script for justIn services
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -22,17 +22,17 @@
 
 import sys
 import MySQLdb
-import wfs
+import justin
 
-wfs.conf.readConf()
+justin.conf.readConf()
 
 try:
-  wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname,
-                                user=wfs.conf.mysqlUsername,
-                                passwd=wfs.conf.mysqlPassword,
-                                db=wfs.conf.mysqlDbName)
-  wfs.db.conn.autocommit(False)
-  wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+  justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname,
+                                user=justin.conf.mysqlUsername,
+                                passwd=justin.conf.mysqlPassword,
+                                db=justin.conf.mysqlDbName)
+  justin.db.conn.autocommit(False)
+  justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
 
 except Exception as e:
   print('Connect to database fails: ' + str(e), file=sys.stderr)
@@ -40,4 +40,4 @@ except Exception as e:
   sys.exit(1)
 
 else:
-  print('Connected to %s database' % wfs.conf.mysqlDbName, file=sys.stderr)
+  print('Connected to %s database' % justin.conf.mysqlDbName, file=sys.stderr)

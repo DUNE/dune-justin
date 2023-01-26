@@ -1,5 +1,5 @@
 #
-# wfs-wsgi-dashboard - Workflow System dashboard
+# justin-wsgi-dashboard - justIn workflow system dashboard
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# This WSGI script relies on wfs-api-import-script being run by
+# This WSGI script relies on justin-api-import-script being run by
 # the mod_wsgi directive WSGIImportScript
 
 import os
@@ -29,9 +29,9 @@ import urllib.parse
 # install with  pip3 install pygal
 import pygal
 
-import wfs
+import justin
 
-class wfsStackedLine(pygal.StackedLine):
+class justinStackedLine(pygal.StackedLine):
 
   def __init__(self, imageSize, firstTime, hoursPerBin, numBins,
                legend_at_bottom_columns=3):
@@ -165,8 +165,8 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 </head>
 <body>
 <div id="top_strip">
-<a href="%s" style="font-size: 48px; color: #E1703D;">WFS</a> &nbsp; &nbsp;
-<!-- <a href="%s"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp; -->
+<a href="%s" style="font-size: 48px; color: #E1703D;">justIn</a> &nbsp; &nbsp;
+<a href="%s"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp;
 <a href="%s">%s</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-jobs">Jobs</a> &nbsp; &nbsp; &nbsp;
@@ -174,7 +174,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="%s?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
-<a href="https://dune.github.io/dune-wfs/">Docs</a>
+<a href="https://dune.github.io/dune-justin/">Docs</a>
 </div>
 <div id="main_box"><div>
 """ % (title, 
@@ -197,7 +197,7 @@ def errorPage(uriPrefix, message):
   return output
 
 def spaceForUnixEpoch(s):
-  if str(s) == wfs.db.unixEpoch:
+  if str(s) == justin.db.unixEpoch:
     return '&nbsp;'
   else:
     return str(s)
@@ -231,9 +231,9 @@ def makePager(uriPrefix, pageNumber, pageLength, rowsLen, urlTemplate):
   
 def mainPage(uriPrefix):
 
-  output = header(uriPrefix, "WFS: Dashboard")
+  output = header(uriPrefix, "justIn: Dashboard")
 
-  output += '<h1>WFS Dashboard</h1><table class="main_page_table">'
+  output += '<h1>justIn Dashboard</h1><table class="main_page_table">'
 
   cells = [
    { 'startRow'  : True,
@@ -262,7 +262,7 @@ def mainPage(uriPrefix):
      'text'      : 'Storages' },
    { 'startRow'  : True,
      'endRow'    : True,
-     'uri'       : 'https://dune.github.io/dune-wfs/',
+     'uri'       : 'https://dune.github.io/dune-justin/',
      'text'      : 'Documentation' }
   ]
 
@@ -286,7 +286,7 @@ def mainPage(uriPrefix):
 
 def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
 
-  output = header(uriPrefix, "WFS: Requests")
+  output = header(uriPrefix, "justIn: Requests")
 
   output += "<h1>Requests</h1>"
   
@@ -297,8 +297,8 @@ def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
            'ORDER BY request_id DESC LIMIT %d,%d' %
            (pageNumber * pageLength, pageLength + 1))
 
-  wfs.db.cur.execute(query)
-  rows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  rows = justin.db.cur.fetchall()
 
   output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
                       "%s?method=list-requests&page_number=%d&page_length=%d") 
@@ -340,7 +340,7 @@ def showRequest(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "request_id must be given")
   
-  output = header(uriPrefix, "WFS: Request %d" % requestID)
+  output = header(uriPrefix, "justIn: Request %d" % requestID)
 
   query = ("SELECT requests.name,requests.state,"
            "users.username,"
@@ -353,8 +353,8 @@ def showRequest(uriPrefix, cgiValues):
            "WHERE request_id=%d "
            "ORDER BY request_id" % requestID)
 
-  wfs.db.cur.execute(query)
-  requestRow = wfs.db.cur.fetchone()
+  justin.db.cur.execute(query)
+  requestRow = justin.db.cur.fetchone()
   
   state = requestRow['state']
 
@@ -402,8 +402,8 @@ def showRequest(uriPrefix, cgiValues):
            "WHERE request_id=%d "
            "ORDER BY stage_id" % requestID)
 
-  wfs.db.cur.execute(query)
-  stageRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  stageRows = justin.db.cur.fetchall()
 
   # Get counts of file states for all stages
   stateCounts = []
@@ -423,7 +423,7 @@ def showRequest(uriPrefix, cgiValues):
            'WHERE request_id=%d '
            'GROUP BY state,stage_id' % requestID)
              
-  stateRows = wfs.db.select(query)
+  stateRows = justin.db.select(query)
   
   for stateRow in stateRows:
     stateCounts[stateRow['stage_id']][stateRow['state']] = stateRow['count']
@@ -490,7 +490,7 @@ def showStage(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "stage_id must be given")
   
-  output = header(uriPrefix, "WFS: Request %d, Stage %d" % (requestID, stageID))
+  output = header(uriPrefix, "justIn: Request %d, Stage %d" % (requestID, stageID))
   output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
@@ -507,8 +507,8 @@ def showStage(uriPrefix, cgiValues):
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 
-  wfs.db.cur.execute(query)
-  stageRow = wfs.db.cur.fetchone()
+  justin.db.cur.execute(query)
+  stageRow = justin.db.cur.fetchone()
   
   output += ("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
   
@@ -545,8 +545,8 @@ def showStage(uriPrefix, cgiValues):
            (requestID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  rseRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  rseRows = justin.db.cur.fetchall()
   
   if (len(rseRows) == 0):
     output += ("(any)")
@@ -568,7 +568,7 @@ def showStage(uriPrefix, cgiValues):
            (requestID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
-  patternRows = wfs.db.select(query)
+  patternRows = justin.db.select(query)
 
   if patternRows:
     output += ("<h2>Output patterns</h2>")
@@ -594,7 +594,7 @@ def showStage(uriPrefix, cgiValues):
            "ORDER BY env_name" %
            (requestID, stageID))
 
-  envRows = wfs.db.select(query)
+  envRows = justin.db.select(query)
 
   if envRows:
     output += '<!-- %s -->\n' % str(time.time())
@@ -624,7 +624,7 @@ def showStage(uriPrefix, cgiValues):
            'WHERE request_id=%d AND stage_id=%d '
            'GROUP BY state' % (requestID, stageID))
   
-  stateRows = wfs.db.select(query)
+  stateRows = justin.db.select(query)
   
   for stateRow in stateRows:
     stateCounts[stateRow['state']] = stateRow['count']    
@@ -686,8 +686,8 @@ def showStage(uriPrefix, cgiValues):
               requestID, stageID))
 
   output += '<!-- %s SELECT (SELECT -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  jobNumberRow = wfs.db.cur.fetchone()
+  justin.db.cur.execute(query)
+  jobNumberRow = justin.db.cur.fetchone()
 
   output += ('<h2>Job states</h2>')
   output += ('<table>')
@@ -726,7 +726,7 @@ def showStage(uriPrefix, cgiValues):
            'ORDER BY processed_hour'
            % (requestID, stageID))
 
-  binRows = wfs.db.select(query)
+  binRows = justin.db.select(query)
 
   if binRows:
     firstHour   = binRows[0]['processed_hour']
@@ -748,7 +748,7 @@ def showStage(uriPrefix, cgiValues):
       i = int((binRow['processed_hour'] - firstHour) / hoursPerBin)
       bins[binRow['site_name']][i] += binRow['processed_count']
 
-    chart = wfsStackedLine(1000, 
+    chart = justinStackedLine(1000, 
                            firstHour * 3600,
                            hoursPerBin,
                            numBins)
@@ -775,8 +775,8 @@ def showStage(uriPrefix, cgiValues):
            'GROUP BY replicas.rse_id ORDER BY replica_count DESC'
            % (requestID, stageID))
 
-  wfs.db.select(query)
-  replicaRows = wfs.db.select(query)
+  justin.db.select(query)
+  replicaRows = justin.db.select(query)
 
   if replicaRows:
 
@@ -810,11 +810,11 @@ def showStage(uriPrefix, cgiValues):
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (requestID, stageID, wfs.db.event_FILE_ALLOCATED))
+           (requestID, stageID, justin.db.event_FILE_ALLOCATED))
 
   output += '<!-- %s SELECT ALLOCATED -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  rseRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  rseRows = justin.db.cur.fetchall()
 
   for rseRow in rseRows:
 
@@ -827,11 +827,11 @@ def showStage(uriPrefix, cgiValues):
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (requestID, stageID, wfs.db.event_FILE_CREATED))
+           (requestID, stageID, justin.db.event_FILE_CREATED))
 
   output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  rseRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  rseRows = justin.db.cur.fetchall()
   
   for rseRow in rseRows:
   
@@ -861,11 +861,11 @@ def showStage(uriPrefix, cgiValues):
            'LEFT JOIN sites ON sites.site_id=events.site_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (requestID, stageID, wfs.db.event_FILE_ALLOCATED_RESET))
+           (requestID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
 
   output += '<!-- %s -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  resetRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  resetRows = justin.db.cur.fetchall()
   
   for resetRow in resetRows:
   
@@ -878,11 +878,11 @@ def showStage(uriPrefix, cgiValues):
            'LEFT JOIN sites ON sites.site_id=events.site_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (requestID, stageID, wfs.db.event_FILE_OUTPUTTING_RESET))
+           (requestID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
 
   output += '<!-- %s -->\n' % str(time.time())
-  wfs.db.cur.execute(query)
-  resetRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  resetRows = justin.db.cur.fetchall()
   
   for resetRow in resetRows:
   
@@ -942,7 +942,7 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
     
-  output = header(uriPrefix, "WFS: Files for Request %d, Stage %d%s" 
+  output = header(uriPrefix, "justIn: Files for Request %d, Stage %d%s" 
                   % (requestID, stageID, stateText))
 
   output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
@@ -953,17 +953,17 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
            "allocations "
            "FROM files "
            "LEFT JOIN events"
-           " ON files.wfs_job_id=events.wfs_job_id AND events.event_type_id=%d "
+           " ON files.justin_job_id=events.justin_job_id AND events.event_type_id=%d "
            "LEFT JOIN storages ON events.rse_id=storages.rse_id "
-           "LEFT JOIN jobs ON jobs.wfs_job_id=files.wfs_job_id "
+           "LEFT JOIN jobs ON jobs.justin_job_id=files.justin_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id LIMIT %d,%d" % 
-           (wfs.db.event_FILE_ALLOCATED, requestID, stageID, stateFilter,
+           (justin.db.event_FILE_ALLOCATED, requestID, stageID, stateFilter,
             pageNumber * pageLength, pageLength + 1))
 
-  wfs.db.cur.execute(query)
-  filesRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  filesRows = justin.db.cur.fetchall()
 
   output += makePager(uriPrefix, pageNumber, pageLength, len(filesRows),
              '%s?method=list-files&page_number=%d&page_length=%d'
@@ -1033,7 +1033,7 @@ def showFile(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "stage_id must be given")
 
-  output = header(uriPrefix, "WFS: File %s" 
+  output = header(uriPrefix, "justIn: File %s" 
                   % html.escape(fileDID, quote=True))
 
   output += ("<h1>File %s</h1>"
@@ -1044,7 +1044,7 @@ def showFile(uriPrefix, cgiValues):
            'WHERE request_id=%d AND stage_id=%d and file_did="%s"' %
            (requestID, stageID, fileDID))
 
-  fileRow = wfs.db.select(query, justOne = True)
+  fileRow = justin.db.select(query, justOne = True)
 
   try:
     fileID = int(fileRow["file_id"])
@@ -1057,20 +1057,20 @@ def showFile(uriPrefix, cgiValues):
            "site_name,rse_name FROM events "
            "LEFT JOIN storages ON storages.rse_id=events.rse_id "
            "LEFT JOIN sites ON sites.site_id=events.site_id "
-           "LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id "
+           "LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id "
            "WHERE event_type_id=%d AND file_id=%d ORDER BY event_id" 
-           % (wfs.db.event_FILE_ALLOCATED, fileID))
+           % (justin.db.event_FILE_ALLOCATED, fileID))
 
-  wfs.db.cur.execute(query)
-  jobsRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  jobsRows = justin.db.cur.fetchall()
 
   query = ('SELECT wan_pfn,lan_pfn,rse_name '
            'FROM replicas '
            'LEFT JOIN storages ON storages.rse_id=replicas.rse_id '
            'WHERE file_id=%d' % fileID)
 
-  wfs.db.cur.execute(query)
-  replicaRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  replicaRows = justin.db.cur.fetchall()
 
   output += ('<p><table>')
   
@@ -1139,11 +1139,11 @@ def showJob(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "jobsub_id must be given")
       
-  output = header(uriPrefix, "WFS: Jobsub ID %s" % jobsubID)
+  output = header(uriPrefix, "justIn: Jobsub ID %s" % jobsubID)
 
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
-  query = ("SELECT jobs.wfs_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
+  query = ("SELECT jobs.justin_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,username,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
@@ -1157,31 +1157,31 @@ def showJob(uriPrefix, cgiValues):
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
-           "LEFT JOIN jobs_logs ON jobs_logs.wfs_job_id=jobs.wfs_job_id "
+           "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
-  jobRow = wfs.db.select(query, justOne = True)
+  jobRow = justin.db.select(query, justOne = True)
 
   if not jobRow:
     return errorPage(uriPrefix, "Job not found in database")
 
   query = ("SELECT file_did FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
-           "WHERE events.wfs_job_id=%d AND event_type_id=%d "
+           "WHERE events.justin_job_id=%d AND event_type_id=%d "
            "ORDER BY event_id" % 
-           (jobRow['wfs_job_id'], wfs.db.event_FILE_ALLOCATED))
+           (jobRow['justin_job_id'], justin.db.event_FILE_ALLOCATED))
 
-  wfs.db.cur.execute(query)
-  inputFilesRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  inputFilesRows = justin.db.cur.fetchall()
 
   query = ("SELECT file_did,files.stage_id FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
-           "WHERE events.wfs_job_id=%d AND event_type_id=%d "
+           "WHERE events.justin_job_id=%d AND event_type_id=%d "
            "ORDER BY event_id" % 
-           (jobRow['wfs_job_id'], wfs.db.event_FILE_CREATED))
+           (jobRow['justin_job_id'], justin.db.event_FILE_CREATED))
 
-  wfs.db.cur.execute(query)
-  outputFilesRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  outputFilesRows = justin.db.cur.fetchall()
 
   output += '<table>'
   
@@ -1399,7 +1399,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
   except:
     pass
   else:
-    if siteName and wfs.db.stringIsSite(siteName):
+    if siteName and justin.db.stringIsSite(siteName):
       filters.append('sites.site_name="%s"' % siteName)
       urlTemplate += '&site_name=' + siteName
       titleSuffixes.append('Site %s' % siteName)
@@ -1416,7 +1416,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
   else:
     titleSuffix = ''
     
-  output = header(uriPrefix, "WFS: Jobs" + titleSuffix)
+  output = header(uriPrefix, "justIn: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
   
@@ -1430,7 +1430,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
                ' (SELECT COUNT(*) FROM jobs '
                ' WHERE allocation_state="outputting") AS number_outputting')
                
-      row = wfs.db.select(query, justOne = True)
+      row = justin.db.select(query, justOne = True)
 
       output += ('<p>%d job(s) in submitted state, %d in processing state, '
             '%d in outputting state</p>' %
@@ -1449,12 +1449,12 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
            "LEFT JOIN users ON requests.user_id=users.user_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "%s "
-           "ORDER BY jobs.wfs_job_id DESC LIMIT %d,%d" %
+           "ORDER BY jobs.justin_job_id DESC LIMIT %d,%d" %
            (filter, pageNumber * pageLength, pageLength + 1)
           )
 
-  wfs.db.cur.execute(query)
-  jobRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  jobRows = justin.db.cur.fetchall()
 
   output += makePager(uriPrefix, pageNumber, pageLength, len(jobRows), urlTemplate)
 
@@ -1538,13 +1538,13 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
 
 def listSites(uriPrefix, cgiValues):
       
-  output = header(uriPrefix, "WFS: Sites")
+  output = header(uriPrefix, "justIn: Sites")
 
   output += ("<h1>Sites</h1>")
   
   query = "SELECT * FROM sites WHERE site_id > 0 ORDER BY site_name"
-  wfs.db.cur.execute(query)
-  siteRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  siteRows = justin.db.cur.fetchall()
 
   output += ('<table>')
   
@@ -1559,7 +1559,7 @@ def listSites(uriPrefix, cgiValues):
         '</tr>')
   
   for siteRow in siteRows:  
-    if str(siteRow['last_get_stage_time']) == wfs.db.unixEpoch:
+    if str(siteRow['last_get_stage_time']) == justin.db.unixEpoch:
       lastGetStageStr = '&nbsp;'
     else:
       lastGetStageStr = str(siteRow['last_get_stage_time'])
@@ -1601,17 +1601,17 @@ def listSites(uriPrefix, cgiValues):
 
 def listStorages(uriPrefix, cgiValues):
       
-  output = header(uriPrefix, "WFS: Storages")
+  output = header(uriPrefix, "justIn: Storages")
 
   output += ("<h1>Storages</h1>")
   
   query = ("SELECT rse_name,occupancy,"
-           "rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,"
-           "rucio_read,wfs_read,(rucio_read AND wfs_read) AS has_read,"
+           "rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,"
+           "rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,"
            "write_protocol,deterministic_rse "
            "FROM storages ORDER BY rse_name")
-  wfs.db.cur.execute(query)
-  storageRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  storageRows = justin.db.cur.fetchall()
 
   output += ('<table>')
   
@@ -1619,9 +1619,9 @@ def listStorages(uriPrefix, cgiValues):
         '<th>RSE name</th>'
         '<th>Occupancy</th>'
         '<th>Read</th>'
-        '<th>(Rucio/WFS)</th>'
+        '<th>(Rucio/justin)</th>'
         '<th>Write</th>'
-        '<th>(Rucio/WFS)</th>'
+        '<th>(Rucio/justin)</th>'
         '<th>Write protcol</th>'
         '<th>Deterministic</th>'
         '</tr>')
@@ -1642,10 +1642,10 @@ def listStorages(uriPrefix, cgiValues):
              storageRow['occupancy'],
              bool(storageRow['has_read']),
              bool(storageRow['rucio_read']),
-             bool(storageRow['wfs_read']),
+             bool(storageRow['justin_read']),
              bool(storageRow['has_write']),
              bool(storageRow['rucio_write']),
-             bool(storageRow['wfs_write']),
+             bool(storageRow['justin_write']),
              storageRow['write_protocol'],
              bool(storageRow['deterministic_rse'])
             )
@@ -1662,16 +1662,16 @@ def showSite(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "site_name must be given")
     
-  if not wfs.db.stringIsSite(siteName):
+  if not justin.db.stringIsSite(siteName):
     return errorPage(uriPrefix, "Invalid site name!")
         
-  output = header(uriPrefix, "WFS: Site " + siteName)
+  output = header(uriPrefix, "justIn: Site " + siteName)
 
   output += ("<h1>Site %s</h1>" % siteName)
   
   query = 'SELECT * FROM sites WHERE site_name="%s"' % siteName
-  wfs.db.cur.execute(query)
-  siteRow = wfs.db.cur.fetchone()
+  justin.db.cur.execute(query)
+  siteRow = justin.db.cur.fetchone()
 
   output += ('<table>')
   
@@ -1689,7 +1689,7 @@ def showSite(uriPrefix, cgiValues):
   output += ('<tr><td>Last submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])
 
-  if str(siteRow['last_get_stage_time']) == wfs.db.unixEpoch:
+  if str(siteRow['last_get_stage_time']) == justin.db.unixEpoch:
     lastGetStageStr = '&nbsp;'
   else:
     lastGetStageStr = str(siteRow['last_get_stage_time'])
@@ -1726,17 +1726,17 @@ def showSite(uriPrefix, cgiValues):
   output += ("<h2>Storages by distance</h2>")
 
   query = ('SELECT rse_name,occupancy,'
-           'rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,'
-           'rucio_read,wfs_read,(rucio_read AND wfs_read) AS has_read,'
+           'rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,'
+           'rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,'
            'distance,read_result,write_result,jobsub_id '
            'FROM storages '
            'LEFT JOIN sites_storages ON sites_storages.rse_id=storages.rse_id '
-           'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
+           'LEFT JOIN jobs ON sites_storages.justin_job_id=jobs.justin_job_id '
            'WHERE sites_storages.site_id=%d '
            'ORDER BY distance,rse_name' % siteRow['site_id'])
 
-  wfs.db.cur.execute(query)
-  storageRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  storageRows = justin.db.cur.fetchall()
 
   output += ("<p>Test values are xrdcp read and rucio write exit codes for jobs "
         "at each site contacting each RSE. 0 = success.</p>")
@@ -1795,21 +1795,21 @@ def showStorage(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "rse_name must be given")
     
-  if not wfs.db.stringIsSite(rseName):
+  if not justin.db.stringIsSite(rseName):
     return errorPage(uriPrefix, "Invalid RSE name!")
         
-  output = header(uriPrefix, "WFS: Storage " + rseName)
+  output = header(uriPrefix, "justIn: Storage " + rseName)
 
   output += ("<h1>Storage %s</h1>" % rseName)
   
   query = ('SELECT occupancy,rse_id,'
-           'rucio_write,wfs_write,(rucio_write AND wfs_write) AS has_write,'
-           'rucio_read,wfs_read,(rucio_read AND wfs_read) AS has_read,'
+           'rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,'
+           'rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,'
            'deterministic_rse,write_protocol '
            'FROM storages WHERE rse_name="%s"' % rseName)
 
-  wfs.db.cur.execute(query)
-  storageRow = wfs.db.cur.fetchone()
+  justin.db.cur.execute(query)
+  storageRow = justin.db.cur.fetchone()
 
   output += ('<table>')
   
@@ -1817,15 +1817,15 @@ def showStorage(uriPrefix, cgiValues):
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
-  output += ('<tr><td>Read</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
+  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justin=%s)</td></tr>' 
         % (bool(storageRow['has_read']), 
            bool(storageRow['rucio_read']), 
-           bool(storageRow['wfs_read'])))
+           bool(storageRow['justin_read'])))
 
-  output += ('<tr><td>Write</td><td>%s (Rucio=%s, WFS=%s)</td></tr>' 
+  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justin=%s)</td></tr>' 
         % (bool(storageRow['has_write']), 
            bool(storageRow['rucio_write']), 
-           bool(storageRow['wfs_write'])))
+           bool(storageRow['justin_write'])))
 
   output += ('<tr><td>Deterministic</td><td>%s</td></tr>' 
         % bool(storageRow['deterministic_rse']))
@@ -1840,12 +1840,12 @@ def showStorage(uriPrefix, cgiValues):
            'read_result,write_result,jobsub_id '
            'FROM sites '
            'LEFT JOIN sites_storages ON sites_storages.site_id=sites.site_id '
-           'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
+           'LEFT JOIN jobs ON sites_storages.justin_job_id=jobs.justin_job_id '
            'WHERE rse_id=%d '
            'ORDER BY distance,site_name' % storageRow['rse_id'])
 
-  wfs.db.cur.execute(query)
-  siteRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  siteRows = justin.db.cur.fetchall()
 
   output += ("<p>Test values are xrdcp read and rucio write exit codes for jobs "
         "at each site contacting each RSE. 0 = success.</p>")
@@ -1910,7 +1910,7 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
   else:
     whereString = ''
     
-  output = header(uriPrefix, "WFS: Events")
+  output = header(uriPrefix, "justIn: Events")
 
   output += ("<h1>Events</h1>")
   
@@ -1918,15 +1918,15 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
            'file_did,jobsub_id,site_name,rse_name,event_time '
            'FROM events '
            'LEFT JOIN files ON events.file_id=files.file_id '
-           'LEFT JOIN jobs ON events.wfs_job_id=jobs.wfs_job_id '
+           'LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id '
            'LEFT JOIN sites ON events.site_id=sites.site_id '
            'LEFT JOIN storages ON events.rse_id=storages.rse_id '
            '%s '
            'ORDER BY event_id DESC LIMIT %d,%d' % 
            (whereString, pageNumber * pageLength, pageLength + 1))
 
-  wfs.db.cur.execute(query)
-  eventsRows = wfs.db.cur.fetchall()
+  justin.db.cur.execute(query)
+  eventsRows = justin.db.cur.fetchall()
 
   output += makePager(uriPrefix, pageNumber, pageLength, len(eventsRows),
              '%s?method=list-events&page_number=%d&page_length=%d'
@@ -1946,7 +1946,7 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
   for eventRow in eventsRows[:pageLength]:
     output += ('<tr><td>%d</td><td>%s</td><td>%s</td>' %
            (eventRow['event_id'], 
-            wfs.db.eventTypes[eventRow['event_type_id']][0],
+            justin.db.eventTypes[eventRow['event_type_id']][0],
             eventRow['event_time']
           )          
          )
@@ -2012,7 +2012,7 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
 
 def awtResults(uriPrefix, cgiValues):
               
-  output = header(uriPrefix, "WFS: Automated Workflow Tests")
+  output = header(uriPrefix, "justIn: Automated Workflow Tests")
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
@@ -2020,7 +2020,7 @@ def awtResults(uriPrefix, cgiValues):
         "each site contacting each RSE. 0 = success. Enabled sites and "
         "storages allowed for output are in bold.</p>")
 
-  sitesRows = wfs.db.select('SELECT site_name,enabled,'
+  sitesRows = justin.db.select('SELECT site_name,enabled,'
                             'UNIX_TIMESTAMP(last_awt_time) AS lwt '
                             'FROM sites ORDER by site_name')
   siteNames        = []
@@ -2032,8 +2032,8 @@ def awtResults(uriPrefix, cgiValues):
     if siteRow['enabled']:
       enabledSiteNames.append(siteRow['site_name'])
 
-  storagesRows = wfs.db.select('SELECT rse_name,'
-                               '(rucio_write AND wfs_write) AS has_write '
+  storagesRows = justin.db.select('SELECT rse_name,'
+                               '(rucio_write AND justin_write) AS has_write '
                                'FROM storages '
                                'WHERE rse_name <> "MONTECARLO" '
                                'ORDER by rse_name')
@@ -2051,12 +2051,12 @@ def awtResults(uriPrefix, cgiValues):
     for rseName in rseNames:
       sitesStoragesMatrix[siteName][rseName] = []
  
-  resultsRows = wfs.db.select(
+  resultsRows = justin.db.select(
            'SELECT site_name,rse_name,read_result,write_result,jobsub_id '
            'FROM sites_storages '
            'LEFT JOIN sites ON sites_storages.site_id=sites.site_id '
            'LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id '
-           'LEFT JOIN jobs ON sites_storages.wfs_job_id=jobs.wfs_job_id '
+           'LEFT JOIN jobs ON sites_storages.justin_job_id=jobs.justin_job_id '
            'WHERE rse_name <> "MONTECARLO"')
 
   # Put the results in nested dictionaries
@@ -2162,19 +2162,19 @@ def awtResults(uriPrefix, cgiValues):
 #
 def application(environ, startResponse):
 
-  wfs.db.wsgiCallsCount += 1
-  print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
+  justin.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
         file=sys.stderr)
 
   try:
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    wfs.db.conn.ping(True)
+    justin.db.conn.ping(True)
   except Exception as e:
     message = 'DB connection lost and cannot reconnect: ' + str(e)
 
-    print('wfs-wsgi-dashboard fails with 500 Internal Server Error (%s)' % 
+    print('justin-wsgi-dashboard fails with 500 Internal Server Error (%s)' % 
           str(message), file=sys.stderr)
 
     startResponse('500 Internal Server Error',
@@ -2185,7 +2185,7 @@ def application(environ, startResponse):
     return [message.encode('UTF-8')]
 
   # Avoid leftovers from partial, failed transactions in this instance
-  wfs.db.conn.rollback()
+  justin.db.conn.rollback()
 
   try:
     uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'

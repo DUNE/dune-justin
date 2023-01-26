@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# Run the justin command even if you have set up the Python2 DUNE
+# environment
+# 
+# Put this command (x-justin) and the Python3 justin script itself 
+# somewhere on your path. For example in $HOME/bin/
+#
+# Then just run x-justin as you would run justin
+#
+unset PYTHONPATH LD_LIBRARY_PATH
+exec justin "$@"

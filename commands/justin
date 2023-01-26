@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  workflow - DUNE WFS command line utility
+# justin - justIn command line utility
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -17,8 +17,8 @@
 # limitations under the License.
 #
 
-#  See the workflow(1) man page for full usage. 
-#  For example with the command  man ./workflow.1 
+# See the justin(1) man page for full usage. 
+# For example with the command  man ./justin.1 
 
 import os
 import sys
@@ -27,7 +27,7 @@ import ssl
 import urllib.request
 import argparse
 
-versionNumber = '00.01.01'
+versionNumber = '00.02.01'
 
 def body(buf): 
 
@@ -59,7 +59,7 @@ commands = [ "create-request",
 
 parser.add_argument("command",
                     type = str,
-                    help = "Workflow command to execute: " +
+                    help = "justin command to execute: " +
                            ' '.join(commands) )
 
 parser.add_argument("-v", 
@@ -175,7 +175,7 @@ parser.add_argument("--state",
 
 parser.add_argument("--url",
                     type = str,
-                    help = "WFS service to contact")
+                    help = "justIn service to contact")
 
 args = parser.parse_args()
 jsonDict = vars(args)
@@ -192,23 +192,23 @@ if jsonDict['file']:
     jsonDict['file'] = contents
 
 if args.command not in commands:
-  print("%s not recognised as a workflow command" % args.command)
+  print("%s not recognised as a justin command" % args.command)
   sys.exit(1)
 
 if jsonDict['verbose']:
   print(jsonDict)
 
-# Set up request contexts to send the command to the WFS
+# Set up request contexts to send the command to justIn 
 
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-  url = 'https://wfs-ui-pro.dune.hep.ac.uk/api/commands'
+  url = 'https://justin.dune.hep.ac.uk/api/commands'
 
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),
                                      headers = { 'User-Agent': 
-                                                 'workflow ' + versionNumber },
+                                                 'justin ' + versionNumber },
                                      method = 'POST')
 
 sslContext = ssl.SSLContext()

@@ -1,22 +1,22 @@
 #!/bin/sh
 #
-# Convert the workflow.1 man page to a Markdown formatted file
+# Convert the justin.1 man page to a Markdown formatted file
 #
 
-if [ ! -r ../commands/workflow.1 ] ; then
- echo 'Run this command in ../docs so man page is at ../commands/workflow.1 !'
+if [ ! -r ../commands/justin.1 ] ; then
+ echo 'Run this command in ../docs so man page is at ../commands/justin.1 !'
  exit 1
 fi
 
 (
 
 cat <<EOF
-## Workflow command man page
+## justin command man page
 This man page is distributed along with the 
-[workflow command](workflow-command.md) itself.
+[justin command](workflow-command.md) itself.
 EOF
 echo '```'
-groff -mandoc -Tascii -P -b ../commands/workflow.1 
+groff -mandoc -Tascii -P -b ../commands/justin.1 
 echo '```'
 
 ) > workflow-man-page.md

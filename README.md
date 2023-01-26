@@ -1,2 +1,2 @@
-# dune-wfs
-DUNE Workflow System
+# dune-justin
+justIN - DUNE Workflow System

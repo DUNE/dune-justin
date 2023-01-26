@@ -5,7 +5,7 @@
 # and in the dc4-test:amcnab-01 dataset in MetaCat and Rucio, use this command to 
 # create the request:
 #
-# workflow quick-request \
+# justin quick-request \
 # --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
 # --file dc4-vd-coldbox-top.bootstrap --max-distance 100 \
 # --output-pattern 'dc4-test:amcnab-01:*_reco_data_*.root' \
@@ -87,11 +87,11 @@ setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
 now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
 
 # define output filename
-outFile=${WFS_REQUEST_ID}_${WFS_STAGE_ID}_reco_data_${now}.root
+outFile=${JUSTIN_REQUEST_ID}_${JUSTIN_STAGE_ID}_reco_data_${now}.root
 echo $outFile
 
 # put here the right value, this is just an example 
-campaign="WFS.Request-${WFS_REQUEST_ID}.Stage-${WFS_STAGE_ID}"
+campaign="justIn.Request-${JUSTIN_REQUEST_ID}.Stage-${JUSTIN_STAGE_ID}"
 
 (
 # Do the scary preload stuff in a subshell!
@@ -99,7 +99,7 @@ export LD_PRELOAD=${XROOTD_LIB}/libXrdPosixPreload.so
 echo "$LD_PRELOAD"
 
 # to test with only 2 events
-lar -c $fclFile -n 2 -o $outFile --sam-web-uri "$WFS_SAM_WEB_URI" \
+lar -c $fclFile -n 2 -o $outFile --sam-web-uri "$JUSTIN_SAM_WEB_URI" \
  --sam-process-id 0 > ${outFile}.log 2>&1
 #lar -c $fclFile "$pfn" -o $outFile  > ${fname}_reco_${now}.log 2>&1
 )
@@ -117,7 +117,7 @@ if [ $larExit -eq 0 -a -f "$outFile" ] ; then
   echo "extractor_prod.py exit code $extractorExit"
     
   # Get the list of file DIDs allocated to this job so we can do PFN->DID maps
-  $WFS_PATH/wfs-allocated-files > all-input-dids.txt
+  $JUSTIN_PATH/justin-allocated-files > all-input-dids.txt
   wafExit=$?
   
   echo '===start all-input-dids.txt==='

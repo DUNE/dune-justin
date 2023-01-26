@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# wfs-finder - WFS Finder agent
+# justin-finder - justIn Finder agent
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -34,18 +34,18 @@ import MySQLdb
 # Installed by pip3 install of Rucio
 import rucio.client
 
-# wfs/conf.py must define these variables in a way that is both
+# justin/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!
 #
 # mysqlUser='username'
 # mysqlPassword='PAsSWoRd'
 #
-import wfs
+import justin
 
 maxFileFindsPerCycle = 500
 sleepSeconds         = 60
 
-class wfsError(Exception):
+class justinError(Exception):
   pass
 
 def logLine(text):
@@ -62,7 +62,7 @@ def addFilesMonteCarlo(requestID, count):
                % (requestID, requestID, i)
               )
 
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting dummy Monte Carlo file for request %d: %s' 
               % (requestID, str(e)))
@@ -71,32 +71,32 @@ def addFilesMonteCarlo(requestID, count):
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
                'wan_pfn="%06d",lan_pfn=""'
-               % (wfs.conf.MonteCarloRseID, 
-                  wfs.db.cur.lastrowid,
+               % (justin.conf.MonteCarloRseID, 
+                  justin.db.cur.lastrowid,
                   i))
 
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting dummy Monte Carlo replica for request %d: %s' 
                % (requestID, str(e)))
       return
 
-    wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
+    justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
                     requestID = requestID,
                     stageID = 1,
-                    fileID = wfs.db.cur.lastrowid)
+                    fileID = justin.db.cur.lastrowid)
 
 
   try:
     query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
-    wfs.db.cur.execute(query)
+    justin.db.cur.execute(query)
   except Exception as e:
     logLine('Failed updating request ' + str(requestID))
 
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def findFilesRucio(didClient, requestID, scope, name):
   # Find files to be processed for each request in the finding state
@@ -115,27 +115,27 @@ def findFilesRucio(didClient, requestID, scope, name):
                'ON DUPLICATE KEY UPDATE request_id=request_id'
               )
 
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
       return
 
-    wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
+    justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
                     requestID = requestID,
                     stageID = 1,
-                    fileID = wfs.db.cur.lastrowid)
+                    fileID = justin.db.cur.lastrowid)
 
   # All files found for this request so update its state
   try:
     query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
-    wfs.db.cur.execute(query)
+    justin.db.cur.execute(query)
   except Exception as e:
     logLine('Failed updating request ' + str(requestID))
 
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def findFilesMetaCat(requestID, mql):
   # Find files matching the mql query from MetaCat
@@ -190,29 +190,29 @@ def findFilesMetaCat(requestID, mql):
                'ON DUPLICATE KEY UPDATE request_id=request_id'
               )
 
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
       
     except Exception as e:
       logLine('Failed inserting DID %:%s' % 
               ( fileDict['namespace'], fileDict['name'] ))
       return
 
-    wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ADDED,
+    justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
                     requestID = requestID,
                     stageID = 1,
-                    fileID = wfs.db.cur.lastrowid)
+                    fileID = justin.db.cur.lastrowid)
 
   # All files found for this request so update its state
   try:
     query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
              str(requestID))
 
-    wfs.db.cur.execute(query)
+    justin.db.cur.execute(query)
   except Exception as e:
     logLine('Failed updating request ' + str(requestID))
 
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def findFiles():
   # Find files to be processed for each request in the finding state
@@ -227,11 +227,11 @@ def findFiles():
            ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
            ' < NOW() AND refind_start_time < NOW() AND '
            'refind_end_time >= NOW())) '
-           'ORDER BY request_id' % wfs.db.unixEpoch)
+           'ORDER BY request_id' % justin.db.unixEpoch)
 
-  wfs.db.cur.execute(query)
+  justin.db.cur.execute(query)
 
-  findingRequests = wfs.db.cur.fetchall()
+  findingRequests = justin.db.cur.fetchall()
   if not findingRequests:  
     # Nothing to do
     return
@@ -278,8 +278,8 @@ def findFiles():
       findFilesMetaCat(request['request_id'], request['mql'])
 
 #    # Update the stats for the first stage
-#    wfs.allocator.updateStageCounts(request['request_id'], 1)
-    wfs.db.conn.commit()
+#    justin.allocator.updateStageCounts(request['request_id'], 1)
+    justin.db.conn.commit()
 
 def findReplicas():
   # Find replicas of files in the finding state
@@ -295,7 +295,7 @@ def findReplicas():
     'ORDER BY stage_rank DESC,RAND() LIMIT 1')
 
   try:
-    stageRow = wfs.db.select(query, justOne = True)
+    stageRow = justin.db.select(query, justOne = True)
     requestID = stageRow['request_id']
     stageID   = stageRow['stage_id']
 
@@ -311,7 +311,7 @@ def findReplicas():
   didsList = []
 
   try:
-    fileRows = wfs.db.select(
+    fileRows = justin.db.select(
            'SELECT files.request_id,files.stage_id,file_id,file_did '
            'FROM files '
            'LEFT JOIN requests ON requests.request_id=files.request_id '
@@ -341,8 +341,8 @@ def findReplicas():
 
   # Cache rse_id of every known RSE into a local dictionary
   storagesDict = {}
-  wfs.db.cur.execute('SELECT rse_name,rse_id,needs_pin FROM storages')
-  allStorages = wfs.db.cur.fetchall()
+  justin.db.cur.execute('SELECT rse_name,rse_id,needs_pin FROM storages')
+  allStorages = justin.db.cur.fetchall()
   
   for storageRow in allStorages:
     storagesDict[storageRow['rse_name']] = { 
@@ -407,9 +407,9 @@ def findReplicas():
             rses[pfnDict['rse']] = {}
       
         if pfnDict['domain'] == 'lan':
-            rses[pfnDict['rse']]['lan_pfn'] = wfs.db.fixPfn(pfnDict['pfn'])
+            rses[pfnDict['rse']]['lan_pfn'] = justin.db.fixPfn(pfnDict['pfn'])
         else:
-            rses[pfnDict['rse']]['wan_pfn'] = wfs.db.fixPfn(pfnDict['pfn'])
+            rses[pfnDict['rse']]['wan_pfn'] = justin.db.fixPfn(pfnDict['pfn'])
 
     # Now go through the replicas for this file, RSE by RSE
     for rse in rses:
@@ -428,7 +428,7 @@ def findReplicas():
           lanPFN = ''       
   
         if storagesDict[rse]['needs_pin']:
-          accessibleUntil = ',accessible_until="%s" ' % wfs.db.unixEpoch
+          accessibleUntil = ',accessible_until="%s" ' % justin.db.unixEpoch
         else:
           accessibleUntil = ''
         
@@ -442,7 +442,7 @@ def findReplicas():
                     lanPFN,
                     accessibleUntil))
 
-          wfs.db.cur.execute(query)
+          justin.db.cur.execute(query)
         except Exception as e:
           logLine('Failed inserting replica: ' + str(e))
           # We give up if this happens, without the commit
@@ -458,7 +458,7 @@ def findReplicas():
         query = ('UPDATE files SET state="unallocated" WHERE file_id=%d' %
                  fileRow['file_id'])
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (%d,%d,%s): %s' %
                 (fileRow['request_id'],
@@ -472,7 +472,7 @@ def findReplicas():
         query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
                  fileRow['file_id'])
 
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (%d,%d,%s): %s' %
                 (fileRow['request_id'], 
@@ -484,10 +484,10 @@ def findReplicas():
 
 #  # Update all the stages for which we've updated a file
 #  for (requestID, stageID) in requestsStages:
-#    wfs.allocator.updateStageCounts(requestID, stageID)
+#    justin.allocator.updateStageCounts(requestID, stageID)
     
   # All ok, so commit it all to the DB
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def findFinishedRequests():
   # Find requests with all files in terminal states and set to finished
@@ -498,9 +498,9 @@ def findFinishedRequests():
              '((refind_seconds = 0) OR (refind_end_time < NOW())) '
              'ORDER BY request_id')
 
-    wfs.db.cur.execute(query)
+    justin.db.cur.execute(query)
 
-    findingRequests = wfs.db.cur.fetchall()
+    findingRequests = justin.db.cur.fetchall()
   except:
     logLine('Failed to get list of running requests')
     return
@@ -521,8 +521,8 @@ def findFinishedRequests():
                'state <> "output"' %
                int(request['request_id']))
              
-      wfs.db.cur.execute(query)
-      count = int(wfs.db.cur.fetchone()['count'])
+      justin.db.cur.execute(query)
+      count = int(justin.db.cur.fetchone()['count'])
     except Exception as e:
       logLine('Failed to count non-terminal files for Request ID %d: %s' % 
               (request['request_id'], str(e)))
@@ -538,7 +538,7 @@ def findFinishedRequests():
       query = ('UPDATE requests SET state="finished",finished=NOW() '
                'WHERE request_id=%d' % int(request['request_id']))
     
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
     except:
       logLine('Failed to update state to finished for Request ID %d' % 
               request['request_id'])
@@ -546,14 +546,14 @@ def findFinishedRequests():
 
     logLine('Request ID %d set to finished' % request['request_id'])
     
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
   # or which have reported they have aborted
 
   try:
-    query = ('SELECT request_id,stage_id,wfs_job_id,jobsub_id,site_id,'
+    query = ('SELECT request_id,stage_id,justin_job_id,jobsub_id,site_id,'
              'allocation_state '
              'FROM jobs '
              'WHERE ((allocation_state="started" OR '
@@ -561,11 +561,11 @@ def findStalledAbortedJobs():
              'allocation_state="outputting") AND '
              '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) '
              'OR allocation_state="aborted" '
-             'ORDER BY wfs_job_id' % wfs.db.jobStallSeconds)
+             'ORDER BY justin_job_id' % justin.db.jobStallSeconds)
 
-    wfs.db.cur.execute(query)
+    justin.db.cur.execute(query)
 
-    jobRows = wfs.db.cur.fetchall()
+    jobRows = justin.db.cur.fetchall()
   except Exception as e:
     logLine('Failed to get list of stalled or aborted jobs: ' + str(e))
     return
@@ -580,9 +580,9 @@ def findStalledAbortedJobs():
       # If not here due to 'aborted', we mark the job as stalled
       try:
         query = ('UPDATE jobs SET allocation_state="stalled",finished_time=NOW() '
-                 'WHERE wfs_job_id=%d' % jobRow['wfs_job_id'])
+                 'WHERE justin_job_id=%d' % jobRow['justin_job_id'])
     
-        wfs.db.cur.execute(query)
+        justin.db.cur.execute(query)
       except Exception as e: 
         logLine('Failed to set job %s to stalled: %s' 
               % (jobRow['jobsub_id'], str(e)))
@@ -591,10 +591,10 @@ def findStalledAbortedJobs():
       logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
                                                  jobRow['allocation_state']))
     
-      wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_STALLED,
+      justin.db.logEvent(eventTypeID = justin.db.event_JOB_STALLED,
                       requestID = jobRow['request_id'],
                       stageID = jobRow['stage_id'],
-                      wfsJobID = jobRow['wfs_job_id'],
+                      justinJobID = jobRow['justin_job_id'],
                       siteID = jobRow['site_id'])
 
     # Then find the file(s) allocated to this stalled or aborted job 
@@ -604,12 +604,12 @@ def findStalledAbortedJobs():
       query = ('SELECT file_id,allocations,file_did,state '
                'FROM files '
                'WHERE (state="allocated" OR state="outputting") '
-               'AND wfs_job_id=%d '
-               'ORDER BY file_id' % jobRow['wfs_job_id'])
+               'AND justin_job_id=%d '
+               'ORDER BY file_id' % jobRow['justin_job_id'])
 
-      wfs.db.cur.execute(query)
+      justin.db.cur.execute(query)
 
-      fileRows = wfs.db.cur.fetchall()
+      fileRows = justin.db.cur.fetchall()
     except:
       logLine('Failed to get list of files of the stalled or aborted job')
       # We should give up at this point rather than commit a mess?
@@ -617,7 +617,7 @@ def findStalledAbortedJobs():
     
     for fileRow in fileRows: 
     
-      if fileRow['allocations'] >= wfs.db.maxAllocations:
+      if fileRow['allocations'] >= justin.db.maxAllocations:
         # Reached max allocations allowed per file
         # Mark file as failed in case it is the file causing the problem
         # (eg pathological file causes memory to balloon leading to the site
@@ -627,7 +627,7 @@ def findStalledAbortedJobs():
           query = ('UPDATE files SET state="failed" '
                    'WHERE file_id=%d' % fileRow['file_id'])
 
-          wfs.db.cur.execute(query)
+          justin.db.cur.execute(query)
         except:
           logLine('Failed to set file %s to failed in '
                   'request %d, stage %d after job %s' 
@@ -636,11 +636,11 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
             
-        wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_SET_TO_FAILED,
+        justin.db.logEvent(eventTypeID = justin.db.event_FILE_SET_TO_FAILED,
                         requestID = jobRow['request_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
-                        wfsJobID = jobRow['wfs_job_id'],
+                        justinJobID = jobRow['justin_job_id'],
                         siteID = jobRow['site_id'])
       else:
       
@@ -648,7 +648,7 @@ def findStalledAbortedJobs():
           query = ('UPDATE files SET state="unallocated" '
                    'WHERE file_id=%d' % fileRow['file_id'])
 
-          wfs.db.cur.execute(query)
+          justin.db.cur.execute(query)
         except:
           logLine('Failed to set file %s to unallocated in '
                   'request %d, stage %d after job %s' 
@@ -657,14 +657,14 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
 
-        wfs.db.logEvent(eventTypeID = 
-                        wfs.db.event_FILE_OUTPUTTING_RESET 
+        justin.db.logEvent(eventTypeID = 
+                        justin.db.event_FILE_OUTPUTTING_RESET 
                          if fileRow['state'] == 'outputting'
-                         else wfs.db.event_FILE_ALLOCATED_RESET,
+                         else justin.db.event_FILE_ALLOCATED_RESET,
                         requestID = jobRow['request_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
-                        wfsJobID = jobRow['wfs_job_id'],
+                        justinJobID = jobRow['justin_job_id'],
                         siteID = jobRow['site_id'])
 
         logLine('Reset file %s in %d,%d to unallocated for job %s' % 
@@ -672,7 +672,7 @@ def findStalledAbortedJobs():
                  jobRow['stage_id'], jobRow['jobsub_id']))
 
   # Everything went ok so commit
-  wfs.db.conn.commit()
+  justin.db.conn.commit()
 
 def oneCycle():
 
@@ -701,18 +701,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs(wfs.conf.wfsRunDir,         
+        os.makedirs(justin.conf.justinRunDir,         
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
         pass
         
       try:
-        f = open(wfs.conf.wfsRunDir + '/finder.pid', 'w')
+        f = open(justin.conf.justinRunDir + '/finder.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create '+wfs.conf.wfsRunDir+'/finder.pid - exiting')
+        print('Failed to create '+justin.conf.justinRunDir+'/finder.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -721,9 +721,9 @@ if __name__ == '__main__':
 
       while True:
 
-        # Ensure /var/log/wfs directory exists
+        # Ensure /var/log/justin directory exists
         try:
-          os.makedirs('/var/log/wfs', 
+          os.makedirs('/var/log/justin', 
                       stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
         except:
           pass
@@ -734,7 +734,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = open('/var/log/wfs/finder', 'a+')
+        so = open('/var/log/justin/finder', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -743,20 +743,20 @@ if __name__ == '__main__':
         except:
           pass
           
-        se = open('/var/log/wfs/finder', 'a+')
+        se = open('/var/log/justin/finder', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open(wfs.conf.wfsRunDir + '/finder.pid', 'r')
+          pf = open(justin.conf.justinRunDir + '/finder.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new ' + wfs.conf.wfsRunDir + '/finder.pid - exiting')
+            print('new ' + justin.conf.justinRunDir + '/finder.pid - exiting')
             break
 
         except:
-          print('no ' + wfs.conf.wfsRunDir + '/finder.pid - exiting')
+          print('no ' + justin.conf.justinRunDir + '/finder.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
@@ -765,15 +765,15 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          wfs.conf.readConf()
+          justin.conf.readConf()
           
           try:
-            wfs.db.conn = MySQLdb.connect(host=wfs.conf.mysqlHostname, 
-                                  user=wfs.conf.mysqlUsername,
-                                  passwd=wfs.conf.mysqlPassword, 
-                                  db=wfs.conf.mysqlDbName)
-            wfs.db.conn.autocommit(False)
-            wfs.db.cur = wfs.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:

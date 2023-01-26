@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 #
 # Check any metadata JSON from bootstrap script for a given file and add
-# WFS metadata to it. The output file and its JSON file will be looked for in 
-# the workspace subdirectory.
+# workflow metadata to it. The output file and its JSON file will be looked for
+# in the workspace subdirectory.
 #
 # This script must be converted to base64 with something like the following 
-# and included in the here document near the start of wfs-generic-job :
+# and included in the here document near the start of justin-generic-job :
 #
-# (macOS) base64 -b 76 wfs-metadata > wfs-metadata.b64
-# (Linux) base64       wfs-metadata > wfs-metadata.b64
+# (macOS) base64 -b 76 justin-metadata > justin-metadata.b64
+# (Linux) base64       justin-metadata > justin-metadata.b64
 
 import os
 import sys
@@ -18,7 +18,7 @@ try:
   fileScope = sys.argv[1]
   fileName  = sys.argv[2]
 except:
-  print("wfs-metadata SCOPE NAME", file=sys.stderr)
+  print("justin-metadata SCOPE NAME", file=sys.stderr)
   sys.exit(1)
     
 try:
@@ -35,21 +35,21 @@ metadata['name']      = fileName
 metadata['metadata']['DUNE.workflow'] = {}
 
 metadata['metadata']['DUNE.workflow']['site_name'] \
- = os.environ['WFS_SITE_NAME']
+ = os.environ['JUSTIN_SITE_NAME']
 metadata['metadata']['DUNE.workflow']['request_id'] \
- = int(os.environ['WFS_REQUEST_ID'])
+ = int(os.environ['JUSTIN_REQUEST_ID'])
 metadata['metadata']['DUNE.workflow']['stage_id'] \
- = int(os.environ['WFS_STAGE_ID'])
+ = int(os.environ['JUSTIN_STAGE_ID'])
 metadata['metadata']['DUNE.workflow']['hostname'] \
- = os.environ['WFS_HOSTNAME']
+ = os.environ['JUSTIN_HOSTNAME']
 metadata['metadata']['DUNE.workflow']['script_start'] \
- = os.environ['WFS_BOOTSTRAP_SCRIPT_START']
+ = os.environ['JUSTIN_BOOTSTRAP_SCRIPT_START']
 metadata['metadata']['DUNE.workflow']['script_finish'] \
- = os.environ['WFS_BOOTSTRAP_SCRIPT_FINISH']
+ = os.environ['JUSTIN_BOOTSTRAP_SCRIPT_FINISH']
 metadata['metadata']['DUNE.workflow']['cpuinfo'] \
- = os.environ['WFS_CPUINFO']
+ = os.environ['JUSTIN_CPUINFO']
 metadata['metadata']['DUNE.workflow']['os_release'] \
- = os.environ['WFS_OS_RELEASE']
+ = os.environ['JUSTIN_OS_RELEASE']
 metadata['metadata']['DUNE.workflow']['job_id'] \
  = os.environ['JOBSUBJOBID']
 

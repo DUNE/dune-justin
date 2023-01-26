@@ -1,16 +1,16 @@
 #!/bin/sh
 #
 # Example bootstrap script that runs lar for all the files
-# referred to by the MQL expression given on the workflow command line.
+# referred to by the MQL expression given on the justin command line.
 #
 # Submit with something like this:
 #
-# ./workflow quick-request \
+# ./justin quick-request \
 #  --max-distance 30 \
 #  --mql "rucio-dataset protodune-sp:np04_raw_run_number_5769" \
 #  --file lar.bootstrap
 #
-# Then monitor with dashboard or ./workflow show-jobs --request-id ID
+# Then monitor with dashboard or ./justin show-jobs --request-id ID
 # where ID is the value printed by the first command
 #
 
@@ -19,7 +19,7 @@ export CLUSTER=${CLUSTER:-1}
 export PROCESS=${PROCESS:-1}
 
 # Get an unprocessed file from this stage
-did_pfn_rse=`$WFS_PATH/wfs-get-file`
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 did=`echo $did_pfn_rse | cut -f1 -d' '`
 pfn=`echo $did_pfn_rse | cut -f2 -d' '`
 rse=`echo $did_pfn_rse | cut -f3 -d' '`
@@ -60,7 +60,7 @@ cp ${JSB_TMP}/JOBSUB_ERR_FILE \
 extractor_prod.py \
  --infile $(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root) \
  --appfamily art --appname reco --appversion v09_09_01 \
- --campaign "WFS-$WFS_REQUEST_ID" --no_crc --data_stream physics \
+ --campaign "justIn-$JUSTIN_REQUEST_ID" --no_crc --data_stream physics \
  > $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root).json
 
 mv michelremoving.root \
@@ -72,7 +72,7 @@ mv Pandora_Events.pndr \
 pandora_metadata.py \
  --infile $(ls *_Pandora_Events.pndr)  \
  --appfamily art --appname reco \
- --appversion v09_09_01 --campaign "WFS-$WFS_REQUEST_ID" \
+ --appversion v09_09_01 --campaign "justIn-$JUSTIN_REQUEST_ID" \
  --no_crc --data_stream physics \
  --input_json $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root.json) \
  > $(ls *_Pandora_Events.pndr).json
@@ -80,7 +80,7 @@ pandora_metadata.py \
 pandora_metadata.py \
  --infile $(ls *_michelremoving.root)  \
  --appfamily art --appname calana --appversion v09_09_01 \
- --campaign "WFS-$WFS_REQUEST_ID" \
+ --campaign "justIn-$JUSTIN_REQUEST_ID" \
  --no_crc --data_stream physics \
  --input_json $(ls *_reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root.json) \
  --data_tier root-tuple --file_format rootntuple --strip_parents \
@@ -89,7 +89,7 @@ pandora_metadata.py \
 sed -i -e "/file_name/ a     \"parents\": [\"$(ls *reco1_${CLUSTER}_${PROCESS}_${FILETIMESTAMP}.root)\"]," $(ls *_michelremoving.root).json
 
 # Record that we processed the input file ok (did we???)
-echo "$pfn" > wfs-processed-pfns.txt
+echo "$pfn" > justin-processed-pfns.txt
 
 # Patterns to put in stage outputs definition:
 # np04*_reco*Z.root *_Pandora_Events.pndr *_michelremoving.root

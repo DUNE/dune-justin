@@ -5,7 +5,7 @@
 # and in the dc4-test:amcnab-01 dataset in MetaCat and Rucio, use this command to 
 # create the request:
 #
-# workflow quick-request \
+# justin quick-request \
 # --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
 # --file dc4-vd-coldbox-top.bootstrap --max-distance 100 \
 # --output-pattern 'dc4-test:amcnab-01:*_reco_data_*.root' \
@@ -77,7 +77,7 @@ fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
 #nEvts=2
 
 # First get an unprocessed file from this stage
-did_pfn_rse=`$WFS_PATH/wfs-get-file`
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 
 if [ "$did_pfn_rse" = "" ] ; then
   echo "Nothing to process - exit bootstrap"
@@ -87,7 +87,7 @@ fi
 # Keep a record of all input DIDs, for metadata file -> DID later
 echo "$did_pfn_rse" | cut -f1 -d' ' >>all-input-dids.txt
 
-# pfn is also needed when creating wfs-processed-pfns.txt
+# pfn is also needed when creating justin-processed-pfns.txt
 pfn=`echo $did_pfn_rse | cut -f2 -d' '`
 
 echo "Input PFN = $pfn"
@@ -113,7 +113,7 @@ outFile=${fname}_reco_data_${now}.root
 echo $Ffname $fname $outFile
 
 # put here the right value, this is just an example 
-campaign="WFS.Request-${WFS_REQUEST_ID}.Stage-${WFS_STAGE_ID}"
+campaign="justIN.Request-${JUSTIN_REQUEST_ID}.Stage-${JUSTIN_STAGE_ID}"
 
 (
 # Do the scary preload stuff in a subshell!
@@ -143,7 +143,7 @@ if [ $larExit -eq 0 ] ; then
 
   if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
     echo "Metadata extraction succeeds"
-    echo "$pfn" > wfs-processed-pfns.txt
+    echo "$pfn" > justin-processed-pfns.txt
     echo "===Metadata JSON==="
     cat $outFile.json
     echo

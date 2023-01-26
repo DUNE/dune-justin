@@ -1,0 +1,10 @@
+/var/log/justin/info-collector
+/var/log/justin/finder
+/var/log/justin/finder-fnal
+/var/log/justin/job-factory
+/var/log/justin/stage-cache
+{
+  daily
+  missingok
+  rotate 3
+}

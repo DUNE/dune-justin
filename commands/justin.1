@@ -1,13 +1,13 @@
-.TH WORKFLOW  "2022" "workflow" "WFS Manual"
+.TH JUSTIN  "2022" "justin" "justin Manual"
 .SH NAME
-.B workflow
-\- Workflow System utility command
+.B justin
+\- justIn workflow system utility command
 .SH SYNOPSIS
-.B workflow subcommand [options]
+.B justin subcommand [options]
 .SH DESCRIPTION
-.B workflow
+.B justin
 is a command-line utility for managing requests, stages, files, and replicas
-in the Workflow System Database (WFDB).
+in the justIn Database (JDB).
 
 .SH GENERAL OPTIONS
 
@@ -19,13 +19,13 @@ Show help message and exit
 .HP 
 .B "-v, --verbose"
 .br
-Turn on verbose logging of the communication with the WFDB service.
+Turn on verbose logging of the communication with justIn service.
 
 .HP 
 .B "--url URL"
 .br
-Use an alternative Worklow Service, rather than 
-https://wfs-ui-pro.dune.hep.ac.uk/api/commands This 
+Use an alternative justIn service, rather than 
+https://justin.dune.hep.ac.uk/api/commands This 
 option is only needed during development and testing.
 
 .SH SUBCOMMANDS
@@ -33,14 +33,14 @@ option is only needed during development and testing.
 .HP
 .B "version"
 .br
-Output the version number of the workflow command.
+Output the version number of the justin command.
 
 .HP
 .B "time"
 .br
-Contact the Workflow System to get the current time as a string. This can be
+Contact justIn to get the current time as a string. This can be
 used to check that the client is installed correctly and that the user is
-properly registered in the Workflow System.
+properly registered in justIn.
 
 .HP
 .B "create-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
@@ -51,7 +51,7 @@ the count of the number of Monte Carlo instances to run. If a name is not
 given, a name based on a timestamp is created. 
 Requests are created in the state "draft" and the command returns the new 
 request's ID number.
-Once the request is in the running state, the Workflow System will use the 
+Once the request is in the running state, justIn will use the 
 MQL expression to find the list of input files from MetaCat. If 
 .B --refind-interval-hours
 is given, the MQL query will be resubmitted at that interval to add any
@@ -151,7 +151,7 @@ that file in MetaCat.
 Alternatively
 .B --output-pattern-next-stage SCOPE:DATASET:PATTERN
 can be given in which the output file will also be registered in the
-Workflow Database as an unprocessed input file for the next stage and
+justIn Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
 
 If one or more options
@@ -218,7 +218,7 @@ request, and then the dataset, scope, and files pattern themselves.
 .HP
 .B "show-storages [--rse-name NAME]"
 .br
-Shows information about Rucio Storage Elements cached in the Workflow
+Shows information about Rucio Storage Elements cached in the justIn
 Database, optionally limiting output to a single RSE using its name. Each
 line of the output consists of the RSE name followed by the occupancy
 fraction obtained from Rucio in the range 0.0 to 1.0, and the Read, Write
@@ -236,12 +236,12 @@ between 0 (same site) and 100 (maximally remote).
 .HP
 .B "show-files [--request-id ID] [--stage-id ID] [--file-did DID]"
 .br
-Shows files information cached in the Workflow Database, either limited by 
+Shows files information cached in the justIn Database, either limited by 
 request ID and stage ID or by file DID. For each file, the request ID, stage
 ID, file state, and file DID are shown. The file state is one of "finding",
 "unallocated", "allocated", or "processed". Files wait in the "unallocated"
-state, are then allocated to an instance of the stage's script by the 
-Workflow Allocator, and then either return to "unallocated" or move to
+state, are then allocated to an instance of the stage's script by justIn's
+allocator service, and then either return to "unallocated" or move to
 "processed" depending on whether the script is able to process them
 correctly.
 
@@ -258,7 +258,7 @@ states and mark the request as finished.
 .HP
 .B "show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]"
 .br
-Shows file and replica information in the Workflow Database, either limited by 
+Shows file and replica information in the justIn Database, either limited by 
 request ID and stage ID or by file DID. For each replica of each file, the 
 request ID, stage ID, file state, RSE name, and file DID are shown. 
 
@@ -275,46 +275,47 @@ The bootstrap scripts supplied when creating a stage are shell scripts
 which the generic jobs execute on the worker nodes matched to that stage.
 They are started in an empty workspace directory.
 Several environment variables are made available to the
-scripts, all prefixed with WFS_, including $WFS_REQUEST_ID, $WFS_STAGE_ID and
-$WFS_COOKIE which allows the bootstrap script to authenticate to the 
-Workflow Allocator. $WFS_PATH is used to reference files and scripts 
-provided by the Workflow System. 
+scripts, all prefixed with JUSTIN_, including $JUSTIN_REQUEST_ID, 
+$JUSTIN_STAGE_ID and
+$JUSTIN_COOKIE which allows the bootstrap script to authenticate to justIn's
+allocator service. $JUSTIN_PATH is used to reference files and scripts 
+provided by justIn. 
 
 To get the details of an input file to work on, the command 
-$WFS_PATH/wfs-get-file is executed by the bootstrap script.
+$JUSTIN_PATH/justin-get-file is executed by the bootstrap script.
 This produces a single line of output with the Rucio DID of the chosen file,
 its PFN on the optimal RSE, and the name of that RSE, all separated by
 spaces. This code fragment shows how the DID, PFN and RSE can be put into
 shell variables:
 
-  did_pfn_rse=`$WFS_PATH/wfs-get-file`
+  did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
   did=`echo $did_pfn_rse | cut -f1 -d' '`
   pfn=`echo $did_pfn_rse | cut -f2 -d' '`
   rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-If no file is available to be processed, then wfs-get-file produces no
-output to stdout, which should also be checked for. wfs-get-file logs errors
+If no file is available to be processed, then justin-get-file produces no
+output to stdout, which should also be checked for. justin-get-file logs errors
 to stderr.
 
-wfs-get-file can be called multiple times to process more than one file in
+justin-get-file can be called multiple times to process more than one file in
 the same bootstrap script. This can be done all at the start or repeatedly
-during the lifetime of the job. wfs-get-file is itself a simple wrapper around
-the curl command and it would also be possible to access the Workflow 
-Allocator's REST API directly from an application.
+during the lifetime of the job. justin-get-file is itself a simple wrapper around
+the curl command and it would also be possible to access the justIn 
+allocator service's REST API directly from an application.
 
-Each file returned by wfs-get-file is marked as allocated and will not be 
+Each file returned by justin-get-file is marked as allocated and will not be 
 processed by any other jobs. When the bootstrap script finishes, it 
 .B must
 leave files with lists of the processed files in its
-workspace directory. These lists are sent to the Workflow Allocator by
+workspace directory. These lists are sent to the justIn allocator service by
 the generic job, which either marks input files as being successfully 
 processed or resets their state to unallocated, ready for matching by another
 job. 
 
 Files can be referred to either by DID or PFN, one
 per line, in the appropriate list file:  
-  wfs-processed-dids.txt
-  wfs-processed-pfns.txt
+  justin-processed-dids.txt
+  justin-processed-pfns.txt
 
 It is not necessary to create list files which would otherwise be empty. You 
 can use a mix of DIDs and PFNs, as long as each appears in the correct list
@@ -332,10 +333,10 @@ corresponding metadata files for MetaCat.
 
 .SH REQUEST PROCESSING
 
-Once a request enters the running state, it is processed by the Workflow 
-System's Finder agent. Usually this is just done once, but it can be
+Once a request enters the running state, it is processed by justIn's
+finder agent. Usually this is just done once, but it can be
 repeated if the --refind-interval-hours option is given when creating the 
-request. When the request is processed, the Finder uses the requests's MQL 
+request. When the request is processed, the finder uses the requests's MQL 
 expression to create a list of input files for the first stage. Work is only
 assigned to jobs when a matching file is found and so these lists of files 
 are essential.
@@ -357,7 +358,7 @@ number.
 
 .SH FILES
 
-An X.509 user proxy file is currently needed to contact the Workflow Service,
+An X.509 user proxy file is currently needed to contact justIn,
 which is either given by 
 .B $X509_USER_PROXY 
 or 

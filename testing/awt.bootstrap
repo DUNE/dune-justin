@@ -17,11 +17,11 @@ python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
 touch results.txt
 export now=`date +'%s'`
 
-cat $WFS_PATH/wfs-awt-rse-list.txt | (
+cat $JUSTIN_PATH/justin-awt-rse-list.txt | (
 
 while read rse_name write_protocol read_pfn
 do
-  echo $WFS_SITE_NAME $rse_name $write_protocol $read_pfn
+  echo $JUSTIN_SITE_NAME $rse_name $write_protocol $read_pfn
 
   # Test download of file prepositioned on RSEs
   xrdcp --force --nopbar --verbose "$read_pfn" awt-download-file.txt
@@ -43,7 +43,7 @@ do
   upload_retval=$?
   echo "rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
 
-  echo "==awt== $WFS_SITE_NAME $rse_name $download_retval $upload_retval" \
+  echo "==awt== $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval" \
     "$read_pfn $write_protocol" >> results.txt
 done
 
@@ -56,5 +56,5 @@ echo 'Download/upload commands:'
 echo 'xrdcp --force --nopbar --verbose $read_pfn awt-download-file.txt'
 echo 'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --name FILENAME FILENAME'
 echo
-echo 'Each line: $WFS_SITE_NAME $rse_name $download_retval $upload_retval $read_pfn $write_protocol'
+echo 'Each line: $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval $read_pfn $write_protocol'
 cat results.txt

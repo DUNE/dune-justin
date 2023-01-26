@@ -19,9 +19,7 @@ import configparser
 # Constants
 MonteCarloRseID = 1
 
-wfsLibDir     = '/var/lib/wfs'
-wfsLogDir     = '/var/log/wfs'
-wfsRunDir     = '/var/run/wfs'
+justinRunDir     = '/var/run/justin'
 
 mysqlUsername = None
 mysqlPassword = None
@@ -33,27 +31,27 @@ def readConf():
 
   parser = configparser.RawConfigParser()
 
-  # Look for configuration files in /etc/wfs.d
+  # Look for configuration files in /etc/justin.d
   try:
-    confFiles = os.listdir('/etc/wfs.d')
+    confFiles = os.listdir('/etc/justin.d')
   except:
     pass 
   else:
     for oneFile in sorted(confFiles):
       if oneFile[-5:] == '.conf':
-        parser.read('/etc/wfs.d/' + oneFile)
+        parser.read('/etc/justin.d/' + oneFile)
 
-  # Standalone configuration file, read after wfs.d in case of manual overrides
-  parser.read('/etc/wfs.conf')
+  # Standalone configuration file, read after justin.d in case of manual overrides
+  parser.read('/etc/justin.conf')
 
   # Options for the [shared] section
 
   try:
-    f = open(wfsLibDir + '/VERSION', 'r')
-    wfsVersion = f.readline().split('=',1)[1].strip()
+    f = open('/var/lib/justin/VERSION', 'r')
+    justinVersion = f.readline().split('=',1)[1].strip()
     f.close()
   except:
-    wfsVersion = '00.00.00'
+    justinVersion = '00.00.00'
 
   # Options for the [database section]
 
@@ -75,6 +73,6 @@ def readConf():
   try:
     mysqlDbName = parser.get('database','db').strip()
   except:
-    mysqlDbName = 'wfdb'
+    mysqlDbName = 'justindb'
 
     

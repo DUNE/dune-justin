@@ -1,5 +1,5 @@
 #
-# WFS Database globals and functions
+# justIn database globals and functions
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -174,7 +174,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              requestID = 0,
              stageID = 0,
              fileID = 0,
-             wfsJobID = 0,
+             justinJobID = 0,
              siteID = 0,
              siteName = None,
              rseID = 0,
@@ -198,7 +198,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'request_id=%d,'
              'stage_id=%d,'
              'file_id=%d,'
-             'wfs_job_id=%d,'
+             'justin_job_id=%d,'
              'site_id=%s,'
              'rse_id=%s,'
              'event_time=NOW()' %
@@ -206,7 +206,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
               requestID,
               stageID,
               fileID,
-              wfsJobID,
+              justinJobID,
               siteExpr,
               rseExpr))
 

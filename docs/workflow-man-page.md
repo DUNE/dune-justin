@@ -1,20 +1,20 @@
-## Workflow command man page
+## justin command man page
 This man page is distributed along with the 
-[workflow command](workflow-command.md) itself.
+[justin command](workflow-command.md) itself.
 ```
-WORKFLOW(2022)                                                  WORKFLOW(2022)
+JUSTIN(2022)                                                      JUSTIN(2022)
 
 
 
 NAME
-       workflow - Workflow System utility command
+       justin - justIn workflow system utility command
 
 SYNOPSIS
-       workflow subcommand [options]
+       justin subcommand [options]
 
 DESCRIPTION
-       workflow  is  a  command-line  utility  for  managing requests, stages,
-       files, and replicas in the Workflow System Database (WFDB).
+       justin  is a command-line utility for managing requests, stages, files,
+       and replicas in the justIn Database (JDB).
 
 
 GENERAL OPTIONS
@@ -23,43 +23,42 @@ GENERAL OPTIONS
 
 
        -v, --verbose
-              Turn on verbose logging of the communication with the WFDB  ser-
+              Turn on verbose logging of the communication  with  justIn  ser-
               vice.
 
 
        --url URL
-              Use  an alternative Worklow Service, rather than https://wfs-ui-
-              pro.dune.hep.ac.uk/api/commands This option is only needed  dur-
-              ing development and testing.
+              Use    an    alternative    justIn    service,    rather    than
+              https://justin.dune.hep.ac.uk/api/commands This option  is  only
+              needed during development and testing.
 
 
 SUBCOMMANDS
        version
-              Output the version number of the workflow command.
+              Output the version number of the justin command.
 
 
        time
-              Contact the Workflow System to get the current time as a string.
-              This can be used to check that the client is installed correctly
-              and that the user is properly registered in the Workflow System.
+              Contact  justIn to get the current time as a string. This can be
+              used to check that the client is installed  correctly  and  that
+              the user is properly registered in justIn.
 
 
-       create-request  [--name   NAME]   [--mql   QUERY|--monte-carlo   COUNT]
-              [--refind-start-date   YYYYMMDD]  [--refind-duration-days  DAYS]
+       create-request   [--name   NAME]   [--mql   QUERY|--monte-carlo  COUNT]
+              [--refind-start-date  YYYYMMDD]  [--refind-duration-days   DAYS]
               [--refind-interval-hours HOURS]
               Create a new, empty request in the database, optionally with the
-              given  human-readable  name  and either a MetaCat Query Language
-              expression or the count of the number of Monte  Carlo  instances
-              to  run.  If a name is not given, a name based on a timestamp is
+              given human-readable name and either a  MetaCat  Query  Language
+              expression  or  the count of the number of Monte Carlo instances
+              to run. If a name is not given, a name based on a  timestamp  is
               created.  Requests are created in the state "draft" and the com-
-              mand  returns  the new request's ID number.  Once the request is
-              in the running state, the  Workflow  System  will  use  the  MQL
-              expression  to  find  the  list  of input files from MetaCat. If
-              --refind-interval-hours is given, the MQL query will  be  resub-
-              mitted  at  that interval to add any new matching files from the
-              start of the day given by --refind-start-date (default: today in
-              UTC)  for  the  number  of  days given by --refind-duration-days
-              (default: 1).
+              mand returns the new request's ID number.  Once the  request  is
+              in the running state, justIn will use the MQL expression to find
+              the list of input files from MetaCat. If --refind-interval-hours
+              is  given, the MQL query will be resubmitted at that interval to
+              add any new matching files from the start of the  day  given  by
+              --refind-start-date  (default:  today  in UTC) for the number of
+              days given by --refind-duration-days (default: 1).
 
 
        show-requests [--request-id ID]
@@ -95,9 +94,9 @@ SUBCOMMANDS
 
        create-stage --request-id ID --stage-id ID --file FILENAME [--wall-sec-
               onds N] [--rss-mb  N]  [--processors  N]  [--max-distance  DIST]
-              [--output-pattern SCOPE:DATASET:PATTERN] [--output-pattern-next-
-              stage SCOPE:DATASET:PATTERN]  [--output-rse  NAME]  [--lifetime-
-              days DAYS] [--env NAME=VALUE]
+              [--max-files-per-job N] [--output-pattern SCOPE:DATASET:PATTERN]
+              [--output-pattern-next-stage  SCOPE:DATASET:PATTERN]  [--output-
+              rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]"
               Creates  a  new  stage  for  the given request ID with the given
               stage ID. Stages must be numbered consecutively from 1, and each
               request  must  have  at  least one stage. Each stage must have a
@@ -122,48 +121,54 @@ SUBCOMMANDS
               be allocated on storages at greater distances, up to a value  of
               100 which represents maximally remote storages.
 
+              --max-files-per-job  N  limits the number of files which will be
+              allocated to a job. This can be used to ensure  that  bootstraps
+              which  request  files  to work on, one after another, do not run
+              for too long. Default 1.
+
               If one or more options --output-pattern SCOPE:DATASET:PATTERN is
-              given then the generic job will look for files  created  by  the
-              script  which match the pattern given as PATTERN. The pattern is
-              a Bash shell pattern using *, ? and [...] expressions.  See  the
-              bash(1)  Pattern  Matching section for details. Any output files
-              found by this matching will be uploaded and  registered  by  the
-              generic  job in the Rucio dataset given by SCOPE:DATASET, with a
+              given  then  the  generic job will look for files created by the
+              script which match the pattern given as PATTERN. The pattern  is
+              a  Bash  shell pattern using *, ? and [...] expressions. See the
+              bash(1) Pattern Matching section for details. Any  output  files
+              found  by  this  matching will be uploaded and registered by the
+              generic job in the Rucio dataset given by SCOPE:DATASET, with  a
               DID composed of the scope given and the found filename. Further-
               more, if the found files have a corresponding JSON metadata file
-              with the same name but  with  ".json"  appended,  that  will  be
+              with  the  same  name  but  with  ".json" appended, that will be
               recorded for that file in MetaCat.
 
-              Alternatively  --output-pattern-next-stage SCOPE:DATASET:PATTERN
+              Alternatively --output-pattern-next-stage  SCOPE:DATASET:PATTERN
               can be given in which the output file will also be registered in
-              the  Workflow Database as an unprocessed input file for the next
-              stage and available for allocation to instances of that  stage's
+              the justIn Database as an unprocessed input file  for  the  next
+              stage  and available for allocation to instances of that stage's
               script.
 
-              If  one or more options --output-rse NAME is given, then the RSE
-              used for uploads of output files will be chosen from  that  list
-              of  RSEs, with preference given to RSEs which are closer in dis-
+              If one or more options --output-rse NAME is given, then the  RSE
+              used  for  uploads of output files will be chosen from that list
+              of RSEs, with preference given to RSEs which are closer in  dis-
               tance. If this option is not used, or none of the given RSEs are
-              available,  then  the default algorithm for choosing the closest
+              available, then the default algorithm for choosing  the  closest
               available RSE is used.
 
-              --lifetime-days DAYS sets the  Rucio  lifetime  for  all  output
-              files  that  are uploaded. The lifetime defaults to 1 day if not
+              --lifetime-days  DAYS  sets  the  Rucio  lifetime for all output
+              files that are uploaded. The lifetime defaults to 1 day  if  not
               specified.
 
-              --env NAME=VALUE can be used one or more times to  set  environ-
+              --env  NAME=VALUE  can be used one or more times to set environ-
               ment variables when the stage's bootstrap script is executed.
 
 
        quick-request   [--name   NAME]   [--mql   QUERY|--monte-carlo   COUNT]
-              [--refind-start-date  YYYYMMDD]  [--refind-duration-days   DAYS]
-              [--refind-interval-hours  HOURS] --file FILENAME [--wall-seconds
-              N] [--rss-mb N] [--processors N] [--max-distance  DIST]  [--out-
-              put-pattern  SCOPE:DATASET:PATTERN] [--output-rse NAME] [--life-
-              time-days DAYS] [--env NAME=VALUE]
+              [--refind-start-date   YYYYMMDD]  [--refind-duration-days  DAYS]
+              [--refind-interval-hours HOURS] --file FILENAME  [--wall-seconds
+              N] [--max-files-per-job N] [--rss-mb N] [--processors N] [--max-
+              distance DIST] [--output-pattern SCOPE:DATASET:PATTERN]  [--out-
+              put-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]"
               Combines the create-request, create-stage and start-request sub-
-              commands  into  a  single  operation,  for use with single-stage
-              requests.
+              commands into a single  operation,  for  use  with  single-stage
+              requests.  The  options  available  to  the  two subcommands are
+              described in their respective sections above.
 
 
        show-stages --request-id ID [--stage-id ID]
@@ -194,7 +199,7 @@ SUBCOMMANDS
 
        show-storages [--rse-name NAME]
               Shows information about Rucio Storage  Elements  cached  in  the
-              Workflow  Database,  optionally  limiting output to a single RSE
+              justIn  Database,  optionally  limiting  output  to a single RSE
               using its name. Each line of the output consists of the RSE name
               followed  by  the  occupancy fraction obtained from Rucio in the
               range 0.0 to 1.0, and the Read, Write and Delete availability of
@@ -211,15 +216,15 @@ SUBCOMMANDS
 
 
        show-files [--request-id ID] [--stage-id ID] [--file-did DID]
-              Shows files information cached in the Workflow Database,  either
+              Shows files information cached in the  justIn  Database,  either
               limited  by  request  ID  and  stage ID or by file DID. For each
               file, the request ID, stage ID, file state,  and  file  DID  are
               shown. The file state is one of "finding", "unallocated", "allo-
               cated", or "processed". Files wait in the  "unallocated"  state,
-              are  then  allocated to an instance of the stage's script by the
-              Workflow Allocator, and then either return to  "unallocated"  or
-              move  to  "processed" depending on whether the script is able to
-              process them correctly.
+              are  then  allocated  to  an  instance  of the stage's script by
+              justIn's allocator service, and then either return  to  "unallo-
+              cated" or move to "processed" depending on whether the script is
+              able to process them correctly.
 
 
        fail-files --request-id ID [--stage-id ID]
@@ -233,7 +238,7 @@ SUBCOMMANDS
 
 
        show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]
-              Shows file and replica information  in  the  Workflow  Database,
+              Shows file and  replica  information  in  the  justIn  Database,
               either  limited  by  request ID and stage ID or by file DID. For
               each replica of each file, the request ID, stage ID, file state,
               RSE name, and file DID are shown.
@@ -252,45 +257,46 @@ BOOTSTRAP SCRIPTS
        which the generic jobs execute on the  worker  nodes  matched  to  that
        stage.   They  are  started  in  an empty workspace directory.  Several
        environment variables are made available to the scripts,  all  prefixed
-       with  WFS_,  including  $WFS_REQUEST_ID,  $WFS_STAGE_ID and $WFS_COOKIE
-       which allows the bootstrap script to authenticate to the Workflow Allo-
-       cator. $WFS_PATH is used to reference files and scripts provided by the
-       Workflow System.
+       with   JUSTIN_,   including  $JUSTIN_REQUEST_ID,  $JUSTIN_STAGE_ID  and
+       $JUSTIN_COOKIE which allows the bootstrap  script  to  authenticate  to
+       justIn's allocator service. $JUSTIN_PATH is used to reference files and
+       scripts provided by justIn.
 
        To  get  the  details  of  an  input  file  to  work  on,  the  command
-       $WFS_PATH/wfs-get-file  is executed by the bootstrap script.  This pro-
-       duces a single line of output with the Rucio DID of  the  chosen  file,
+       $JUSTIN_PATH/justin-get-file is executed by the bootstrap script.  This
+       produces a single line of output with the Rucio DID of the chosen file,
        its  PFN on the optimal RSE, and the name of that RSE, all separated by
        spaces. This code fragment shows how the DID, PFN and RSE  can  be  put
        into shell variables:
 
-         did_pfn_rse=`$WFS_PATH/wfs-get-file`
+         did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
          did=`echo $did_pfn_rse | cut -f1 -d' '`
          pfn=`echo $did_pfn_rse | cut -f2 -d' '`
          rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-       If  no file is available to be processed, then wfs-get-file produces no
-       output to stdout, which should also be checked for.  wfs-get-file  logs
-       errors to stderr.
+       If  no file is available to be processed, then justin-get-file produces
+       no output to stdout, which should also be checked for.  justin-get-file
+       logs errors to stderr.
 
-       wfs-get-file can be called multiple times to process more than one file
-       in the same bootstrap script. This can be done  all  at  the  start  or
-       repeatedly  during  the  lifetime  of the job. wfs-get-file is itself a
+       justin-get-file  can  be called multiple times to process more than one
+       file in the same bootstrap script. This can be done all at the start or
+       repeatedly  during the lifetime of the job. justin-get-file is itself a
        simple wrapper around the curl command and it would also be possible to
-       access  the Workflow Allocator's REST API directly from an application.
+       access  the justIn allocator service's REST API directly from an appli-
+       cation.
 
-       Each file returned by wfs-get-file is marked as allocated and will  not
-       be  processed by any other jobs. When the bootstrap script finishes, it
-       must leave files with lists of the processed  files  in  its  workspace
-       directory.  These  lists  are  sent  to  the  Workflow Allocator by the
+       Each file returned by justin-get-file is marked as allocated  and  will
+       not be processed by any other jobs. When the bootstrap script finishes,
+       it must leave files with lists of the processed files in its  workspace
+       directory.  These lists are sent to the justIn allocator service by the
        generic job, which either marks input files as being successfully  pro-
        cessed  or  resets  their  state  to unallocated, ready for matching by
        another job.
 
        Files can be referred to either by DID or PFN, one  per  line,  in  the
        appropriate list file:
-         wfs-processed-dids.txt
-         wfs-processed-pfns.txt
+         justin-processed-dids.txt
+         justin-processed-pfns.txt
 
        It  is  not  necessary  to  create  list files which would otherwise be
        empty. You can use a mix of DIDs and PFNs, as long as each  appears  in
@@ -305,13 +311,13 @@ BOOTSTRAP SCRIPTS
 
 
 REQUEST PROCESSING
-       Once a request enters the running state, it is processed by  the  Work-
-       flow  System's Finder agent. Usually this is just done once, but it can
-       be repeated if the --refind-interval-hours option is given when  creat-
-       ing  the  request.  When  the request is processed, the Finder uses the
-       requests's MQL expression to create a list of input files for the first
-       stage.  Work is only assigned to jobs when a matching file is found and
-       so these lists of files are essential.
+       Once a request enters the running state, it is  processed  by  justIn's
+       finder agent. Usually this is just done once, but it can be repeated if
+       the --refind-interval-hours option is given when creating the  request.
+       When  the  request  is  processed,  the  finder uses the requests's MQL
+       expression to create a list of input files for the first stage. Work is
+       only  assigned to jobs when a matching file is found and so these lists
+       of files are essential.
 
        In most cases, the MQL query is a MetaCat  Query  Language  expression,
        which the Finder sends to the MetaCat service to get a list of matching
@@ -328,10 +334,9 @@ REQUEST PROCESSING
 
 
 FILES
-       An  X.509  user  proxy file is currently needed to contact the Workflow
-       Service,   which   is   either    given    by    $X509_USER_PROXY    or
-       /tmp/x509up_uUSERID  where USERID is the numeric Unix user id, given by
-       id -u
+       An  X.509  user proxy file is currently needed to contact justIn, which
+       is either given by $X509_USER_PROXY or /tmp/x509up_uUSERID where USERID
+       is the numeric Unix user id, given by id -u
 
 
 AUTHOR
@@ -343,5 +348,5 @@ SEE ALSO
 
 
 
-WFS Manual                         workflow                     WORKFLOW(2022)
+justin Manual                       justin                        JUSTIN(2022)
 ```

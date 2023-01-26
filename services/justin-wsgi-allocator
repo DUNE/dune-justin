@@ -1,5 +1,5 @@
 #
-# wfa-wsgi-allocator - Workflow System allocator API service
+# wfa-wsgi-allocator - justIn allocator API service
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# This WSGI script relies on wfs-api-import-script being run by
+# This WSGI script relies on justin-api-import-script being run by
 # the mod_wsgi directive WSGIImportScript
 
 # This WSGI script must be run from an Apache httpd server with
@@ -39,18 +39,18 @@ import string
 import tarfile
 import urllib
 
-import wfs
+import justin
 
 callsCount = 0
 
 def httpError(startResponse, code, message):
 
   try:
-    wfs.db.conn.rollback()
+    justin.db.conn.rollback()
   except:
     pass
 
-  print('wfs-wsgi-allocator fails with %s (%s)' % 
+  print('justin-wsgi-allocator fails with %s (%s)' % 
         (code, str(message)), file=sys.stderr)
 
   startResponse(code,
@@ -63,7 +63,7 @@ def httpError(startResponse, code, message):
 def httpOK(startResponse, outputString):
 
   try:
-    wfs.db.conn.commit()
+    justin.db.conn.commit()
   except Exception as e:
     code = '500 Internal Server Error'
     outputString = 'Database commit fails: ' + str(e)
@@ -89,7 +89,7 @@ def makeJobDict(jobsubID, cookie = None):
              'stages.max_files_per_job,'
              'jobs.request_id,'
              'jobs.stage_id,'
-             'jobs.wfs_job_id,'
+             'jobs.justin_job_id,'
              'jobs.site_id,'
              'jobs.for_awt,'
              'jobs.min_processors,'
@@ -109,8 +109,8 @@ def makeJobDict(jobsubID, cookie = None):
              'ON jobs.site_id=sites.site_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
 
-    wfs.db.cur.execute(query)
-    job = wfs.db.cur.fetchone()
+    justin.db.cur.execute(query)
+    job = justin.db.cur.fetchone()
   except Exception as e:
     return { "error_message": "Error finding job from jobsubID " + 
              jobsubID + ": " + str(e) }
@@ -129,7 +129,7 @@ def makeJobDict(jobsubID, cookie = None):
            "running_jobs"     : job['running_jobs'],
            "max_jobs"         : job['max_jobs'],
            "site_enabled"     : job['enabled'],
-           "wfs_job_id"       : job['wfs_job_id'],
+           "justin_job_id"       : job['justin_job_id'],
            "allocation_state" : job['allocation_state'],
            "allocation_count" : job['allocation_count'],
            "for_awt"          : job['for_awt'],
@@ -151,7 +151,7 @@ def getBootstrap(stage):
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    row = wfs.db.select(query, justOne = True)
+    row = justin.db.select(query, justOne = True)
     bootstrap = row['bootstrap']
   except:
     return None
@@ -185,7 +185,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   if not bootstrap:
     return None
 
-  addFileToTarFile(tar, "wfs-bootstrap.sh", bootstrap)
+  addFileToTarFile(tar, "justin-bootstrap.sh", bootstrap)
 
   # Create a file containing the output file patterns
   try:
@@ -195,7 +195,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    rows = wfs.db.select(query)
+    rows = justin.db.select(query)
   except:
     return None
 
@@ -208,7 +208,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                      row['file_scope'] + ' ' +
                      row['file_pattern'] + '\n')
     
-  addFileToTarFile(tar, 'wfs-output-patterns.txt', patternsFile)
+  addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)
 
   # Create a list of RSEs for Workflow Test jobs
   if forAwt:
@@ -221,9 +221,9 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                'LEFT JOIN replicas '
                'ON replicas.request_id=%d AND replicas.rse_id=storages.rse_id '
                'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL' % 
-               (jobDict['site_id'], wfs.db.awtRequestID) )
+               (jobDict['site_id'], justin.db.awtRequestID) )
 
-      rseRows = wfs.db.select(query)
+      rseRows = justin.db.select(query)
     except:
       return None
 
@@ -238,7 +238,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                                     rseRow['write_protocol'],
                                     pfn)
       
-    addFileToTarFile(tar, 'wfs-awt-rse-list.txt', awtRseFile)
+    addFileToTarFile(tar, 'justin-awt-rse-list.txt', awtRseFile)
                   
   # Create an ordered output RSE list specific to this stage
   #
@@ -260,7 +260,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
              'stages_output_storages.rse_id IS NOT NULL) AND '
              'sites_storages.distance IS NOT NULL AND '
              'storages.rucio_write AND '
-             'storages.wfs_write AND '
+             'storages.justin_write AND '
              'storages.occupancy < 1.0 '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
@@ -270,7 +270,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                )
             )
 
-    rseRows = wfs.db.select(query)
+    rseRows = justin.db.select(query)
   except:
     return None
 
@@ -279,7 +279,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
     outputRseFile += '%s %s \n' % (rseRow['rse_name'], 
                                    rseRow['write_protocol'])
       
-  addFileToTarFile(tar, 'wfs-output-rse-list.txt', outputRseFile)
+  addFileToTarFile(tar, 'justin-output-rse-list.txt', outputRseFile)
 
   # User defined environment variables for the bootstrap script
   bootstrapEnvList = []
@@ -289,7 +289,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
              'WHERE request_id=%d AND stage_id=%d ORDER BY env_name' 
              % (stage['request_id'], stage['stage_id']))
 
-    envRows = wfs.db.select(query)
+    envRows = justin.db.select(query)
   except:
     return None
   else:
@@ -299,24 +299,24 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                               % (envRow['env_name'], envRow['env_value']))
 
   addFileToTarFile(tar,
-                   'wfs-bootstrap-env.sh',
+                   'justin-bootstrap-env.sh',
                    '\n'.join(bootstrapEnvList) + '\n')
 
-  # Standard WFS environment variables
-  wfsEnvList = [ 'export WFS_SITE_NAME=' + str(jobDict['site_name']),
-                 'export WFS_REQUEST_ID=' + str(stage['request_id']),
-                 'export WFS_STAGE_ID=' + str(stage['stage_id']),
-                 'export WFS_COOKIE="' + cookie + '"',
-                 'export WFS_SAM_WEB_URI='
-                 '"https://wfs.dune.hep.ac.uk/api/samweb/' + 
+  # Standard justin environment variables
+  justinEnvList = [ 'export JUSTIN_SITE_NAME=' + str(jobDict['site_name']),
+                 'export JUSTIN_REQUEST_ID=' + str(stage['request_id']),
+                 'export JUSTIN_STAGE_ID=' + str(stage['stage_id']),
+                 'export JUSTIN_COOKIE="' + cookie + '"',
+                 'export JUSTIN_SAM_WEB_URI='
+                 '"https://justin.dune.hep.ac.uk/api/samweb/' + 
                  str(jsonDict['jobsub_id']) + '/' +
                  cookie + '"'
                ]
                   
-  addFileToTarFile(tar, 'wfs-env.sh', '\n'.join(wfsEnvList) + '\n')
+  addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
 
   # JSON files to for utility commands to use to contact allocator
-  addFileToTarFile(tar, 'wfs-get-file.json', 
+  addFileToTarFile(tar, 'justin-get-file.json', 
        (
          '{\n' +
          '"method" : "get_file",\n' +
@@ -326,7 +326,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
        )
                   )
                   
-  addFileToTarFile(tar, 'wfs-allocated-files.json', 
+  addFileToTarFile(tar, 'justin-allocated-files.json', 
        (
          '{\n' +
          '"method" : "get_allocated_files",\n' +
@@ -341,12 +341,12 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
 
 def updateAllocationState(jobsub_id, state):
   try:
-    wfs.db.insertUpdate(
+    justin.db.insertUpdate(
              'UPDATE jobs SET allocation_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' % (state, jobsub_id))
-    wfs.db.conn.commit()
+    justin.db.conn.commit()
   except:
     pass
 
@@ -375,7 +375,7 @@ def findCachedStage(jobDict):
    jobDict["max_wall_seconds"] )
           )
      
-  stageRow = wfs.db.select(query, justOne=True)
+  stageRow = justin.db.select(query, justOne=True)
   
   if not stageRow:
     return None
@@ -390,7 +390,7 @@ def findCachedStage(jobDict):
 def getStageMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '400 Bad Request', 
@@ -408,7 +408,7 @@ def getStageMethod(startResponse, jsonDict):
 
   # Check jsonDict contains required string values
   for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
-    if name not in jsonDict or not wfs.db.stringNoQuotes(jsonDict[name]) or not jsonDict[name]:
+    if name not in jsonDict or not justin.db.stringNoQuotes(jsonDict[name]) or not jsonDict[name]:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
                        '400 Bad Request', 
@@ -424,17 +424,17 @@ def getStageMethod(startResponse, jsonDict):
 
 #  print('Before UPDATE jobs site_name', file=sys.stderr)
   try:
-    wfs.db.insertUpdate('UPDATE jobs SET '
+    justin.db.insertUpdate('UPDATE jobs SET '
                         'site_id=(SELECT site_id FROM sites '
                         'WHERE site_name="%s") '
                         'WHERE jobsub_id="%s"' % 
                         (jsonDict['site_name'], jsonDict['jobsub_id']))
-    wfs.db.conn.commit()
+    justin.db.conn.commit()
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error',
-                     'Workflow allocator fails to update job with site_id '
+                     'justIn allocator service fails to update job with site_id '
                      '(site_name=%s): %s' %
                      (str(jsonDict['site_name']), str(e)))
     
@@ -466,17 +466,17 @@ def getStageMethod(startResponse, jsonDict):
 
 #  print('Before UPDATE sites last_get_stage_time', file=sys.stderr)
   try:
-    wfs.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
+    justin.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
                         'WHERE site_id=%d' % jobDict['site_id'])
   except:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error',
-                     'Workflow allocator fails to record get_stage time')
+                     'justIn allocator service fails to record get_stage time')
 
   if jobDict['for_awt']:
     # Special job for Workflow Testing Framework
-    stage = { 'request_id'  : wfs.db.awtRequestID,
+    stage = { 'request_id'  : justin.db.awtRequestID,
               'stage_id'    : 1 }
 
   else:
@@ -489,7 +489,7 @@ def getStageMethod(startResponse, jsonDict):
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
                        '500 Internal Server Error', 
-                       'Workflow allocator fails finding stage: ' + str(e))
+                       'justIn allocator service fails finding stage: ' + str(e))
 
   if not stage:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
@@ -504,12 +504,12 @@ def getStageMethod(startResponse, jsonDict):
     # Unique ID string for this instance that may also help in debugging
     allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
 
-    wfs.db.insertUpdate(
+    justin.db.insertUpdate(
              'UPDATE jobs SET '
              'site_job_id="' + str(jsonDict['site_job_id']) + '",'
              'allocation_time=NOW(),' 
              'heartbeat_time=NOW(),'
-             'finished_time="' + wfs.db.unixEpoch + '",' 
+             'finished_time="' + justin.db.unixEpoch + '",' 
              'allocation_state="started",'
              'allocator_name="' + allocatorName + '",' 
              'request_id=' + str(stage['request_id']) + ','
@@ -527,7 +527,7 @@ def getStageMethod(startResponse, jsonDict):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Workflow allocator failed updating allocated job: ' 
+                     'justIn allocator service failed updating allocated job: ' 
                      + str(e))
 
 #  print('Before makeTarFile', file=sys.stderr)
@@ -540,11 +540,11 @@ def getStageMethod(startResponse, jsonDict):
                      'Failed to create tar file')
         
 #  print('Before updateStageCounts', file=sys.stderr)
-#  wfs.allocator.updateStageCounts(stage['request_id'], 
+#  justin.allocator.updateStageCounts(stage['request_id'], 
 #                                  stage['stage_id'])
    
   try:
-    wfs.db.conn.commit()
+    justin.db.conn.commit()
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -561,19 +561,19 @@ def getStageMethod(startResponse, jsonDict):
 def sendHeartbeatMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Missing jobsub_id in JSON')
 
   try:
-    wfs.db.insertUpdate('UPDATE jobs SET heartbeat_time=NOW() ' 
+    justin.db.insertUpdate('UPDATE jobs SET heartbeat_time=NOW() ' 
                         'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Workflow allocator failed recording heartbeat: ' 
+                     'justIn allocator service failed recording heartbeat: ' 
                      + str(e))
 
   return httpOK(startResponse, '')
@@ -589,7 +589,7 @@ def jobAbortedMethod(startResponse, jsonDict):
                      'Missing/invalid http_code in JSON')
 
   if 'aborted_method' not in jsonDict or \
-     not wfs.db.stringNoQuotes(jsonDict['aborted_method']):
+     not justin.db.stringNoQuotes(jsonDict['aborted_method']):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Missing/invalid aborted_method in JSON')
@@ -612,13 +612,13 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
     state = 'notused'
-    eventTypeID = wfs.db.event_JOB_NOTUSED
+    eventTypeID = justin.db.event_JOB_NOTUSED
   else:
     state = 'aborted'
-    eventTypeID = wfs.db.event_JOB_ABORTED
+    eventTypeID = justin.db.event_JOB_ABORTED
  
   try:
-    wfs.db.insertUpdate(
+    justin.db.insertUpdate(
              'UPDATE jobs SET allocation_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
@@ -627,17 +627,17 @@ def jobAbortedMethod(startResponse, jsonDict):
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Workflow allocator job_aborted failed: ' + str(e))
+                     'justIn allocator service job_aborted failed: ' + str(e))
 
   if 'rse_name' in jsonDict:
     rseName = jsonDict['rse_name']
   else:
     rseName = None
 
-  wfs.db.logEvent(eventTypeID = eventTypeID,
+  justin.db.logEvent(eventTypeID = eventTypeID,
                   requestID   = jobDict['request_id'],
                   stageID     = jobDict['stage_id'],
-                  wfsJobID    = jobDict['wfs_job_id'],
+                  justinJobID    = jobDict['justin_job_id'],
                   siteID      = jobDict['site_id'],
                   rseName     = rseName
                  )
@@ -668,7 +668,7 @@ def findCachedFile(jobDict):
   jobDict['request_id'],
   jobDict['stage_id']))
      
-  replicaRow = wfs.db.select(query, justOne=True)
+  replicaRow = justin.db.select(query, justOne=True)
   
   if not replicaRow:
     # No matches found
@@ -679,19 +679,19 @@ def findCachedFile(jobDict):
   try: 
     query = ("UPDATE files SET state='allocated',"
              "allocations=allocations+1,"
-             "wfs_job_id=" + str(jobDict['wfs_job_id']) + " "
+             "justin_job_id=" + str(jobDict['justin_job_id']) + " "
              "WHERE file_id=" + str(replicaRow['file_id'])
             )
-    wfs.db.cur.execute(query)
+    justin.db.cur.execute(query)
   except Exception as e:
     # If anything goes wrong, we stop straightaway
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
-  wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_ALLOCATED,
+  justin.db.logEvent(eventTypeID = justin.db.event_FILE_ALLOCATED,
                   requestID   = jobDict['request_id'],
                   stageID     = jobDict['stage_id'],
                   fileID      = replicaRow['file_id'],
-                  wfsJobID    = jobDict['wfs_job_id'],
+                  justinJobID    = jobDict['justin_job_id'],
                   siteID      = jobDict['site_id'],
                   rseID       = replicaRow['rse_id'])
 
@@ -714,13 +714,13 @@ def findCachedFile(jobDict):
 def getFileMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing/invalid jobsub_id in JSON')
 
   if 'cookie' not in jsonDict or \
-     not wfs.db.stringNoQuotes(jsonDict['cookie']):
+     not justin.db.stringNoQuotes(jsonDict['cookie']):
     return httpError(startResponse,
                      '400 Bad Request',
                      'Missing/invalid cookie in JSON')
@@ -758,7 +758,7 @@ def getFileMethod(startResponse, jsonDict):
   
   if oneFile['file_did']:
     try:
-      wfs.db.insertUpdate(
+      justin.db.insertUpdate(
                    'UPDATE jobs SET allocation_state="processing",'
                    'heartbeat_time=NOW(),allocation_count=allocation_count+1 '
                    'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
@@ -783,7 +783,7 @@ def getFileMethod(startResponse, jsonDict):
                    'No eligible file found')
 
 def updateFileProcessing(fileIDList,
-                         state, wfsJobID, requestID, stageID):
+                         state, justinJobID, requestID, stageID):
   # Exceptions in this function must by handled by the caller!
 
   testFileIDs = []
@@ -797,59 +797,59 @@ def updateFileProcessing(fileIDList,
     if state == 'unprocessed':
       # If already at max allocations, go to failed rather than unallocated!
       query = ('UPDATE files SET '
-               'state=IF(allocations < ' + str(wfs.db.maxAllocations) + ','
+               'state=IF(allocations < ' + str(justin.db.maxAllocations) + ','
                '"unallocated","failed") '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
-               'AND wfs_job_id=' + str(wfsJobID) + ' '
+               'AND justin_job_id=' + str(justinJobID) + ' '
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
     else:
       query = ('UPDATE files SET state="outputting" '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
-               'AND wfs_job_id=' + str(wfsJobID) + ' '
+               'AND justin_job_id=' + str(justinJobID) + ' '
                'AND request_id=' + str(requestID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
 
-    wfs.db.insertUpdate(query)
+    justin.db.insertUpdate(query)
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
-def processOutputDids(outputDids, requestID, stageID, wfsJobID):
+def processOutputDids(outputDids, requestID, stageID, justinJobID):
 
   for outputDid in outputDids:
       
     if '"' in outputDid or "'" in outputDid:
       continue
 
-    wfs.db.insertUpdate('INSERT INTO files SET state="recorded",'
+    justin.db.insertUpdate('INSERT INTO files SET state="recorded",'
                         'file_did="'          + str(outputDid) + '",'
-                        'creator_wfs_job_id=' + str(wfsJobID)  + ','
+                        'creator_justin_job_id=' + str(justinJobID)  + ','
                         'request_id='         + str(requestID) + ','
                         'stage_id='           + str(stageID + 1)
                        )
 
-def saveAwtResults(wfsJobID, siteID, bootstrapLog):
+def saveAwtResults(justinJobID, siteID, bootstrapLog):
 
-#  print('AWT %d %d in saveAwtResults' % (wfsJobID, siteID), 
+#  print('AWT %d %d in saveAwtResults' % (justinJobID, siteID), 
 #         file=sys.stderr)
 
   for line in bootstrapLog.splitlines():
-#    print('AWT %d %d %s' % (wfsJobID, siteID, line), 
+#    print('AWT %d %d %s' % (justinJobID, siteID, line), 
 #            file=sys.stderr)
     if line.startswith('==awt== '):
-#      print('AWT %d %d %s' % (wfsJobID, siteID, line), 
+#      print('AWT %d %d %s' % (justinJobID, siteID, line), 
 #            file=sys.stderr)
       lineSplitted = line.split()
       
       try:
-        wfs.db.insertUpdate('UPDATE sites_storages SET '
-                            'wfs_job_id=%d,read_result=%d,write_result=%d '
+        justin.db.insertUpdate('UPDATE sites_storages SET '
+                            'justin_job_id=%d,read_result=%d,write_result=%d '
                             'WHERE site_id=%d AND '
                             'rse_id=(SELECT rse_id FROM storages '
                             'WHERE rse_name="%s")' 
-                            % (wfsJobID, 
+                            % (justinJobID, 
                                int(lineSplitted[3]),
                                int(lineSplitted[4]),
                                siteID,
@@ -860,7 +860,7 @@ def saveAwtResults(wfsJobID, siteID, bootstrapLog):
               file=sys.stderr)
 
   try:
-    wfs.db.insertUpdate('UPDATE sites SET last_awt_time=NOW() '
+    justin.db.insertUpdate('UPDATE sites SET last_awt_time=NOW() '
                         'WHERE site_id=%d' % siteID)
 
   except Exception as e:
@@ -872,7 +872,7 @@ def saveAwtResults(wfsJobID, siteID, bootstrapLog):
 def recordResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing jobsub_id in JSON')
@@ -886,18 +886,18 @@ def recordResultsMethod(startResponse, jsonDict):
                        'Missing value (%s) in JSON' % name)
 
     for fileDID in jsonDict[name]:
-      if not wfs.db.stringNoQuotes(fileDID):
+      if not justin.db.stringNoQuotes(fileDID):
         return httpError(startResponse,
                          '400 Bad Request',
                          'Invalid DID or PFN in ' + name)
       
   try:
-    query = ('SELECT wfs_job_id, request_id, stage_id, for_awt, site_id '
+    query = ('SELECT justin_job_id, request_id, stage_id, for_awt, site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    row = wfs.db.select(query, justOne = True)
+    row = justin.db.select(query, justOne = True)
 
-    wfsJobID  = int(row['wfs_job_id'])
+    justinJobID  = int(row['justin_job_id'])
     requestID = int(row['request_id'])
     stageID   = int(row['stage_id'])
     siteID    = int(row['site_id'])
@@ -908,8 +908,8 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Failed finding job')
 
   try:
-    wfs.db.insertUpdate(
-        'INSERT INTO jobs_logs SET wfs_job_id=' + str(wfsJobID) + ','
+    justin.db.insertUpdate(
+        'INSERT INTO jobs_logs SET justin_job_id=' + str(justinJobID) + ','
         'bootstrap_log="%s"' %
         base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
                        )                           
@@ -919,7 +919,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Failed saving job log: ' + str(e))
 
   if forAwt:
-    saveAwtResults(wfsJobID, 
+    saveAwtResults(justinJobID, 
                    siteID, 
                    base64.b64decode(jsonDict['bootstrap_log']).decode())
 
@@ -929,7 +929,7 @@ def recordResultsMethod(startResponse, jsonDict):
     # Record job as finished due to bootstrap_error
     try:
 #### REPLACE "aborted" WITH "bootstrap_error" ONCE IN DATABASE DEFINITION
-      wfs.db.insertUpdate('UPDATE jobs SET allocation_state="aborted",'
+      justin.db.insertUpdate('UPDATE jobs SET allocation_state="aborted",'
                           'heartbeat_time=NOW(),'
                           'finished_time=NOW() '
                           'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
@@ -940,11 +940,11 @@ def recordResultsMethod(startResponse, jsonDict):
      
     # Do file allocation resets
     try:
-      wfs.db.insertUpdate('UPDATE files SET '
+      justin.db.insertUpdate('UPDATE files SET '
                           'state=IF(allocations < ' + 
-                          str(wfs.db.maxAllocations) + ','
+                          str(justin.db.maxAllocations) + ','
                           '"unallocated","failed") '
-                          'WHERE wfs_job_id=%d' % wfsJobID)
+                          'WHERE justin_job_id=%d' % justinJobID)
     except Exception as e:
       return httpError(startResponse,
                        '500 Internal Server Error',
@@ -959,10 +959,10 @@ def recordResultsMethod(startResponse, jsonDict):
              'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
              'replicas.rse_id=events.rse_id) '
              'LEFT JOIN files ON events.file_id=files.file_id '
-             'WHERE events.wfs_job_id=%d AND events.event_type_id=%d'
-             % (wfsJobID, wfs.db.event_FILE_ALLOCATED))
+             'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
+             % (justinJobID, justin.db.event_FILE_ALLOCATED))
              
-    jobFiles = wfs.db.select(query)
+    jobFiles = justin.db.select(query)
 
   except Exception as e:
     return httpError(startResponse,
@@ -990,7 +990,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     updateFileProcessing(processedFileIDs,
                          'outputting',
-                         wfsJobID, requestID, stageID)
+                         justinJobID, requestID, stageID)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -1001,7 +1001,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     updateFileProcessing(unprocessedFileIDs,
                          'unprocessed',
-                         wfsJobID, requestID, stageID)
+                         justinJobID, requestID, stageID)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -1009,7 +1009,7 @@ def recordResultsMethod(startResponse, jsonDict):
           
   try:
     processOutputDids(jsonDict['next_stage_dids'],
-                      requestID, stageID, wfsJobID)
+                      requestID, stageID, justinJobID)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -1018,14 +1018,14 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     # We set stageID=-1 so that when 1 is added, the output only 
     # StageID of 0 is recorded
-    processOutputDids(jsonDict['output_dids'], requestID, -1, wfsJobID)
+    processOutputDids(jsonDict['output_dids'], requestID, -1, justinJobID)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Failed recording outputs: ' + str(e))
 
   try:
-    wfs.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
+    justin.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
                         'heartbeat_time=NOW(),'
                         'outputting_time=NOW() '
                         'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
@@ -1042,17 +1042,17 @@ def recordResultsMethod(startResponse, jsonDict):
 def getAllocatedFilesMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing jobsub_id in JSON')
       
   try:
-    query = ('SELECT wfs_job_id '
+    query = ('SELECT justin_job_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    row = wfs.db.select(query, justOne = True)
-    wfsJobID  = int(row['wfs_job_id'])
+    row = justin.db.select(query, justOne = True)
+    justinJobID  = int(row['justin_job_id'])
   except Exception as e:
     return httpError(startResponse,
                      '404 Not Found',
@@ -1062,10 +1062,10 @@ def getAllocatedFilesMethod(startResponse, jsonDict):
     # Use the event records to find the right replicas for this job
     query = ('SELECT file_did FROM events '
              'LEFT JOIN files ON events.file_id=files.file_id '
-             'WHERE events.wfs_job_id=%d AND events.event_type_id=%d'
-             % (wfsJobID, wfs.db.event_FILE_ALLOCATED))
+             'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
+             % (justinJobID, justin.db.event_FILE_ALLOCATED))
              
-    jobFiles = wfs.db.select(query)
+    jobFiles = justin.db.select(query)
 
   except Exception as e:
     return httpError(startResponse,
@@ -1079,11 +1079,11 @@ def getAllocatedFilesMethod(startResponse, jsonDict):
   return httpOK(startResponse, outputString)
 
 # Legacy support for samweb's updateFileStatus method 
-# Only used for putting "consumed" files into the WFS "outputting" state
+# Only used for putting "consumed" files into the justin "outputting" state
 def samwebUpdateFileStatusMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing jobsub ID in request URI')
@@ -1105,18 +1105,18 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
   try:
     pfn = jsonDict['filename'][0]
 
-    if not wfs.db.stringNoQuotes(pfn):
+    if not justin.db.stringNoQuotes(pfn):
       raise
   except:
     return httpError(startResponse, '400 Bad Request', 'Valid filename missing')
       
   try:
-    query = ('SELECT wfs_job_id,request_id,stage_id '
+    query = ('SELECT justin_job_id,request_id,stage_id '
              'FROM jobs WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
 
-    row = wfs.db.select(query, justOne = True)
+    row = justin.db.select(query, justOne = True)
 
-    wfsJobID  = int(row['wfs_job_id'])
+    justinJobID  = int(row['justin_job_id'])
     requestID = int(row['request_id'])
     stageID   = int(row['stage_id'])
   except:
@@ -1132,7 +1132,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
              'ORDER BY files.file_id LIMIT 1' 
              % (requestID, stageID, pfn, pfn))
 
-    fileRow = wfs.db.select(query, justOne=True)
+    fileRow = justin.db.select(query, justOne=True)
     fileID = fileRow['file_id']
   except Exception as e:
     return httpError(startResponse,
@@ -1142,13 +1142,13 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
   try:
     query = ('UPDATE files SET state="outputting" '
              'WHERE file_id=%d '
-             'AND wfs_job_id=%d '
+             'AND justin_job_id=%d '
              'AND request_id=%d '
              'AND stage_id=%d '
              'AND state="allocated"'
-             % (fileID, wfsJobID, requestID, stageID))
+             % (fileID, justinJobID, requestID, stageID))
 
-    wfs.db.insertUpdate(query)
+    justin.db.insertUpdate(query)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -1162,18 +1162,18 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
 def confirmResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse,
                      '400 Bad Request',
                      'Missing jobsub_id in JSON')
 
   try:
-    query = ('SELECT wfs_job_id,request_id,stage_id,site_id '
+    query = ('SELECT justin_job_id,request_id,stage_id,site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    row = wfs.db.select(query, justOne = True)
+    row = justin.db.select(query, justOne = True)
 
-    wfsJobID  = int(row['wfs_job_id'])
+    justinJobID  = int(row['justin_job_id'])
     requestID = int(row['request_id'])
     stageID   = int(row['stage_id'])
     siteID    = int(row['site_id'])
@@ -1183,21 +1183,21 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Failed finding job')
 
   try:
-    wfs.db.insertUpdate('UPDATE files '
+    justin.db.insertUpdate('UPDATE files '
                         'SET state="processed",processed_time=NOW(),'
                         'processed_hour=FLOOR(UNIX_TIMESTAMP()/3600),'
                         'processed_site_id=%d '
-                        'WHERE state="outputting" AND wfs_job_id=%d' 
-                        % (siteID, wfsJobID))
+                        'WHERE state="outputting" AND justin_job_id=%d' 
+                        % (siteID, justinJobID))
   except:
     return httpError(startResponse,
                      '500 Internal Server Error', 
                      'Updating processed input files')
 
   try:
-    fileRows = wfs.db.select('SELECT file_did,file_id,stage_id FROM files '
+    fileRows = justin.db.select('SELECT file_did,file_id,stage_id FROM files '
                              'WHERE state="recorded" AND '
-                             'creator_wfs_job_id=%d' % wfsJobID)
+                             'creator_justin_job_id=%d' % justinJobID)
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -1206,7 +1206,7 @@ def confirmResultsMethod(startResponse, jsonDict):
   for fileRow in fileRows:
   
     try:
-      wfs.db.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
+      justin.db.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
                           ('finding' if (fileRow['stage_id'] > 0) else 'output', 
                           fileRow['file_id']))
 
@@ -1215,11 +1215,11 @@ def confirmResultsMethod(startResponse, jsonDict):
       except:
         rseName = None
       
-      wfs.db.logEvent(eventTypeID = wfs.db.event_FILE_CREATED,
+      justin.db.logEvent(eventTypeID = justin.db.event_FILE_CREATED,
                       requestID = requestID,
                       stageID = stageID,
                       fileID = fileRow['file_id'],
-                      wfsJobID = wfsJobID,
+                      justinJobID = justinJobID,
                       siteID = siteID,
                       rseName = rseName
                      )
@@ -1229,16 +1229,16 @@ def confirmResultsMethod(startResponse, jsonDict):
                        'Updating recorded output file: ' + str(e))
   
   try:
-    wfs.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
+    justin.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
                         'heartbeat_time=NOW(),'
                         'finished_time=NOW() '
-                        'WHERE wfs_job_id=%d AND allocation_state="outputting"'
-                        % wfsJobID)
+                        'WHERE justin_job_id=%d AND allocation_state="outputting"'
+                        % justinJobID)
 
-    wfs.db.logEvent(eventTypeID = wfs.db.event_JOB_FINISHED,
+    justin.db.logEvent(eventTypeID = justin.db.event_JOB_FINISHED,
                     requestID = requestID,
                     stageID = stageID,
-                    wfsJobID = wfsJobID,
+                    justinJobID = justinJobID,
                     siteID = siteID
                    )
   except:
@@ -1265,7 +1265,7 @@ def checkJobUser(environ):
            clientDN.replace('\\','\\\\').replace('"','\\"'))
 
   try:
-    row = wfs.db.select(query, justOne = True)
+    row = justin.db.select(query, justOne = True)
   except:
     raise RuntimeError('Error reading users from database')
 
@@ -1277,18 +1277,18 @@ def checkJobUser(environ):
 #  # Try to get the workflow allocator service lock or raise an exception if
 #  # unable to do this for any reason, including a timeout
 #  # No try here since we expose exceptions to the caller!
-#  wfs.db.cur.execute('SELECT GET_LOCK("wfs_allocator", %d) AS result' %
+#  justin.db.cur.execute('SELECT GET_LOCK("justin_allocator", %d) AS result' %
 #                     timeoutSeconds)
 #
-#  row =  wfs.db.cur.fetchone()
+#  row =  justin.db.cur.fetchone()
 #
 #  if not row or 'result' not in row:
 #    # Something went wrong!
-#    raise RuntimeError('wfs_allocator lock query failure')
+#    raise RuntimeError('justin_allocator lock query failure')
 #  
 #  if row['result'] == 0:
 #    # Failed to get lock in time so raise exception
-#    raise RuntimeError('wfs_allocator lock timeout')
+#    raise RuntimeError('justin_allocator lock timeout')
 #
 #  # Success!  
 #  return
@@ -1298,8 +1298,8 @@ def checkJobUser(environ):
 #
 def application(environ, startResponse):
 
-  wfs.db.wsgiCallsCount += 1
-  print('Call count (pid=%d): %d' % (os.getpid(), wfs.db.wsgiCallsCount), 
+  justin.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
         file=sys.stderr)
 
   # Quickly reject random GETs etc (if not handled by Apache already)
@@ -1312,14 +1312,14 @@ def application(environ, startResponse):
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    wfs.db.conn.ping(True)
+    justin.db.conn.ping(True)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'DB connection lost and cannot reconnect: ' + str(e))
 
   # Avoid leftovers from partial, failed transactions in this instance
-  wfs.db.conn.rollback()
+  justin.db.conn.rollback()
 
   if environ['REQUEST_URI'].startswith('/api/samweb/'):
     # Legacy samweb support: put values into dictionary
@@ -1340,7 +1340,7 @@ def application(environ, startResponse):
                        '400 Bad Request', 
                        'Failed to read and parse request: ' + str(e))
   else:
-    # Standard WFS API based on JSON
+    # Standard justIn API based on JSON
     try:
       inputLength = int(environ.get('CONTENT_LENGTH', '0'))
       inputString = environ['wsgi.input'].read(inputLength)
@@ -1351,7 +1351,7 @@ def application(environ, startResponse):
                        'Failed to read and parse JSON')
 
   if 'jobsub_id' not in jsonDict or \
-     not wfs.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse,
               '400 Bad Request', 
               'Missing jobsub_id in JSON')
