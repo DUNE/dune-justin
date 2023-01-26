@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# To use this bootstrap to process 10 files from the dc4-vd-coldbox-top
+# To use this jobscript to process 10 files from the dc4-hd-protodune
 # data and put the output in the dc4-test namespace (MetaCat) and scope (Rucio),
 # and in the dc4-test:amcnab-01 dataset in MetaCat and Rucio, use this command to 
 # create the request:
 #
 # justin quick-request \
-# --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-# --file dc4-vd-coldbox-top.bootstrap --max-distance 100 \
+# --mql "files from dc4:dc4 where core.run_type='dc4-hd-protodune' limit 10" \
+# --file dc4-hd-protodune.jobscript --max-distance 100 \
 # --output-pattern 'dc4-test:amcnab-01:*_reco_data_*.root' \
 # --output-rse FNAL_DCACHE_TEST
 #
@@ -71,7 +71,7 @@ EOF
 chmod +x pdjson2metadata
 
 # fcl file to be used
-fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
+fclFile=protoDUNEHD_refactored_reco.fcl
 
 # number of events to process from the input file
 #nEvts=2
@@ -80,7 +80,7 @@ fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 
 if [ "$did_pfn_rse" = "" ] ; then
-  echo "Nothing to process - exit bootstrap"
+  echo "Nothing to process - exit jobscript"
   exit 1
 fi
 
@@ -98,7 +98,7 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 # so add it to the start of the path
 export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRODUCTS}
 
-export DUNEVERSION=v09_44_00_02
+export DUNEVERSION=v09_56_00d00
 export DUNEQUALIFIER="e20:prof"
 setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
 
@@ -153,5 +153,5 @@ fi
 
 ls -lRS
 
-# Create compressed tar file with all log files including the bootstrap.log
+# Create compressed tar file with all log files including the jobscript.log
 tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log

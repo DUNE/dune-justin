@@ -30,7 +30,7 @@ in the Dashboard.
 |306|JOB_NOTUSED|Job was not allocated a stage|
 |307|JOB_ABORTED|Job aborted|
 |308|JOB_STALLED|Job identified as stalled by Finder|
-|309|JOB_SCRIPT_ERROR|Error raised by the bootstrap script|
+|309|JOB_SCRIPT_ERROR|Error raised by the jobscript|
 |402|FILE_ALLOCATED_RESET|File set back to unallocated from allocated|
 |403|FILE_SET_TO_FAILED|Too many attempts to process file: failed|
 |404|FILE_CREATED|Output file created in job|

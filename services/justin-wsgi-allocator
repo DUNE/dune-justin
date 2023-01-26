@@ -147,12 +147,12 @@ def makeJobDict(jobsubID, cookie = None):
 def getJobscript(stage):
 
   try:
-    query = ("SELECT bootstrap FROM bootstraps "
+    query = ("SELECT jobscript FROM jobscripts "
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
     row = justin.db.select(query, justOne = True)
-    jobscript = row['bootstrap']
+    jobscript = row['jobscript']
   except:
     return None
   
@@ -910,7 +910,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     justin.db.insertUpdate(
         'INSERT INTO jobs_logs SET justin_job_id=' + str(justinJobID) + ','
-        'bootstrap_log="%s"' %
+        'jobscript_log="%s"' %
         base64.b64decode(jsonDict['jobscript_log']).decode().replace('"', '_')
                        )                           
   except Exception as e:
@@ -928,7 +928,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
     # Record job as finished due to jobscript_error
     try:
-#### REPLACE "aborted" WITH "bootstrap_error" ONCE IN DATABASE DEFINITION
+#### REPLACE "aborted" WITH "jobscript_error" ONCE IN DATABASE DEFINITION
       justin.db.insertUpdate('UPDATE jobs SET allocation_state="aborted",'
                           'heartbeat_time=NOW(),'
                           'finished_time=NOW() '

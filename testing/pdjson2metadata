@@ -5,10 +5,10 @@
 #
 # Adapted from https://github.com/ivmfnal/protodune/blob/main/tools/declare_meta.py
 # to write out modified JSON rather than uploading it. 
-# This allows the script to be run inside bootstrap scripts supplied by users.
+# This allows the script to be run inside jobscripts supplied by users.
 #
 # This script must be converted to base64 with something like the following 
-# and included in the here document near the start of the bootstrap scripts :
+# and included in the here document near the start of the jobscripts :
 #
 # (macOS) base64 -b 76 pdjson2metadata > pdjson2metadata.b64
 # (Linux) base64       pdjson2metadata > pdjson2metadata.b64

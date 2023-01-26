@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# To use this bootstrap to process 10 files from the dc4-vd-coldbox-top
+# To use this jobscript to process 10 files from the dc4-vd-coldbox-bottom
 # data and put the output in the dc4-test namespace (MetaCat) and scope (Rucio),
 # and in the dc4-test:amcnab-01 dataset in MetaCat and Rucio, use this command to 
 # create the request:
 #
 # justin quick-request \
-# --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-# --file dc4-vd-coldbox-top.bootstrap --max-distance 100 \
+# --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+# --file dc4-vd-coldbox-bottom.jobscript --max-distance 100 \
 # --output-pattern 'dc4-test:amcnab-01:*_reco_data_*.root' \
 # --output-rse FNAL_DCACHE_TEST
 #
@@ -56,23 +56,41 @@ bnB1dERpZHM6CiAgICAgICAgaWYgZGlkLmVuZHN3aXRoKHBhcmVudFsiZmlsZV9uYW1lIl0pOgog
 ICAgICAgICAgbWF0Y2hpbmdEaWQgPSBkaWQKICAgICAgICAgIGJyZWFrCgogICAgICBpZiBtYXRj
 aGluZ0RpZDoKICAgICAgICBwYXJlbnREaWRzLmFwcGVuZCh7ICJkaWQiIDogbWF0Y2hpbmdEaWQg
 fSkKICAgICAgZWxzZToKICAgICAgICBwcmludCgiTm8gbWF0Y2hpbmcgaW5wdXQgRElEIGZvciBm
-aWxlICVzIHdpdGggcGFyZW50IGZpbGVfbmFtZSAlcy0gZXhpdGluZyIgCiAgICAgICAgICAgICAg
-JSAoc3RyKHBhcmVudCksIHN0cihwYXJlbnRbImZpbGVfbmFtZSJdKSksCiAgICAgICAgICAgICAg
-ZmlsZT1zeXMuc3RkZXJyKQogICAgICAgIHN5cy5leGl0KDMpCiAgICAKICAgICMgQWRkIHRoZSBs
-aXN0IG9mIHsgImRpZCI6ICIuLi4iIH0gZGljdGlvbmFyaWVzIHRvIHRvcCBsZXZlbAogICAgb3V0
-cHV0TWV0YWRhdGFbInBhcmVudHMiXSA9IHBhcmVudERpZHMKICAgICAgCiAgZWxzZToKICAgIGlm
-ICcuJyBub3QgaW4gbmFtZToKICAgICAgaWYgbmFtZSBpbiBjb3JlQXR0cmlidXRlczoKICAgICAg
-ICBuYW1lID0gY29yZUF0dHJpYnV0ZXNbbmFtZV0KICAgICAgZWxzZToKICAgICAgICBuYW1lID0g
-J3guJyArIG5hbWUKICAgICAgICAgICAgCiAgICBvdXRwdXRNZXRhZGF0YVsibWV0YWRhdGEiXVtu
-YW1lXSA9IHZhbHVlCiAgICAKb3V0cHV0TWV0YWRhdGFbIm1ldGFkYXRhIl0uc2V0ZGVmYXVsdCgi
-Y29yZS5ldmVudF9jb3VudCIsIAogICAgICAgICAgICAgICAgbGVuKG91dHB1dE1ldGFkYXRhWyJt
-ZXRhZGF0YSJdLmdldCgiY29yZS5ldmVudHMiLCBbXSkpKQogCmpzb24uZHVtcChvdXRwdXRNZXRh
-ZGF0YSwgc3lzLnN0ZG91dCwgaW5kZW50PTQsIHNvcnRfa2V5cz1UcnVlKQo=
+aWxlICVzIC0gZXhpdGluZyIgJSBzdHIocGFyZW50KSkKICAgICAgICBzeXMuZXhpdCgzKQogICAg
+CiAgICAjIEFkZCB0aGUgbGlzdCBvZiB7ICJkaWQiOiAiLi4uIiB9IGRpY3Rpb25hcmllcyB0byB0
+b3AgbGV2ZWwKICAgIG91dHB1dE1ldGFkYXRhWyJwYXJlbnRzIl0gPSBwYXJlbnREaWRzCiAgICAg
+IAogIGVsc2U6CiAgICBpZiAnLicgbm90IGluIG5hbWU6CiAgICAgIGlmIG5hbWUgaW4gY29yZUF0
+dHJpYnV0ZXM6CiAgICAgICAgbmFtZSA9IGNvcmVBdHRyaWJ1dGVzW25hbWVdCiAgICAgIGVsc2U6
+CiAgICAgICAgbmFtZSA9ICd4LicgKyBuYW1lCiAgICAgICAgICAgIAogICAgb3V0cHV0TWV0YWRh
+dGFbIm1ldGFkYXRhIl1bbmFtZV0gPSB2YWx1ZQogICAgCm91dHB1dE1ldGFkYXRhWyJtZXRhZGF0
+YSJdLnNldGRlZmF1bHQoImNvcmUuZXZlbnRfY291bnQiLCAKICAgICAgICAgICAgICAgIGxlbihv
+dXRwdXRNZXRhZGF0YVsibWV0YWRhdGEiXS5nZXQoImNvcmUuZXZlbnRzIiwgW10pKSkKIApqc29u
+LmR1bXAob3V0cHV0TWV0YWRhdGEsIHN5cy5zdGRvdXQsIGluZGVudD00LCBzb3J0X2tleXM9VHJ1
+ZSkK
 EOF
 chmod +x pdjson2metadata
 
 # fcl file to be used
-fclFile=vdcoldbox_raw_tdedataprep_reco.fcl
+fclFile=vdcoldbox_raw_dataprep_reco.fcl
+
+# number of events to process from the input file
+#nEvts=2
+
+# First get an unprocessed file from this stage
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+
+if [ "$did_pfn_rse" = "" ] ; then
+  echo "Nothing to process - exit jobscript"
+  exit 1
+fi
+
+# Keep a record of all input DIDs, for metadata file -> DID later
+echo "$did_pfn_rse" | cut -f1 -d' ' >>all-input-dids.txt
+
+# pfn is also needed when creating justin-processed-pfns.txt
+pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+
+echo "Input PFN = $pfn"
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 
@@ -80,15 +98,19 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 # so add it to the start of the path
 export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRODUCTS}
 
-export DUNEVERSION=v09_44_00_02
+export DUNEVERSION=v09_49_00d00
 export DUNEQUALIFIER="e20:prof"
 setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
 
 now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
 
+# extract filename from $pfn 
+Ffname=`echo $pfn | awk -F/ '{print $NF}'`
+fname=`echo $Ffname | awk -F. '{print $1}'`
+
 # define output filename
-outFile=${JUSTIN_REQUEST_ID}_${JUSTIN_STAGE_ID}_reco_data_${now}.root
-echo $outFile
+outFile=${fname}_reco_data_${now}.root
+echo $Ffname $fname $outFile
 
 # put here the right value, this is just an example 
 campaign="justIN.Request-${JUSTIN_REQUEST_ID}.Stage-${JUSTIN_STAGE_ID}"
@@ -99,49 +121,37 @@ export LD_PRELOAD=${XROOTD_LIB}/libXrdPosixPreload.so
 echo "$LD_PRELOAD"
 
 # to test with only 2 events
-lar -c $fclFile -n 2 -o $outFile --sam-web-uri "$JUSTIN_SAM_WEB_URI" \
- --sam-process-id 0 > ${outFile}.log 2>&1
-#lar -c $fclFile "$pfn" -o $outFile  > ${fname}_reco_${now}.log 2>&1
+#lar -c $fclFile "$pfn"  -n $nEvts -o $outFile  > ${fname}_reco_${now}.log 2>&1
+lar -c $fclFile "$pfn" -o $outFile  > ${fname}_reco_${now}.log 2>&1
 )
 
 # Subshell exits with exit code of last command
 larExit=$?
 echo "lar exit code $larExit"
 
-if [ $larExit -eq 0 -a -f "$outFile" ] ; then
-  # write metadata file if lar succeeded and output file is exists
+if [ $larExit -eq 0 ] ; then
+  # write metadata file if lar succeeded
   extractor_prod.py --infile "$outFile" --no_crc --appname reco \
     --appversion ${DUNEVERSION} --appfamily art \
     --campaign ${campaign} > $outFile.ext.json  
   extractorExit=$?
   echo "extractor_prod.py exit code $extractorExit"
-    
-  # Get the list of file DIDs allocated to this job so we can do PFN->DID maps
-  $JUSTIN_PATH/justin-allocated-files > all-input-dids.txt
-  wafExit=$?
-  
-  echo '===start all-input-dids.txt==='
-  cat all-input-dids.txt
-  echo '===end all-input-dids.txt==='
 
   ./pdjson2metadata $outFile.ext.json all-input-dids.txt > $outFile.json
   p2mExit=$?
   echo "pdjson2metadata exit code $p2mExit"
 
-  if [ $extractorExit -eq 0 -a $wafExit -eq 0 -a $p2mExit -eq 0 ] ; then
+  if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
     echo "Metadata extraction succeeds"
+    echo "$pfn" > justin-processed-pfns.txt
     echo "===Metadata JSON==="
     cat $outFile.json
     echo
     echo "==================="
-    # Create compressed tar file with all log files including the bootstrap.log
-    tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log
-    exit 0
   fi
 fi
 
 ls -lRS
 
-# Create compressed tar file with all log files including the bootstrap.log
+# Create compressed tar file with all log files including the jobscript.log
 tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log
-exit 1

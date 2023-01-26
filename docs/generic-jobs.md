@@ -15,10 +15,10 @@ states given here:
   [Generic Job Factory](job-factory.md) but not yet allocated a request/stage
 - **started** - the job has succesfully been allocated a stage within a 
   request to work on by the [allocator service](allocator-service.md) and 
-  the supplied bootstrap script should be running
-- **processing** - the bootstrap script has successfully been allocated at 
+  the supplied jobscript should be running
+- **processing** - the jobscript has successfully been allocated at 
   least one input file to process by the allocator service.
-- **outputting** - the bootstrap script has finished and the generic job has
+- **outputting** - the jobscript has finished and the generic job has
   reported to the allocator service the list of
   input files it processed and the names of the output files it intends to
   register with MetaCat and Rucio and to upload 

@@ -18,11 +18,11 @@ The database is implemented as a MySQL/Mariadb SQL database.
 ### Tables
 
 - allocations - one row each time a file is allocated to a job
-- bootstraps - scripts from users to be executed by generic jobs
+- jobscripts - scripts from users to be executed by generic jobs
 - events - a log of fine grained events within the system
 - files - input files associcated with each stage of each request
 - jobs - jobs created by the Generic Job Factory
-- jobs_logs - logs from the bootstrap scripts that generic jobs run 
+- jobs_logs - logs from the jobscripts that generic jobs run 
 - replicas - replica RSEs and PFNs obtained from Rucio
 - replicas_pins - used by the FNAL Finder Agent to manage pins
 - requests - workflows submitted to the system for processing
@@ -30,7 +30,7 @@ The database is implemented as a MySQL/Mariadb SQL database.
 - sites_storages - distances between sites and storages
 - stages - stages within each request
 - stages_output_storages - preferred output RSEs for each stage
-- stages_outputs - wildcards to find output files of bootstrap scripts
+- stages_outputs - wildcards to find output files of jobscripts
 - storages - RSE info obtained from Rucio
 - users - user info obtained from Rucio
 - x509 - X.509 DNs associated with each user

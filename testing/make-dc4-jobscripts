@@ -1,14 +1,14 @@
 #!/bin/sh
 #
-# Make bootstraps for DC4 from vdcoldbox-top.bootstrap
+# Make jobscripts for DC4 from vdcoldbox-top.jobscript
 #
 
 sed -e 's/top/bottom/g' \
     -e 's/^fclFile.*/fclFile=vdcoldbox_raw_dataprep_reco.fcl/' \
     -e 's/^export DUNEVERSION=.*/export DUNEVERSION=v09_49_00d00/' \
- dc4-vd-coldbox-top.bootstrap > dc4-vd-coldbox-bottom.bootstrap
+ dc4-vd-coldbox-top.jobscript > dc4-vd-coldbox-bottom.jobscript
 
 sed -e 's/dc4-vd-coldbox-top/dc4-hd-protodune/g' \
     -e 's/^fclFile.*/fclFile=protoDUNEHD_refactored_reco.fcl/' \
     -e 's/^export DUNEVERSION=.*/export DUNEVERSION=v09_56_00d00/' \
- dc4-vd-coldbox-top.bootstrap > dc4-hd-protodune.bootstrap
+ dc4-vd-coldbox-top.jobscript > dc4-hd-protodune.jobscript

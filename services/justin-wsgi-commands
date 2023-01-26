@@ -142,7 +142,7 @@ def showJobscriptCmd(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
 
   try:
-    rows = justin.db.select("SELECT * FROM bootstraps "
+    rows = justin.db.select("SELECT * FROM jobscripts "
                          "WHERE request_id=%d AND stage_id=%d"
                          % (requestID, stageID))
   except Exception as e:
@@ -150,7 +150,7 @@ def showJobscriptCmd(startResponse, jsonDict):
                     '500 Internal Server Error', 
                     'Error reading justIN database ' + str(e))
 
-  return httpOK(startResponse, rows[0]['bootstrap'])
+  return httpOK(startResponse, rows[0]['jobscript'])
 
 def showStageOutputsCmd(startResponse, jsonDict):
 
@@ -596,10 +596,10 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           % (requestID, processors,
              wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
-    justin.db.insertUpdate('INSERT INTO bootstraps SET '
+    justin.db.insertUpdate('INSERT INTO jobscripts SET '
           'request_id=%d,'
           'stage_id=1,'
-          'bootstrap="%s"' % 
+          'jobscript="%s"' % 
           (requestID, 
            jobscript.replace('\\','\\\\').replace('"','\\"')))
   except Exception as e:
@@ -864,10 +864,10 @@ def createStageCmd(startResponse, jsonDict):
                            wallSeconds, rssBytes, maxDistance,
                            maxFilesPerJob))
           
-    justin.db.insertUpdate('INSERT INTO bootstraps SET '
+    justin.db.insertUpdate('INSERT INTO jobscripts SET '
                         'request_id=%d,'
                         'stage_id=%d,'
-                        'bootstrap="%s"' % 
+                        'jobscript="%s"' % 
                         (requestID, stageID, 
                          jobscript.replace('\\','\\\\').replace('"','\\"')))
 
@@ -1028,7 +1028,7 @@ def createJobscriptCmd(startResponse, jsonDict):
                      'Uploaded jobscript is required')
 
   try:
-    justin.db.insertUpdate('UPDATE bootstraps SET bootstrap="%s" '
+    justin.db.insertUpdate('UPDATE jobscripts SET jobscript="%s" '
                         'WHERE request_id=%d AND stage_id=%d'
                         % (jobscript.replace('\\','\\\\').replace('"','\\"'),
                            requestID, stageID))

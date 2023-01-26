@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Example bootstrap script that runs lar for all the files
+# Example jobscript that runs lar for all the files
 # referred to by the MQL expression given on the justin command line.
 #
 # Submit with something like this:
@@ -8,7 +8,7 @@
 # ./justin quick-request \
 #  --max-distance 30 \
 #  --mql "rucio-dataset protodune-sp:np04_raw_run_number_5769" \
-#  --file lar.bootstrap
+#  --file lar.jobscript
 #
 # Then monitor with dashboard or ./justin show-jobs --request-id ID
 # where ID is the value printed by the first command

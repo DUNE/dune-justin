@@ -16,16 +16,16 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `bootstraps`
+-- Table structure for table `jobscripts`
 --
 
-DROP TABLE IF EXISTS `bootstraps`;
+DROP TABLE IF EXISTS `jobscripts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `bootstraps` (
+CREATE TABLE `jobscripts` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `bootstrap` text NOT NULL,
+  `jobscript` text NOT NULL,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -45,7 +45,7 @@ CREATE TABLE `jobs` (
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
-                  'finished','notused','aborted','stalled','bootstrap_error') 
+                  'finished','notused','aborted','stalled','jobscript_error') 
                   NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
@@ -92,7 +92,7 @@ DROP TABLE IF EXISTS `jobs_logs`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
-  `bootstrap_log` text NOT NULL DEFAULT '',
+  `jobscript_log` text NOT NULL DEFAULT '',
   PRIMARY KEY (`justin_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -500,10 +500,10 @@ def showStage(uriPrefix, cgiValues):
            "stages.rss_bytes,"
            "stages.max_distance,"
            "stages.max_files_per_job,"
-           "bootstraps.bootstrap "
+           "jobscripts.jobscript "
            "FROM stages "
-           "LEFT JOIN bootstraps ON bootstraps.request_id=stages.request_id"
-           " AND bootstraps.stage_id=stages.stage_id "
+           "LEFT JOIN jobscripts ON jobscripts.request_id=stages.request_id"
+           " AND jobscripts.stage_id=stages.stage_id "
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 
@@ -908,7 +908,7 @@ def showStage(uriPrefix, cgiValues):
   output += ('<pre style="white-space: pre-wrap;">') 
 
   output += (html.escape(
-   stageRow["bootstrap"].encode('ascii',errors='ignore').decode(), 
+   stageRow["jobscript"].encode('ascii',errors='ignore').decode(), 
    quote=True))
   
   output += ('</pre>') 
@@ -1152,7 +1152,7 @@ def showJob(uriPrefix, cgiValues):
            "jobs.for_awt,jobs.site_job_id,"
            "jobs.max_processors,jobs.min_processors,"
            "jobs.max_rss_bytes,jobs.min_rss_bytes,"
-           "jobs.max_wall_seconds,bootstrap_log "
+           "jobs.max_wall_seconds,jobscript_log "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
@@ -1351,10 +1351,10 @@ def showJob(uriPrefix, cgiValues):
 
   output += "</table>"
 
-  if jobRow['bootstrap_log']:
+  if jobRow['jobscript_log']:
     output += "<h2>Jobscript log</h2>"
     output += '<pre style="white-space:pre-wrap;">'
-    output += html.escape(jobRow["bootstrap_log"].strip(), quote=True)
+    output += html.escape(jobRow["jobscript_log"].strip(), quote=True)
     output += '</pre>'
 
   output += footer()

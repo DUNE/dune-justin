@@ -37,7 +37,7 @@ rseAvailabilityRead   = 4
 unixEpoch = '1970-01-01 00:00:00'
 
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
-                      'bootstrap_error' ]
+                      'jobscript_error' ]
 
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
@@ -138,7 +138,7 @@ eventTypes = {
  event_JOB_STALLED      : ['JOB_STALLED',
                            'Job identified as stalled by Finder'],
  event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
-                           'Error raised by the bootstrap script'],
+                           'Error raised by the jobscript'],
 
  # File events
  event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',
