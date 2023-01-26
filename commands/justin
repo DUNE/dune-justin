@@ -112,9 +112,9 @@ parser.add_argument("--refind-interval-hours",
                     type = int,
                     help = "Refind frequency in hours")
 
-parser.add_argument("--file",
+parser.add_argument("--jobscript",
                     type = str,
-                    help = "Specify a local file")
+                    help = "Specify a jobscript file")
 
 parser.add_argument("--processors",
                     type = int,
@@ -186,10 +186,10 @@ if jsonDict['command'] == 'version':
 
 jsonDict['version'] = versionNumber
 
-if jsonDict['file']:
-  with open(jsonDict['file']) as f:
+if jsonDict['jobscript']:
+  with open(jsonDict['jobscript']) as f:
     contents = f.read()
-    jsonDict['file'] = contents
+    jsonDict['jobscript'] = contents
 
 if args.command not in commands:
   print("%s not recognised as a justin command" % args.command)

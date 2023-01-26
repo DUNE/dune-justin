@@ -576,12 +576,12 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except:
     rssBytes = 2000 * 1024 * 1024
 
-  if 'file' in jsonDict and jsonDict['file']:
-    bootstrap = jsonDict['file']
+  if 'jobscript' in jsonDict and jsonDict['jobscript']:
+    bootstrap = jsonDict['jobscript']
   else:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Upload file is required')
+                     'Uploaded jobscript is required')
 
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
@@ -843,12 +843,12 @@ def createStageCmd(startResponse, jsonDict):
   else:
     maxFilesPerJob = 1
 
-  if 'file' in jsonDict and jsonDict['file']:
-    bootstrap = jsonDict['file']
+  if 'jobscript' in jsonDict and jsonDict['jobscript']:
+    bootstrap = jsonDict['jobscript']
   else:
     return httpError(startResponse,
                      '400 Bad Request',
-                     'Upload file is required')
+                     'Uploaded jobscript is required')
 
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
@@ -1020,12 +1020,12 @@ def createBootstrapCmd(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Stage ID must be given')
 
-  if 'file' in jsonDict and jsonDict['file']:
-    bootstrap = jsonDict['file']
+  if 'jobscript' in jsonDict and jsonDict['jobscript']:
+    bootstrap = jsonDict['jobscript']
   else:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Upload file is required')
+                     'Uploaded jobscript is required')
 
   try:
     justin.db.insertUpdate('UPDATE bootstraps SET bootstrap="%s" '

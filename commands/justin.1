@@ -97,7 +97,7 @@ Changes the state of the given request to "finished". This state
 excludes a request from the workflow allocation process.
 
 .HP
-.B "create-stage --request-id ID --stage-id ID --file FILENAME 
+.B "create-stage --request-id ID --stage-id ID --jobscript FILENAME 
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
 .B [--max-files-per-job N] 
 .B [--output-pattern SCOPE:DATASET:PATTERN] 
@@ -108,7 +108,7 @@ Creates a new stage for the given request ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each request must have at least
 one stage. Each stage must have a boostrap shell script associated with it,
 given by the
-.B --file
+.B --jobscript
 option which will be executed on worker nodes to process its files. 
 
 If the maximum wallclock time needed is not given by 
@@ -172,7 +172,7 @@ bootstrap script is executed.
 .HP
 .B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] 
 .B [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] 
-.B [--refind-interval-hours HOURS] --file FILENAME [--wall-seconds N] 
+.B [--refind-interval-hours HOURS] --jobscript FILENAME [--wall-seconds N] 
 .B [--max-files-per-job N] 
 .B [--rss-mb N] [--processors N] [--max-distance DIST] 
 .B [--output-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME] 
@@ -196,7 +196,7 @@ max processors, max wallclock seconds, max RSS bytes, and the max distance
 value.
 
 .HP
-.B "create-bootstrap --request-id ID --stage-id ID --file FILENAME
+.B "create-bootstrap --request-id ID --stage-id ID --jobscript FILENAME
 .br
 Creates a bootstrap file for the given stage within the given request,
 replacing the existing bootstrap file.
