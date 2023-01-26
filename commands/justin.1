@@ -132,7 +132,7 @@ a value of 100 which represents maximally remote storages.
 
 .B --max-files-per-job N
 limits the number of files which will be allocated to a job. This can be
-used to ensure that bootstraps which request files to work on, one after 
+used to ensure that jobscripts which request files to work on, one after 
 another, do not run for too long. Default 1.
 
 If one or more options 
@@ -167,7 +167,7 @@ defaults to 1 day if not specified.
 
 .B --env NAME=VALUE
 can be used one or more times to set environment variables when the stage's
-bootstrap script is executed.
+jobscript is executed.
 
 .HP
 .B "quick-request [--name NAME] [--mql QUERY|--monte-carlo COUNT] 
@@ -196,15 +196,15 @@ max processors, max wallclock seconds, max RSS bytes, and the max distance
 value.
 
 .HP
-.B "create-bootstrap --request-id ID --stage-id ID --jobscript FILENAME
+.B "create-jobscript --request-id ID --stage-id ID --jobscript FILENAME
 .br
-Creates a bootstrap file for the given stage within the given request,
-replacing the existing bootstrap file.
+Creates a jobscript for the given stage within the given request,
+replacing the existing jobscript with the specified file.
 
 .HP
-.B "show-bootstrap --request-id ID --stage-id ID"
+.B "show-jobscript --request-id ID --stage-id ID"
 .br
-Show the bootstrap script of the given stage within the given request.
+Show the jobscript of the given stage within the given request.
 
 .HP
 .B "show-stage-outputs --request-id ID --stage-id ID"
@@ -269,20 +269,20 @@ Show jobs identified by Jobsub ID or Request ID (and optionally Stage ID). Job
 state can also be given to further filter the jobs listed. For each job,
 the Jobsub ID, Request ID, Stage ID, State, and creation time are shown.
 
-.SH BOOTSTRAP SCRIPTS
+.SH JOBSCRIPTS
 
-The bootstrap scripts supplied when creating a stage are shell scripts
+The user jobscripts supplied when creating a stage are shell scripts
 which the generic jobs execute on the worker nodes matched to that stage.
 They are started in an empty workspace directory.
 Several environment variables are made available to the
 scripts, all prefixed with JUSTIN_, including $JUSTIN_REQUEST_ID, 
 $JUSTIN_STAGE_ID and
-$JUSTIN_COOKIE which allows the bootstrap script to authenticate to justIN's
+$JUSTIN_COOKIE which allows the jobscript to authenticate to justIN's
 allocator service. $JUSTIN_PATH is used to reference files and scripts 
 provided by justIN. 
 
 To get the details of an input file to work on, the command 
-$JUSTIN_PATH/justin-get-file is executed by the bootstrap script.
+$JUSTIN_PATH/justin-get-file is executed by the jobscript.
 This produces a single line of output with the Rucio DID of the chosen file,
 its PFN on the optimal RSE, and the name of that RSE, all separated by
 spaces. This code fragment shows how the DID, PFN and RSE can be put into
@@ -298,13 +298,13 @@ output to stdout, which should also be checked for. justin-get-file logs errors
 to stderr.
 
 justin-get-file can be called multiple times to process more than one file in
-the same bootstrap script. This can be done all at the start or repeatedly
+the same jobscript. This can be done all at the start or repeatedly
 during the lifetime of the job. justin-get-file is itself a simple wrapper around
 the curl command and it would also be possible to access the justIN 
 allocator service's REST API directly from an application.
 
 Each file returned by justin-get-file is marked as allocated and will not be 
-processed by any other jobs. When the bootstrap script finishes, it 
+processed by any other jobs. When the jobscript finishes, it 
 .B must
 leave files with lists of the processed files in its
 workspace directory. These lists are sent to the justIN allocator service by
@@ -323,7 +323,7 @@ file. Any files not represented in either file will be treated as unprocessed
 and made available for other jobs to process.
 
 Output files which are to be uploaded with Rucio by the generic job must be 
-created in the bootstrap's workspace directory and have filenames matching
+created in the jobscript's workspace directory and have filenames matching
 the patterns given by
 .B --output-pattern
 or

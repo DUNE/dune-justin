@@ -129,7 +129,7 @@ def showStagesCmd(startResponse, jsonDict):
 
   return httpOK(startResponse, outputString)
 
-def showBootstrapCmd(startResponse, jsonDict):
+def showJobscriptCmd(startResponse, jsonDict):
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -577,7 +577,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
     rssBytes = 2000 * 1024 * 1024
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
-    bootstrap = jsonDict['jobscript']
+    jobscript = jsonDict['jobscript']
   else:
     return httpError(startResponse, 
                      '400 Bad Request', 
@@ -601,7 +601,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           'stage_id=1,'
           'bootstrap="%s"' % 
           (requestID, 
-           bootstrap.replace('\\','\\\\').replace('"','\\"')))
+           jobscript.replace('\\','\\\\').replace('"','\\"')))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -844,7 +844,7 @@ def createStageCmd(startResponse, jsonDict):
     maxFilesPerJob = 1
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
-    bootstrap = jsonDict['jobscript']
+    jobscript = jsonDict['jobscript']
   else:
     return httpError(startResponse,
                      '400 Bad Request',
@@ -869,7 +869,7 @@ def createStageCmd(startResponse, jsonDict):
                         'stage_id=%d,'
                         'bootstrap="%s"' % 
                         (requestID, stageID, 
-                         bootstrap.replace('\\','\\\\').replace('"','\\"')))
+                         jobscript.replace('\\','\\\\').replace('"','\\"')))
 
   except Exception as e:
     return httpError(startResponse, 
@@ -1004,7 +1004,7 @@ def createStageCmd(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-def createBootstrapCmd(startResponse, jsonDict):
+def createJobscriptCmd(startResponse, jsonDict):
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -1021,7 +1021,7 @@ def createBootstrapCmd(startResponse, jsonDict):
                      'Stage ID must be given')
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
-    bootstrap = jsonDict['jobscript']
+    jobscript = jsonDict['jobscript']
   else:
     return httpError(startResponse, 
                      '400 Bad Request', 
@@ -1030,7 +1030,7 @@ def createBootstrapCmd(startResponse, jsonDict):
   try:
     justin.db.insertUpdate('UPDATE bootstraps SET bootstrap="%s" '
                         'WHERE request_id=%d AND stage_id=%d'
-                        % (bootstrap.replace('\\','\\\\').replace('"','\\"'),
+                        % (jobscript.replace('\\','\\\\').replace('"','\\"'),
                            requestID, stageID))
 
   except Exception as e:
@@ -1205,8 +1205,8 @@ def application(environ, startResponse):
   if jsonDict['command'] == 'show-stages':
     return showStagesCmd(startResponse, jsonDict)
 
-  if jsonDict['command'] == 'show-bootstrap':
-    return showBootstrapCmd(startResponse, jsonDict)
+  if jsonDict['command'] == 'show-jobscript':
+    return showJobscriptCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'show-stage-outputs':
     return showStageOutputsCmd(startResponse, jsonDict)
@@ -1247,8 +1247,8 @@ def application(environ, startResponse):
   if jsonDict['command'] == 'create-stage':
     return createStageCmd(startResponse, jsonDict)
 
-  if jsonDict['command'] == 'create-bootstrap':
-    return createBootstrapCmd(startResponse, jsonDict)
+  if jsonDict['command'] == 'create-jobscript':
+    return createJobscriptCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)

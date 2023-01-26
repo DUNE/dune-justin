@@ -904,7 +904,7 @@ def showStage(uriPrefix, cgiValues):
 
     output += ('</table>') 
 
-  output += ("<h2>Bootstrap script</h2>")
+  output += ("<h2>Jobscript</h2>")
   output += ('<pre style="white-space: pre-wrap;">') 
 
   output += (html.escape(
@@ -1352,7 +1352,7 @@ def showJob(uriPrefix, cgiValues):
   output += "</table>"
 
   if jobRow['bootstrap_log']:
-    output += "<h2>Bootstrap log</h2>"
+    output += "<h2>Jobscript log</h2>"
     output += '<pre style="white-space:pre-wrap;">'
     output += html.escape(jobRow["bootstrap_log"].strip(), quote=True)
     output += '</pre>'

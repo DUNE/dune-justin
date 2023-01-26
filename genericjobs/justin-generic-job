@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Generic Job script which will get a stage's bootstrap script from the
+# Generic Job which will get a stage's jobscript from the
 # justIN allocator service
 #
 
@@ -60,7 +60,7 @@ pwd
 ls -lt
 echo '##############'
 
-# Used by bootstrap script to find files from this generic job
+# Used by user's jobscript to find files from this generic job
 export JUSTIN_PATH=`pwd`
 
 # Create the justin-get-file command
@@ -298,44 +298,44 @@ echo '====Start justin-env.sh===='
 cat justin-env.sh
 echo '====End justin-env.sh===='
 
-echo '====Start justin-bootstrap-env.sh===='
-cat justin-bootstrap-env.sh
-echo '====End justin-bootstrap-env.sh===='
+echo '====Start justin-jobscript-env.sh===='
+cat justin-jobscript-env.sh
+echo '====End justin-jobscript-env.sh===='
 
 echo '====Start justin-get-file.json===='
 cat justin-get-file.json
 echo '====End justin-get-file.json===='
 
-# Run the bootstrap script
-if [ -f justin-bootstrap.sh ] ; then
-  chmod +x justin-bootstrap.sh
+# Run the jobscript
+if [ -f justin-jobscript.sh ] ; then
+  chmod +x justin-jobscript.sh
 
-  echo '====Start justin-bootstrap.sh===='
-  cat justin-bootstrap.sh
-  echo '====End justin-bootstrap.sh===='
+  echo '====Start justin-jobscript.sh===='
+  cat justin-jobscript.sh
+  echo '====End justin-jobscript.sh===='
 
   mkdir workspace
-  echo '====Run justin-bootstrap.sh===='
-  export JUSTIN_BOOTSTRAP_SCRIPT_START=`date --iso-8601=seconds --utc`
-  ( . ./justin-bootstrap-env.sh
+  echo '====Run justin-jobscript.sh===='
+  export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
+  ( . ./justin-jobscript-env.sh
     cd workspace
-    stdbuf -oL -eL $JUSTIN_PATH/justin-bootstrap.sh ) \
-      > workspace/justin-bootstrap.log 2>&1
-  export BOOTSTRAP_EXIT=$?
-  export JUSTIN_BOOTSTRAP_SCRIPT_FINISH=`date --iso-8601=seconds --utc`
-  echo '====After justin-bootstrap.sh===='
+    stdbuf -oL -eL $JUSTIN_PATH/justin-jobscript.sh ) \
+      > workspace/justin-jobscript.log 2>&1
+  export JOBSCRIPT_EXIT=$?
+  export JUSTIN_JOBSCRIPT_FINISH=`date --iso-8601=seconds --utc`
+  echo '====After justin-jobscript.sh===='
 else
   # How can this happen???
-  log_line No justin-bootstrap.sh found
+  log_line No justin-jobscript.sh found
   exit 0
 fi
 
-echo '#### justin-bootstrap.log'
-cat workspace/justin-bootstrap.log
+echo '#### justin-jobscript.log'
+cat workspace/justin-jobscript.log
 echo '####'
 
 #if [ "$retval" != 0 ] ; then
-#  job_aborted 0 900 "Bootstrap script error $BOOTSTRAP_EXIT"
+#  job_aborted 0 900 "jobscript script error $JOBSCRIPT_EXIT"
 #fi
 
 # Make the lists of output files and files for the next stage
@@ -392,7 +392,7 @@ output_dids=`echo \`sed 's/.*/"&"/' justin-output-dids.txt\`|sed 's/ /,/g'`
 
 next_stage_dids=`echo \`sed 's/.*/"&"/' justin-next-stage-dids.txt\`|sed 's/ /,/g'`
 
-# justin-bootstrap.sh should produce lists of successfully processed input files
+# justin-jobscript.sh should produce lists of successfully processed input files
 if [ -f workspace/justin-processed-dids.txt ] ; then
   processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/justin-processed-dids.txt\`|sed 's/ /,/g'`
 fi
@@ -401,7 +401,7 @@ if [ -f workspace/justin-processed-pfns.txt ] ; then
   processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/justin-processed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
-tail -c 10000 workspace/justin-bootstrap.log | base64 --wrap=0 > justin-bootstrap.log.b64
+tail -c 10000 workspace/justin-jobscript.log | base64 --wrap=0 > justin-jobscript.log.b64
 
 cat <<EOF >justin-record-results.json
 {
@@ -411,8 +411,8 @@ cat <<EOF >justin-record-results.json
   "processed_pfns": [$processed_pfns],
   "output_dids": [$output_dids],
   "next_stage_dids": [$next_stage_dids],
-  "bootstrap_log": "`cat justin-bootstrap.log.b64`",
-  "bootstrap_exit": $BOOTSTRAP_EXIT
+  "jobscript_log": "`cat justin-jobscript.log.b64`",
+  "jobscript_exit": $JOBSCRIPT_EXIT
 }
 EOF
 
@@ -445,8 +445,8 @@ if [ "$http_code" != 200 ] ; then
   job_aborted 0 $http_code record_results
 fi
 
-if [ "$BOOTSTRAP_EXIT" != 0 ; then
-  job_aborted 0 900 bootstrap exit $BOOTSTRAP_EXIT
+if [ "$JOBSCRIPT_EXIT" != 0 ; then
+  job_aborted 0 900 jobscript exit $JOBSCRIPT_EXIT
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors

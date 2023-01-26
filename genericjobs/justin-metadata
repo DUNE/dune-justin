@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Check any metadata JSON from bootstrap script for a given file and add
+# Check any metadata JSON from jobscript for a given file and add
 # workflow metadata to it. The output file and its JSON file will be looked for
 # in the workspace subdirectory.
 #
@@ -42,10 +42,10 @@ metadata['metadata']['DUNE.workflow']['stage_id'] \
  = int(os.environ['JUSTIN_STAGE_ID'])
 metadata['metadata']['DUNE.workflow']['hostname'] \
  = os.environ['JUSTIN_HOSTNAME']
-metadata['metadata']['DUNE.workflow']['script_start'] \
- = os.environ['JUSTIN_BOOTSTRAP_SCRIPT_START']
-metadata['metadata']['DUNE.workflow']['script_finish'] \
- = os.environ['JUSTIN_BOOTSTRAP_SCRIPT_FINISH']
+metadata['metadata']['DUNE.workflow']['jobscript_start'] \
+ = os.environ['JUSTIN_JOBSCRIPT_START']
+metadata['metadata']['DUNE.workflow']['jobscript_finish'] \
+ = os.environ['JUSTIN_JOBSCRIPT_FINISH']
 metadata['metadata']['DUNE.workflow']['cpuinfo'] \
  = os.environ['JUSTIN_CPUINFO']
 metadata['metadata']['DUNE.workflow']['os_release'] \

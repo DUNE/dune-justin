@@ -30,7 +30,7 @@ approved.
 As part of its definition, a request may include one or more stages, each 
 of which can apply a sequence of processing steps to the input or output 
 files. Each stage specifies a 
-[bootstrap script](bootstrap-scripts.md) used by generic jobs to run 
+[jobscript](jobscripts.md) used by generic jobs to run 
 the relevant applications. The stage definition specifies the requirements on 
 the worker nodes (for example memory and job duration).
 

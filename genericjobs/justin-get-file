@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# Script for use within bootstrap script to get the DID, PFN, and RSE
+# Script for use within jobscript to get the DID, PFN, and RSE
 # of a file to process within the stage assigned to the job.
 #
-# Bootstrap scripts can execute this script as: $JUSTIN_PATH/justin-get-file
+# Jobscripts can execute this script as: $JUSTIN_PATH/justin-get-file
 #
 # Error messages to stderr
 # DID PFN RSE to stdout on one line if a file is available

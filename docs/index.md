@@ -14,7 +14,7 @@ current release branch is available as GitHub pages at
 
 - [justin command](justin-command.md)
 - [Monte Carlo requests](monte-carlo.md)
-- [Bootstrap scripts](bootstrap-scripts.md)
+- [Jobscripts](jobscripts.md)
 
 ### System Components
 

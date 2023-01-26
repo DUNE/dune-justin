@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# Script for use within bootstrap script to get the DIDs of all files 
+# Script for use within user's jobscript to get the DIDs of all files 
 # allocated to this job
 #
-# Bootstrap scripts can execute this script as: $JUSTIN_PATH/justin-allocated-files
+# Jobscripts can execute this script as: $JUSTIN_PATH/justin-allocated-files
 #
 # Error messages to stderr
 # Zero or more DIDs to stdout, one per line

@@ -143,8 +143,8 @@ def makeJobDict(jobsubID, cookie = None):
          }
 
 # Successfully identified the request+stage and files so get the 
-# bootstrap for this stage and return it
-def getBootstrap(stage):
+# jobscript for this stage and return it
+def getJobscript(stage):
 
   try:
     query = ("SELECT bootstrap FROM bootstraps "
@@ -152,11 +152,11 @@ def getBootstrap(stage):
              % (stage['request_id'], stage['stage_id']))
 
     row = justin.db.select(query, justOne = True)
-    bootstrap = row['bootstrap']
+    jobscript = row['bootstrap']
   except:
     return None
   
-  return bootstrap
+  return jobscript
 
 def addFileToTarFile(tar, name, value):
 
@@ -180,12 +180,12 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
 
-  # Get and add the bootstrap script
-  bootstrap = getBootstrap(stage)
-  if not bootstrap:
+  # Get and add the jobscript
+  jobscript = getJobscript(stage)
+  if not jobscript:
     return None
 
-  addFileToTarFile(tar, "justin-bootstrap.sh", bootstrap)
+  addFileToTarFile(tar, "justin-jobscript.sh", jobscript)
 
   # Create a file containing the output file patterns
   try:
@@ -281,8 +281,8 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
       
   addFileToTarFile(tar, 'justin-output-rse-list.txt', outputRseFile)
 
-  # User defined environment variables for the bootstrap script
-  bootstrapEnvList = []
+  # User defined environment variables for the jobscript
+  jobscriptEnvList = []
 
   try:
     query = ('SELECT env_name,env_value FROM stages_environment '
@@ -295,12 +295,12 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   else:
     # Add the user defined ones
     for envRow in envRows:
-      bootstrapEnvList.append('export %s="%s"'
+      jobscriptEnvList.append('export %s="%s"'
                               % (envRow['env_name'], envRow['env_value']))
 
   addFileToTarFile(tar,
-                   'justin-bootstrap-env.sh',
-                   '\n'.join(bootstrapEnvList) + '\n')
+                   'justin-jobscript-env.sh',
+                   '\n'.join(jobscriptEnvList) + '\n')
 
   # Standard justin environment variables
   justinEnvList = [ 'export JUSTIN_SITE_NAME=' + str(jobDict['site_name']),
@@ -830,12 +830,12 @@ def processOutputDids(outputDids, requestID, stageID, justinJobID):
                         'stage_id='           + str(stageID + 1)
                        )
 
-def saveAwtResults(justinJobID, siteID, bootstrapLog):
+def saveAwtResults(justinJobID, siteID, jobscriptLog):
 
 #  print('AWT %d %d in saveAwtResults' % (justinJobID, siteID), 
 #         file=sys.stderr)
 
-  for line in bootstrapLog.splitlines():
+  for line in jobscriptLog.splitlines():
 #    print('AWT %d %d %s' % (justinJobID, siteID, line), 
 #            file=sys.stderr)
     if line.startswith('==awt== '):
@@ -868,7 +868,7 @@ def saveAwtResults(justinJobID, siteID, bootstrapLog):
           file=sys.stderr)
 
 # Before uploading output files the generic jobs record any results from 
-# the bootstrap script, but just puts them in the "outputting" state
+# the jobscript, but just puts them in the "outputting" state
 def recordResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
@@ -911,7 +911,7 @@ def recordResultsMethod(startResponse, jsonDict):
     justin.db.insertUpdate(
         'INSERT INTO jobs_logs SET justin_job_id=' + str(justinJobID) + ','
         'bootstrap_log="%s"' %
-        base64.b64decode(jsonDict['bootstrap_log']).decode().replace('"', '_')
+        base64.b64decode(jsonDict['jobscript_log']).decode().replace('"', '_')
                        )                           
   except Exception as e:
     return httpError(startResponse,
@@ -921,12 +921,12 @@ def recordResultsMethod(startResponse, jsonDict):
   if forAwt:
     saveAwtResults(justinJobID, 
                    siteID, 
-                   base64.b64decode(jsonDict['bootstrap_log']).decode())
+                   base64.b64decode(jsonDict['jobscript_log']).decode())
 
-  if 'bootstrap_exit' in jsonDict and jsonDict['bootstrap_exit'] != 0:
-    # Bootstrap said it failed by exiting with non-zero value
+  if 'jobscript_exit' in jsonDict and jsonDict['jobscript_exit'] != 0:
+    # Jobscript said it failed by exiting with non-zero value
 
-    # Record job as finished due to bootstrap_error
+    # Record job as finished due to jobscript_error
     try:
 #### REPLACE "aborted" WITH "bootstrap_error" ONCE IN DATABASE DEFINITION
       justin.db.insertUpdate('UPDATE jobs SET allocation_state="aborted",'
@@ -1037,7 +1037,7 @@ def recordResultsMethod(startResponse, jsonDict):
   return httpOK(startResponse, '')
 
 # Return a list of file DIDs allocated to this job.
-# This can be used by bootstrap scripts which don't have a keep of input
+# This can be used by jobscripts which don't have a keep of input
 # DIDs. For example if running lar in legacy sam-web mode.
 def getAllocatedFilesMethod(startResponse, jsonDict):
 
@@ -1372,7 +1372,7 @@ def application(environ, startResponse):
     return getAllocatedFilesMethod(startResponse, jsonDict)
 
   # Get one or more files to process
-  # This request comes from bootstrap scripts using cookies so we 
+  # This request comes from jobscripts using cookies so we 
   # do not run checkJobUser() as getFileMethod() checks the cookie
   if jsonDict['method'] == 'get_file' or \
      jsonDict['method'] == 'samweb_getnextfile':

@@ -22,7 +22,7 @@ Request ID number assigned by justIN and XXXXXX is a number
 between 000001 and NNNNNN. Each file has a single replica on the virtual RSE
 MONTE-CARLO, with PFN consisting just of its XXXXXX number. These file and
 replica names are readily accessible within the 
-[bootstrap scripts](bootstrap-scripts.md) and so can be
+[jobscripts](jobscripts.md) and so can be
 used to derive unique names for the output files, which may be useful for
 debugging purposes.
 
