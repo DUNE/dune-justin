@@ -1619,9 +1619,9 @@ def listStorages(uriPrefix, cgiValues):
         '<th>RSE name</th>'
         '<th>Occupancy</th>'
         '<th>Read</th>'
-        '<th>(Rucio/justin)</th>'
+        '<th>(Rucio/justIN)</th>'
         '<th>Write</th>'
-        '<th>(Rucio/justin)</th>'
+        '<th>(Rucio/justIN)</th>'
         '<th>Write protcol</th>'
         '<th>Deterministic</th>'
         '</tr>')
@@ -1817,12 +1817,12 @@ def showStorage(uriPrefix, cgiValues):
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
-  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justin=%s)</td></tr>' 
+  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justIN=%s)</td></tr>' 
         % (bool(storageRow['has_read']), 
            bool(storageRow['rucio_read']), 
            bool(storageRow['justin_read'])))
 
-  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justin=%s)</td></tr>' 
+  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justIN=%s)</td></tr>' 
         % (bool(storageRow['has_write']), 
            bool(storageRow['rucio_write']), 
            bool(storageRow['justin_write'])))

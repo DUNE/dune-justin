@@ -203,7 +203,8 @@ if jsonDict['verbose']:
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-  url = 'https://justin.dune.hep.ac.uk/api/commands'
+  # This will move to justin.dune.hep.ac.uk once we are using tokens...
+  url = 'https://justin-allocator-pro.dune.hep.ac.uk/api/commands'
 
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),

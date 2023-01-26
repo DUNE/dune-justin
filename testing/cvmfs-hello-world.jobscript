@@ -13,7 +13,7 @@
 # 4) Create and run a request
 #    justin quick-request --monte-carlo 1 \
 #    --env HELLO_WORLD_DIR="$HELLO_WORLD_DIR" \
-#    --file cvmfs-hello-world.jobscript
+#    --jobscript cvmfs-hello-world.jobscript
 #
 # Check the output through the dashboard:
 # the date in hello_world.txt should be printed.

@@ -2,7 +2,7 @@
 #
 # Submit with something like this:
 #
-# ./justin quick-request --monte-carlo 1 --file dids-hello-world.jobscript
+# ./justin quick-request --monte-carlo 1 --jobscript dids-hello-world.jobscript
 #
 # Then monitor with dashboard or ./justin show-jobs --request-id ID
 # where ID is the value printed by the first command

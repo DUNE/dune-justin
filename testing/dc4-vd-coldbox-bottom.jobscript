@@ -7,7 +7,7 @@
 #
 # justin quick-request \
 # --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
-# --file dc4-vd-coldbox-bottom.jobscript --max-distance 100 \
+# --jobscript dc4-vd-coldbox-bottom.jobscript --max-distance 100 \
 # --output-pattern 'dc4-test:amcnab-01:*_reco_data_*.root' \
 # --output-rse FNAL_DCACHE_TEST
 #
