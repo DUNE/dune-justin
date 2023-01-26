@@ -1,6 +1,6 @@
 ## justin command man page
 This man page is distributed along with the 
-[justin command](workflow-command.md) itself.
+[justin command](justin-command.md) itself.
 ```
 JUSTIN(2022)                                                      JUSTIN(2022)
 

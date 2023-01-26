@@ -4,7 +4,7 @@ The justin command allows the creation and monitoring of requests, and
 various queries of the [justIn database](database.md)'s knowledge of
 sites, storages etc.
 
-See the [snapshot of its man page](workflow-man-page.md) for the full list
+See the [snapshot of its man page](justin-man-page.md) for the full list
 of subcommands, options, and their syntax.
 
 The command requires Python 3.6 or above and has no dependencies beyond the

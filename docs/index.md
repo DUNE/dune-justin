@@ -12,7 +12,7 @@ current release branch is available as GitHub pages at
 
 ### User Guides
 
-- [Workflow command](workflow-command.md)
+- [justin command](justin-command.md)
 - [Monte Carlo requests](monte-carlo.md)
 - [Bootstrap scripts](bootstrap-scripts.md)
 

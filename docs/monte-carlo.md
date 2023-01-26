@@ -9,10 +9,10 @@ Monte Carlo jobs which are required. This framework can be used for other
 types of workflow which also do not require real input files from bulk
 storage, such as such parameter scanning applications. 
 
-The [justin command man page](workflow-man-page.md) explains how to submit
+The [justin command man page](justin-man-page.md) explains how to submit
 requests in this case. In short, the MQL expression is replaced by
 "monte-carlo NNNNNN" where NNNNNN is the number of jobs required. The 
-[justin command](workflow-command.md) has an option --monte-carlo which
+[justin command](justin-command.md) has an option --monte-carlo which
 does this.
 
 When the [Finder agent](finder.md) processes a Monte Carlo request, it
