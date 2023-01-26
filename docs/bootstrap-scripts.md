@@ -8,7 +8,7 @@ variables are made available to the scripts, all prefixed with JUSTIN_,
 including $JUSTIN_REQUEST_ID, $JUSTIN_STAGE_ID and $JUSTIN_COOKIE which allows the 
 bootstrap script to authenticate to the 
 [allocator service](allocator-service.md). $JUSTIN_PATH is 
-used to reference files and scripts provided by justIn.
+used to reference files and scripts provided by justIN.
 
 To get the details of an input file to work on, the command 
 $JUSTIN_PATH/justin-get-file is executed by the bootstrap script.  This produces 

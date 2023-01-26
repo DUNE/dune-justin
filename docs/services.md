@@ -1,7 +1,7 @@
 ## Services
 
-justIn provides services to respond to queries from users and
-jobs. In most cases, queries update the [justIn database](database.md)
+justIN provides services to respond to queries from users and
+jobs. In most cases, queries update the [justIN database](database.md)
 in some way.
 
 Each service is implemented as a WSGI/mod_wsgi script written in
@@ -11,7 +11,7 @@ clients to authenticate using X.509 certificates or grid style X.509
 proxies of users or grid jobs. 
 
 - justin-wsgi-allocator - [allocator service](allocator-service.md), which responds to queries from generic jobs
-- justin-wsgi-commands - justIn commands service, which responds to queries from the [justin command](justin-command.md)
+- justin-wsgi-commands - justIN commands service, which responds to queries from the [justin command](justin-command.md)
 
-The [justIn dashboard](dashboard.md) is currently implemented as a Python3 
+The [justIN dashboard](dashboard.md) is currently implemented as a Python3 
 CGI script.

@@ -2,7 +2,7 @@
 
 The Generic Job Factory agent creates and submits HTCondor jobs, which are 
 each assigned to a specific execution site. It uses a mixture of matching 
-successes, the outcome of test matches against the [justIn 
+successes, the outcome of test matches against the [justIN 
 database](database.md), and site limits set in the database to determine 
 how many generic jobs to submit and have waiting at each site.
 

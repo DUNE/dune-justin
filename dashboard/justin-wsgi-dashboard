@@ -1,5 +1,5 @@
 #
-# justin-wsgi-dashboard - justIn workflow system dashboard
+# justin-wsgi-dashboard - justIN workflow system dashboard
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -165,7 +165,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 </head>
 <body>
 <div id="top_strip">
-<a href="%s" style="font-size: 48px; color: #E1703D;">justIn</a> &nbsp; &nbsp;
+<a href="%s" style="font-size: 48px; color: #E1703D;">justIN</a> &nbsp; &nbsp;
 <a href="%s"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp;
 <a href="%s">%s</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
@@ -231,9 +231,9 @@ def makePager(uriPrefix, pageNumber, pageLength, rowsLen, urlTemplate):
   
 def mainPage(uriPrefix):
 
-  output = header(uriPrefix, "justIn: Dashboard")
+  output = header(uriPrefix, "justIN: Dashboard")
 
-  output += '<h1>justIn Dashboard</h1><table class="main_page_table">'
+  output += '<h1>justIN Dashboard</h1><table class="main_page_table">'
 
   cells = [
    { 'startRow'  : True,
@@ -286,7 +286,7 @@ def mainPage(uriPrefix):
 
 def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
 
-  output = header(uriPrefix, "justIn: Requests")
+  output = header(uriPrefix, "justIN: Requests")
 
   output += "<h1>Requests</h1>"
   
@@ -340,7 +340,7 @@ def showRequest(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "request_id must be given")
   
-  output = header(uriPrefix, "justIn: Request %d" % requestID)
+  output = header(uriPrefix, "justIN: Request %d" % requestID)
 
   query = ("SELECT requests.name,requests.state,"
            "users.username,"
@@ -490,7 +490,7 @@ def showStage(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "stage_id must be given")
   
-  output = header(uriPrefix, "justIn: Request %d, Stage %d" % (requestID, stageID))
+  output = header(uriPrefix, "justIN: Request %d, Stage %d" % (requestID, stageID))
   output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
@@ -942,7 +942,7 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
     
-  output = header(uriPrefix, "justIn: Files for Request %d, Stage %d%s" 
+  output = header(uriPrefix, "justIN: Files for Request %d, Stage %d%s" 
                   % (requestID, stageID, stateText))
 
   output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
@@ -1033,7 +1033,7 @@ def showFile(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "stage_id must be given")
 
-  output = header(uriPrefix, "justIn: File %s" 
+  output = header(uriPrefix, "justIN: File %s" 
                   % html.escape(fileDID, quote=True))
 
   output += ("<h1>File %s</h1>"
@@ -1139,7 +1139,7 @@ def showJob(uriPrefix, cgiValues):
   except:
     return errorPage(uriPrefix, "jobsub_id must be given")
       
-  output = header(uriPrefix, "justIn: Jobsub ID %s" % jobsubID)
+  output = header(uriPrefix, "justIN: Jobsub ID %s" % jobsubID)
 
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
@@ -1416,7 +1416,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
   else:
     titleSuffix = ''
     
-  output = header(uriPrefix, "justIn: Jobs" + titleSuffix)
+  output = header(uriPrefix, "justIN: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
   
@@ -1538,7 +1538,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
 
 def listSites(uriPrefix, cgiValues):
       
-  output = header(uriPrefix, "justIn: Sites")
+  output = header(uriPrefix, "justIN: Sites")
 
   output += ("<h1>Sites</h1>")
   
@@ -1601,7 +1601,7 @@ def listSites(uriPrefix, cgiValues):
 
 def listStorages(uriPrefix, cgiValues):
       
-  output = header(uriPrefix, "justIn: Storages")
+  output = header(uriPrefix, "justIN: Storages")
 
   output += ("<h1>Storages</h1>")
   
@@ -1665,7 +1665,7 @@ def showSite(uriPrefix, cgiValues):
   if not justin.db.stringIsSite(siteName):
     return errorPage(uriPrefix, "Invalid site name!")
         
-  output = header(uriPrefix, "justIn: Site " + siteName)
+  output = header(uriPrefix, "justIN: Site " + siteName)
 
   output += ("<h1>Site %s</h1>" % siteName)
   
@@ -1798,7 +1798,7 @@ def showStorage(uriPrefix, cgiValues):
   if not justin.db.stringIsSite(rseName):
     return errorPage(uriPrefix, "Invalid RSE name!")
         
-  output = header(uriPrefix, "justIn: Storage " + rseName)
+  output = header(uriPrefix, "justIN: Storage " + rseName)
 
   output += ("<h1>Storage %s</h1>" % rseName)
   
@@ -1910,7 +1910,7 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
   else:
     whereString = ''
     
-  output = header(uriPrefix, "justIn: Events")
+  output = header(uriPrefix, "justIN: Events")
 
   output += ("<h1>Events</h1>")
   
@@ -2012,7 +2012,7 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
 
 def awtResults(uriPrefix, cgiValues):
               
-  output = header(uriPrefix, "justIn: Automated Workflow Tests")
+  output = header(uriPrefix, "justIN: Automated Workflow Tests")
 
   output += ("<h1>Automated Workflow Tests</h1>")
 

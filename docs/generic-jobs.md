@@ -1,14 +1,14 @@
 ##  Generic jobs
 
-justIn's generic jobs are extensions of the jobsub/glideInWMS jobs
+justIN's generic jobs are extensions of the jobsub/glideInWMS jobs
 developed at Fermilab and inherit their properties. There is a one to one
-mapping between an instance of a generic job in justIn and the
-corresponding jobsub job. Consequently justIn uses jobsub style string IDs
+mapping between an instance of a generic job in justIN and the
+corresponding jobsub job. Consequently justIN uses jobsub style string IDs
 when referring to jobs in log files, the Dashboard, environment variables
 exposed to user scripts etc, and these take the form 
 NNNNNN.N@jobsubNN.fnal.gov where N are integers.
 
-Within justIn, a generic job is in one of several allocation
+Within justIN, a generic job is in one of several allocation
 states given here:
 
 - **submitted** - the job has been submitted by the 

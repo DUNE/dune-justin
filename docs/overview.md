@@ -1,12 +1,12 @@
-## Overview of the justIn workflow system
+## Overview of the justIN workflow system
 
-The justIn system includes all aspects of orchestrating the execution 
+The justIN system includes all aspects of orchestrating the execution 
 of code to generate simulated data and to process real or simulated 
 data at computing sites around the world.
 
 To make the most efficient use of the finite computing, network, and 
 storage resources available to the experiment, the design of 
-justIn was driven by the location and availability of data to 
+justIN was driven by the location and availability of data to 
 be processed and it’s proximity to computing capacity as it becomes available. 
 
 Efficiently matching CPU and data is a long-standing problem in 
@@ -18,10 +18,10 @@ CPU resources to optimally match processing and data.
 
 ### Request Lifecycle
 
-The central concept of justIn is the request, which 
+The central concept of justIN is the request, which 
 describes how some data processing activity is to be carried out. Requests 
 are submitted by users (which may include members of a central production 
-team) to the [justIn database](database.md), where it progresses 
+team) to the [justIN database](database.md), where it progresses 
 through several states. For example: 
 draft > submitted > running > paused > running > finished. Human 
 intervention is needed for some transitions, e.g., from submitted to 
@@ -36,7 +36,7 @@ the worker nodes (for example memory and job duration).
 
 The request definition will usually include a MetaCat MQL query 
 to generate a list of files to be processed in the first stage. This list of 
-files is cached in the central justIn database, associated with the 
+files is cached in the central justIN database, associated with the 
 first stage of that request. All these files are set to the unallocated 
 state.
 

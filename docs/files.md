@@ -1,9 +1,9 @@
 ## Files
 
-The justIn workflow system keeps track of files within the context of a
+The justIN workflow system keeps track of files within the context of a
 request/stage. The same file may exist within multiple requests and stages
 with different states according to how it has been processed within each
-context. justIn's interfaces refer to files using Rucio DIDs 
+context. justIN's interfaces refer to files using Rucio DIDs 
 (scope:name) and specifies the request and stage IDs too where necessary
 to avoid ambiguity.
 

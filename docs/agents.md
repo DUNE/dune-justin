@@ -1,7 +1,7 @@
 ## Agents
 
-justIn uses agents to make periodic updates to the 
-[justIn database](database.md). 
+justIN uses agents to make periodic updates to the 
+[justIN database](database.md). 
 
 Each agent is implemented as a self-contained daemon written in Python 3. A
 systemd service file provided for each agent, and each agent writes to a log 

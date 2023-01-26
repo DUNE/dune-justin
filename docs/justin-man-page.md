@@ -7,14 +7,14 @@ JUSTIN(2022)                                                      JUSTIN(2022)
 
 
 NAME
-       justin - justIn workflow system utility command
+       justin - justIN workflow system utility command
 
 SYNOPSIS
        justin subcommand [options]
 
 DESCRIPTION
        justin  is a command-line utility for managing requests, stages, files,
-       and replicas in the justIn Database (JDB).
+       and replicas in the justIN Database (JDB).
 
 
 GENERAL OPTIONS
@@ -23,12 +23,12 @@ GENERAL OPTIONS
 
 
        -v, --verbose
-              Turn on verbose logging of the communication  with  justIn  ser-
+              Turn on verbose logging of the communication  with  justIN  ser-
               vice.
 
 
        --url URL
-              Use    an    alternative    justIn    service,    rather    than
+              Use    an    alternative    justIN    service,    rather    than
               https://justin.dune.hep.ac.uk/api/commands This option  is  only
               needed during development and testing.
 
@@ -39,9 +39,9 @@ SUBCOMMANDS
 
 
        time
-              Contact  justIn to get the current time as a string. This can be
+              Contact  justIN to get the current time as a string. This can be
               used to check that the client is installed  correctly  and  that
-              the user is properly registered in justIn.
+              the user is properly registered in justIN.
 
 
        create-request   [--name   NAME]   [--mql   QUERY|--monte-carlo  COUNT]
@@ -53,7 +53,7 @@ SUBCOMMANDS
               to run. If a name is not given, a name based on a  timestamp  is
               created.  Requests are created in the state "draft" and the com-
               mand returns the new request's ID number.  Once the  request  is
-              in the running state, justIn will use the MQL expression to find
+              in the running state, justIN will use the MQL expression to find
               the list of input files from MetaCat. If --refind-interval-hours
               is  given, the MQL query will be resubmitted at that interval to
               add any new matching files from the start of the  day  given  by
@@ -140,7 +140,7 @@ SUBCOMMANDS
 
               Alternatively --output-pattern-next-stage  SCOPE:DATASET:PATTERN
               can be given in which the output file will also be registered in
-              the justIn Database as an unprocessed input file  for  the  next
+              the justIN Database as an unprocessed input file  for  the  next
               stage  and available for allocation to instances of that stage's
               script.
 
@@ -199,7 +199,7 @@ SUBCOMMANDS
 
        show-storages [--rse-name NAME]
               Shows information about Rucio Storage  Elements  cached  in  the
-              justIn  Database,  optionally  limiting  output  to a single RSE
+              justIN  Database,  optionally  limiting  output  to a single RSE
               using its name. Each line of the output consists of the RSE name
               followed  by  the  occupancy fraction obtained from Rucio in the
               range 0.0 to 1.0, and the Read, Write and Delete availability of
@@ -216,13 +216,13 @@ SUBCOMMANDS
 
 
        show-files [--request-id ID] [--stage-id ID] [--file-did DID]
-              Shows files information cached in the  justIn  Database,  either
+              Shows files information cached in the  justIN  Database,  either
               limited  by  request  ID  and  stage ID or by file DID. For each
               file, the request ID, stage ID, file state,  and  file  DID  are
               shown. The file state is one of "finding", "unallocated", "allo-
               cated", or "processed". Files wait in the  "unallocated"  state,
               are  then  allocated  to  an  instance  of the stage's script by
-              justIn's allocator service, and then either return  to  "unallo-
+              justIN's allocator service, and then either return  to  "unallo-
               cated" or move to "processed" depending on whether the script is
               able to process them correctly.
 
@@ -238,7 +238,7 @@ SUBCOMMANDS
 
 
        show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]
-              Shows file and  replica  information  in  the  justIn  Database,
+              Shows file and  replica  information  in  the  justIN  Database,
               either  limited  by  request ID and stage ID or by file DID. For
               each replica of each file, the request ID, stage ID, file state,
               RSE name, and file DID are shown.
@@ -259,8 +259,8 @@ BOOTSTRAP SCRIPTS
        environment variables are made available to the scripts,  all  prefixed
        with   JUSTIN_,   including  $JUSTIN_REQUEST_ID,  $JUSTIN_STAGE_ID  and
        $JUSTIN_COOKIE which allows the bootstrap  script  to  authenticate  to
-       justIn's allocator service. $JUSTIN_PATH is used to reference files and
-       scripts provided by justIn.
+       justIN's allocator service. $JUSTIN_PATH is used to reference files and
+       scripts provided by justIN.
 
        To  get  the  details  of  an  input  file  to  work  on,  the  command
        $JUSTIN_PATH/justin-get-file is executed by the bootstrap script.  This
@@ -282,13 +282,13 @@ BOOTSTRAP SCRIPTS
        file in the same bootstrap script. This can be done all at the start or
        repeatedly  during the lifetime of the job. justin-get-file is itself a
        simple wrapper around the curl command and it would also be possible to
-       access  the justIn allocator service's REST API directly from an appli-
+       access  the justIN allocator service's REST API directly from an appli-
        cation.
 
        Each file returned by justin-get-file is marked as allocated  and  will
        not be processed by any other jobs. When the bootstrap script finishes,
        it must leave files with lists of the processed files in its  workspace
-       directory.  These lists are sent to the justIn allocator service by the
+       directory.  These lists are sent to the justIN allocator service by the
        generic job, which either marks input files as being successfully  pro-
        cessed  or  resets  their  state  to unallocated, ready for matching by
        another job.
@@ -311,7 +311,7 @@ BOOTSTRAP SCRIPTS
 
 
 REQUEST PROCESSING
-       Once a request enters the running state, it is  processed  by  justIn's
+       Once a request enters the running state, it is  processed  by  justIN's
        finder agent. Usually this is just done once, but it can be repeated if
        the --refind-interval-hours option is given when creating the  request.
        When  the  request  is  processed,  the  finder uses the requests's MQL
@@ -334,7 +334,7 @@ REQUEST PROCESSING
 
 
 FILES
-       An  X.509  user proxy file is currently needed to contact justIn, which
+       An  X.509  user proxy file is currently needed to contact justIN, which
        is either given by $X509_USER_PROXY or /tmp/x509up_uUSERID where USERID
        is the numeric Unix user id, given by id -u
 

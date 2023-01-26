@@ -1,6 +1,6 @@
-## justIn database
+## justIN database
 
-The justIn database is the heart of the justIn workflow system. It holds cached
+The justIN database is the heart of the justIN workflow system. It holds cached
 information about sites, storages, files, and replicas obtained from other
 data sources; it receives requests to process data, and manages the state of
 requests and their stages, the files they need to process, and the jobs
@@ -41,7 +41,7 @@ and shows the full definition of each table.
 
 ### Configuration
 
-The global justIn configuration can include a [database] section which may
+The global justIN configuration can include a [database] section which may
 include some or all of the following options. Default values are shown in
 brackets.
 

@@ -1,4 +1,4 @@
-## justIn workflow system documentation
+## justIN workflow system documentation
 
 Versioned copies of this documentation are kept in the docs subdirectory
 of the [dune-justin GitHub repo](https://github.com/DUNE/dune-justin/). All the
