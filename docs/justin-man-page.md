@@ -28,8 +28,8 @@ GENERAL OPTIONS
 
 
        --url URL
-              Use    an    alternative    justIN    service,    rather    than
-              https://justin.dune.hep.ac.uk/api/commands This option  is  only
+              Use  an  alternative justIN service, rather than https://justin-
+              allocator-pro.dune.hep.ac.uk/api/commands This  option  is  only
               needed during development and testing.
 
 
@@ -97,7 +97,7 @@ SUBCOMMANDS
               DIST]       [--max-files-per-job       N]      [--output-pattern
               SCOPE:DATASET:PATTERN]              [--output-pattern-next-stage
               SCOPE:DATASET:PATTERN]   [--output-rse   NAME]  [--lifetime-days
-              DAYS] [--env NAME=VALUE]"
+              DAYS] [--env NAME=VALUE]
               Creates a new stage for the given  request  ID  with  the  given
               stage ID. Stages must be numbered consecutively from 1, and each
               request must have at least one stage. Each  stage  must  have  a
@@ -165,7 +165,7 @@ SUBCOMMANDS
               [--refind-interval-hours  HOURS]  --jobscript  FILENAME [--wall-
               seconds N] [--max-files-per-job N] [--rss-mb N] [--processors N]
               [--max-distance  DIST]  [--output-pattern SCOPE:DATASET:PATTERN]
-              [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]"
+              [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]
               Combines the create-request, create-stage and start-request sub-
               commands  into  a  single  operation,  for use with single-stage
               requests. The options  available  to  the  two  subcommands  are

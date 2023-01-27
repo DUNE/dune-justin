@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# justin-info-collector - justIN Info Collector agent
+# justin-info-collector - justIN info collector agent
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -23,6 +23,7 @@ import stat
 import time
 import pathlib
 import tempfile
+import warnings
 import xml.dom.minidom
 
 # Needs MySQL-python RPM
@@ -31,12 +32,6 @@ import MySQLdb
 # Installed by pip install of Rucio
 import rucio.client
 
-# justin/conf.py must define these variables in a way that is both
-# valid Python and valid Bash!
-#
-# mysqlUser='username'
-# mysqlPassword='PAsSWoRd'
-#
 import justin
 
 updateUsersInterval    = 3600
@@ -62,57 +57,79 @@ def updateUsers():
     logLine("Connect to Rucio fails with: " + str(e))
     return
   
+  # Get lists of justIN and Rucio users to look for new Rucio ones
+  
   try:
-    accountsList = accClient.list_accounts()  
+    justinUsers = justin.db.select('SELECT username FROM users')
+  except Exception as e:
+    logLine("Reading existing justIN users fails with: " + str(e))
+    return
+
+  justinUsernames = []
+  for justinUser in justinUsers:
+    justinUsernames.append(justinUser['username'])
+
+  print(justinUsernames)
+
+  try:
+    rucioAccounts = accClient.list_accounts()  
   except Exception as e:
     logLine("Reading accounts list from Rucio fails with: " + str(e))
     return
+    
+  for rucioAccount in rucioAccounts:
+    newName = rucioAccount['account'] + '@fnal.gov'
+    print(rucioAccount['account'], newName)
+    if rucioAccount['type'] == 'USER' and \
+       rucioAccount['account'] != 'test' and \
+       newName not in justinUsernames:
 
-  for account in accountsList:
-    logLine(str(account))
-    if account['type'] != 'USER' or account['account'] == 'test':
+      # New Rucio user name, not known to justIN!  
+      try:
+        justin.db.insertUpdate('INSERT INTO users SET username="%s"'
+                               % newName)
+        # Add it so we don't need to requery the users table for the next part
+        justinUsernames.append(newName)
+      except Exception as e:
+        logLine("Creation of new user %s fails with: %s" % (newName, str(e)))
+        return
+
+  # Now look for X.509 DNs for users in Rucio
+  
+  for justinUsername in justinUsernames:
+  
+    if not justinUsername.endswith('@fnal.gov'):
+      # Do not look up X.509 DNs in Rucio if not a FNAL person
       continue
-
-    if account['account'] in ['amcnab']:
-      # First time these blessed accounts are seen, they get the jobs flag
-      genericJobsStr = ',generic_jobs=TRUE '
-    else:
-      genericJobsStr = ' '
-
+      
+    # Get the FNAL username, which is also the Rucio username
+    rucioUsername = (justinUsername.split('@'))[0]
+  
     try:
-      query = ('INSERT INTO users SET '
-               'username="' + account['account'] + '"' + genericJobsStr +
-               'ON DUPLICATE KEY UPDATE username="' + account['account'] + '"'
-              )
-
-      justin.db.cur.execute(query)
+      identitiesList = accClient.list_identities(rucioUsername)
     except Exception as e:
-          # Log the error and hope it was transitory
-          logLine('Failed inserting %s into database: %s' % 
-                  (account['account'], str(e)))
-
-    try:
-      identitiesList = accClient.list_identities(account['account'])
-    except Exception as e:
-      logLine("Reading %s identities fails with: %s" % 
-              (account['account'], str(e)))
+      logLine("Not able to read identities for %s - added by hand? (%s)" % 
+              (rucioUsername, str(e)))
+      # This is ok, we might have added the user by hand directly to justIN
       continue
 
     for identity in identitiesList:
       if identity['type'] == 'X509' and 'identity' in identity:
         try:
-          query = ('INSERT INTO x509 SET '
-                   'user_id=(SELECT user_id FROM users WHERE username="' + 
-                    account['account'] + '"),' +
-                   'x509dn="' + identity['identity'] + '" ' +
-                   'ON DUPLICATE KEY UPDATE user_id=user_id'
-                  )
+          warnings.filterwarnings('ignore', category=MySQLdb.Warning)
+          query = ('INSERT IGNORE INTO x509 SET '
+                   'user_id=(SELECT user_id FROM users WHERE username="%s"),'
+                   'x509dn="%s"'
+                   % (justinUsername, identity['identity']))
 
           justin.db.cur.execute(query)
         except Exception as e:
           # Log the error and hope it was transitory
           logLine('Failed inserting %s into database: %s' % 
                   (identity['identity'], str(e)))
+                  
+        finally:
+          warnings.filterwarnings('default', category=MySQLdb.Warning)
 
 def cleanupNodeXML(node):
   if node.nodeType == xml.dom.Node.TEXT_NODE \
@@ -239,42 +256,58 @@ def updateSites():
   sitesDict = {}
   buildSites(sitesDict)
 
-  for siteName in sitesDict:
-    # Ensure the sites exist
+  justinSiteNames = []
+  try:
+    justinSiteRows = justin.db.select('SELECT site_name FROM sites')
+  except Exception as e:
+    logLine('Failed to get list of existing sites from justIN: ' + str(e))
+    return
+    
+  for justinSiteRow in justinSiteRows:
+    justinSiteNames.append(justinSiteRow['site_name'])
 
+  for siteName in sitesDict:
     maxProcessors  = sitesDict[siteName]['largest_processors']
     maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
     maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
 
-    query = ('INSERT INTO sites SET site_name="%s",'
-             'jobsub_site_name="%s",'
-             'wlcg_site_name="%s",'
-             'max_processors=%d,'
-             'max_rss_bytes=%d,'
-             'max_wall_seconds=%d,'
-             'last_seen_time=NOW() '
-             'ON DUPLICATE KEY UPDATE '
-             'jobsub_site_name="%s",'
-             'wlcg_site_name="%s",'
-             'max_processors=%d,'
-             'max_rss_bytes=%d,'
-             'max_wall_seconds=%d,'
-             'last_seen_time=NOW()'
-             % (siteName, 
-                sitesDict[siteName]['jobsub_site_name'], 
-                sitesDict[siteName]['wlcg_site_name'],
-                maxProcessors,
-                maxRssBytes,
-                maxWallSeconds,
-                sitesDict[siteName]['jobsub_site_name'],
-                sitesDict[siteName]['wlcg_site_name'],
-                maxProcessors,
-                maxRssBytes,
-                maxWallSeconds
-               )
-            )
-
-    justin.db.cur.execute(query)
+    # Ensure the sites exist
+    if siteName not in justinSiteNames:
+      query = ('INSERT INTO sites SET site_name="%s",'
+               'jobsub_site_name="%s",'
+               'wlcg_site_name="%s",'
+               'max_processors=%d,'
+               'max_rss_bytes=%d,'
+               'max_wall_seconds=%d,'
+               'last_seen_time=NOW() '
+               % (siteName, 
+                  sitesDict[siteName]['jobsub_site_name'], 
+                  sitesDict[siteName]['wlcg_site_name'],
+                  maxProcessors,
+                  maxRssBytes,
+                  maxWallSeconds)
+              )
+    else:
+      query = ('UPDATE sites SET '
+               'jobsub_site_name="%s",'
+               'wlcg_site_name="%s",'
+               'max_processors=%d,'
+               'max_rss_bytes=%d,'
+               'max_wall_seconds=%d,'
+               'last_seen_time=NOW() '
+               'WHERE site_name="%s"'
+               % (sitesDict[siteName]['jobsub_site_name'],
+                  sitesDict[siteName]['wlcg_site_name'],
+                  maxProcessors,
+                  maxRssBytes,
+                  maxWallSeconds,
+                  siteName
+                 )
+              )
+    try:
+      justin.db.insertUpdate(query)
+    except Exception as e:
+      logLine('Failed inserting/updating %s: %s' % (siteName, str(e)))
     
     logLine('Site: %s, %d processors, %d bytes, %s seconds' %
             (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
@@ -283,29 +316,24 @@ def updateSites():
 
 def updateSitesStorages(): 
   # Update the matrix of sites to storage mappings
+  # Ensure there is an entry for each combination
   logLine('---- Start updateSitesStorages ----')
 
-  justin.db.cur.execute('SELECT site_id,site_name FROM sites')
+  justin.db.cur.execute('SELECT site_id FROM sites')
   siteRows = justin.db.cur.fetchall()
   
-  justin.db.cur.execute('SELECT rse_id,rse_name FROM storages')
+  justin.db.cur.execute('SELECT rse_id FROM storages')
   storageRows = justin.db.cur.fetchall()
   
   for siteRow in siteRows:
     for storageRow in storageRows:
-      siteStorage = siteRow['site_name'] + ',' + storageRow['rse_name']    
-
-      query = ('INSERT INTO sites_storages SET '
-               'distance=100.0,' +
-               'site_id=(SELECT site_id FROM sites WHERE site_name="' + 
-                 siteRow['site_name'] + '"),' +
-               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="' + 
-                 storageRow['rse_name'] + '") ' +
-               'ON DUPLICATE KEY UPDATE '
-               'distance=distance'
-              ) 
+      query = ('INSERT IGNORE INTO sites_storages SET '
+               'distance=100.0,site_id=%d,rse_id=%d'
+               % (siteRow['site_id'], storageRow['rse_id']))
               
+      warnings.filterwarnings('ignore', category=MySQLdb.Warning)
       justin.db.cur.execute(query)
+      warnings.filterwarnings('default', category=MySQLdb.Warning)
 
   justin.db.conn.commit()
 
@@ -314,11 +342,22 @@ def updateStorages():
   logLine('---- Start updateStorages ----')
   
   # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
-  justin.db.cur.execute('INSERT INTO storages SET rse_id=%d,'
+  warnings.filterwarnings('ignore', category=MySQLdb.Warning)
+  justin.db.cur.execute('INSERT IGNORE INTO storages SET rse_id=%d,'
     'rse_name="MONTECARLO",occupancy=1,rucio_write=FALSE,'
-    'rucio_read=TRUE,justin_write=FALSE,justin_read=TRUE '
-    'ON DUPLICATE KEY UPDATE occupancy=1'
+    'rucio_read=TRUE,justin_write=FALSE,justin_read=TRUE'
     % justin.conf.MonteCarloRseID)
+  warnings.filterwarnings('default', category=MySQLdb.Warning)
+
+  justinStorageNames = []
+  try:
+    justinStorageRows = justin.db.select('SELECT rse_name FROM storages')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN storages')
+    return
+    
+  for justinStorageRow in justinStorageRows:
+    justinStorageNames.append(justinStorageRow['rse_name'])
 
   try:
     rseClient = rucio.client.rseclient.RSEClient()
@@ -378,23 +417,31 @@ def updateStorages():
         occupancy = 0.0
 
     try:
-      # We should sanitise this name just in case...
-      query = ('INSERT INTO storages SET rse_name="%s",'
-               'occupancy=%f,rucio_write=%d,rucio_read=%d,'
-               'justin_write=FALSE,deterministic_rse=%d '
-               'ON DUPLICATE KEY UPDATE occupancy=%f,rucio_write=%d,'
-               'rucio_read=%d,deterministic_rse=%d'
-               % (rse['rse'], 
-                  occupancy,
-                  ((availability & justin.db.rseAvailabilityWrite)  != 0),
-                  ((availability & justin.db.rseAvailabilityRead)   != 0),
-                  int(rse['deterministic']),
-                  occupancy,
-                  ((availability & justin.db.rseAvailabilityWrite)  != 0),
-                  ((availability & justin.db.rseAvailabilityRead)   != 0),
-                  int(rse['deterministic'])
-                 )
-              )
+      # We should sanitise the RSE name just in case...
+      
+      if rse['rse'] not in justinStorageNames:
+        query = ('INSERT INTO storages SET rse_name="%s",'
+                 'occupancy=%f,rucio_write=%d,rucio_read=%d,'
+                 'justin_write=FALSE,deterministic_rse=%d'
+                 % (rse['rse'], 
+                    occupancy,
+                    ((availability & justin.db.rseAvailabilityWrite)  != 0),
+                    ((availability & justin.db.rseAvailabilityRead)   != 0),
+                    int(rse['deterministic'])
+                   )
+                )
+      else:
+        query = ('UPDATE storages SET '
+                 'occupancy=%f,rucio_write=%d,'
+                 'rucio_read=%d,deterministic_rse=%d '
+                 'WHERE rse_name="%s"'
+                 % (occupancy,
+                    ((availability & justin.db.rseAvailabilityWrite)  != 0),
+                    ((availability & justin.db.rseAvailabilityRead)   != 0),
+                    int(rse['deterministic']),
+                    rse['rse']
+                   )
+                )
       print(query)
       justin.db.cur.execute(query)
     except Exception as e:
