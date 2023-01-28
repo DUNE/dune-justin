@@ -16,17 +16,51 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `jobscripts`
+-- Table structure for table `stages_jobscripts`
 --
 
-DROP TABLE IF EXISTS `jobscripts`;
+DROP TABLE IF EXISTS `stages_jobscripts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobscripts` (
-  `request_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
+CREATE TABLE `stages_jobscripts` (
+  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `jobscript` text NOT NULL,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `jobscripts_library`
+--
+
+DROP TABLE IF EXISTS `jobscripts_library`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `jobscripts_library` (
+  `jobscript_id` mediumint(8) unsigned AUTO_INCREMENT,
+  `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `created_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `jobscript_name` varchar(255) NOT NULL DEFAULT '',
+  `jobscript` text NOT NULL,
+  PRIMARY KEY `jobscript_id` (`jobscript_id`),
+  UNIQUE KEY `uniqueness` (`jobscript_name`,`scope_id`,`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `scopes`
+--
+
+DROP TABLE IF EXISTS `scopes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `scopes` (
+  `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `scope_name` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY `scope_id` (`scope_id`),
+  UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -281,6 +315,7 @@ CREATE TABLE `stages` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL,
+  `jobscript_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `max_distance` float NOT NULL DEFAULT 0.0,

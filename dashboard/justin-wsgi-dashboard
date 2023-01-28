@@ -499,11 +499,11 @@ def showStage(uriPrefix, cgiValues):
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
-           "stages.max_files_per_job,"
-           "jobscripts.jobscript "
+           "stages.max_files_per_job "
            "FROM stages "
-           "LEFT JOIN jobscripts ON jobscripts.request_id=stages.request_id"
-           " AND jobscripts.stage_id=stages.stage_id "
+           "LEFT JOIN stages_jobscripts "
+           "ON stages_jobscripts.request_id=stages.request_id "
+           "AND stages_jobscripts.stage_id=stages.stage_id "
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 

@@ -147,7 +147,7 @@ def makeJobDict(jobsubID, cookie = None):
 def getJobscript(stage):
 
   try:
-    query = ("SELECT jobscript FROM jobscripts "
+    query = ("SELECT jobscript FROM stages_jobscripts "
              "WHERE request_id=%d AND stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 

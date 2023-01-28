@@ -142,7 +142,7 @@ def showJobscriptCmd(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
 
   try:
-    rows = justin.db.select("SELECT * FROM jobscripts "
+    rows = justin.db.select("SELECT * FROM stages_jobscripts "
                          "WHERE request_id=%d AND stage_id=%d"
                          % (requestID, stageID))
   except Exception as e:
@@ -596,7 +596,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           % (requestID, processors,
              wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
-    justin.db.insertUpdate('INSERT INTO jobscripts SET '
+    justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
           'request_id=%d,'
           'stage_id=1,'
           'jobscript="%s"' % 
@@ -864,7 +864,7 @@ def createStageCmd(startResponse, jsonDict):
                            wallSeconds, rssBytes, maxDistance,
                            maxFilesPerJob))
           
-    justin.db.insertUpdate('INSERT INTO jobscripts SET '
+    justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
                         'request_id=%d,'
                         'stage_id=%d,'
                         'jobscript="%s"' % 
@@ -1028,10 +1028,10 @@ def createJobscriptCmd(startResponse, jsonDict):
                      'Uploaded jobscript is required')
 
   try:
-    justin.db.insertUpdate('UPDATE jobscripts SET jobscript="%s" '
-                        'WHERE request_id=%d AND stage_id=%d'
-                        % (jobscript.replace('\\','\\\\').replace('"','\\"'),
-                           requestID, stageID))
+    justin.db.insertUpdate('UPDATE stages_jobscripts SET jobscript="%s" '
+                           'WHERE request_id=%d AND stage_id=%d'
+                           % (jobscript.replace('\\','\\\\').replace('"','\\"'),
+                              requestID, stageID))
 
   except Exception as e:
     return httpError(startResponse, 
