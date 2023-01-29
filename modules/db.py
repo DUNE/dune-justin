@@ -155,6 +155,9 @@ eventTypes = {
 def stringIsJobsubID(s):
   return re.search('[^A-Za-z0-9_.@-]', s) is None
 
+def stringIsUsername(s):
+  return re.search('[^a-z0-9_.@-]', s) is None
+
 def stringIsDomain(s):
   return re.search('[^A-Za-z0-9.-]', s) is None
 

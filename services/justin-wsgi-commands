@@ -49,7 +49,7 @@ def httpError(startResponse, code, message):
                  ('Content-length', str(len(message)))
                 ])
 
-  return [message.encode('UTF-8')]
+  return [(message + '\n').encode('UTF-8')]
   
 def httpOK(startResponse, outputString):
 
@@ -88,7 +88,7 @@ def showRequestsCmd(startResponse, jsonDict):
   for row in rows:
     outputString += ("%5d %-9s %s %s %s\n" % 
                      (row['request_id'], row['state'],
-                      row['created'], row['name'], row['mql']))
+                      row['created'], row['description'], row['mql']))
 
   return httpOK(startResponse, outputString)
 
@@ -132,25 +132,55 @@ def showStagesCmd(startResponse, jsonDict):
 def showJobscriptCmd(startResponse, jsonDict):
 
   try:
+    jsid = jsonDict['jobscript_id'].lower()
+  except:
+    jsid = None
+
+  try:
     requestID = int(jsonDict['request_id'])
   except:
-    return httpError(startResponse, '400 Bad Request', 'Request ID not given')
+    requestID = 0
 
   try:
     stageID = int(jsonDict['stage_id'])
   except:
-    return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
+    stageID = 0
 
-  try:
-    rows = justin.db.select("SELECT * FROM stages_jobscripts "
-                         "WHERE request_id=%d AND stage_id=%d"
-                         % (requestID, stageID))
-  except Exception as e:
-   return httpError(startResponse, 
-                    '500 Internal Server Error', 
-                    'Error reading justIN database ' + str(e))
+  if (jsid and (requestID or stageID)) or \
+     (not jsid and (not requestID or not stageID)):
+    return httpError(startResponse,
+                     '400 Bad Request', 
+          '--jobscript-id OR --request-id/--stage-id must be given')
 
-  return httpOK(startResponse, rows[0]['jobscript'])
+  if jsid:
+    # From Jobscripts Library with JSID
+    response = justin.lookupJobscript(jsid)
+    
+    if response['error']:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       response['error'])
+      
+    jobscript = response['jobscript']
+
+  else:
+    # From stage with requestID and stageID
+    query = ('SELECT jobscript FROM stages_jobscripts '
+             'WHERE request_id=%d AND stage_id=%d'
+             % (requestID, stageID))
+  
+    try:
+      row = justin.db.select(query, justOne = True)
+      jobscript = row['jobscript']
+    except Exception as e:
+      return httpError(startResponse, 
+                      '500 Internal Server Error', 
+                      'Error reading justIN database ' + str(e))
+
+  if not jobscript.endswith('\n'):
+    jobscript += '\n'
+
+  return httpOK(startResponse, jobscript)
 
 def showStageOutputsCmd(startResponse, jsonDict):
 
@@ -385,10 +415,10 @@ def showSitesStoragesCmd(startResponse, jsonDict):
 
 def createRequestCmd(startResponse, jsonDict, userID):
 
-  if 'name' in jsonDict and jsonDict['name']:
-    name = jsonDict['name']
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
   else:
-    name = str(int(time.time()))
+    description = str(int(time.time()))
 
   if 'mql' in jsonDict and jsonDict['mql']:
     mql = jsonDict['mql']
@@ -442,13 +472,13 @@ def createRequestCmd(startResponse, jsonDict, userID):
 
   try:
     requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
-          'name="%s",'
+          'description="%s",'
           'mql="%s",'
           'user_id=%d,'
           'refind_seconds=%d,'
           'refind_start_time="%s",'
           'refind_end_time="%s"' %
-          (name,
+          (description,
            mql,
            userID,
            refindIntervalSeconds,
@@ -463,10 +493,10 @@ def createRequestCmd(startResponse, jsonDict, userID):
 
 def quickRequestCmd(startResponse, jsonDict, userID):
 
-  if 'name' in jsonDict and jsonDict['name']:
-    name = jsonDict['name']
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
   else:
-    name = str(int(time.time()))
+    description = str(int(time.time()))
 
   if 'mql' in jsonDict and jsonDict['mql']:
     mql = jsonDict['mql']
@@ -544,21 +574,20 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           'submitted=NOW(),'
           'started=NOW(),'
           'state="running",'
-          'name="%s",'
+          'description="%s",'
           'mql="%s",'
           'user_id=%d,'
           'refind_seconds=%d,'
           'refind_start_time="%s",'
           'refind_end_time="%s"' %
-          (name,
+          (description,
            mql,
            userID,
            refindSeconds,
            refindStart,
            refindEnd))
   except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
+    return httpError(startResponse, '500 Internal Server Error',
                      'Error updating justIN database ' + str(e))
 
   try:
@@ -576,24 +605,42 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except:
     rssBytes = 2000 * 1024 * 1024
 
-  if 'jobscript' in jsonDict and jsonDict['jobscript']:
+  jobscriptID = 0
+
+  try:
     jobscript = jsonDict['jobscript']
-  else:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Uploaded jobscript is required')
+  except:
+    jobscript = None
+
+  if not jobscript:
+    try:
+      jsid = jsonDict['jobscript_id']
+    except:
+      jsid = None
+
+    if not jsid:
+      return httpError(startResponse, '400 Bad Request',
+                       '--jobscript or --jobscript-id must by given')
+
+    response = justin.lookupJobscript(jsid)
+    if response['error']:
+      return httpError(startResponse, '400 Bad Request', response['error'])
+
+    jobscript   = response['jobscript']
+    jobscriptID = response['jobscript_id']
 
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
           "stage_rank=0,"
           "request_id=%d,"
           "stage_id=1,"
+          "jobscript_id=%d,"
           "processors=%d,"
           "wall_seconds=%d,"
           "rss_bytes=%d,"
           "max_distance=%f,"
           "max_files_per_job=%d" 
-          % (requestID, processors,
+          % (requestID, jobscriptID, processors,
              wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
     justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
@@ -843,32 +890,50 @@ def createStageCmd(startResponse, jsonDict):
   else:
     maxFilesPerJob = 1
 
-  if 'jobscript' in jsonDict and jsonDict['jobscript']:
+  jobscriptID = 0
+
+  try:
     jobscript = jsonDict['jobscript']
-  else:
-    return httpError(startResponse,
-                     '400 Bad Request',
-                     'Uploaded jobscript is required')
+  except:
+    jobscript = None
+
+  if not jobscript:
+    try:
+      jsid = jsonDict['jobscript_id']
+    except:
+      jsid = None
+
+    if not jsid:
+      return httpError(startResponse, '400 Bad Request',
+                       '--jobscript or --jobscript-id must by given')
+    
+    response = justin.lookupJobscript(jsid)
+    if response['error']:
+      return httpError(startResponse, '400 Bad Request', response['error'])
+
+    jobscript   = response['jobscript']
+    jobscriptID = response['jobscript_id']
 
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
                         "stage_rank=0,"
                         "request_id=%d,"
                         "stage_id=%d,"
+                        "jobscript_id=%d,"
                         "processors=%d,"
                         "wall_seconds=%d,"
                         "rss_bytes=%d,"
                         "max_distance=%f," 
                         "max_files_per_job=%d"
-                        % (requestID, stageID, processors,
+                        % (requestID, stageID, jobscriptID, processors,
                            wallSeconds, rssBytes, maxDistance,
                            maxFilesPerJob))
           
     justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
-                        'request_id=%d,'
-                        'stage_id=%d,'
-                        'jobscript="%s"' % 
-                        (requestID, stageID, 
+                           'request_id=%d,'
+                           'stage_id=%d,'
+                           'jobscript="%s"' 
+                           % (requestID, stageID, 
                          jobscript.replace('\\','\\\\').replace('"','\\"')))
 
   except Exception as e:
@@ -1004,21 +1069,8 @@ def createStageCmd(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-def createJobscriptCmd(startResponse, jsonDict):
-
-  try:
-    requestID = int(jsonDict['request_id'])
-  except:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Request ID must be given')
-
-  try:
-    stageID = int(jsonDict['stage_id'])
-  except:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Stage ID must be given')
+def createJobscriptCmd(startResponse, jsonDict, userID, username):
+  # Add a named jobscript to the jobscripts library NOT to a stage
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
     jobscript = jsonDict['jobscript']
@@ -1027,18 +1079,102 @@ def createJobscriptCmd(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Uploaded jobscript is required')
 
+  if 'name' in jsonDict and jsonDict['name']:
+    name = jsonDict['name'].lower()
+  else:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'You must give a name for the jobscript')
+
+  if not justin.db.stringIsDomain(name):
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     'Jobscript name can only be characters a-z 0-9 - _ .')
+
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
+  else:
+    description = ''
+
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so find the scope
+    scope = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scope):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
+                                  'WHERE scope_name="%s"' % scope,justOne=True)
+      scopeID = int(scopeRow['scope_id'])
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scope) 
+
+    jobscriptIdentifier = scope + ':' + name
+    jobscriptUserID = 0
+  else:
+    # No scope, so set user_id instead
+    scopeID = 0
+    jobscriptUserID = userID
+    jobscriptIdentifier = username + ':' + name
+
   try:
-    justin.db.insertUpdate('UPDATE stages_jobscripts SET jobscript="%s" '
-                           'WHERE request_id=%d AND stage_id=%d'
-                           % (jobscript.replace('\\','\\\\').replace('"','\\"'),
-                              requestID, stageID))
+    # Check if jobscript with this user/scope and name exists already
+    row = justin.db.select('SELECT jobscript_id FROM jobscripts_library '
+                           'WHERE user_id=%d AND scope_id=%d AND '
+                           'jobscript_name="%s"'
+                           % (jobscriptUserID, scopeID, name), justOne = True)
+
+    jobscriptID = int(row['jobscript_id'])
 
   except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Error updating justIN database ' + str(e))
+    print(str(e), file=sys.stderr)
+    # If not present, create one from scratch
+    try:
+      justin.db.insertUpdate('INSERT INTO jobscripts_library SET '
+                             'scope_id=%d,'
+                             'user_id=%d,'
+                             'author_id=%d,'
+                             'jobscript_name="%s",'
+                             'jobscript="%s",'
+                             'description="%s",'
+                             'created_time=NOW()'
+                       % (scopeID,
+                          jobscriptUserID,
+                          userID,
+                          name,
+                          jobscript.replace('\\','\\\\').replace('"','\\"'),
+                          description.replace('\\','\\\\').replace('"','\\"')
+                         ))
 
-  return httpOK(startResponse, '')
+    except Exception as e:
+      return httpError(startResponse, 
+                       '500 Internal Server Error', 
+                       'Error adding jobscript to library: ' + str(e))   
+  else:
+    # Already there, so update it with the new values
+    try:
+      justin.db.insertUpdate('UPDATE jobscripts_library SET '
+                             'jobscript="%s",'
+                             'author_id=%d,'
+                             'description="%s",'
+                             'created_time=NOW() '
+                             'WHERE jobscript_id=%d '
+                       % (jobscript.replace('\\','\\\\').replace('"','\\"'),
+                          userID,
+                          description.replace('\\','\\\\').replace('"','\\"'),
+                          jobscriptID))
+
+    except Exception as e:
+      return httpError(startResponse, 
+                       '500 Internal Server Error', 
+                       'Error updating jobscript in library: ' + str(e))
+
+  return httpOK(startResponse, jobscriptIdentifier + '\n')
 
 def failFilesCmd(startResponse, jsonDict):
 
@@ -1122,29 +1258,28 @@ def showJobsCmd(startResponse, jsonDict):
    
   return httpOK(startResponse, outputString)
 
-def getUserID(environ, startResponse):
+def getUser(environ):
 
   # Use certificates and proxies for now; will transition to tokens in future
   if 'SSL_CLIENT_S_DN' not in environ or not environ['SSL_CLIENT_S_DN']:
-    return httpError(startResponse, 
-                     '403 Forbidden', 
-                     'Forbidden - identity not provided')
+    return { 'error': 'Forbidden - identity not provided' }
 
   # Convert to the older format with slashes 
   clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
   try:
-    rows = justin.db.select('SELECT user_id FROM x509 '
+    row = justin.db.select('SELECT x509.user_id,username FROM x509 '
+                         'LEFT JOIN users ON users.user_id=x509.user_id '
                          'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
-                         clientDN.replace('\\','\\\\').replace('"','\\"'))
+                         clientDN.replace('\\','\\\\').replace('"','\\"'),
+                         justOne = True)
   
-    userID = int(rows[0]['user_id'])
+    userID   = int(row['user_id'])
+    username = row['username']
   except:
-    return httpError(startResponse, 
-                     '403 Forbidden', 
-                     'Forbidden - acceptable identity not provided')
+    return { 'error': 'Forbidden - acceptable identity not provided' }
 
-  return userID
+  return { 'user_id': userID, 'username': username, 'error': None }
 
 #
 # Entry point from mod_wsgi
@@ -1175,11 +1310,12 @@ def application(environ, startResponse):
   justin.db.conn.rollback()
 
   # This returns an error if an authorized DN is not found
-  response = getUserID(environ, startResponse)
-  if isinstance(response, int):
-    userID = response
-  else:
-    return response   
+  userDict = getUser(environ)
+
+  if userDict['error']:
+    return httpError(startResponse, 
+                     '403 Forbidden', 
+                     response['error'])
 
   try:
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
@@ -1227,10 +1363,10 @@ def application(environ, startResponse):
     return showSitesStoragesCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-request':
-    return createRequestCmd(startResponse, jsonDict, userID)
+    return createRequestCmd(startResponse, jsonDict, userDict['user_id'])
 
   if jsonDict['command'] == 'quick-request':
-    return quickRequestCmd(startResponse, jsonDict, userID)
+    return quickRequestCmd(startResponse, jsonDict, userDict['user_id'])
 
   if jsonDict['command'] == 'submit-request':
     return submitRequestCmd(startResponse, jsonDict)
@@ -1248,7 +1384,8 @@ def application(environ, startResponse):
     return createStageCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-jobscript':
-    return createJobscriptCmd(startResponse, jsonDict)
+    return createJobscriptCmd(startResponse, jsonDict, 
+                              userDict['user_id'], userDict['username'])
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)

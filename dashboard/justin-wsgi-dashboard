@@ -170,7 +170,6 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="%s">%s</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-jobs">Jobs</a> &nbsp; &nbsp; &nbsp;
-<a href="%s?method=list-events">Events</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
@@ -182,7 +181,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
        uriPrefix,
        uriPrefix,
        'Dashboard' if uriPrefix.startswith('/dashboard/') else uriPrefix,
-       uriPrefix, uriPrefix, uriPrefix, uriPrefix,
+       uriPrefix, uriPrefix, uriPrefix,
        uriPrefix, uriPrefix))
 
 def footer():
@@ -192,7 +191,7 @@ def footer():
 
 def errorPage(uriPrefix, message):
   output = header(uriPrefix, "Error")
-  output += "<h1>Error</h1>\n<p>%s</p>" % message
+  output += "<h1>Error</h1>\n<p>%s</p>" % html.escape(message, quote=True)
   output += footer()
   return output
 
@@ -261,6 +260,10 @@ def mainPage(uriPrefix):
      'uri'       : uriPrefix + '?method=list-storages',
      'text'      : 'Storages' },
    { 'startRow'  : True,
+     'endRow'    : False,
+     'uri'       : uriPrefix + '?method=list-jobscripts',
+     'text'      : 'Jobscripts' },
+   { 'startRow'  : False,
      'endRow'    : True,
      'uri'       : 'https://dune.github.io/dune-justin/',
      'text'      : 'Documentation' }
@@ -284,13 +287,99 @@ def mainPage(uriPrefix):
   output += '</table>' + footer()
   return output
 
+def listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength):
+
+  output = header(uriPrefix, "justIN: Jobscripts Library")
+
+  output += "<h1>Jobscripts Library</h1>"
+  
+  query = ('SELECT scope_name,jobscripts_library.description,'
+           'authors.username AS authorname,'
+           'jobscripts_users.username AS jobscript_username,'
+           'created_time,jobscript_name '
+           'FROM jobscripts_library '
+           'LEFT JOIN users AS authors '
+           'ON jobscripts_library.author_id=authors.user_id '
+           'LEFT JOIN users AS jobscripts_users '
+           'ON jobscripts_library.user_id=jobscripts_users.user_id '
+           'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
+           'ORDER BY created_time DESC LIMIT %d,%d' %
+           (pageNumber * pageLength, pageLength + 1))
+ 
+  rows = justin.db.select(query)
+
+  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
+                      "%s?method=list-jobscripts&page_number=%d&page_length=%d") 
+             
+  output += '<p><table>'
+  output += ('<tr><th>Jobscript</th><th>Description</th><th>Author</th>'
+             '<th>Created</th><tr>')
+
+  for row in rows[:pageLength]:
+    if row["scope_name"]:
+      prefix = row["scope_name"]
+    else:
+      prefix = row["jobscript_username"]
+
+    output += ('<tr><td><a href="%s?method=show-jobscript&jobscript_id=%s:%s">'
+               '%s:%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
+               '</tr>'
+               % (uriPrefix,
+                  prefix, row["jobscript_name"], 
+                  prefix, row["jobscript_name"], 
+                  html.escape(row["description"], quote=True),
+                  row["authorname"],
+                  row['created_time']
+                 )
+              )
+
+  output += "</table>"
+  
+  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
+                      "%s?method=list-jobscripts&page_number=%d&page_length=%d")
+  output += footer()
+  
+  return output
+
+def showJobscript(uriPrefix, cgiValues):
+
+  try:
+    jsid = str(cgiValues["jobscript_id"]).lower()
+  except:
+    return errorPage(uriPrefix, "jobscript_id must be given")
+
+  response = justin.lookupJobscript(jsid)
+  if response['error']:
+    return errorPage(uriPrefix, response['error'])
+
+  output = header(uriPrefix, "justIN: Jobscript %s" % jsid)
+  output += '<!-- %s -->\n' % str(time.time())
+  output += ("<h1>Jobscript %s</h1>\n" % jsid)
+
+  output += ("<p><i>Created on %s by %s</i><br>%s</p>\n"
+             % (response['created_time'], 
+                response['authorname'],
+                html.escape(response['description'], quote=True)))
+
+  output += ("<h2>Jobscript</h2>")
+  output += ('<pre style="white-space: pre-wrap;">') 
+
+  output += (html.escape(
+   response["jobscript"].encode('ascii',errors='ignore').decode(), 
+   quote=True))
+  
+  output += ('</pre>') 
+
+  output += footer()
+  return output
+
 def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
 
   output = header(uriPrefix, "justIN: Requests")
 
   output += "<h1>Requests</h1>"
   
-  query = ('SELECT request_id,name,username,state,mql,created,submitted,'
+  query = ('SELECT request_id,description,username,state,mql,created,submitted,'
            'started,finished '
            'FROM requests '
            'LEFT JOIN users ON requests.user_id=users.user_id '
@@ -304,7 +393,7 @@ def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
                       "%s?method=list-requests&page_number=%d&page_length=%d") 
              
   output += '<p><table>'
-  output += ('<tr><th>Request ID</th><th>Name</th><th>User</th><th>State</th>'
+  output += ('<tr><th>Request ID</th><th>Description</th><th>User</th><th>State</th>'
              '<th>MQL</th><th>Created</th><th>Submitted</th><th>Started</th>'
              '<th>Finished</th><tr>')
 
@@ -315,7 +404,7 @@ def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
           '</tr>' % 
           (uriPrefix,
            row["request_id"], row["request_id"],
-           html.escape(row["name"], quote=True),
+           html.escape(row["description"], quote=True),
            row["username"],
            row["state"],
            html.escape(row["mql"], quote=True),
@@ -342,7 +431,7 @@ def showRequest(uriPrefix, cgiValues):
   
   output = header(uriPrefix, "justIN: Request %d" % requestID)
 
-  query = ("SELECT requests.name,requests.state,"
+  query = ("SELECT requests.description,requests.state,"
            "users.username,"
            "requests.created,requests.submitted,requests.started,"
            "requests.checking,requests.finished,mql,"
@@ -360,8 +449,8 @@ def showRequest(uriPrefix, cgiValues):
 
   output += "<h1>Request %d</h1>" % requestID
   output += '<table>'
-  output += ('<tr><td>Name</td><td>%s</td></tr>' 
-             % html.escape(requestRow['name'], quote=True))
+  output += ('<tr><td>Description</td><td>%s</td></tr>' 
+             % html.escape(requestRow['description'], quote=True))
 
   output += ('<tr><td>State</td><td>%s</td></tr>' % state)
   output += ('<tr><td>MQL</td><td>%s</td></tr>' 
@@ -499,11 +588,19 @@ def showStage(uriPrefix, cgiValues):
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
-           "stages.max_files_per_job "
+           "stages.max_files_per_job,"
+           "stages_jobscripts.jobscript,"
+           "jobscript_name,"
+           "scope_name,"
+           "username "
            "FROM stages "
            "LEFT JOIN stages_jobscripts "
            "ON stages_jobscripts.request_id=stages.request_id "
            "AND stages_jobscripts.stage_id=stages.stage_id "
+           "LEFT JOIN jobscripts_library "
+           "ON jobscripts_library.jobscript_id=stages.jobscript_id "
+           "LEFT JOIN scopes ON scopes.scope_id=jobscripts_library.scope_id "
+           "LEFT JOIN users ON users.user_id=jobscripts_library.user_id "
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 
@@ -905,6 +1002,22 @@ def showStage(uriPrefix, cgiValues):
     output += ('</table>') 
 
   output += ("<h2>Jobscript</h2>")
+
+  if stageRow['scope_name'] and stageRow['jobscript_name']:
+    output += ('<p><i>Copied from '
+               '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
+               ' when the stage was created.</i></p>'
+               % (uriPrefix, 
+                  stageRow['scope_name'], stageRow['jobscript_name'],
+                  stageRow['scope_name'], stageRow['jobscript_name']))
+  elif stageRow['username'] and stageRow['jobscript_name']:
+    output += ('<p><i>Copied from '
+               '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
+               ' when the stage was created.</i></p>'
+               % (uriPrefix, 
+                  stageRow['username'], stageRow['jobscript_name'],
+                  stageRow['username'], stageRow['jobscript_name']))
+
   output += ('<pre style="white-space: pre-wrap;">') 
 
   output += (html.escape(
@@ -2222,6 +2335,12 @@ def application(environ, startResponse):
   if method is None:
     output = mainPage(uriPrefix)
   
+  elif method == "list-jobscripts":
+    output = listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength)
+
+  elif method == "show-jobscript":
+    output = showJobscript(uriPrefix, cgiValues)
+
   elif method == "list-requests":
     output = listRequests(uriPrefix, cgiValues, pageNumber, pageLength)
 

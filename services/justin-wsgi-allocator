@@ -530,7 +530,6 @@ def getStageMethod(startResponse, jsonDict):
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
-#  print('Before makeTarFile', file=sys.stderr)
   tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_awt'])
   
   if not tarFile:
@@ -538,11 +537,7 @@ def getStageMethod(startResponse, jsonDict):
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Failed to create tar file')
-        
-#  print('Before updateStageCounts', file=sys.stderr)
-#  justin.allocator.updateStageCounts(stage['request_id'], 
-#                                  stage['stage_id'])
-   
+           
   try:
     justin.db.conn.commit()
   except Exception as e:

@@ -88,9 +88,17 @@ parser.add_argument("--rse-name",
                     action = "append",
                     help   = "RSE name")
 
+parser.add_argument("--description",
+                    type = str,
+                    help = "Description to assign")
+
 parser.add_argument("--name",
                     type = str,
                     help = "Name to assign")
+
+parser.add_argument("--scope",
+                    type = str,
+                    help = "Scope")
 
 parser.add_argument("--mql",
                     type = str,
@@ -115,6 +123,10 @@ parser.add_argument("--refind-interval-hours",
 parser.add_argument("--jobscript",
                     type = str,
                     help = "Specify a jobscript file")
+
+parser.add_argument("--jobscript-id",
+                    type = str,
+                    help = "Specify a jobscript JSID")
 
 parser.add_argument("--processors",
                     type = int,
@@ -227,12 +239,12 @@ else:
 try:
   response = urllib.request.urlopen(httpRequest, context = sslContext)
 except urllib.error.URLError as e:
-  print(e.read().decode('utf-8'), end='')
+  print(e.read().decode('utf-8'), file=sys.stderr)
   sys.exit(21)
   
 if response.status != 200:
   if jsonDict['verbose']:
-    print(response.read().decode('utf-8'), end='')
+    print(response.read().decode('utf-8'), file=sys.stderr)
   sys.exit(20)
   
 print(response.read().decode('utf-8'), end='')

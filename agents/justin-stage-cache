@@ -174,7 +174,7 @@ def cacheFindStageResults():
     return
 
   for (processors,bytesPerProcessor,numberUnallocated) \
-   in justin.allocator.getUnallocatedCounts():
+   in justin.getUnallocatedCounts():
     
     for siteRow in siteRows:
 

@@ -277,8 +277,6 @@ def findFiles():
     
       findFilesMetaCat(request['request_id'], request['mql'])
 
-#    # Update the stats for the first stage
-#    justin.allocator.updateStageCounts(request['request_id'], 1)
     justin.db.conn.commit()
 
 def findReplicas():
@@ -481,10 +479,6 @@ def findReplicas():
                  str(e)))
         # We give up if this happens, without the commit
         return
-
-#  # Update all the stages for which we've updated a file
-#  for (requestID, stageID) in requestsStages:
-#    justin.allocator.updateStageCounts(requestID, stageID)
     
   # All ok, so commit it all to the DB
   justin.db.conn.commit()

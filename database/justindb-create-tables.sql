@@ -41,8 +41,10 @@ CREATE TABLE `jobscripts_library` (
   `jobscript_id` mediumint(8) unsigned AUTO_INCREMENT,
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `author_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `created_time` datetime NOT NULL DEFAULT '1970-01-01',
   `jobscript_name` varchar(255) NOT NULL DEFAULT '',
+  `description` varchar(255) NOT NULL DEFAULT '',
   `jobscript` text NOT NULL,
   PRIMARY KEY `jobscript_id` (`jobscript_id`),
   UNIQUE KEY `uniqueness` (`jobscript_name`,`scope_id`,`user_id`)
@@ -241,6 +243,7 @@ CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `name` varchar(255) NOT NULL,
+  `description` varchar(255) NOT NULL,
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `submitted` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `started` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
