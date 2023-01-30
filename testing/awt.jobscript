@@ -7,6 +7,9 @@
 #request_retries = 3
 #EOF
 
+# File name of test file in Rucio, in scope testpro
+export AWT_DOWNLOAD_FILE=awt-download-2023-01-13-01.txt
+
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
 which rucio
@@ -17,16 +20,21 @@ python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
 touch results.txt
 export now=`date +'%s'`
 
+echo '===Start $JUSTIN_PATH/justin-awt-rse-list.txt==='
+cat "$JUSTIN_PATH/justin-awt-rse-list.txt"
+echo '===End $JUSTIN_PATH/justin-awt-rse-list.txt==='
+
 cat $JUSTIN_PATH/justin-awt-rse-list.txt | (
 
 while read rse_name write_protocol read_pfn
 do
+  echo '---------------------------------------------------------------------'
   echo $JUSTIN_SITE_NAME $rse_name $write_protocol $read_pfn
 
   # Test download of file prepositioned on RSEs
-  xrdcp --force --nopbar --verbose "$read_pfn" awt-download-file.txt
+  xrdcp --force --nopbar --verbose "$read_pfn" "$AWT_DOWNLOAD_FILE"
   download_retval=$?
-  echo "'xrdcp --force --nopbar --verbose $read_pfn awt-download-file.txt' returns $download_retval"
+  echo "'xrdcp --force --nopbar --verbose $read_pfn $AWT_DOWNLOAD_FILE' returns $download_retval"
 
   # Test upload of random file
   fn=`mktemp awt-$now-XXXXXXXXXX`
@@ -41,10 +49,13 @@ do
         --name "$fn" "$fn"
 
   upload_retval=$?
-  echo "rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
+  echo "'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
+  echo
+  echo
 
   echo "==awt== $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval" \
     "$read_pfn $write_protocol" >> results.txt
+
 done
 
 )
@@ -53,8 +64,9 @@ echo
 echo '===== Results ====='
 echo
 echo 'Download/upload commands:'
-echo 'xrdcp --force --nopbar --verbose $read_pfn awt-download-file.txt'
+echo 'xrdcp --force --nopbar --verbose $read_pfn $AWT_DOWNLOAD_FILE'
 echo 'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --name FILENAME FILENAME'
+echo 'Use the Landscape link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
 echo
 echo 'Each line: $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval $read_pfn $write_protocol'
 cat results.txt

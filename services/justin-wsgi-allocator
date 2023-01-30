@@ -224,7 +224,9 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
                (jobDict['site_id'], justin.db.awtRequestID) )
 
       rseRows = justin.db.select(query)
-    except:
+#      print('AWT RSEs',query,rseRows,file=sys.stderr)
+    except Exception as e:
+      print('AWT list of RSEs query fails with: ' + str(e), file=sys.stderr)
       return None
 
     awtRseFile = ''
@@ -855,8 +857,9 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog):
               file=sys.stderr)
 
   try:
-    justin.db.insertUpdate('UPDATE sites SET last_awt_time=NOW() '
-                        'WHERE site_id=%d' % siteID)
+    justin.db.insertUpdate('UPDATE sites SET '
+                           'last_awt_time=NOW(),last_awt_job_id=%d '
+                           'WHERE site_id=%d' % (justinJobID, siteID))
 
   except Exception as e:
     print('Update awt last time fails with %s' % str(e), 

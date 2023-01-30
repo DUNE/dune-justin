@@ -283,6 +283,7 @@ CREATE TABLE `sites` (
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_get_stage_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_awt_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_awt_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

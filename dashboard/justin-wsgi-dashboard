@@ -111,9 +111,9 @@ a {
   padding: 10px;
   display: flex;
   align-items: center;
-  Xjustify-content: center;
   flex-direction: column;
   overflow-x: auto;
+  background-color: #FFFFFF;
 }
 
 .tooltip {
@@ -2133,19 +2133,28 @@ def awtResults(uriPrefix, cgiValues):
         "each site contacting each RSE. 0 = success. Enabled sites and "
         "storages allowed for output are in bold.</p>")
 
-  sitesRows = justin.db.select('SELECT site_name,enabled,'
-                            'UNIX_TIMESTAMP(last_awt_time) AS lwt '
-                            'FROM sites ORDER by site_name')
+  query = ('SELECT site_name,enabled,'
+           'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
+           'FROM sites '
+           'LEFT JOIN jobs ON jobs.justin_job_id=sites.last_awt_job_id '
+           'ORDER by site_name')
+
+  sitesRows = justin.select(query)
   siteNames        = []
   enabledSiteNames = []
   lastJobTimes     = {}
+  lastJobIDs       = {}
   for siteRow in sitesRows:
     siteNames.append(siteRow['site_name'])
     lastJobTimes[siteRow['site_name']] = int(siteRow['lwt'])
+
+    if siteRow['jobsub_id']:
+      lastJobIDs[siteRow['site_name']] = siteRow['jobsub_id']
+
     if siteRow['enabled']:
       enabledSiteNames.append(siteRow['site_name'])
 
-  storagesRows = justin.db.select('SELECT rse_name,'
+  storagesRows = justin.select('SELECT rse_name,'
                                '(rucio_write AND justin_write) AS has_write '
                                'FROM storages '
                                'WHERE rse_name <> "MONTECARLO" '
@@ -2164,7 +2173,7 @@ def awtResults(uriPrefix, cgiValues):
     for rseName in rseNames:
       sitesStoragesMatrix[siteName][rseName] = []
  
-  resultsRows = justin.db.select(
+  resultsRows = justin.select(
            'SELECT site_name,rse_name,read_result,write_result,jobsub_id '
            'FROM sites_storages '
            'LEFT JOIN sites ON sites_storages.site_id=sites.site_id '
@@ -2209,6 +2218,13 @@ def awtResults(uriPrefix, cgiValues):
 
     if lastJobTimes[siteName] == 0:
       output += ('<td> </td>')
+    elif siteName in lastJobIDs:
+      output += ('<td style="text-align: right">'
+                 '<a href="%s?method=show-job&jobsub_id=%s">%s</a></td>'
+                 % (uriPrefix, 
+                    lastJobIDs[siteName],
+                    daysHoursMinutes(int(time.time()) - lastJobTimes[siteName])
+                   ))
     else:
       output += ('<td style="text-align: right">%s</td>' % 
             daysHoursMinutes(int(time.time()) - lastJobTimes[siteName]))

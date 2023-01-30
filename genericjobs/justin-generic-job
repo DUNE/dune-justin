@@ -448,7 +448,7 @@ if [ "$http_code" != 200 ] ; then
   job_aborted 0 $http_code record_results
 fi
 
-if [ "$JOBSCRIPT_EXIT" != 0 ; then
+if [ "$JOBSCRIPT_EXIT" != 0 ] ; then
   job_aborted 0 900 jobscript exit $JOBSCRIPT_EXIT
 fi
 

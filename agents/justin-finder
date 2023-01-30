@@ -431,10 +431,14 @@ def findReplicas():
           accessibleUntil = ''
         
         try:
+          # request_id/stage_id are only recorded with the replicas
+          # to make it faster to make charts etc in the Dashboard
           query = ('INSERT INTO replicas SET '
+                   'request_id=%d,stage_id=%d,'
                    'rse_id=%d,file_id=%d,'
                    'wan_pfn="%s",lan_pfn="%s"%s' %
-                   (storagesDict[rse]['rse_id'],
+                   (requestID, stageID,
+                    storagesDict[rse]['rse_id'],
                     fileRow['file_id'],
                     wanPFN,
                     lanPFN,
