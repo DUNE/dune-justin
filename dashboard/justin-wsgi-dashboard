@@ -118,7 +118,7 @@ a {
 
 .tooltip {
   position: relative;
-  display: inline-block;
+  Xdisplay: inline-block;
   border-bottom: 1px dotted black;
 }
 
@@ -1851,8 +1851,9 @@ def showSite(uriPrefix, cgiValues):
   justin.db.cur.execute(query)
   storageRows = justin.db.cur.fetchall()
 
-  output += ("<p>Test values are xrdcp read and rucio write exit codes for jobs "
-        "at each site contacting each RSE. 0 = success.</p>")
+  output += ("<p>Values are xrdcp read and rucio write exit codes for jobs at "
+        "each site contacting each RSE. 0 = success. Enabled sites and "
+        "storages allowed for output are in bold.</p>")
 
   output += ('<table>')
   
@@ -2129,9 +2130,10 @@ def awtResults(uriPrefix, cgiValues):
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
-  output += ("<p>Values are xrdcp read and rucio write exit codes for jobs at "
-        "each site contacting each RSE. 0 = success. Enabled sites and "
-        "storages allowed for output are in bold.</p>")
+  output += ("<p>Hover over each coloured box to see the most recent test "
+      "values for xrdcp read and rucio write, run in jobs at each site, "
+      "contacting each RSE.</p>"
+      "<p>Exit code 0 = success. Other codes are failure modes.</p>")
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
@@ -2200,9 +2202,9 @@ def awtResults(uriPrefix, cgiValues):
       cellType = 'td'
     output += ('<%s><div style="writing-mode: vertical-lr">'
           '<a href="%s?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>' % (cellType, uriPrefix, rseName, rseName, cellType))
+          '</div></%s>\n' % (cellType, uriPrefix, rseName, rseName, cellType))
 
-  output += ('<td> </td></tr>')
+  output += ('<td> </td></tr>\n')
 
   # Go through the sites, Row by row 
 
@@ -2213,14 +2215,14 @@ def awtResults(uriPrefix, cgiValues):
       cellType = 'td'
     
     output += ('<tr><%s><a href="%s?method=show-site&site_name=%s">%s'
-          '</a></%s>' % 
+          '</a></%s>\n' % 
           (cellType, uriPrefix, siteName, siteName, cellType))
 
     if lastJobTimes[siteName] == 0:
       output += ('<td> </td>')
     elif siteName in lastJobIDs:
       output += ('<td style="text-align: right">'
-                 '<a href="%s?method=show-job&jobsub_id=%s">%s</a></td>'
+                 '<a href="%s?method=show-job&jobsub_id=%s">%s</a></td>\n'
                  % (uriPrefix, 
                     lastJobIDs[siteName],
                     daysHoursMinutes(int(time.time()) - lastJobTimes[siteName])
@@ -2234,7 +2236,7 @@ def awtResults(uriPrefix, cgiValues):
                       sitesStoragesMatrix[siteName][rseName]
 
       if readResult == 255 and writeResult == 255:
-        output += ('<td>&nbsp; &nbsp;</td>')
+        output += ('<td>&nbsp; &nbsp;</td>\n')
         
       else:
         if readResult == 255:
@@ -2256,19 +2258,16 @@ def awtResults(uriPrefix, cgiValues):
           boxColor = 'white'
           
         output += ('<td class="tooltip" style="background-color: %s">'
-                   '<a href="%s?method=show-job&jobsub_id=%s">'
-                   % (boxColor, uriPrefix, jobsubID))
-
-        output += '<span class="tooltiptext">%s</span>' % s
-
-        output += '</a></td>'
+                   '<a href="%s?method=show-job&jobsub_id=%s"'
+                   'class="tooltiptext">%s</a></td>\n'
+                   % (boxColor, uriPrefix, jobsubID, s))
 
     output += ('<%s><a href="%s?method=show-site&site_name=%s">%s'
-          '</a></%s></tr>' % 
+          '</a></%s></tr>\n' % 
           (cellType, uriPrefix, siteName, siteName, cellType))
 
   # List of storages
-  output += ('<tr><td> </td>'
+  output += ('<tr><td> </td>\n'
         '<td><div style="writing-mode: vertical-lr">'
         'Last&nbsp;AWT&nbsp;job</div></td>')
   
@@ -2279,7 +2278,7 @@ def awtResults(uriPrefix, cgiValues):
       cellType = 'td'
     output += ('<%s><div style="writing-mode: vertical-lr">'
           '<a href="%s?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>' % (cellType, uriPrefix, rseName, rseName, cellType))
+          '</div></%s>\n' % (cellType, uriPrefix, rseName, rseName, cellType))
 
   output += '<td> </td></tr>'
   output += "</table>"
