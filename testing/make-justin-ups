@@ -96,6 +96,8 @@ echo
 setup justin
 echo "PATH=$PATH"
 echo
+echo "MANPATH=$MANPATH"
+echo
 echo "Run justin version"
 justin version
 echo
