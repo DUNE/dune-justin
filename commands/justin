@@ -27,7 +27,7 @@ import ssl
 import urllib.request
 import argparse
 
-versionNumber = '00.02.01'
+versionNumber = '00.03.00'
 
 def body(buf): 
 

@@ -17,12 +17,26 @@
 # limitations under the License.
 #
 
-export JUSTIN_VERSION=00.00.00
+#
+# You can use this script to make a tar file which can be unpacked into
+# the DUNE products directory in cvmfs
+#
+# So on the correct machine, you can do something like
+#
+# cd /cvmfs/dune.opensciencegrid.org/products/dune
+# cvmfs_server transaction dune.opensciencegrid.org
+# tar zxvf /tmp/justin.ups.XX.XX.XX.tgz 
+# cd
+# cvmfs_server publish dune.opensciencegrid.org
+#
+
+export JUSTIN_VERSION=00.02.01
 
 export JUSTIN_UPS_VERSION=`echo v$JUSTIN_VERSION | tr . _`
 
 export MJU_GIT_DIR=`mktemp -d /tmp/mju_git_XXXXXX`
-( cd $MJU_GIT_DIR ; git clone https://github.com/DUNE/dune-justin.git )
+( cd $MJU_GIT_DIR
+  git clone -b $JUSTIN_VERSION https://github.com/DUNE/dune-justin.git )
 
 # Get the UPS setup command, which is implemented as a bash function (!)
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
