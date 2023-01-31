@@ -18,7 +18,6 @@
 #
 
 # See the justin(1) man page for full usage. 
-# For example with the command  man ./justin.1 
 
 import os
 import sys
@@ -27,7 +26,12 @@ import ssl
 import urllib.request
 import argparse
 
-versionNumber = '00.03.00'
+try:
+  # Import justin_version.py from where this justin script is too
+  import justin_version
+  versionNumber = justin_version.justinVersion
+except:
+  versionNumber = '00.00.00'
 
 def body(buf): 
 

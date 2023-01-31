@@ -46,12 +46,12 @@ def readConf():
 
   # Options for the [shared] section
 
-  try:
-    f = open('/var/lib/justin/VERSION', 'r')
-    justinVersion = f.readline().split('=',1)[1].strip()
-    f.close()
-  except:
-    justinVersion = '00.00.00'
+#  try:
+#    f = open('/var/lib/justin/VERSION', 'r')
+#    justinVersion = f.readline().split('=',1)[1].strip()
+#    f.close()
+#  except:
+#    justinVersion = '00.00.00'
 
   # Options for the [database section]
 

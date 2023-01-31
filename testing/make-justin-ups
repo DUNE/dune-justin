@@ -32,7 +32,8 @@
 
 export JUSTIN_VERSION=00.02.01
 
-export JUSTIN_UPS_VERSION=`echo v$JUSTIN_VERSION | tr . _`
+export JUSTIN_UPS_VERSION="$JUSTIN_VERSION"
+#export JUSTIN_UPS_VERSION=`echo v$JUSTIN_VERSION | tr . _`
 
 export MJU_GIT_DIR=`mktemp -d /tmp/mju_git_XXXXXX`
 ( cd $MJU_GIT_DIR
@@ -61,6 +62,7 @@ echo "Prepend $MJU_PRODUCTS to \$PRODUCTS"
 export PRODUCTS="$MJU_PRODUCTS:$PRODUCTS"
 
 cp $MJU_GIT_DIR/dune-justin/commands/justin \
+   $MJU_GIT_DIR/dune-justin/modules/justin_version.py \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript \
  $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/bin
