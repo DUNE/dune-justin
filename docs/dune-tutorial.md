@@ -52,24 +52,28 @@ justin quick-request will show you the request ID which is needed to find
 logs, jobs status etc. Please take note of that ID now.
 
 You can use 
-```justin show-jobscript --jobscript-id testpro:hello-world`` 
+
+```justin show-jobscript --jobscript-id testpro:hello-world```
+
 to display the script these 10 jobs are running for you. And 
+
 ```justin show jobs --request-id REQUEST_ID```
+
 will show you any jobs associated with the request. You need to replace 
 REQUEST_ID with the number displayed by quick-request.
 
-The show subcommands are useful for quick checks, but to look at requests
+The two show subcommands are useful for quick checks, but to look at requests
 and jobs in detail you need to use the 
 [justIn dashboard](https://justin.dune.hep.ac.uk/dashboard/). Go there
-and look for the Requests link in navigation the strip at the top of the
-page. The request you launched will be listed there, with the REQUEST_ID you
-got from the quick-request subcommand.
+and look for the Requests link in the blue navigation the strip at the top of
+the page. The request you launched will be listed there, with the REQUEST_ID
+you got from the quick-request subcommand.
 
-The page for that request shows interesting things about, and the table
+The page for that request shows interesting things about it, and the table
 near the bottom of the page has information about its single stage. The
-stage is to process 10 files, and they can be in various states from Finding
-to Unallocated through to Processed. Clicking on the numbers takes you to
-pages with lists of files in each state. 
+stage is to process 10 counter files, and they can be in various states from
+Finding to Unallocated through to Processed. Clicking on the numbers takes
+you to pages with lists of files in each state. 
 
 For each file, you see where it was processed and which Rucio Storage
 Element it came from. In the case of our Monte Carlo request, our virtual
@@ -79,9 +83,9 @@ The Jobsub ID at the end of the line is the ID of the HTCondor job in
 which the stage's jobscript was run. Clicking on that ID takes you to a 
 very detailed page about that job, including information about the specific
 worker node and job slot in which it ran. At the bottom of the page is the
-jobscript log which is the merge stdout and stderr of the jobscript that
-ran. In this case, it just outputs a Hello world message and the number of
-the Monte Carlo virtual file counter.
+jobscript log which is the merged stdout and stderr of the jobscript that
+ran. In this case, the jobscript just outputs a Hello world message and the 
+number of the Monte Carlo virtual file counter.
 
 
 
