@@ -64,7 +64,7 @@ def httpOK(startResponse, outputString):
 def timeCmd(startResponse):
 
   return httpOK(startResponse, 
-                datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S\n'))
+                datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S UTC\n'))
 
 def showRequestsCmd(startResponse, jsonDict):
 
