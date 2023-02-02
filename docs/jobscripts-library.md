@@ -24,6 +24,7 @@ To put a jobscript into the library, use the create-jobscript subcommand.
 ```
 justin create-jobscript --name example1 \
                         --jobscript exam1.jobscript
+
 justin create-jobscript --scope myscope --name example2 \
                         --jobscript exam2.jobscript
 ```
