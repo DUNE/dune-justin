@@ -4,11 +4,11 @@
 #
 
 sed -e 's/top/bottom/g' \
-    -e 's/^fclFile.*/fclFile=vdcoldbox_raw_dataprep_reco.fcl/' \
-    -e 's/^export DUNEVERSION=.*/export DUNEVERSION=v09_49_00d00/' \
+    -e 's/vdcoldbox_raw_tdedataprep_reco.fcl/vdcoldbox_raw_dataprep_reco.fcl/' \
+    -e 's/v09_44_00_02/v09_49_00d00/' \
  dc4-vd-coldbox-top.jobscript > dc4-vd-coldbox-bottom.jobscript
 
 sed -e 's/dc4-vd-coldbox-top/dc4-hd-protodune/g' \
-    -e 's/^fclFile.*/fclFile=protoDUNEHD_refactored_reco.fcl/' \
-    -e 's/^export DUNEVERSION=.*/export DUNEVERSION=v09_56_00d00/' \
+    -e 's/vdcoldbox_raw_tdedataprep_reco.fcl/protoDUNEHD_refactored_reco.fcl/' \
+    -e 's/v09_44_00_02/v09_56_00d00/' \
  dc4-vd-coldbox-top.jobscript > dc4-hd-protodune.jobscript

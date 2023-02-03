@@ -1,17 +1,22 @@
 #!/usr/bin/env python3 
 #
-# Convert protoDUNE metadata to JSON suitable to be the value of the "metadata" key in the 
-# JSON sent to MetaCat
+# Convert protoDUNE metadata from extractor_prod.py into JSON suitable to be the 
+# value of the "metadata" key in the JSON sent to MetaCat
+#
+# THIS IS NOT REALLY PART OF justIN AND IT SHOULD BE INCORPORATED INTO THE SCRIPTS
+# ASSOCIATED WITH APPLICATIONS, LIKE extractor_prod.py !
 #
 # Adapted from https://github.com/ivmfnal/protodune/blob/main/tools/declare_meta.py
 # to write out modified JSON rather than uploading it. 
 # This allows the script to be run inside jobscripts supplied by users.
 #
-# This script must be converted to base64 with something like the following 
+# Either this script must be converted to base64 with something like the following 
 # and included in the here document near the start of the jobscripts :
 #
 # (macOS) base64 -b 76 pdjson2metadata > pdjson2metadata.b64
 # (Linux) base64       pdjson2metadata > pdjson2metadata.b64
+#
+# Or a version can be found in the jobutils area of the justIN UPS product in cvmfs
 #
 
 import sys, json

@@ -32,9 +32,6 @@
 
 export JUSTIN_VERSION=00.02.01
 
-export JUSTIN_UPS_VERSION="$JUSTIN_VERSION"
-#export JUSTIN_UPS_VERSION=`echo v$JUSTIN_VERSION | tr . _`
-
 export MJU_GIT_DIR=`mktemp -d /tmp/mju_git_XXXXXX`
 ( cd $MJU_GIT_DIR
   git clone -b $JUSTIN_VERSION https://github.com/DUNE/dune-justin.git )
@@ -53,10 +50,10 @@ VERSION_SUBDIR = 1
 PROD_DIR_PREFIX = \${UPS_THIS_DB}
 EOF
 
-mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/bin
-mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/man/man1
-mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/jobutils
-mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/ups
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/man/man1
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/ups
 
 echo "Prepend $MJU_PRODUCTS to \$PRODUCTS"
 export PRODUCTS="$MJU_PRODUCTS:$PRODUCTS"
@@ -65,20 +62,21 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin \
    $MJU_GIT_DIR/dune-justin/modules/justin_version.py \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript \
- $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/bin
+ $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
 
 cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
- $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/man/man1
+ $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/man/man1
 
-cp $MJU_GIT_DIR/dune-justin/genericjobs/justin-allocated-files \
-   $MJU_GIT_DIR/dune-justin/genericjobs/justin-get-file \
-   $MJU_GIT_DIR/dune-justin/genericjobs/justin-metadata \
- $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/jobutils
+cp $MJU_GIT_DIR/dune-justin/jobutils/justin-allocated-files \
+   $MJU_GIT_DIR/dune-justin/jobutils/justin-get-file \
+   $MJU_GIT_DIR/dune-justin/jobutils/justin-metadata \
+   $MJU_GIT_DIR/dune-justin/jobutils/pdjson2metadata \
+ $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
 
-cat <<EOF > $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION/NULL/ups/justin.table
+cat <<EOF > $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/ups/justin.table
 FILE=TABLE
 PRODUCT=justin
-VERSION=$JUSTIN_UPS_VERSION
+VERSION=$JUSTIN_VERSION
 Group:
     Flavor=ANY
     Qualifiers=""
@@ -92,8 +90,8 @@ EOF
 
 echo
 echo 'Run ups declare'
-ups declare justin $JUSTIN_UPS_VERSION -c \
- -r justin/$JUSTIN_UPS_VERSION/NULL \
+ups declare justin $JUSTIN_VERSION -c \
+ -r justin/$JUSTIN_VERSION/NULL \
  -f NULL -z $MJU_PRODUCTS -m justin.table -U ups
 
 echo
@@ -104,8 +102,8 @@ echo "---Start $MJU_PRODUCTS/justin/current.chain/NULL_---"
 cat $MJU_PRODUCTS/justin/current.chain/NULL_
 
 echo
-echo "---Start $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION.version/NULL_---"
-cat $MJU_PRODUCTS/justin/$JUSTIN_UPS_VERSION.version/NULL_
+echo "---Start $MJU_PRODUCTS/justin/$JUSTIN_VERSION.version/NULL_---"
+cat $MJU_PRODUCTS/justin/$JUSTIN_VERSION.version/NULL_
 echo "---End---"
 echo
 

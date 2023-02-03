@@ -418,7 +418,7 @@ def createRequestCmd(startResponse, jsonDict, userID):
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
   else:
-    description = str(int(time.time()))
+    description = ''
 
   if 'mql' in jsonDict and jsonDict['mql']:
     mql = jsonDict['mql']
@@ -496,7 +496,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
   else:
-    description = str(int(time.time()))
+    description = ''
 
   if 'mql' in jsonDict and jsonDict['mql']:
     mql = jsonDict['mql']

@@ -3,12 +3,6 @@
 # Check any metadata JSON from jobscript for a given file and add
 # workflow metadata to it. The output file and its JSON file will be looked for
 # in the workspace subdirectory.
-#
-# This script must be converted to base64 with something like the following 
-# and included in the here document near the start of justin-generic-job :
-#
-# (macOS) base64 -b 76 justin-metadata > justin-metadata.b64
-# (Linux) base64       justin-metadata > justin-metadata.b64
 
 import os
 import sys

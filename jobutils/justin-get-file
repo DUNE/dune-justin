@@ -7,12 +7,6 @@
 #
 # Error messages to stderr
 # DID PFN RSE to stdout on one line if a file is available
-#
-# This script must be converted to base64 with something like the following 
-# and included in the here document near the start of justin-generic-job :
-#
-# (macOS) base64 -b 76 justin-get-file > justin-get-file.b64
-# (Linux) base64       justin-get-file > justin-get-file.b64
 
 if [ ! -r "$JUSTIN_PATH/justin-get-file.json" ] ; then
   echo "$JUSTIN_PATH/justin-get-file.json not found!" >&2
