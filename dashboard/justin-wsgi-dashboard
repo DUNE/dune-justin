@@ -81,6 +81,7 @@ class justinStackedLine(pygal.StackedLine):
 def header(uriPrefix, title):
 
   return ("""<html><head><title>%s</title>
+<link rel="icon" href="/favicon.png">
 <style>
 html,body { 
   font-family: Tahoma, Verdana, Arial, sans-serif; 
