@@ -7,7 +7,7 @@
 #
 # ./justin quick-request \
 #  --mql "rucio-dataset protodune-sp:np04_raw_run_number_5769" \
-#  --output-pattern 'sha1sum-*.txt' \
+#  --scope test --output-pattern 'test01:sha1sum-*.txt' \
 #  --jobscript simple.jobscript 
 #
 # Then monitor with dashboard or ./justin show-jobs --request-id ID

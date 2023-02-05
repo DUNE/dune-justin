@@ -2,13 +2,13 @@
 #
 # To use this jobscript to process 10 files from the dc4-hd-protodune
 # data and put the output in the dc4-hd-protodune namespace (MetaCat) and 
-# scope (Rucio), and in the dc4-hd-protodune:test-01 dataset in MetaCat and 
+# scope (Rucio), and in the dc4-hd-protodune:test-01 dataset in MetaCat and
 # Rucio, use this command to create the request:
 #
 # justin quick-request \
 # --mql "files from dc4:dc4 where core.run_type='dc4-hd-protodune' limit 10" \
 # --jobscript dc4-hd-protodune:dc4-hd-protodune --max-distance 30 \
-# --output-pattern 'dc4-hd-protodune:test-01:*_reco_data_*.root' \
+# --scope dc4-hd-protodune --output-pattern 'test-01:*_reco_data_*.root' 
 #
 # The following optional environment variables can be set when creating the
 # request/stage: FCL_FILE, NUM_EVENTS, DUNE_VERSION, DUNE_QUALIFIER 
