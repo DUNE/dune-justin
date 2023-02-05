@@ -682,7 +682,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except:
     lifetimeDays = 1
 
-  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage'] \
+  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage']) \
      or not scopeName:
     return httpError(startResponse, 
                      '400 Bad Request', 
@@ -1149,7 +1149,7 @@ def createJobscriptCmd(startResponse, jsonDict, userID, username):
     # --scope option given, so find the scope
     scopeName = jsonDict['scope'].lower()
 
-    if not justin.db.stringIsDomain(scope):
+    if not justin.db.stringIsDomain(scopeName):
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Scope name can only be characters a-z 0-9 - _ .')

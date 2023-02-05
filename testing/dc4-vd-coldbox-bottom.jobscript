@@ -7,7 +7,7 @@
 #
 # justin quick-request \
 # --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
-# --jobscript dc4-vd-coldbox-bottom:dc4-vd-coldbox-bottom --max-distance 30 \
+# --jobscript dc4-vd-coldbox-bottom:default --max-distance 30 \
 # --scope dc4-vd-coldbox-bottom --output-pattern 'test-01:*_reco_data_*.root' 
 #
 # The following optional environment variables can be set when creating the
