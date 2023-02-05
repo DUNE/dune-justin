@@ -629,18 +629,41 @@ def quickRequestCmd(startResponse, jsonDict, userID):
     jobscript   = response['jobscript']
     jobscriptID = response['jobscript_id']
 
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so check the scope is known
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
+                                  'WHERE scope_name="%s"' % scopeName, 
+                                  justOne=True)
+      scopeID = int(scopeRow['scope_id'])
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scope)
+  else:
+    scopeName = None
+    scopeID   = 0
+
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
           "stage_rank=0,"
           "request_id=%d,"
           "stage_id=1,"
+          "scope_id=%d,"
           "jobscript_id=%d,"
           "processors=%d,"
           "wall_seconds=%d,"
           "rss_bytes=%d,"
           "max_distance=%f,"
           "max_files_per_job=%d" 
-          % (requestID, jobscriptID, processors,
+          % (requestID, scopeID, jobscriptID, processors,
              wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
     justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
@@ -659,30 +682,33 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except:
     lifetimeDays = 1
 
+  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage'] \
+     or not scopeName:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     '--scope must by given too for --output_pattern and '
+                     '--output_pattern_next_stage')
+
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
       splitList = i.split(':')
        
-      if len(splitList) < 3:
+      if len(splitList) < 2:
         continue
     
-      scope        = splitList[0]
-      datasetName  = splitList[1]
-      pattern      = ':'.join(splitList[2:])
+      datasetName  = splitList[0]
+      pattern      = ':'.join(splitList[1:])
 
       try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=1,'
               'dataset="%s:%s",'
-              'file_scope="%s",'
               'file_pattern="%s",'
               'lifetime_seconds=%d,'
               'for_next_stage=FALSE' % 
               (requestID,
-               scope.replace('\\','\\\\').replace('"','\\"'),
-               datasetName.replace('\\','\\\\').replace('"','\\"'),
-               scope.replace('\\','\\\\').replace('"','\\"'),
+               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"'),
                lifetimeDays * 86400
               )
@@ -914,18 +940,42 @@ def createStageCmd(startResponse, jsonDict):
     jobscript   = response['jobscript']
     jobscriptID = response['jobscript_id']
 
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so check the scope is known
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
+                                  'WHERE scope_name="%s"' % scopeName, 
+                                  justOne=True)
+      scopeID = int(scopeRow['scope_id'])
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scope)
+  else:
+    scopeName = None
+    scopeID   = 0
+
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
                         "stage_rank=0,"
                         "request_id=%d,"
                         "stage_id=%d,"
+                        "scope_id=%d,"
                         "jobscript_id=%d,"
                         "processors=%d,"
                         "wall_seconds=%d,"
                         "rss_bytes=%d,"
                         "max_distance=%f," 
                         "max_files_per_job=%d"
-                        % (requestID, stageID, jobscriptID, processors,
+                        % (requestID, stageID, scopeID,
+                           jobscriptID, processors,
                            wallSeconds, rssBytes, maxDistance,
                            maxFilesPerJob))
           
@@ -946,31 +996,34 @@ def createStageCmd(startResponse, jsonDict):
   except:
     lifetimeDays = 1
 
+  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage']) \
+     and not scopeName:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     '--scope must by given too for --output_pattern and '
+                     '--output_pattern_next_stage')
+
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
     
       splitList = i.split(':')
        
-      if len(splitList) < 3:
+      if len(splitList) < 2:
         continue
     
-      scope       = splitList[0]
-      datasetName = splitList[1]
-      pattern     = ':'.join(splitList[2:])
+      datasetName = splitList[0]
+      pattern     = ':'.join(splitList[1:])
         
       try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
               'dataset="%s:%s",'
-              'file_scope="%s",'
               'file_pattern="%s",'
               'lifetime_seconds=%d,'
               'for_next_stage=FALSE' % 
               (requestID, stageID,
-               scope.replace('\\','\\\\').replace('"','\\"'),
-               datasetName.replace('\\','\\\\').replace('"','\\"'),
-               scope.replace('\\','\\\\').replace('"','\\"'),
+               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"'),
                lifetimeDays * 86400
               )
@@ -986,26 +1039,22 @@ def createStageCmd(startResponse, jsonDict):
     
       splitList = i.split(':')
        
-      if len(splitList) < 3:
+      if len(splitList) < 2:
         continue
     
-      scope        = splitList[0]
-      datasetName  = splitList[1]
-      pattern      = ':'.join(splitList[2:])
+      datasetName  = splitList[0]
+      pattern      = ':'.join(splitList[1:])
 
       try:        
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
               'stage_id=%d,'
               'dataset="%s:%s",'
-              'file_scope="%s",'
               'file_pattern="%s',
               'lifetime_seconds=%d,'
               'for_next_stage=TRUE' % 
               (requestID, stageID,
-               scope.replace('\\','\\\\').replace('"','\\"'),
-               datasetName.replace('\\','\\\\').replace('"','\\"'),
-               scope.replace('\\','\\\\').replace('"','\\"'),
+               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
                pattern.replace('\\','\\\\').replace('"','\\"'),
                lifetimeDays * 86400
               )
@@ -1098,7 +1147,7 @@ def createJobscriptCmd(startResponse, jsonDict, userID, username):
 
   if 'scope' in jsonDict and jsonDict['scope']:
     # --scope option given, so find the scope
-    scope = jsonDict['scope'].lower()
+    scopeName = jsonDict['scope'].lower()
 
     if not justin.db.stringIsDomain(scope):
       return httpError(startResponse,
@@ -1107,14 +1156,15 @@ def createJobscriptCmd(startResponse, jsonDict, userID, username):
 
     try:
       scopeRow = justin.db.select('SELECT scope_id FROM scopes '
-                                  'WHERE scope_name="%s"' % scope,justOne=True)
+                                  'WHERE scope_name="%s"' % scopeName,
+                                  justOne=True)
       scopeID = int(scopeRow['scope_id'])
     except:
       return httpError(startResponse,
                        '400 Bad Request', 
-                       'Failed to find scope %s in justIN database' % scope) 
+                       'Failed to find scope %s in justIN database' % scopeName) 
 
-    jobscriptIdentifier = scope + ':' + name
+    jobscriptIdentifier = scopeName + ':' + name
     jobscriptUserID = 0
   else:
     # No scope, so set user_id instead

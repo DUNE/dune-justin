@@ -592,15 +592,19 @@ def showStage(uriPrefix, cgiValues):
            "stages.max_files_per_job,"
            "stages_jobscripts.jobscript,"
            "jobscript_name,"
-           "scope_name,"
+           "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
+           "stages_scopes.scope_name AS stages_scope_name,"
            "username "
            "FROM stages "
+           "LEFT JOIN scopes AS stages_scopes "
+           "ON stages.scope_id=stages_scopes.scope_id "
            "LEFT JOIN stages_jobscripts "
            "ON stages_jobscripts.request_id=stages.request_id "
            "AND stages_jobscripts.stage_id=stages.stage_id "
            "LEFT JOIN jobscripts_library "
            "ON jobscripts_library.jobscript_id=stages.jobscript_id "
-           "LEFT JOIN scopes ON scopes.scope_id=jobscripts_library.scope_id "
+           "LEFT JOIN scopes AS jobscripts_scopes "
+           "ON jobscripts_scopes.scope_id=jobscripts_library.scope_id "
            "LEFT JOIN users ON users.user_id=jobscripts_library.user_id "
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
@@ -637,7 +641,8 @@ def showStage(uriPrefix, cgiValues):
         
   query = ("SELECT rse_name "
            "FROM stages_output_storages "
-           "LEFT JOIN storages ON stages_output_storages.rse_id=storages.rse_id "
+           "LEFT JOIN storages "
+           "ON stages_output_storages.rse_id=storages.rse_id "
            "WHERE request_id=%d AND stage_id=%d "
            "ORDER BY rse_name" %
            (requestID, stageID))
@@ -654,15 +659,19 @@ def showStage(uriPrefix, cgiValues):
         
   output += ('</td></tr>')
         
+  if stageRow["stages_scope_name"]:
+    output += ('<tr><td>Scope</td>'
+               '<td>%s</td></tr>' % stageRow["stages_scope_name"])
+
   output += ('</table>')
     
   # Output patterns
 
-  query = ("SELECT dataset,file_scope,file_pattern,"
+  query = ("SELECT dataset,file_pattern,"
            "for_next_stage,lifetime_seconds "
            "FROM stages_outputs "
            "WHERE request_id=%d AND stage_id=%d "
-           "ORDER BY dataset,file_scope,file_pattern" %
+           "ORDER BY dataset,file_pattern" %
            (requestID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
@@ -670,14 +679,13 @@ def showStage(uriPrefix, cgiValues):
 
   if patternRows:
     output += ("<h2>Output patterns</h2>")
-    output += ('<table><tr><th>Dataset</th><th>Scope</th><th>Pattern</th>'
+    output += ('<table><tr><th>Dataset</th><th>Pattern</th>'
                '<th>Lifetime</th><th>For next stage</th></tr>') 
 
     for patternRow in patternRows:
-      output += ("<tr><td>%s</td><td>%s</td><td>%s</td>"
+      output += ("<tr><td>%s</td><td>%s</td>"
                  "<td>%d</td><td>%s</td></tr>" 
                  % (patternRow["dataset"],
-                    patternRow["file_scope"],
                     html.escape(patternRow["file_pattern"], quote=True),
                     patternRow["lifetime_seconds"],
                     bool(patternRow["for_next_stage"])))
@@ -1004,13 +1012,13 @@ def showStage(uriPrefix, cgiValues):
 
   output += ("<h2>Jobscript</h2>")
 
-  if stageRow['scope_name'] and stageRow['jobscript_name']:
+  if stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
     output += ('<p><i>Copied from '
                '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
                ' when the stage was created.</i></p>'
                % (uriPrefix, 
-                  stageRow['scope_name'], stageRow['jobscript_name'],
-                  stageRow['scope_name'], stageRow['jobscript_name']))
+                  stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
+                  stageRow['jobscripts_scope_name'], stageRow['jobscript_name']))
   elif stageRow['username'] and stageRow['jobscript_name']:
     output += ('<p><i>Copied from '
                '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'

@@ -40,6 +40,7 @@ do
   fn=`mktemp awt-$now-XXXXXXXXXX`
   echo "$fn" > $fn
 
+  echo "GFAL_CONFIG_DIR: $GFAL_CONFIG_DIR   GFAL_PLUGIN_DIR: $GFAL_PLUGIN_DIR"
   rucio --verbose \
         upload \
         --rse "$rse_name" \

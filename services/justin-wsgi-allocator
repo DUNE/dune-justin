@@ -87,6 +87,7 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.cookie,'
              'stages.max_distance,'
              'stages.max_files_per_job,'
+             'scopes.scope_name,'
              'jobs.request_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
@@ -105,8 +106,8 @@ def makeJobDict(jobsubID, cookie = None):
              'FROM jobs '
              'LEFT JOIN stages ON jobs.request_id=stages.request_id '
              'AND jobs.stage_id=stages.stage_id '
-             'LEFT JOIN sites '
-             'ON jobs.site_id=sites.site_id '
+             'LEFT JOIN scopes ON stages.scope_id=scopes.scope_id '
+             'LEFT JOIN sites ON jobs.site_id=sites.site_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
 
     justin.db.cur.execute(query)
@@ -124,6 +125,7 @@ def makeJobDict(jobsubID, cookie = None):
   return { "error_message"    : None,
            "request_id"       : job['request_id'],
            "stage_id"         : job['stage_id'],
+           "scope_name"       : job['scope_name'],
            "site_id"          : job['site_id'],
            "site_name"        : job['site_name'],
            "running_jobs"     : job['running_jobs'],
@@ -189,7 +191,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
 
   # Create a file containing the output file patterns
   try:
-    query = ("SELECT lifetime_seconds,dataset,file_scope,file_pattern,"
+    query = ("SELECT lifetime_seconds,dataset,file_pattern,"
              "for_next_stage "
              "FROM stages_outputs "
              "WHERE request_id=%d AND stage_id=%d" 
@@ -205,7 +207,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
     patternsFile += (str(row['lifetime_seconds']) + ' ' +
                      str(row['for_next_stage']) + ' ' + 
                      row['dataset'] + ' ' +
-                     row['file_scope'] + ' ' +
+                     str(jobDict['scope_name']) + ' ' +
                      row['file_pattern'] + '\n')
     
   addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)

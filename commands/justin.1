@@ -100,9 +100,9 @@ excludes a request from the workflow allocation process.
 .B "create-stage --request-id ID --stage-id ID 
 .B --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
-.B [--max-files-per-job N] 
-.B [--output-pattern SCOPE:DATASET:PATTERN] 
-.B [--output-pattern-next-stage SCOPE:DATASET:PATTERN] [--output-rse NAME] 
+.B [--max-files-per-job N] [--scope SCOPE] 
+.B [--output-pattern DATASET:PATTERN] 
+.B [--output-pattern-next-stage DATASET:PATTERN] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
@@ -146,13 +146,19 @@ limits the number of files which will be allocated to a job. This can be
 used to ensure that jobscripts which request files to work on, one after 
 another, do not run for too long. Default 1.
 
+.B --scope SCOPE
+specifies the Rucio scope used for any output files to be registered with 
+Rucio and uploaded to Rucio-managed storage.
+
 If one or more options 
-.B --output-pattern SCOPE:DATASET:PATTERN
+.B --output-pattern DATASET:PATTERN
 is given then the generic job will look for files created by the script
 which match the pattern given as PATTERN. The pattern is a Bash 
 shell pattern using *, ? and
-[...] expressions. See the bash(1) Pattern Matching section for details. Any
-output files found by this matching will be uploaded and registered by the
+[...] expressions. See the bash(1) Pattern Matching section for details. The
+.B --scope SCOPE 
+option is also required. Any output files found by the pattern matching
+will be uploaded and registered by the
 generic job in the Rucio dataset given by SCOPE:DATASET, with a 
 DID composed of the scope given and the found filename. Furthermore, if the 
 found files have a corresponding JSON metadata
@@ -160,7 +166,7 @@ file with the same name but with ".json" appended, that will be recorded for
 that file in MetaCat.
 
 Alternatively
-.B --output-pattern-next-stage SCOPE:DATASET:PATTERN
+.B --output-pattern-next-stage DATASET:PATTERN
 can be given in which the output file will also be registered in the
 justIN Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
@@ -186,8 +192,8 @@ jobscript is executed.
 .B [--refind-interval-hours HOURS] --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N]
 .B [--max-files-per-job N] 
-.B [--rss-mb N] [--processors N] [--max-distance DIST] 
-.B [--output-pattern SCOPE:DATASET:PATTERN] [--output-rse NAME] 
+.B [--rss-mb N] [--processors N] [--max-distance DIST] [--scope SCOPE] 
+.B [--output-pattern DATASET:PATTERN] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
 .br
 Combines the 

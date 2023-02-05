@@ -318,6 +318,7 @@ CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL,
   `jobscript_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
@@ -340,7 +341,6 @@ CREATE TABLE `stages_outputs` (
   `stage_id` tinyint(3) unsigned NOT NULL,
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
-  `file_scope` varchar(255) NOT NULL,
   `dataset` varchar(255) NOT NULL,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
