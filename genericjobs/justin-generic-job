@@ -67,14 +67,14 @@ export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
 export JUSTIN_HOSTNAME=${HOSTNAME:-`hostname`}
 export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
+if [ "$site_name" = "US_FermiGrid" ] ; then
+  export site_name=US_FNAL-FermiGrid
+fi
 if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FNAL" ] ; then
-  export site_name=US_FNAL
+  export site_name=US_FNAL-T1
 fi
 if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FermiGrid" ] ; then
-  export site_name=US_FNAL
-fi
-if [ "$site_name" = "US_FermiGrid" ] ; then
-  export site_name=US_FNAL
+  export site_name=US_FNAL-FermiGrid
 fi
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`

@@ -424,10 +424,6 @@ def getStageMethod(startResponse, jsonDict):
                        '400 Bad Request', 
                        'Missing/invalid value for %s in JSON' % name)
 
-  if jsonDict['site_name'] == 'US_FermiGrid':
-    # Quick hack for now until the site names finalised
-    jsonDict['site_name'] = 'US_FNAL'
-  
   if jsonDict['site_name'] == 'XX_UNKNOWN':
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
