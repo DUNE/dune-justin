@@ -1084,6 +1084,8 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
            (justin.db.event_FILE_ALLOCATED, requestID, stageID, stateFilter,
             pageNumber * pageLength, pageLength + 1))
 
+  output += '<!-- %s -->\n' % query
+
   justin.db.cur.execute(query)
   filesRows = justin.db.cur.fetchall()
 

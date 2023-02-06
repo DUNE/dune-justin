@@ -192,9 +192,15 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   # Create a file containing the output file patterns
   try:
     query = ("SELECT lifetime_seconds,dataset,file_pattern,"
-             "for_next_stage "
+             "for_next_stage,scope_name "
              "FROM stages_outputs "
-             "WHERE request_id=%d AND stage_id=%d" 
+             "LEFT JOIN stages "
+             "ON stages.request_id=stages_outputs.request_id "
+             "AND stages.stage_id=stages_outputs.stage_id "
+             "LEFT JOIN scopes "
+             "ON scopes.scope_id=stages.scope_id "
+             "WHERE stages_outputs.request_id=%d "
+             "AND stages_outputs.stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
     rows = justin.db.select(query)
@@ -207,7 +213,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
     patternsFile += (str(row['lifetime_seconds']) + ' ' +
                      str(row['for_next_stage']) + ' ' + 
                      row['dataset'] + ' ' +
-                     str(jobDict['scope_name']) + ' ' +
+                     str(row['scope_name']) + ' ' +
                      row['file_pattern'] + '\n')
     
   addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)
@@ -386,7 +392,7 @@ def findCachedStage(jobDict):
 
   # The dictionary to return, with the highest priority result
   stage = { 'request_id'  : stageRow['request_id'],
-            'stage_id'    : stageRow['stage_id']    }
+            'stage_id'    : stageRow['stage_id']   }
 
   return stage
 
@@ -481,7 +487,8 @@ def getStageMethod(startResponse, jsonDict):
   if jobDict['for_awt']:
     # Special job for Workflow Testing Framework
     stage = { 'request_id'  : justin.db.awtRequestID,
-              'stage_id'    : 1 }
+              'stage_id'    : 1,
+              'scopeName'   : None }
 
   else:
     # Use the Just In Time decision making: identify the best request+stage 

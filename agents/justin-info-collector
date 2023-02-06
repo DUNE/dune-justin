@@ -161,6 +161,14 @@ def processOneFileXML(sitesDict, fileName):
       except:
         continue
 
+      try:
+        entryEnabled = xmlEntry.getAttribute('enabled')
+      except:
+        entryEnabled = 'True'
+
+      if entryEnabled == 'False':
+        continue
+
       siteName        = None
       jobsubSiteName  = None
       wlcgSiteName    = ''
