@@ -21,10 +21,15 @@
 
 import os
 import sys
+import ssl
 import time
 import html
+import json
+import uuid
+import base64
 import urllib
 import urllib.parse
+import urllib.request
 
 # install with  pip3 install pygal
 import pygal
@@ -78,7 +83,24 @@ class justinStackedLine(pygal.StackedLine):
                 else:
                     serie.interpolated = []
 
-def header(uriPrefix, title):
+def header(uriPrefix, environ, user, title):
+
+  if user is None:
+    loginStr = (' &nbsp; &nbsp; &nbsp; '
+                '<a href="%s?login" '
+                'style="background: #E1703D; border-radius: 5px; padding: 5px">'
+                'Login</a>'
+                % environ['REQUEST_URI'])
+
+  elif user == '':
+    # Special for loginPage()
+    loginStr = ''
+  else:
+    loginStr = (' &nbsp; &nbsp; &nbsp; '
+                '<a href="/dashboard/" '
+                'style="background: #E1703D; border-radius: 5px; padding: 5px">'
+                '%s</a>'
+                % user['user_name'])
 
   return ("""<html><head><title>%s</title>
 <link rel="icon" href="/favicon.png">
@@ -104,6 +126,7 @@ a {
   justify-content: center;
   padding: 5px;
   background-color: #234D93;
+  vertical-align: middle;
 }
             
 #top_strip a { color: #FFFFFF; text-decoration: none; }
@@ -174,7 +197,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="%s?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
-<a href="https://dune.github.io/dune-justin/">Docs</a>
+<a href="https://dune.github.io/dune-justin/">Docs</a>%s
 </div>
 <div id="main_box"><div>
 """ % (title, 
@@ -183,15 +206,16 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
        uriPrefix,
        'Dashboard' if uriPrefix.startswith('/dashboard/') else uriPrefix,
        uriPrefix, uriPrefix, uriPrefix,
-       uriPrefix, uriPrefix))
+       uriPrefix, uriPrefix,
+       loginStr))
 
 def footer():
   return ('</div></div>'
           '<div id="bottomstrip">justIN time now: %s</div>\n</body></html>' 
           % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
-def errorPage(uriPrefix, message):
-  output = header(uriPrefix, "Error")
+def errorPage(uriPrefix, environ, user, message):
+  output = header(uriPrefix, environ, user, "Error")
   output += "<h1>Error</h1>\n<p>%s</p>" % html.escape(message, quote=True)
   output += footer()
   return output
@@ -229,9 +253,9 @@ def makePager(uriPrefix, pageNumber, pageLength, rowsLen, urlTemplate):
                
   return output
   
-def mainPage(uriPrefix):
+def mainPage(uriPrefix, environ, user):
 
-  output = header(uriPrefix, "justIN: Dashboard")
+  output = header(uriPrefix, environ, user, "justIN: Dashboard")
 
   output += '<h1>justIN Dashboard</h1><table class="main_page_table">'
 
@@ -288,21 +312,281 @@ def mainPage(uriPrefix):
   output += '</table>' + footer()
   return output
 
-def listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength):
+def oidcTokensRequest(cilogonCode):
+  # Send an OIDC request to CILogon to get tokens for a user, using an
+  # authorization code received from CILogon via the user's browser
 
-  output = header(uriPrefix, "justIN: Jobscripts Library")
+  postData = urllib.parse.urlencode(
+       { 'grant_type'    : 'authorization_code',
+         'client_id'     : justin.conf.cilogonClientID,
+         'client_secret' : justin.conf.cilogonSecret,
+         'code'          : cilogonCode,
+         'redirect_uri'  : 'https://justin.dune.hep.ac.uk/login/cilogon/login'
+       })
+
+#  print(postData.encode(), file=sys.stderr)
+
+  httpRequest = urllib.request.Request('https://cilogon.org/oauth2/token',
+                                       data = postData.encode(),
+                                       method = 'POST')
+
+  sslContext = ssl.SSLContext()
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except Exception as e:
+    print('OIDC tokens HTTP request fails: ' + str(e), file=sys.stderr)
+    return None
+  else:
+    if response.status != 200:
+      print('OIDC tokens HTTP response not 200, code=%d' % response.status, 
+          file=sys.stderr)
+      return None
+  
+  try:
+    responseData = response.read().decode('utf-8')
+    responseDict = json.loads(responseData)
+  except Exception as e:
+    print('OIDC tokens request failed loading json: '+str(e), file=sys.stderr)
+    return None
+
+  try:
+    tokensDict = {} 
+    tokensDict['access']  = json.loads(base64.urlsafe_b64decode(
+                     responseDict['access_token'].split('.')[1] + '=='))
+    tokensDict['id']      = json.loads(base64.urlsafe_b64decode(
+                     responseDict['id_token'].split('.')[1] + '=='))
+    tokensDict['refresh'] = responseDict['refresh_token']
+  except Exception as e:
+    print('OIDC tokens parsing fails: '+str(e), file=sys.stderr)
+    return None
+  else:
+    return tokensDict
+
+def cilogonCallback(startResponse, environ):
+
+  (sessionCookie, secretCookie) = getSessionCookies(environ)
+
+  try:
+    row = justin.select('SELECT saved_uri FROM sessions '
+                        'WHERE session="%s" AND secret="%s" AND '
+                        'NOW() < expires_time'
+                        % (sessionCookie, secretCookie), justOne = True)
+
+    savedURI = row['saved_uri']
+  except:
+    sessionCookie = None
+    savedURI = ''
+
+  cilogonCode  = None
+  cilogonState = None
+  rawValues = urllib.parse.parse_qs(environ.get('QUERY_STRING', ''))
+  for i in rawValues:
+    if str(i) == 'code' and justin.stringIsDomain(str(rawValues[i][0])):
+      cilogonCode = str(rawValues[i][0])
+    elif str(i) == 'state':
+      cilogonState = str(rawValues[i][0])
+
+  if not sessionCookie or (sessionCookie != cilogonState):
+    output = errorPage('/dashboard/', None, None,
+                       'Required session cookie not found! '
+                       'Have you got cookies disabled in your web browser?')
+    startResponse('200 OK',
+                  [('Content-type',   'text/html'),
+                   ('Content-length', str(len(output)))
+                  ])
+    return output
+
+  tokensDict = oidcTokensRequest(cilogonCode)
+  if not tokensDict:
+    output = errorPage('/dashboard/', None, None,
+                       'Failed to get your tokens from CILogon')
+    startResponse('200 OK',
+                  [('Content-type',   'text/html'),
+                   ('Content-length', str(len(output)))
+                  ])
+    return output
+
+  if 'wlcg.groups' not in tokensDict['access'] or \
+     '/dune' not in tokensDict['access']['wlcg.groups']:
+    output = errorPage('/dashboard/', None, None,
+                       'You are not registered in the /dune '
+                       'group on CILogon!')
+    startResponse('200 OK',
+                  [('Content-type',   'text/html'),
+                   ('Content-length', str(len(output)))
+                  ])
+    return output
+
+  try:
+    eppn = tokensDict['id']['eppn']
+    if not justin.stringIsUsername(eppn):
+      raise
+
+  except:
+    output = errorPage('/dashboard/', None,
+                       'No eduPersonPrincipalName provided '
+                       'by your identity provider / SSO!')
+    startResponse('200 OK',
+                  [('Content-type',   'text/html'),
+                   ('Content-length', str(len(output)))
+                  ])
+    return output
+
+###### THIS NEEDS TO HANDLE NEW USERS STILL!!!!
+  print('Found eppn ' + str(eppn), file=sys.stderr)
+  try:
+    query = ('UPDATE sessions SET user_id=' 
+                        '(SELECT user_id FROM principal_names '
+                        ' WHERE principal_name="%s") '
+                        'WHERE session="%s" AND secret="%s" AND user_id=0'
+                        % (eppn, sessionCookie, secretCookie))
+    print(query, file=sys.stderr)
+    justin.insertUpdate(query)
+  except Exception as e:
+    print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
+  else:
+    justin.db.conn.commit()
+
+  if not savedURI:
+    savedURI = '/dashboard/'   
+
+  startResponse('302 Moved',
+                [('Location',       savedURI),
+                 ('Content-length', '0')
+                ])
+  return ''
+
+def loginPage(uriPrefix, startResponse, environ):
+
+  # Always create a new session: they are here to log in
+  sessionCookie = str(uuid.uuid4())
+  secretCookie  = str(uuid.uuid4())
+  savedURI      = environ['REQUEST_URI'][:-6] # remove '?login'
+  userAgent     = environ.get('HTTP_USER_AGENT', '')
+  ip            = environ.get('REMOTE_ADDR', '')
+
+  try:
+    justin.insertUpdate('INSERT INTO sessions SET '
+                        'session_type="web",'
+                        'created_time=NOW(),'
+                        'expires_time=DATE_ADD(NOW(),INTERVAL 24 HOUR),'
+                        'session="%s",'
+                        'secret="%s",'
+                        'user_agent="%s",'
+                        'saved_uri="%s",'
+                        'ip="%s"'
+                        % (sessionCookie, secretCookie,
+                           userAgent.replace('\\','\\\\').replace('"','\\"'),
+                           savedURI,
+                           ip))
+    justin.db.conn.commit()
+  except:
+    output = errorPage(uriPrefix, None, None, "Session creation fails")
+    startResponse('200 OK',
+                  [('Content-type',   'text/html'),
+                   ('Content-length', str(len(output)))
+                  ])
+    return output
+
+  output = header(uriPrefix, environ, '', "justIN: Login")
+
+  output += '<h1>justIN login</h1>'
+
+  output += '<form method="GET" action="https://cilogon.org/authorize">\n'
+  output += '<input type="hidden" name="response_type" value="code">\n'
+  output += ('<input type="hidden" name="client_id" value="%s">\n'
+             % justin.conf.cilogonClientID)
+  output += '<input type="hidden" name="redirect_uri" value="https://justin.dune.hep.ac.uk/login/cilogon/login">\n'
+  output += '<input type="hidden" name="scope" value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune">\n'
+  output += '<input type="hidden" name="state" value="%s">\n' % sessionCookie
+  output += '<input type="submit" value="Login">\n'
+  output += '</form>'
+
+  output += footer()
+
+  startResponse('200 OK',
+     [('Content-type',   'text/html'),
+      ('Content-length', str(len(output))),
+      ('Set-Cookie',     'justin_session=%s; Max-Age=86400; Path=/; '
+                         'Secure ; HttpOnly' % sessionCookie),
+      ('Set-Cookie',     'justin_secret=%s; Max-Age=86400; Path=/; '
+                         'Secure ; HttpOnly' % secretCookie)
+     ])
+
+  return output
+
+def getSessionCookies(environ):
+
+  sessionCookie = None
+  secretCookie  = None
+
+  httpCookie = environ.get('HTTP_COOKIE', '') 
+
+  for nameValue in httpCookie.split(';'):
+    if nameValue.strip().startswith('justin_session='):
+      sessionCookie = nameValue.split('=')[1]
+    elif nameValue.strip().startswith('justin_secret='):
+      secretCookie = nameValue.split('=')[1]
+
+  if not sessionCookie or not sessionCookie:
+    return (None, None)
+
+  if not justin.stringIsDomain(sessionCookie) or \
+     not justin.stringIsDomain(secretCookie):
+    return (None, None)
+
+  return (sessionCookie, secretCookie)
+
+def getUser(environ):
+
+  (sessionCookie, secretCookie) = getSessionCookies(environ)
+  if not sessionCookie:
+    return None
+
+  try:
+    query = ('SELECT principal_name,sessions.user_id '
+             'FROM sessions '
+             'LEFT JOIN users '
+             'ON users.user_id=sessions.user_id '
+             'LEFT JOIN principal_names '
+             'ON users.main_pn_id=principal_names.pn_id '
+             'WHERE session="%s" AND secret="%s" AND '
+             'NOW() < expires_time AND sessions.user_id > 0'
+             % (sessionCookie, secretCookie))
+
+    print(query,file=sys.stderr)
+    row = justin.select(query, justOne = True)
+    print(row,file=sys.stderr)
+    
+    userName = row['principal_name']
+    userID   = row['user_id']
+    print(userName,userID,file=sys.stderr)
+  except:
+    return None
+
+  return { 'user_name' : userName, 'user_id' : userID }
+
+def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
+
+  output = header(uriPrefix, environ, user, "justIN: Jobscripts Library")
 
   output += "<h1>Jobscripts Library</h1>"
   
   query = ('SELECT scope_name,jobscripts_library.description,'
-           'authors.username AS authorname,'
-           'jobscripts_users.username AS jobscript_username,'
+           'authors_principals.principal_name AS author_name,'
+           'users_principals.principal_name AS jobscript_user_name,'
            'created_time,jobscript_name '
            'FROM jobscripts_library '
            'LEFT JOIN users AS authors '
            'ON jobscripts_library.author_id=authors.user_id '
+           'LEFT JOIN principal_names AS authors_principals '
+           'ON principal_names.pn_id=authors.main_pn_id '
            'LEFT JOIN users AS jobscripts_users '
            'ON jobscripts_library.user_id=jobscripts_users.user_id '
+           'LEFT JOIN principal_names AS users_principals '
+           'ON principal_names.pn_id=users.main_pn_id '
            'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
            'ORDER BY created_time DESC LIMIT %d,%d' %
            (pageNumber * pageLength, pageLength + 1))
@@ -320,7 +604,7 @@ def listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength):
     if row["scope_name"]:
       prefix = row["scope_name"]
     else:
-      prefix = row["jobscript_username"]
+      prefix = row["jobscript_user_name"]
 
     output += ('<tr><td><a href="%s?method=show-jobscript&jobscript_id=%s:%s">'
                '%s:%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
@@ -329,7 +613,7 @@ def listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength):
                   prefix, row["jobscript_name"], 
                   prefix, row["jobscript_name"], 
                   html.escape(row["description"], quote=True),
-                  row["authorname"],
+                  row["author_name"],
                   row['created_time']
                  )
               )
@@ -342,18 +626,18 @@ def listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength):
   
   return output
 
-def showJobscript(uriPrefix, cgiValues):
+def showJobscript(uriPrefix, environ, user, cgiValues):
 
   try:
     jsid = str(cgiValues["jobscript_id"]).lower()
   except:
-    return errorPage(uriPrefix, "jobscript_id must be given")
+    return errorPage(uriPrefix, environ, user, "jobscript_id must be given")
 
   response = justin.lookupJobscript(jsid)
   if response['error']:
-    return errorPage(uriPrefix, response['error'])
+    return errorPage(uriPrefix, environ, user, response['error'])
 
-  output = header(uriPrefix, "justIN: Jobscript %s" % jsid)
+  output = header(uriPrefix, environ, user, "justIN: Jobscript %s" % jsid)
   output += '<!-- %s -->\n' % str(time.time())
   output += ("<h1>Jobscript %s</h1>\n" % jsid)
 
@@ -374,16 +658,18 @@ def showJobscript(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
+def listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
-  output = header(uriPrefix, "justIN: Requests")
+  output = header(uriPrefix, environ, user, "justIN: Requests")
 
   output += "<h1>Requests</h1>"
   
-  query = ('SELECT request_id,description,username,state,mql,created,submitted,'
-           'started,finished '
+  query = ('SELECT request_id,description,principal_name AS user_name,'
+           'state,mql,created,submitted,started,finished '
            'FROM requests '
            'LEFT JOIN users ON requests.user_id=users.user_id '
+           'LEFT JOIN principal_names '
+           'ON principal_names.pn_id=users.main_pn_id '
            'ORDER BY request_id DESC LIMIT %d,%d' %
            (pageNumber * pageLength, pageLength + 1))
 
@@ -406,7 +692,7 @@ def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
           (uriPrefix,
            row["request_id"], row["request_id"],
            html.escape(row["description"], quote=True),
-           row["username"],
+           row["user_name"],
            row["state"],
            html.escape(row["mql"], quote=True),
            spaceForUnixEpoch(row['created']),
@@ -424,22 +710,24 @@ def listRequests(uriPrefix, cgiValues, pageNumber, pageLength):
   
   return output
 
-def showRequest(uriPrefix, cgiValues):
+def showRequest(uriPrefix, environ, user, cgiValues):
   try:
     requestID = int(cgiValues['request_id'])
   except:
-    return errorPage(uriPrefix, "request_id must be given")
+    return errorPage(uriPrefix, environ, user, "request_id must be given")
   
-  output = header(uriPrefix, "justIN: Request %d" % requestID)
+  output = header(uriPrefix, environ, user, "justIN: Request %d" % requestID)
 
   query = ("SELECT requests.description,requests.state,"
-           "users.username,"
+           "principal_name AS user_name,"
            "requests.created,requests.submitted,requests.started,"
            "requests.checking,requests.finished,mql,"
            "requests.refind_seconds,requests.refind_start_time,"
            "requests.refind_end_time "
            "FROM requests "
            "LEFT JOIN users ON users.user_id=requests.user_id "
+           "LEFT JOIN principal_names "
+           'ON principal_names.pn_id=users.main_pn_id '
            "WHERE request_id=%d "
            "ORDER BY request_id" % requestID)
 
@@ -467,7 +755,7 @@ def showRequest(uriPrefix, cgiValues):
               )
       
   output += ('<tr><td>Created by</td><td>%s</td></tr>' 
-             % requestRow['username'])
+             % requestRow['user_name'])
 
   output += ('<tr><td>Created</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(requestRow['created']))
@@ -569,18 +857,18 @@ def showRequest(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def showStage(uriPrefix, cgiValues):
+def showStage(uriPrefix, environ, user, cgiValues):
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage(uriPrefix, "request_id must be given")
+    return errorPage(uriPrefix, environ, user, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(uriPrefix, "stage_id must be given")
+    return errorPage(uriPrefix, environ, user, "stage_id must be given")
   
-  output = header(uriPrefix, "justIN: Request %d, Stage %d" % (requestID, stageID))
+  output = header(uriPrefix, environ, user, "justIN: Request %d, Stage %d" % (requestID, stageID))
   output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
@@ -594,7 +882,7 @@ def showStage(uriPrefix, cgiValues):
            "jobscript_name,"
            "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
            "stages_scopes.scope_name AS stages_scope_name,"
-           "username "
+           "principal_name AS user_name "
            "FROM stages "
            "LEFT JOIN scopes AS stages_scopes "
            "ON stages.scope_id=stages_scopes.scope_id "
@@ -606,6 +894,8 @@ def showStage(uriPrefix, cgiValues):
            "LEFT JOIN scopes AS jobscripts_scopes "
            "ON jobscripts_scopes.scope_id=jobscripts_library.scope_id "
            "LEFT JOIN users ON users.user_id=jobscripts_library.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 
@@ -1019,13 +1309,13 @@ def showStage(uriPrefix, cgiValues):
                % (uriPrefix, 
                   stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
                   stageRow['jobscripts_scope_name'], stageRow['jobscript_name']))
-  elif stageRow['username'] and stageRow['jobscript_name']:
+  elif stageRow['user_name'] and stageRow['jobscript_name']:
     output += ('<p><i>Copied from '
                '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
                ' when the stage was created.</i></p>'
                % (uriPrefix, 
-                  stageRow['username'], stageRow['jobscript_name'],
-                  stageRow['username'], stageRow['jobscript_name']))
+                  stageRow['user_name'], stageRow['jobscript_name'],
+                  stageRow['user_name'], stageRow['jobscript_name']))
 
   output += ('<pre style="white-space: pre-wrap;">') 
 
@@ -1038,17 +1328,17 @@ def showStage(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
+def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage(uriPrefix, "request_id must be given")
+    return errorPage(uriPrefix, environ, user, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(uriPrefix, "stage_id must be given")
+    return errorPage(uriPrefix, environ, user, "stage_id must be given")
 
   stateFilter = ''
   stateText = ''
@@ -1064,7 +1354,7 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
     
-  output = header(uriPrefix, "justIN: Files for Request %d, Stage %d%s" 
+  output = header(uriPrefix, environ, user, "justIN: Files for Request %d, Stage %d%s" 
                   % (requestID, stageID, stateText))
 
   output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
@@ -1137,27 +1427,27 @@ def listFiles(uriPrefix, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def showFile(uriPrefix, cgiValues):
+def showFile(uriPrefix, environ, user, cgiValues):
 
   try:
     fileDID = cgiValues["file_did"]
   except:
-    return errorPage(uriPrefix, "file_did must be given")
+    return errorPage(uriPrefix, environ, user, "file_did must be given")
 
   if '"' in fileDID:
-    return errorPage(uriPrefix, "Bad format of file_did")
+    return errorPage(uriPrefix, environ, user, "Bad format of file_did")
       
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage(uriPrefix, "request_id must be given")
+    return errorPage(uriPrefix, environ, user, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(uriPrefix, "stage_id must be given")
+    return errorPage(uriPrefix, environ, user, "stage_id must be given")
 
-  output = header(uriPrefix, "justIN: File %s" 
+  output = header(uriPrefix, environ, user, "justIN: File %s" 
                   % html.escape(fileDID, quote=True))
 
   output += ("<h1>File %s</h1>"
@@ -1174,7 +1464,7 @@ def showFile(uriPrefix, cgiValues):
     fileID = int(fileRow["file_id"])
 
   except Exception as e:
-    return errorPage(uriPrefix, "invalid file_id (%d,%d,%s): %s\n%s" 
+    return errorPage(uriPrefix, environ, user, "invalid file_id (%d,%d,%s): %s\n%s" 
                      % (requestID, stageID, fileDID, str(e), query))
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
@@ -1257,18 +1547,20 @@ def showFile(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def showJob(uriPrefix, cgiValues):
+def showJob(uriPrefix, environ, user, cgiValues):
   try:
     jobsubID = cgiValues["jobsub_id"]
   except:
-    return errorPage(uriPrefix, "jobsub_id must be given")
+    return errorPage(uriPrefix, environ, user, "jobsub_id must be given")
       
-  output = header(uriPrefix, "justIN: Jobsub ID %s" % jobsubID)
+  output = header(uriPrefix, environ, user, "justIN: Jobsub ID %s" % jobsubID)
 
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
-  query = ("SELECT jobs.justin_job_id,jobs.request_id,jobs.stage_id,sites.site_name,"
-           "jobs.hostname,jobs.cpuinfo,jobs.os_release,username,"
+  query = ("SELECT jobs.justin_job_id,jobs.request_id,jobs.stage_id,"
+           "sites.site_name,"
+           "jobs.hostname,jobs.cpuinfo,jobs.os_release,"
+           "principal_name AS user_name,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
            "jobs.allocator_name,jobs.allocation_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
@@ -1280,6 +1572,8 @@ def showJob(uriPrefix, cgiValues):
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
@@ -1287,7 +1581,7 @@ def showJob(uriPrefix, cgiValues):
   jobRow = justin.db.select(query, justOne = True)
 
   if not jobRow:
-    return errorPage(uriPrefix, "Job not found in database")
+    return errorPage(uriPrefix, environ, user, "Job not found in database")
 
   query = ("SELECT file_did FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
@@ -1308,11 +1602,7 @@ def showJob(uriPrefix, cgiValues):
   outputFilesRows = justin.db.cur.fetchall()
 
   output += '<table>'
-  
-#  output += ('<tr><td>Jobsub state</td>'
-#        '<td>%s</td></tr>'
-#        % jobRow["jobsub_state"])
-      
+
   output += ('<tr><td>Allocation state</td>'
              '<td>%s</td></tr>'
              % jobRow["allocation_state"])
@@ -1393,8 +1683,8 @@ def showJob(uriPrefix, cgiValues):
 
   output += '<tr><td>Request by</td>'
   
-  if jobRow['username']:
-    output += '<td>%s</td></tr>' % jobRow['username']
+  if jobRow['user_name']:
+    output += '<td>%s</td></tr>' % jobRow['user_name']
   else:
     output += '<td>&nbsp;</td></tr>'
 
@@ -1484,7 +1774,7 @@ def showJob(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
+def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
       
   urlTemplate   = '%s?method=list-jobs&page_number=%d&page_length=%d'
   filters       = []
@@ -1540,7 +1830,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
   else:
     titleSuffix = ''
     
-  output = header(uriPrefix, "justIN: Jobs" + titleSuffix)
+  output = header(uriPrefix, environ, user, "justIN: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
   
@@ -1567,10 +1857,13 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
   
   query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
-           "jobs.finished_time,jobs.jobsub_state,users.username,jobs.for_awt "
+           "jobs.finished_time,jobs.jobsub_state,"
+           "principal_names.principal_name AS user_name,jobs.for_awt "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "%s "
            "ORDER BY jobs.justin_job_id DESC LIMIT %d,%d" %
@@ -1596,13 +1889,11 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
         '<th>Finished</th>'
         '</tr>')
   
-#        '<th>Jobsub State</th>'
-
   for jobRow in jobRows[:pageLength]:
-    if jobRow['username']:
-      usernameStr = jobRow["username"]
+    if jobRow['user_name']:
+      userNameStr = jobRow["user_name"]
     else:
-      usernameStr = ' '
+      userNameStr = ' '
 
     if jobRow['for_awt']:
       requestStageStr = '<td colspan=2>Workflow Testing</td>'
@@ -1647,7 +1938,7 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
              jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
              jobRow['allocation_state'],
              siteNameStr,
-             usernameStr,
+             userNameStr,
              requestStageStr,
              spaceForUnixEpoch(jobRow["submitted_time"]),
              spaceForUnixEpoch(jobRow["allocation_time"]),
@@ -1660,9 +1951,9 @@ def listJobs(uriPrefix, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def listSites(uriPrefix, cgiValues):
+def listSites(uriPrefix, environ, user, cgiValues):
       
-  output = header(uriPrefix, "justIN: Sites")
+  output = header(uriPrefix, environ, user, "justIN: Sites")
 
   output += ("<h1>Sites</h1>")
   
@@ -1723,9 +2014,9 @@ def listSites(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def listStorages(uriPrefix, cgiValues):
+def listStorages(uriPrefix, environ, user, cgiValues):
       
-  output = header(uriPrefix, "justIN: Storages")
+  output = header(uriPrefix, environ, user, "justIN: Storages")
 
   output += ("<h1>Storages</h1>")
   
@@ -1779,17 +2070,17 @@ def listStorages(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def showSite(uriPrefix, cgiValues):
+def showSite(uriPrefix, environ, user, cgiValues):
       
   try:
     siteName = cgiValues["site_name"]
   except:
-    return errorPage(uriPrefix, "site_name must be given")
+    return errorPage(uriPrefix, environ, user, "site_name must be given")
     
   if not justin.db.stringIsSite(siteName):
-    return errorPage(uriPrefix, "Invalid site name!")
+    return errorPage(uriPrefix, environ, user, "Invalid site name!")
         
-  output = header(uriPrefix, "justIN: Site " + siteName)
+  output = header(uriPrefix, environ, user, "justIN: Site " + siteName)
 
   output += ("<h1>Site %s</h1>" % siteName)
   
@@ -1913,17 +2204,17 @@ def showSite(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def showStorage(uriPrefix, cgiValues):
+def showStorage(uriPrefix, environ, user, cgiValues):
       
   try:
     rseName = cgiValues["rse_name"]
   except:
-    return errorPage(uriPrefix, "rse_name must be given")
+    return errorPage(uriPrefix, environ, user, "rse_name must be given")
     
   if not justin.db.stringIsSite(rseName):
-    return errorPage(uriPrefix, "Invalid RSE name!")
+    return errorPage(uriPrefix, environ, user, "Invalid RSE name!")
         
-  output = header(uriPrefix, "justIN: Storage " + rseName)
+  output = header(uriPrefix, environ, user, "justIN: Storage " + rseName)
 
   output += ("<h1>Storage %s</h1>" % rseName)
   
@@ -2016,7 +2307,7 @@ def showStorage(uriPrefix, cgiValues):
   output += footer()
   return output
 
-def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
+def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
   whereList = []
   queryList = ''
@@ -2035,7 +2326,7 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
   else:
     whereString = ''
     
-  output = header(uriPrefix, "justIN: Events")
+  output = header(uriPrefix, environ, user, "justIN: Events")
 
   output += ("<h1>Events</h1>")
   
@@ -2135,9 +2426,9 @@ def listEvents(uriPrefix, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def awtResults(uriPrefix, cgiValues):
+def awtResults(uriPrefix, environ, user, cgiValues):
               
-  output = header(uriPrefix, "justIN: Automated Workflow Tests")
+  output = header(uriPrefix, environ, user, "justIN: Automated Workflow Tests")
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
@@ -2325,15 +2616,18 @@ def application(environ, startResponse):
 
   # Avoid leftovers from partial, failed transactions in this instance
   justin.db.conn.rollback()
+  
+  if environ['REQUEST_URI'].startswith('/login/cilogon/login?'):
+    output = cilogonCallback(startResponse, environ)
+    return [output.encode('UTF-8')]
+
+  user = getUser(environ)
 
   try:
     uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'
   except:
     uriPrefix = '/dashboard/'
 
-  method     = None 
-  pageNumber = 0
-  pageLength = 30
   cgiValues  = { }
   
   try:
@@ -2342,69 +2636,87 @@ def application(environ, startResponse):
       cgiValues[str(i)] = str(rawValues[i][0])
   except:
     pass # Use defaults: produces a method error page at the end
-  else:
-    try:
-      method = cgiValues['method']
-    except:
-      pass # Use default
 
-    try:
-      pageNumber = int(cgiValues['page_number'])
-    except:
-      pass # Use default
+# NOT CURRENTLY USED - WILL BE NEEDED FOR UPLOADS
+#  if environ['REQUEST_METHOD'] == 'POST':
+#    try:
+#      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+#      inputString = environ['wsgi.input'].read(inputLength)
+#      rawValues = urllib.parse.parse_qs(inputString)
+#      for i in rawValues:
+#        cgiValues[i.decode()] = rawValues[i][0].decode()
+#    except Exception as e:
+#      return httpError(startResponse,
+#                       '400 Bad Request', 
+#                       'Failed to read and parse post data')
 
-    try:
-      pageLength = int(cgiValues['page_length'])
-    except:
-      pass # Use default
+  try:
+    method = cgiValues['method']
+  except:
+    method = None
 
-  if method is None:
-    output = mainPage(uriPrefix)
+  try:
+    pageNumber = int(cgiValues['page_number'])
+  except:
+    pageNumber = 0
+
+  try:
+    pageLength = int(cgiValues['page_length'])
+  except:
+    pageLength = 30
+
+  if environ['REQUEST_URI'].endswith('?login'):
+    # loginPage does startResponse() itself so it can create session cookies
+    output = loginPage(uriPrefix, startResponse, environ)
+    return [output.encode('UTF-8')]
+
+  elif method is None:
+    output = mainPage(uriPrefix, environ, user)
   
   elif method == "list-jobscripts":
-    output = listJobscripts(uriPrefix, cgiValues, pageNumber, pageLength)
+    output = listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-jobscript":
-    output = showJobscript(uriPrefix, cgiValues)
+    output = showJobscript(uriPrefix, environ, user, cgiValues)
 
   elif method == "list-requests":
-    output = listRequests(uriPrefix, cgiValues, pageNumber, pageLength)
+    output = listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-request":
-    output = showRequest(uriPrefix, cgiValues)
+    output = showRequest(uriPrefix, environ, user, cgiValues)
 
   elif method == "show-stage":
-    output = showStage(uriPrefix, cgiValues)
+    output = showStage(uriPrefix, environ, user, cgiValues)
 
   elif method == "list-files":
-    output = listFiles(uriPrefix, cgiValues, pageNumber, pageLength)
+    output = listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-file":
-    output = showFile(uriPrefix, cgiValues)
+    output = showFile(uriPrefix, environ, user, cgiValues)
 
   elif method == "show-job":
-    output = showJob(uriPrefix, cgiValues)
+    output = showJob(uriPrefix, environ, user, cgiValues)
 
   elif method == "list-jobs":
-    output = listJobs(uriPrefix, cgiValues, pageNumber, pageLength)
+    output = listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-sites":
-    output = listSites(uriPrefix, cgiValues)
+    output = listSites(uriPrefix, environ, user, cgiValues)
 
   elif method == "list-storages":
-    output = listStorages(uriPrefix, cgiValues)
+    output = listStorages(uriPrefix, environ, user, cgiValues)
 
   elif method == "show-site":
-    output = showSite(uriPrefix, cgiValues)
+    output = showSite(uriPrefix, environ, user, cgiValues)
 
   elif method == "show-storage":
-    output = showStorage(uriPrefix, cgiValues)
+    output = showStorage(uriPrefix, environ, user, cgiValues)
 
   elif method == "list-events":
-    output = listEvents(uriPrefix, cgiValues, pageNumber, pageLength)
+    output = listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "awt-results":
-    output = awtResults(uriPrefix, cgiValues)
+    output = awtResults(uriPrefix, environ, user, cgiValues)
   
   else:
     output = 'Method not recognised: %s' % str(method)

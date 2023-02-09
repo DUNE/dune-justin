@@ -89,14 +89,19 @@ def lookupJobscript(jsid):
       return { 'error': 'Invalid characters in user name in JSID' }
 
     query = ('SELECT jobscripts_library.description,'
-             'authors.username AS authorname,'
+             'authors_principals.principal_name AS authorname,'
              'created_time,jobscript,jobscript_id '
              'FROM jobscripts_library '
              'LEFT JOIN users AS authors '
              'ON jobscripts_library.author_id=authors.user_id '
+             'LEFT JOIN principal_names AS authors_principals '
+             'ON authors.main_pn_id=principal_names.pn_id '
              'LEFT JOIN users AS jobscripts_users '
              'ON jobscripts_library.user_id=jobscripts_users.user_id '
-             'WHERE jobscripts_users.username="%s" AND jobscript_name="%s"'
+             'LEFT JOIN principal_names AS users_principals '
+             'ON jobscripts_users.main_pn_id=principal_names.pn_id '
+             'WHERE users_principals.principal_name="%s" '
+             'AND jobscript_name="%s"'
              % (prefix, name))
   else:
     # JSID is SCOPE:NAME
@@ -105,11 +110,13 @@ def lookupJobscript(jsid):
       return { 'error': 'Invalid characters in scope name in JSID' }
 
     query = ('SELECT jobscripts_library.description,'
-             'authors.username AS authorname,'
+             'authors_principals.principal_name AS authorname,'
              'created_time,jobscript,jobscript_id '
              'FROM jobscripts_library '
              'LEFT JOIN users AS authors '
              'ON jobscripts_library.author_id=authors.user_id '
+             'LEFT JOIN principal_names AS authors_principals '
+             'ON authors.main_pn_id=principal_names.pn_id '
              'LEFT JOIN scopes '
              'ON jobscripts_library.scope_id=scopes.scope_id '
              'WHERE scope_name="%s" AND jobscript_name="%s"'

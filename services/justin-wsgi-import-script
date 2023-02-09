@@ -41,3 +41,4 @@ except Exception as e:
 
 else:
   print('Connected to %s database' % justin.conf.mysqlDbName, file=sys.stderr)
+

@@ -26,8 +26,12 @@ mysqlPassword = None
 mysqlHostname = None
 mysqlDbName   = None
 
+cilogonClientID = None
+cilogonSecret   = None
+
 def readConf():
-  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName
+  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
+         cilogonClientID, cilogonSecret
 
   parser = configparser.RawConfigParser()
 
@@ -44,16 +48,7 @@ def readConf():
   # Standalone configuration file, read after justin.d in case of manual overrides
   parser.read('/etc/justin.conf')
 
-  # Options for the [shared] section
-
-#  try:
-#    f = open('/var/lib/justin/VERSION', 'r')
-#    justinVersion = f.readline().split('=',1)[1].strip()
-#    f.close()
-#  except:
-#    justinVersion = '00.00.00'
-
-  # Options for the [database section]
+  # Options for the [database] section
 
   try:
     mysqlUsername = parser.get('database','username').strip()
@@ -75,4 +70,14 @@ def readConf():
   except:
     mysqlDbName = 'justindb'
 
-    
+  # Options for the [cilogon] section
+
+  try:
+    cilogonClientID = parser.get('cilogon','client_id').strip()
+  except:
+    cilogonClientID = None
+
+  try:
+    cilogonSecret = parser.get('cilogon','secret').strip()
+  except:
+    cilogonSecret = None

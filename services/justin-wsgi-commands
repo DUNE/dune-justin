@@ -1118,7 +1118,7 @@ def createStageCmd(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-def createJobscriptCmd(startResponse, jsonDict, userID, username):
+def createJobscriptCmd(startResponse, jsonDict, userID, user_name):
   # Add a named jobscript to the jobscripts library NOT to a stage
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
@@ -1170,7 +1170,7 @@ def createJobscriptCmd(startResponse, jsonDict, userID, username):
     # No scope, so set user_id instead
     scopeID = 0
     jobscriptUserID = userID
-    jobscriptIdentifier = username + ':' + name
+    jobscriptIdentifier = user_name + ':' + name
 
   try:
     # Check if jobscript with this user/scope and name exists already
@@ -1318,18 +1318,20 @@ def getUser(environ):
   clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
   try:
-    row = justin.db.select('SELECT x509.user_id,username FROM x509 '
-                         'LEFT JOIN users ON users.user_id=x509.user_id '
-                         'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' % 
-                         clientDN.replace('\\','\\\\').replace('"','\\"'),
-                         justOne = True)
+    row = justin.db.select('SELECT x509.user_id,principal_name FROM x509 '
+           'LEFT JOIN users ON users.user_id=x509.user_id '
+           'LEFT JOIN principal_names '
+           'ON principal_names.pn_id=users.main_pn_id '
+           'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' 
+           % clientDN.replace('\\','\\\\').replace('"','\\"'),
+           justOne = True)
   
     userID   = int(row['user_id'])
-    username = row['username']
+    userName = row['principal_name']
   except:
     return { 'error': 'Forbidden - acceptable identity not provided' }
 
-  return { 'user_id': userID, 'username': username, 'error': None }
+  return { 'user_id': userID, 'user_name': userName, 'error': None }
 
 #
 # Entry point from mod_wsgi
@@ -1435,7 +1437,7 @@ def application(environ, startResponse):
 
   if jsonDict['command'] == 'create-jobscript':
     return createJobscriptCmd(startResponse, jsonDict, 
-                              userDict['user_id'], userDict['username'])
+                              userDict['user_id'], userDict['user_name'])
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)

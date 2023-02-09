@@ -492,15 +492,15 @@ def updateScopes():
 
 def oneCycle():
 
-  # Is it time to update users?
-  try:
-    lastUpdateUsers = os.stat('/var/run/justin/last-update-users').st_mtime
-  except:
-    lastUpdateUsers = 0
-
-  if lastUpdateUsers + updateUsersInterval < time.time():
-    pathlib.Path('/var/run/justin/last-update-users').touch(exist_ok=True)
-    updateUsers()
+#  # Is it time to update users?
+#  try:
+#    lastUpdateUsers = os.stat('/var/run/justin/last-update-users').st_mtime
+#  except:
+#    lastUpdateUsers = 0
+#
+#  if lastUpdateUsers + updateUsersInterval < time.time():
+#    pathlib.Path('/var/run/justin/last-update-users').touch(exist_ok=True)
+#    updateUsers()
 
   # Is it time to update storages from Rucio?
   try:
