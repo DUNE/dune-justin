@@ -1,0 +1,55 @@
+version: '3'
+
+networks:
+  internal:
+volumes:
+  mysql-db:
+
+services:
+  apache:
+    # image: "httpd:2.4"
+    image: centos/httpd-24-centos7
+    # build:
+    #   context: .
+    #   dockerfile: httpd/Dockerfile
+    expose:
+      - 80
+    ports:
+      - 80:80
+    volumes:
+      # - ./httpd/conf/httpd.conf:/etc/httpd/conf/httpd.conf
+      - ./httpd/conf.d/wfs.conf:/etc/httpd/conf.d/wfs.conf
+      - ./dashboard/dashboard-cgi:/var/www/cgi-bin/dashboard-cgi
+      - ./services/wfa-cgi:/var/www/cgi-bin/wfa-cgi
+      - ./services/wfdb-cgi:/var/www/cgi-bin/wfdb-cgi
+
+  # letsencrypt:
+  #   <<: *apache
+  #   build:
+  #     context: .
+  #     dockerfile: letsencrypt/Dockerfile
+  # letsencrypt:
+  #   image: "linuxserver/swag:latest"
+
+  db:
+    image: "mariadb:10.8"
+    command: --max-allowed-packet=64MB
+    restart: always
+    volumes:
+      - mysql-db:/var/lib/mysql
+      - ./database/wfdb-create-tables.sql:/docker-entrypoint-initdb.d/wfdb-create-tables.sql
+    environment:
+      - MYSQL_ROOT_PASSWORD=PAsSWoRd
+      - MYSQL_PASSWORD=PAsSWoRd
+      - MYSQL_DATABASE=wfdb
+      - MYSQL_USER=wfs
+    # env_file:
+    #   - .env
+    expose:
+      - 3306
+    ports:
+      - "3306:3306"
+    networks:
+      internal:
+        aliases:
+          - mariadb
