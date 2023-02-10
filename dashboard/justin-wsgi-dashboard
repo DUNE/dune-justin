@@ -27,6 +27,7 @@ import html
 import json
 import uuid
 import base64
+import pprint
 import urllib
 import urllib.parse
 import urllib.request
@@ -87,7 +88,7 @@ def header(uriPrefix, environ, user, title):
 
   if user is None:
     loginStr = (' &nbsp; &nbsp; &nbsp; '
-                '<a href="%s?login" '
+                '<a href="%s&login" '
                 'style="background: #E1703D; border-radius: 5px; padding: 5px">'
                 'Login</a>'
                 % environ['REQUEST_URI'])
@@ -101,6 +102,12 @@ def header(uriPrefix, environ, user, title):
                 'style="background: #E1703D; border-radius: 5px; padding: 5px">'
                 '%s</a>'
                 % user['user_name'])
+
+#  if width:
+#    widthStr = 'width: %dpx; margin: auto; ' % width
+#  else:
+#    widthStr = ''
+  widthStr = ''
 
   return ("""<html><head><title>%s</title>
 <link rel="icon" href="/favicon.png">
@@ -132,10 +139,8 @@ a {
 #top_strip a { color: #FFFFFF; text-decoration: none; }
  
 #main_box {
+  %s
   padding: 10px;
-  display: flex;
-  align-items: center;
-  flex-direction: column;
   overflow-x: auto;
   background-color: #FFFFFF;
 }
@@ -166,7 +171,11 @@ table { border-collapse: collapse; border: medium solid #87ADD1; }
 tr { text-align: left }
 td,th { border: thin solid #87ADD1; padding: 0.75ex }
 
-.main_page_table table { border: 20px solid white; 
+.center { margin-left: auto; margin-right: auto; }
+
+.main_page_table table { margin-left: auto; 
+                         margin-right: auto;
+                         border: 20px solid white; 
                          border-collapse: separate;
                          padding: 10px; 
                        }
@@ -199,8 +208,10 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
 <a href="https://dune.github.io/dune-justin/">Docs</a>%s
 </div>
-<div id="main_box"><div>
+<div id="main_box">
+<Xdiv style="margin-left:auto; margin-right:auto">
 """ % (title, 
+       widthStr,
        uriPrefix,
        uriPrefix,
        uriPrefix,
@@ -210,7 +221,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
        loginStr))
 
 def footer():
-  return ('</div></div>'
+  return ('</Xdiv></div>'
           '<div id="bottomstrip">justIN time now: %s</div>\n</body></html>' 
           % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
@@ -219,6 +230,12 @@ def errorPage(uriPrefix, environ, user, message):
   output += "<h1>Error</h1>\n<p>%s</p>" % html.escape(message, quote=True)
   output += footer()
   return output
+
+def startResponseOK(startResponse, output):
+  startResponse('200 OK',
+                [('Content-type',   'text/html'),
+                 ('Content-length', str(len(output)))
+                ])
 
 def spaceForUnixEpoch(s):
   if str(s) == justin.db.unixEpoch:
@@ -257,7 +274,7 @@ def mainPage(uriPrefix, environ, user):
 
   output = header(uriPrefix, environ, user, "justIN: Dashboard")
 
-  output += '<h1>justIN Dashboard</h1><table class="main_page_table">'
+  output += '<h1 style="text-align: center">justIN Dashboard</h1><table class="center main_page_table">'
 
   cells = [
    { 'startRow'  : True,
@@ -392,70 +409,68 @@ def cilogonCallback(startResponse, environ):
     output = errorPage('/dashboard/', None, None,
                        'Required session cookie not found! '
                        'Have you got cookies disabled in your web browser?')
-    startResponse('200 OK',
-                  [('Content-type',   'text/html'),
-                   ('Content-length', str(len(output)))
-                  ])
+    startResponseOK(startResponse, output)
     return output
 
   tokensDict = oidcTokensRequest(cilogonCode)
   if not tokensDict:
     output = errorPage('/dashboard/', None, None,
                        'Failed to get your tokens from CILogon')
-    startResponse('200 OK',
-                  [('Content-type',   'text/html'),
-                   ('Content-length', str(len(output)))
-                  ])
+    startResponseOK(startResponse, output)
     return output
+
+  pprint.pprint(tokensDict, stream = sys.stderr)
 
   if 'wlcg.groups' not in tokensDict['access'] or \
      '/dune' not in tokensDict['access']['wlcg.groups']:
     output = errorPage('/dashboard/', None, None,
-                       'You are not registered in the /dune '
-                       'group on CILogon!')
-    startResponse('200 OK',
-                  [('Content-type',   'text/html'),
-                   ('Content-length', str(len(output)))
-                  ])
+                       'You are not registered in the /dune group on CILogon!')
+    startResponseOK(startResponse, output)
     return output
 
   try:
     eppn = tokensDict['id']['eppn']
     if not justin.stringIsUsername(eppn):
       raise
-
   except:
     output = errorPage('/dashboard/', None,
                        'No eduPersonPrincipalName provided '
                        'by your identity provider / SSO!')
-    startResponse('200 OK',
-                  [('Content-type',   'text/html'),
-                   ('Content-length', str(len(output)))
-                  ])
+    startResponseOK(startResponse, output)
     return output
 
-###### THIS NEEDS TO HANDLE NEW USERS STILL!!!!
-  print('Found eppn ' + str(eppn), file=sys.stderr)
+  # We have all the info from the tokens and have checked it, so now
+  # associate the session with the corresponding user (and create if needed)
+
   try:
-    query = ('UPDATE sessions SET user_id=' 
-                        '(SELECT user_id FROM principal_names '
-                        ' WHERE principal_name="%s") '
-                        'WHERE session="%s" AND secret="%s" AND user_id=0'
-                        % (eppn, sessionCookie, secretCookie))
-    print(query, file=sys.stderr)
-    justin.insertUpdate(query)
-  except Exception as e:
-    print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
-  else:
-    justin.db.conn.commit()
+    row = justin.select('SELECT user_id FROM principal_names '
+                        'WHERE principal_name="%s"' % eppn, justOne = True)
+    userID = int(row['user_id'])
+  except:
+    userID = None
+
+  if not userID:
+    # The user is ok but not in justIN's database yet - so try to add them
+    userID = createUser(eppn)
+
+  if userID:
+    try:
+      query = ('UPDATE sessions SET user_id=%d '
+               'WHERE session="%s" AND secret="%s" AND user_id=0'
+               % (userID, sessionCookie, secretCookie))
+      justin.insertUpdate(query)
+    except Exception as e:
+      print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
+    else:
+      # This is where the created user gets committed too
+      justin.db.conn.commit()
 
   if not savedURI:
     savedURI = '/dashboard/'   
 
-  startResponse('302 Moved',
-                [('Location',       savedURI),
-                 ('Content-length', '0')
-                ])
+  startResponse('302 Moved', [('Location',       savedURI),
+                              ('Content-length', '0')
+                             ])
   return ''
 
 def loginPage(uriPrefix, startResponse, environ):
@@ -463,7 +478,8 @@ def loginPage(uriPrefix, startResponse, environ):
   # Always create a new session: they are here to log in
   sessionCookie = str(uuid.uuid4())
   secretCookie  = str(uuid.uuid4())
-  savedURI      = environ['REQUEST_URI'][:-6] # remove '?login'
+  formKey       = str(uuid.uuid4())
+  savedURI      = environ['REQUEST_URI'][:-6] # remove '&login'
   userAgent     = environ.get('HTTP_USER_AGENT', '')
   ip            = environ.get('REMOTE_ADDR', '')
 
@@ -474,36 +490,62 @@ def loginPage(uriPrefix, startResponse, environ):
                         'expires_time=DATE_ADD(NOW(),INTERVAL 24 HOUR),'
                         'session="%s",'
                         'secret="%s",'
+                        'form_key="%s",'
                         'user_agent="%s",'
                         'saved_uri="%s",'
                         'ip="%s"'
-                        % (sessionCookie, secretCookie,
+                        % (sessionCookie, secretCookie, formKey,
                            userAgent.replace('\\','\\\\').replace('"','\\"'),
                            savedURI,
                            ip))
     justin.db.conn.commit()
   except:
     output = errorPage(uriPrefix, None, None, "Session creation fails")
-    startResponse('200 OK',
-                  [('Content-type',   'text/html'),
-                   ('Content-length', str(len(output)))
-                  ])
+    startResponseOK(startResponse, output)
     return output
 
   output = header(uriPrefix, environ, '', "justIN: Login")
 
-  output += '<h1>justIN login</h1>'
+  output += '<h1 style="text-align: center">justIN login</h1>'
 
-  output += '<form method="GET" action="https://cilogon.org/authorize">\n'
-  output += '<input type="hidden" name="response_type" value="code">\n'
+  output += '<table style="border: 0"><tr>'
+  output += '<td style="border: 0"><img src="/cilogon-login.png" width="300"></td>'
+
+  output += \
+'''<td style="border: 0">You can use the button below to login in the 
+justIN dashboard. 
+Your web browser will be directed to the CILogon website (screenshot to
+the left) and asked to select an identity provider. Currently only the
+Fermilab SSO is enabled for DUNE. The Log On button will then take you
+to Fermilab where you can authenticate with your Services username and 
+password. (Screenshot to right.) 
+Once you have successfully authenticated you will be directed
+back to the justIN dashboard, with your Fermilab eduPersonPrincipalName
+now displayed on the top right of each page. justIN uses this name as 
+your user name.
+
+'''
+
+  output += '<p><form style="text-align: center" method="GET" action="https://cilogon.org/authorize">\n'
   output += ('<input type="hidden" name="client_id" value="%s">\n'
              % justin.conf.cilogonClientID)
-  output += '<input type="hidden" name="redirect_uri" value="https://justin.dune.hep.ac.uk/login/cilogon/login">\n'
-  output += '<input type="hidden" name="scope" value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune">\n'
   output += '<input type="hidden" name="state" value="%s">\n' % sessionCookie
-  output += '<input type="submit" value="Login">\n'
-  output += '</form>'
+  output += '<input type="hidden" name="response_type" value="code">\n'
 
+  output += '''
+<input type="hidden" name="redirect_uri" 
+ value="https://justin.dune.hep.ac.uk/login/cilogon/login">
+<input type="hidden" name="scope" 
+ value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune">
+<button type="submit" 
+ style="background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer">Login</button>
+</form></p>'''
+
+  output += '</td>'
+
+  output += '<td style="border: 0"><img src="/fermilab-login.png" width="300"></td>'
+
+  output += '<tr></table>'
   output += footer()
 
   startResponse('200 OK',
@@ -546,7 +588,7 @@ def getUser(environ):
     return None
 
   try:
-    query = ('SELECT principal_name,sessions.user_id '
+    query = ('SELECT principal_name,sessions.user_id,form_key '
              'FROM sessions '
              'LEFT JOIN users '
              'ON users.user_id=sessions.user_id '
@@ -562,11 +604,29 @@ def getUser(environ):
     
     userName = row['principal_name']
     userID   = row['user_id']
+    formKey  = row['form_key']
     print(userName,userID,file=sys.stderr)
   except:
     return None
 
-  return { 'user_name' : userName, 'user_id' : userID }
+  return { 'user_name' : userName, 'user_id' : userID, 'form_key' : formKey }
+
+def createUser(principalName):
+  
+  try:
+    userID = justin.insertUpdate('INSERT INTO users SET generic_jobs=FALSE')
+
+    pnID = justin.insertUpdate('INSERT INTO principal_names SET '
+                               'principal_name="%s",user_id=%d'
+                               % (principalName, userID))
+
+    justin.insertUpdate('UPDATE users SET main_pn_id=%d WHERE user_id=%d'
+                        % (pnID, userID))
+  except Exception as e:
+    print('createUser() fails with: ' + str(e), file=sys.stderr)
+    return None
+  else:
+    return userID
 
 def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
@@ -582,11 +642,11 @@ def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
            'LEFT JOIN users AS authors '
            'ON jobscripts_library.author_id=authors.user_id '
            'LEFT JOIN principal_names AS authors_principals '
-           'ON principal_names.pn_id=authors.main_pn_id '
+           'ON authors_principals.pn_id=authors.main_pn_id '
            'LEFT JOIN users AS jobscripts_users '
            'ON jobscripts_library.user_id=jobscripts_users.user_id '
            'LEFT JOIN principal_names AS users_principals '
-           'ON principal_names.pn_id=users.main_pn_id '
+           'ON users_principals.pn_id=jobscripts_users.main_pn_id '
            'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
            'ORDER BY created_time DESC LIMIT %d,%d' %
            (pageNumber * pageLength, pageLength + 1))
@@ -2028,7 +2088,7 @@ def listStorages(uriPrefix, environ, user, cgiValues):
   justin.db.cur.execute(query)
   storageRows = justin.db.cur.fetchall()
 
-  output += ('<table>')
+  output += ('<table class="center">')
   
   output += ('<tr>'
         '<th>RSE name</th>'
@@ -2490,7 +2550,7 @@ def awtResults(uriPrefix, environ, user, cgiValues):
     sitesStoragesMatrix[results['site_name']][results['rse_name']] = \
       [results['read_result'], results['write_result'], results['jobsub_id']]
 
-  output += ('<table>')
+  output += ('<table class="center">')
 
   # List of storages
   output += ('<tr><td> </td>'
@@ -2628,6 +2688,11 @@ def application(environ, startResponse):
   except:
     uriPrefix = '/dashboard/'
 
+  if environ['REQUEST_URI'].endswith('&login'):
+    # loginPage does startResponse() itself so it can create session cookies
+    output = loginPage(uriPrefix, startResponse, environ)
+    return [output.encode('UTF-8')]
+
   cgiValues  = { }
   
   try:
@@ -2665,12 +2730,7 @@ def application(environ, startResponse):
   except:
     pageLength = 30
 
-  if environ['REQUEST_URI'].endswith('?login'):
-    # loginPage does startResponse() itself so it can create session cookies
-    output = loginPage(uriPrefix, startResponse, environ)
-    return [output.encode('UTF-8')]
-
-  elif method is None:
+  if method is None:
     output = mainPage(uriPrefix, environ, user)
   
   elif method == "list-jobscripts":
@@ -2728,9 +2788,5 @@ def application(environ, startResponse):
     return [output.encode('UTF-8')]
 
   # Valid method was found, so return the string it output
-  startResponse('200 OK',
-                [('Content-type',   'text/html'),
-                 ('Content-length', str(len(output)))
-                ])
-
+  startResponseOK(startResponse, output)
   return [output.encode('UTF-8')]

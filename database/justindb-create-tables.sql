@@ -453,10 +453,9 @@ DROP TABLE IF EXISTS `users`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `main_pn_id` smallint(5) unsigned NOT NULL,
+  `main_pn_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `main_pn_id` (`main_pn_id`)
+  PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -473,7 +472,8 @@ CREATE TABLE `principal_names` (
   `principal_name` varchar(255) NOT NULL,
   `user_id` smallint(5) unsigned NOT NULL,
   PRIMARY KEY (`pn_id`),
-  UNIQUE KEY `principal_name` (`principal_name`)
+  UNIQUE KEY `principal_name` (`principal_name`),
+  INDEX `user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -508,11 +508,13 @@ CREATE TABLE `sessions` (
   `expires_time` datetime NOT NULL DEFAULT '1970-01-01',
   `session` varchar(255) NOT NULL,
   `secret` varchar(255) NOT NULL,
+  `form_key` varchar(255) NOT NULL,
   `saved_uri` varchar(255) NOT NULL DEFAULT '',
   `user_agent` varchar(255) NOT NULL DEFAULT '',
   `ip` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`session_id`),
-  UNIQUE KEY `session` (`session`)
+  UNIQUE KEY `session` (`session`),
+  UNIQUE KEY `form_key` (`form_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
