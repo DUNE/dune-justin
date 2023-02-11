@@ -61,8 +61,23 @@ DROP TABLE IF EXISTS `scopes`;
 CREATE TABLE `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
+  `write_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `groups`
+--
+
+DROP TABLE IF EXISTS `groups`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `groups` (
+  `group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `group_name` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY `group_id` (`group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -508,7 +523,8 @@ CREATE TABLE `sessions` (
   `expires_time` datetime NOT NULL DEFAULT '1970-01-01',
   `session` varchar(255) NOT NULL,
   `secret` varchar(255) NOT NULL,
-  `form_key` varchar(255) NOT NULL,
+  `form_key` varchar(255) NOT NULL DEFAULT '',
+  `groups` text NOT NULL DEFAULT '',
   `saved_uri` varchar(255) NOT NULL DEFAULT '',
   `user_agent` varchar(255) NOT NULL DEFAULT '',
   `ip` varchar(255) NOT NULL DEFAULT '',

@@ -153,4 +153,8 @@ do
 done
 )
 
+echo 'insert into groups set group_name="/dune";'
+echo 'insert into groups set group_name="/dune/production";'
+
 ) > justindb-populate.sql
+

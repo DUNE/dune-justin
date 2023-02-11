@@ -454,10 +454,22 @@ def updateStorages():
 def updateScopes():
   # Get info about scopes Rucio knows about
   logLine('---- Start updateScopes ----')
+
+  try:
+    row = justin.select('SELECT group_id FROM groups '
+                        'WHERE group_name="/dune"', justOne = True)
+    duneGroupID = int(row['group_id'])
+                        
+    row = justin.select('SELECT group_id FROM groups '
+                        'WHERE group_name="/dune/production"', justOne = True)
+    productionGroupID = int(row['group_id'])
+  except Exception as e:
+    logLine('Failed getting /dune and /dune/production group IDs: ' + str(e))
+    return
     
   justinScopeNames = []
   try:
-    justinScopeRows = justin.db.select('SELECT scope_name FROM scopes')
+    justinScopeRows = justin.select('SELECT scope_name FROM scopes')
   except Exception as e:
     logLine('Failed to get names of existing justIN scopes')
     return
@@ -477,16 +489,46 @@ def updateScopes():
     logLine("Reading scope list from Rucio fails with: " + str(e))
     return
 
+  try:
+    duneproScopeNames = scopeClient.list_scopes_for_account('dunepro')
+  except Exception as e:
+    logLine("Reading dunepro scopes list from Rucio fails with: " + str(e))
+    return
+
   for rucioScopeName in rucioScopeNames:
     if rucioScopeName not in justinScopeNames:
+      # A new scope we need to add
       logLine('Adding new scope %s from Rucio' % rucioScopeName)
 
       try:
-        justin.db.insertUpdate('INSERT INTO scopes SET scope_name="%s"'
-                               % rucioScopeName)
+        justin.insertUpdate('INSERT INTO scopes SET scope_name="%s"'
+                            % rucioScopeName)
       except Exception as e:
         logLine('Failed to insert new scope %s into justIN database: %s'
                 % (rucioScopeName, str(e)))
+        continue
+        
+    if rucioScopeName in duneproScopeNames:
+      # A dunepro scope, that generic jobs can write to
+      if rucioScopeName == 'testpro':
+        # Any /dune member can write to testpro via justIN
+        groupID = duneGroupID
+      else:
+        # Everything else requires /dune/production group membership
+        groupID = productionGroupID
+    else:
+      # If not writeable via generic jobs as dunepro, then no groups
+      groupID = 0
+
+    logLine('Update scope %s with write_group_id=%d' 
+            % (rucioScopeName, groupID))
+    try:
+      justin.insertUpdate('UPDATE scopes SET write_group_id=%d '
+                          'WHERE scope_name="%s"' % (groupID, rucioScopeName))
+    except Exception as e:
+      logLine('Failed upding write_group_id=%d for %s: %s'
+              % (groupID, rucioScopeName, str(e)))
+      continue
 
   justin.db.conn.commit()
 

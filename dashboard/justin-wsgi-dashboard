@@ -98,10 +98,10 @@ def header(uriPrefix, environ, user, title):
     loginStr = ''
   else:
     loginStr = (' &nbsp; &nbsp; &nbsp; '
-                '<a href="/dashboard/" '
+                '<a href="%s?method=show-user&user_name=%s" '
                 'style="background: #E1703D; border-radius: 5px; padding: 5px">'
                 '%s</a>'
-                % user['user_name'])
+                % (uriPrefix, user['user_name'], user['user_name']))
 
 #  if width:
 #    widthStr = 'width: %dpx; margin: auto; ' % width
@@ -294,6 +294,10 @@ def mainPage(uriPrefix, environ, user):
      'uri'       : uriPrefix + '?method=awt-results',
      'text'      : 'Automated Workflow Tests' },
    { 'startRow'  : True,
+     'endRow'    : True,
+     'uri'       : uriPrefix + '?method=list-scopes',
+     'text'      : 'Scopes' },
+   { 'startRow'  : True,
      'endRow'    : False,
      'uri'       : uriPrefix + '?method=list-sites',
      'text'      : 'Sites' },
@@ -421,8 +425,11 @@ def cilogonCallback(startResponse, environ):
 
   pprint.pprint(tokensDict, stream = sys.stderr)
 
-  if 'wlcg.groups' not in tokensDict['access'] or \
-     '/dune' not in tokensDict['access']['wlcg.groups']:
+  try:
+    groups = tokensDict['access']['wlcg.groups']
+    if '/dune' not in groups:
+      raise
+  except:
     output = errorPage('/dashboard/', None, None,
                        'You are not registered in the /dune group on CILogon!')
     startResponseOK(startResponse, output)
@@ -455,9 +462,9 @@ def cilogonCallback(startResponse, environ):
 
   if userID:
     try:
-      query = ('UPDATE sessions SET user_id=%d '
+      query = ('UPDATE sessions SET user_id=%d,groups="%s" '
                'WHERE session="%s" AND secret="%s" AND user_id=0'
-               % (userID, sessionCookie, secretCookie))
+               % (userID, ' '.join(groups), sessionCookie, secretCookie))
       justin.insertUpdate(query)
     except Exception as e:
       print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
@@ -536,7 +543,7 @@ your user name.
 <input type="hidden" name="redirect_uri" 
  value="https://justin.dune.hep.ac.uk/login/cilogon/login">
 <input type="hidden" name="scope" 
- value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune">
+ value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune wlcg.groups:/dune/production wlcg.groups:/dune/operations">
 <button type="submit" 
  style="background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer">Login</button>
 </form></p>'''
@@ -588,7 +595,7 @@ def getUser(environ):
     return None
 
   try:
-    query = ('SELECT principal_name,sessions.user_id,form_key '
+    query = ('SELECT principal_name,sessions.user_id,form_key,groups '
              'FROM sessions '
              'LEFT JOIN users '
              'ON users.user_id=sessions.user_id '
@@ -598,18 +605,20 @@ def getUser(environ):
              'NOW() < expires_time AND sessions.user_id > 0'
              % (sessionCookie, secretCookie))
 
-    print(query,file=sys.stderr)
-    row = justin.select(query, justOne = True)
-    print(row,file=sys.stderr)
-    
+    row      = justin.select(query, justOne = True)    
     userName = row['principal_name']
     userID   = row['user_id']
     formKey  = row['form_key']
+    groups   = row['groups'].split()
     print(userName,userID,file=sys.stderr)
   except:
     return None
 
-  return { 'user_name' : userName, 'user_id' : userID, 'form_key' : formKey }
+  return { 'user_name' : userName,
+           'user_id'   : userID,
+           'session'   : sessionCookie,
+           'form_key'  : formKey,
+           'groups'    : groups  }
 
 def createUser(principalName):
   
@@ -2011,6 +2020,34 @@ def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
+def listScopes(uriPrefix, environ, user, cgiValues):
+      
+  output = header(uriPrefix, environ, user, "justIN: Scopes")
+
+  output += ("<h1>Scopes</h1>")
+  
+  query = ('SELECT scope_name,group_name FROM scopes '
+           'LEFT JOIN groups ON scopes.write_group_id=groups.group_id '
+           'ORDER BY scope_name')
+  scopeRows = justin.select(query)
+
+  output += ('<table class="center">')
+  
+  output += ('<tr>'
+        '<th>Scope</th>'
+        '<th>Write if in group</th>'
+        '</tr>')
+  
+  for scopeRow in scopeRows:  
+    output += ('<tr><td>%s</td>'
+               '<td>%s</td></tr>' 
+               % (scopeRow['scope_name'],
+                  scopeRow['group_name'] if scopeRow['group_name'] else ' '))
+
+  output += ("</table>")
+  output += footer()
+  return output
+
 def listSites(uriPrefix, environ, user, cgiValues):
       
   output = header(uriPrefix, environ, user, "justIN: Sites")
@@ -2261,6 +2298,58 @@ def showSite(uriPrefix, environ, user, cgiValues):
 
   output += ("</table>")
 
+  output += footer()
+  return output
+
+def showUser(uriPrefix, environ, user, cgiValues):
+      
+  try:
+    userName = cgiValues["user_name"]
+  except:
+    return errorPage(uriPrefix, environ, user, "user_name must be given")
+    
+  if not justin.db.stringIsUsername(userName):
+    return errorPage(uriPrefix, environ, user, "Invalid user name!")
+        
+  output = header(uriPrefix, environ, user, "justIN: User " + userName)
+
+  output += ("<h1>User %s</h1>" % userName)
+
+  try:
+    sessionCookie = user['session']
+  except:
+    sessionCookie = ' '
+  
+  query = ('SELECT users.user_id,principal_name,created_time,expires_time '
+           'FROM principal_names '
+           'LEFT JOIN users '
+           'ON principal_names.pn_id=users.main_pn_id '
+           'LEFT JOIN sessions '
+           'ON sessions.user_id=principal_names.user_id AND '
+           'sessions.session="%s" '
+           'WHERE principal_name="%s"' % (sessionCookie, userName))
+
+  try:
+    userRow = justin.select(query, justOne = True)
+    userID = int(userRow['user_id'])
+  except:
+    return errorPage(uriPrefix, environ, user, "Unknown user!")
+
+  if user and user['user_name'] == userName:
+#    output += '<p><b>This is your user name</b></p>\n'
+    output += ('<h2>Your current session</h2>\n<table>')
+  
+    output += ('<tr><td>User name</td><td>%s</td></tr>' 
+               % userName)
+
+    output += ('<tr><td>Groups</td><td>%s</td></tr>' 
+               % ' &nbsp; '.join(user['groups']))
+
+    output += ('<tr><td>Valid</td><td>%s to %s</td></tr>' 
+               % (userRow['created_time'], userRow['expires_time']))
+
+    output += ("</table>")
+  
   output += footer()
   return output
 
@@ -2760,11 +2849,17 @@ def application(environ, startResponse):
   elif method == "list-jobs":
     output = listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 
+  elif method == "list-scopes":
+    output = listScopes(uriPrefix, environ, user, cgiValues)
+
   elif method == "list-sites":
     output = listSites(uriPrefix, environ, user, cgiValues)
 
   elif method == "list-storages":
     output = listStorages(uriPrefix, environ, user, cgiValues)
+
+  elif method == "show-user":
+    output = showUser(uriPrefix, environ, user, cgiValues)
 
   elif method == "show-site":
     output = showSite(uriPrefix, environ, user, cgiValues)
