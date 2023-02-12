@@ -22,7 +22,6 @@ import re
 import sys
 import time
 import json
-import uuid
 import string
 import tarfile
 import MySQLdb

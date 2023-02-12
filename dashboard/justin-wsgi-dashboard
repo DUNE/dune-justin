@@ -25,7 +25,7 @@ import ssl
 import time
 import html
 import json
-import uuid
+import secrets
 import base64
 import pprint
 import urllib
@@ -387,17 +387,17 @@ def oidcTokensRequest(cilogonCode):
 
 def cilogonCallback(startResponse, environ):
 
-  (sessionCookie, secretCookie) = getSessionCookies(environ)
+  (justinSession, justinSecret) = getSessionCookies(environ)
 
   try:
     row = justin.select('SELECT saved_uri FROM sessions '
-                        'WHERE session="%s" AND secret="%s" AND '
+                        'WHERE justin_session="%s" AND justin_secret="%s" AND '
                         'NOW() < expires_time'
-                        % (sessionCookie, secretCookie), justOne = True)
+                        % (justinSession, justinSecret), justOne = True)
 
     savedURI = row['saved_uri']
   except:
-    sessionCookie = None
+    justinSession = None
     savedURI = ''
 
   cilogonCode  = None
@@ -409,7 +409,7 @@ def cilogonCallback(startResponse, environ):
     elif str(i) == 'state':
       cilogonState = str(rawValues[i][0])
 
-  if not sessionCookie or (sessionCookie != cilogonState):
+  if not justinSession or (justinSession != cilogonState):
     output = errorPage('/dashboard/', None, None,
                        'Required session cookie not found! '
                        'Have you got cookies disabled in your web browser?')
@@ -463,8 +463,8 @@ def cilogonCallback(startResponse, environ):
   if userID:
     try:
       query = ('UPDATE sessions SET user_id=%d,groups="%s" '
-               'WHERE session="%s" AND secret="%s" AND user_id=0'
-               % (userID, ' '.join(groups), sessionCookie, secretCookie))
+               'WHERE justin_session="%s" AND justin_secret="%s" AND user_id=0'
+               % (userID, ' '.join(groups), justinSession, justinSecret))
       justin.insertUpdate(query)
     except Exception as e:
       print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
@@ -483,9 +483,9 @@ def cilogonCallback(startResponse, environ):
 def loginPage(uriPrefix, startResponse, environ):
 
   # Always create a new session: they are here to log in
-  sessionCookie = str(uuid.uuid4())
-  secretCookie  = str(uuid.uuid4())
-  formKey       = str(uuid.uuid4())
+  justinSession = secrets.token_urlsafe(64)
+  justinSecret  = secrets.token_urlsafe(64)
+  justinCode    = secrets.token_urlsafe(64)
   savedURI      = environ['REQUEST_URI'][:-6] # remove '&login'
   userAgent     = environ.get('HTTP_USER_AGENT', '')
   ip            = environ.get('REMOTE_ADDR', '')
@@ -495,13 +495,13 @@ def loginPage(uriPrefix, startResponse, environ):
                         'session_type="web",'
                         'created_time=NOW(),'
                         'expires_time=DATE_ADD(NOW(),INTERVAL 24 HOUR),'
-                        'session="%s",'
-                        'secret="%s",'
-                        'form_key="%s",'
+                        'justin_session="%s",'
+                        'justin_secret="%s",'
+                        'justin_code="%s",'
                         'user_agent="%s",'
                         'saved_uri="%s",'
                         'ip="%s"'
-                        % (sessionCookie, secretCookie, formKey,
+                        % (justinSession, justinSecret, justinCode,
                            userAgent.replace('\\','\\\\').replace('"','\\"'),
                            savedURI,
                            ip))
@@ -536,7 +536,7 @@ your user name.
   output += '<p><form style="text-align: center" method="GET" action="https://cilogon.org/authorize">\n'
   output += ('<input type="hidden" name="client_id" value="%s">\n'
              % justin.conf.cilogonClientID)
-  output += '<input type="hidden" name="state" value="%s">\n' % sessionCookie
+  output += '<input type="hidden" name="state" value="%s">\n' % justinSession
   output += '<input type="hidden" name="response_type" value="code">\n'
 
   output += '''
@@ -559,66 +559,66 @@ your user name.
      [('Content-type',   'text/html'),
       ('Content-length', str(len(output))),
       ('Set-Cookie',     'justin_session=%s; Max-Age=86400; Path=/; '
-                         'Secure ; HttpOnly' % sessionCookie),
+                         'Secure ; HttpOnly' % justinSession),
       ('Set-Cookie',     'justin_secret=%s; Max-Age=86400; Path=/; '
-                         'Secure ; HttpOnly' % secretCookie)
+                         'Secure ; HttpOnly' % justinSecret)
      ])
 
   return output
 
 def getSessionCookies(environ):
 
-  sessionCookie = None
-  secretCookie  = None
+  justinSession = None
+  justinSecret  = None
 
   httpCookie = environ.get('HTTP_COOKIE', '') 
 
   for nameValue in httpCookie.split(';'):
     if nameValue.strip().startswith('justin_session='):
-      sessionCookie = nameValue.split('=')[1]
+      justinSession = nameValue.split('=')[1]
     elif nameValue.strip().startswith('justin_secret='):
-      secretCookie = nameValue.split('=')[1]
+      justinSecret = nameValue.split('=')[1]
 
-  if not sessionCookie or not sessionCookie:
+  if not justinSession or not justinSession:
     return (None, None)
 
-  if not justin.stringIsDomain(sessionCookie) or \
-     not justin.stringIsDomain(secretCookie):
+  if not justin.stringIsSite(justinSession) or \
+     not justin.stringIsSite(justinSecret):
     return (None, None)
 
-  return (sessionCookie, secretCookie)
+  return (justinSession, justinSecret)
 
 def getUser(environ):
 
-  (sessionCookie, secretCookie) = getSessionCookies(environ)
-  if not sessionCookie:
+  (justinSession, justinSecret) = getSessionCookies(environ)
+  if not justinSession:
     return None
 
   try:
-    query = ('SELECT principal_name,sessions.user_id,form_key,groups '
+    query = ('SELECT principal_name,sessions.user_id,justin_code,groups '
              'FROM sessions '
              'LEFT JOIN users '
              'ON users.user_id=sessions.user_id '
              'LEFT JOIN principal_names '
              'ON users.main_pn_id=principal_names.pn_id '
-             'WHERE session="%s" AND secret="%s" AND '
+             'WHERE justin_session="%s" AND justin_secret="%s" AND '
              'NOW() < expires_time AND sessions.user_id > 0'
-             % (sessionCookie, secretCookie))
+             % (justinSession, justinSecret))
 
-    row      = justin.select(query, justOne = True)    
-    userName = row['principal_name']
-    userID   = row['user_id']
-    formKey  = row['form_key']
-    groups   = row['groups'].split()
+    row        = justin.select(query, justOne = True)    
+    userName   = row['principal_name']
+    userID     = row['user_id']
+    justinCode = row['justin_code']
+    groups     = row['groups'].split()
     print(userName,userID,file=sys.stderr)
   except:
     return None
 
-  return { 'user_name' : userName,
-           'user_id'   : userID,
-           'session'   : sessionCookie,
-           'form_key'  : formKey,
-           'groups'    : groups  }
+  return { 'user_name'      : userName,
+           'user_id'        : userID,
+           'justin_session' : justinSession,
+           'justin_code'    : justinCode,
+           'groups'         : groups  }
 
 def createUser(principalName):
   
@@ -2322,9 +2322,9 @@ def showUser(uriPrefix, environ, user, cgiValues):
   output += ("<h1>User %s</h1>" % userName)
 
   try:
-    sessionCookie = user['session']
+    justinSession = user['justin_session']
   except:
-    sessionCookie = ' '
+    justinSession = ' '
   
   query = ('SELECT users.user_id,principal_name,created_time,expires_time '
            'FROM principal_names '
@@ -2332,8 +2332,8 @@ def showUser(uriPrefix, environ, user, cgiValues):
            'ON principal_names.pn_id=users.main_pn_id '
            'LEFT JOIN sessions '
            'ON sessions.user_id=principal_names.user_id AND '
-           'sessions.session="%s" '
-           'WHERE principal_name="%s"' % (sessionCookie, userName))
+           'sessions.justin_session="%s" '
+           'WHERE principal_name="%s"' % (justinSession, userName))
 
   try:
     userRow = justin.select(query, justOne = True)
@@ -2342,7 +2342,6 @@ def showUser(uriPrefix, environ, user, cgiValues):
     return errorPage(uriPrefix, environ, user, "Unknown user!")
 
   if user and user['user_name'] == userName:
-#    output += '<p><b>This is your user name</b></p>\n'
     output += ('<h2>Your current session</h2>\n<table>')
   
     output += ('<tr><td>User name</td><td>%s</td></tr>' 

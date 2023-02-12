@@ -525,16 +525,16 @@ CREATE TABLE `sessions` (
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `created_time` datetime NOT NULL DEFAULT '1970-01-01',
   `expires_time` datetime NOT NULL DEFAULT '1970-01-01',
-  `session` varchar(255) NOT NULL,
-  `secret` varchar(255) NOT NULL,
-  `form_key` varchar(255) NOT NULL DEFAULT '',
+  `justin_session` varchar(255) NOT NULL,
+  `justin_secret` varchar(255) NOT NULL,
+  `justin_code` varchar(255) NOT NULL,
   `groups` text NOT NULL DEFAULT '',
   `saved_uri` varchar(255) NOT NULL DEFAULT '',
   `user_agent` varchar(255) NOT NULL DEFAULT '',
   `ip` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`session_id`),
   UNIQUE KEY `session` (`session`),
-  UNIQUE KEY `form_key` (`form_key`)
+  UNIQUE KEY `justin_code` (`justin_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
