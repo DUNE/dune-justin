@@ -21,6 +21,10 @@ import os
 import sys
 import stat
 import time
+import ssl
+import json
+import urllib
+import urllib.request
 import pathlib
 import tempfile
 import warnings
@@ -34,9 +38,9 @@ import rucio.client
 
 import justin
 
-updateUsersInterval    = 3600
 updateSitesInterval    = 3600
 updateStoragesInterval = 3600
+updateJwksInterval     = 86400
 
 sleepSeconds = 60
 
@@ -47,86 +51,71 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
-def updateUsers():
-  # Get info about users Rucio knows about
-  logLine('---- Start updateUsers ----')
-  
-  try:
-    accClient = rucio.client.accountclient.AccountClient()
-  except Exception as e:
-    logLine("Connect to Rucio fails with: " + str(e))
-    return
-  
-  # Get lists of justIN and Rucio users to look for new Rucio ones
-  
-  try:
-    justinUsers = justin.db.select('SELECT username FROM users')
-  except Exception as e:
-    logLine("Reading existing justIN users fails with: " + str(e))
-    return
-
-  justinUsernames = []
-  for justinUser in justinUsers:
-    justinUsernames.append(justinUser['username'])
-
-  print(justinUsernames)
+def getJsonURL(url):
+  httpRequest = urllib.request.Request(url)
+  sslContext  = ssl.SSLContext()
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
   try:
-    rucioAccounts = accClient.list_accounts()  
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
   except Exception as e:
-    logLine("Reading accounts list from Rucio fails with: " + str(e))
-    return
-    
-  for rucioAccount in rucioAccounts:
-    newName = rucioAccount['account'] + '@fnal.gov'
-    print(rucioAccount['account'], newName)
-    if rucioAccount['type'] == 'USER' and \
-       rucioAccount['account'] != 'test' and \
-       newName not in justinUsernames:
+    logLine('Get JSON URL request fails: ' + str(e))
+    return None
+  else:
+    if response.status != 200:
+      logLine('Get JSON URL response not 200, code=%d' 
+              % response.status)
+      return None
 
-      # New Rucio user name, not known to justIN!  
-      try:
-        justin.db.insertUpdate('INSERT INTO users SET username="%s"'
-                               % newName)
-        # Add it so we don't need to requery the users table for the next part
-        justinUsernames.append(newName)
-      except Exception as e:
-        logLine("Creation of new user %s fails with: %s" % (newName, str(e)))
-        return
+  try:
+    responseData = response.read().decode('utf-8')
+    responseDict = json.loads(responseData)
+  except Exception as e:
+    logLine('Failed loading json: ' + str(e))
+    return None
 
-  # Now look for X.509 DNs for users in Rucio
-  
-  for justinUsername in justinUsernames:
-  
-    if not justinUsername.endswith('@fnal.gov'):
-      # Do not look up X.509 DNs in Rucio if not a FNAL person
-      continue
+  return responseDict
+
+def updateJwks():
+  logLine('Start update of JWT keys')
+
+  # Upate the database with current JWT keys for DUNE from CILogon 
+  openidConfiguration = getJsonURL(
+              'https://cilogon.org/dune/.well-known/openid-configuration')
+              
+  if openidConfiguration and 'jwks_uri' in openidConfiguration:
+    cilogonJwks = getJsonURL(openidConfiguration['jwks_uri'])
+    if cilogonJwks and 'keys' in cilogonJwks:
+      for jwtKey in cilogonJwks['keys']:
+        if (not justin.stringIsSite(jwtKey['n']) or 
+            not justin.stringIsSite(jwtKey['e']) or 
+            not justin.stringIsSite(jwtKey['alg']) or 
+            not justin.stringIsSite(jwtKey['kid']) or 
+            not justin.stringIsSite(jwtKey['use']) or 
+            not justin.stringIsSite(jwtKey['kty'])):
+          logLine('Problem with key format')
+          continue
       
-    # Get the FNAL username, which is also the Rucio username
-    rucioUsername = (justinUsername.split('@'))[0]
-  
-    try:
-      identitiesList = accClient.list_identities(rucioUsername)
-    except Exception as e:
-      logLine("Not able to read identities for %s - added by hand? (%s)" % 
-              (rucioUsername, str(e)))
-      # This is ok, we might have added the user by hand directly to justIN
-      continue
-
-    for identity in identitiesList:
-      if identity['type'] == 'X509' and 'identity' in identity:
         try:
-          query = ('INSERT IGNORE INTO x509 SET '
-                   'user_id=(SELECT user_id FROM users WHERE username="%s"),'
-                   'x509dn="%s"'
-                   % (justinUsername, identity['identity']))
+          justin.insertUpdate('REPLACE INTO jwt_keys SET '
+                              'jwks_n="%s",'
+                              'jwks_e="%s",'
+                              'jwks_alg="%s",'
+                              'jwks_kid="%s",'
+                              'jwks_use="%s",'
+                              'jwks_kty="%s"'
+                              % (jwtKey['n'], jwtKey['e'], jwtKey['alg'],
+                                 jwtKey['kid'], jwtKey['use'], jwtKey['kty']))
+        except Exception as e:                         
+          logLine('Failed updating JWKS: ' + str(e))
+        else:
+          logLine('Updating JWT key kid=%s' % jwtKey['kid'])
+ 
+      justin.db.conn.commit()
+      return
+      
+  logLine('Failed updating CILogon JWT keys')
 
-          justin.db.cur.execute(query)
-        except Exception as e:
-          # Log the error and hope it was transitory
-          logLine('Failed inserting %s into database: %s' % 
-                  (identity['identity'], str(e)))
-                  
 def cleanupNodeXML(node):
   if node.nodeType == xml.dom.Node.TEXT_NODE \
      and node.nodeValue.strip() == "":
@@ -534,15 +523,15 @@ def updateScopes():
 
 def oneCycle():
 
-#  # Is it time to update users?
-#  try:
-#    lastUpdateUsers = os.stat('/var/run/justin/last-update-users').st_mtime
-#  except:
-#    lastUpdateUsers = 0
-#
-#  if lastUpdateUsers + updateUsersInterval < time.time():
-#    pathlib.Path('/var/run/justin/last-update-users').touch(exist_ok=True)
-#    updateUsers()
+  # Is it time to update storages from Rucio?
+  try:
+    lastUpdateJwks = os.stat('/var/run/justin/last-update-jwks').st_mtime
+  except:
+    lastUpdateJwks = 0
+
+  if lastUpdateJwks + updateJwksInterval < time.time():
+    pathlib.Path('/var/run/justin/last-update-jwks').touch(exist_ok=True)
+    updateJwks()
 
   # Is it time to update storages from Rucio?
   try:

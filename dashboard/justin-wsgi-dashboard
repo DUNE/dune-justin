@@ -792,8 +792,9 @@ def showRequest(uriPrefix, environ, user, cgiValues):
            "requests.created,requests.submitted,requests.started,"
            "requests.checking,requests.finished,mql,"
            "requests.refind_seconds,requests.refind_start_time,"
-           "requests.refind_end_time "
+           "requests.refind_end_time,scopes.scope_name "
            "FROM requests "
+           "LEFT JOIN scopes ON scopes.scope_id=requests.scope_id "
            "LEFT JOIN users ON users.user_id=requests.user_id "
            "LEFT JOIN principal_names "
            'ON principal_names.pn_id=users.main_pn_id '
@@ -813,6 +814,9 @@ def showRequest(uriPrefix, environ, user, cgiValues):
   output += ('<tr><td>State</td><td>%s</td></tr>' % state)
   output += ('<tr><td>MQL</td><td>%s</td></tr>' 
              % html.escape(requestRow['mql'], quote=True))
+
+  if requestRow['scope_name']:
+    output += '<tr><td>Scope</td><td>%s</td></tr>' % requestRow['scope_name']
 
   if requestRow['refind_seconds'] == 0:
     output += '<tr><td>Finding</td><td>once</td></tr>'
@@ -950,11 +954,13 @@ def showStage(uriPrefix, environ, user, cgiValues):
            "stages_jobscripts.jobscript,"
            "jobscript_name,"
            "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
-           "stages_scopes.scope_name AS stages_scope_name,"
+           "requests_scopes.scope_name AS requests_scope_name,"
            "principal_name AS user_name "
            "FROM stages "
-           "LEFT JOIN scopes AS stages_scopes "
-           "ON stages.scope_id=stages_scopes.scope_id "
+           "LEFT JOIN requests "
+           "ON requests.request_id=stages.request_id "
+           "LEFT JOIN scopes AS requests_scopes "
+           "ON requests.scope_id=requests_scopes.scope_id "
            "LEFT JOIN stages_jobscripts "
            "ON stages_jobscripts.request_id=stages.request_id "
            "AND stages_jobscripts.stage_id=stages.stage_id "
@@ -1018,9 +1024,9 @@ def showStage(uriPrefix, environ, user, cgiValues):
         
   output += ('</td></tr>')
         
-  if stageRow["stages_scope_name"]:
+  if stageRow["requests_scope_name"]:
     output += ('<tr><td>Scope</td>'
-               '<td>%s</td></tr>' % stageRow["stages_scope_name"])
+               '<td>%s</td></tr>' % stageRow["requests_scope_name"])
 
   output += ('</table>')
     

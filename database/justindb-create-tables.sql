@@ -258,6 +258,7 @@ CREATE TABLE `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `name` varchar(255) NOT NULL,
+  `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL,
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `submitted` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -333,7 +334,6 @@ CREATE TABLE `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
-  `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL,
   `jobscript_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
@@ -460,6 +460,25 @@ CREATE TABLE `storages` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `jwt_keys`
+--
+
+DROP TABLE IF EXISTS `jwt_keys`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `jwt_keys` (
+  `jwks_n` text NOT NULL,
+  `jwks_e` varchar(255) NOT NULL,
+  `jwks_alg` varchar(255) NOT NULL,
+  `jwks_kid` varchar(255) NOT NULL,
+  `jwks_use` varchar(255) NOT NULL,
+  `jwks_kty` varchar(255) NOT NULL,
+  PRIMARY KEY (`jwks_kid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+--
 -- Table structure for table `users`
 --
 
@@ -489,21 +508,6 @@ CREATE TABLE `principal_names` (
   PRIMARY KEY (`pn_id`),
   UNIQUE KEY `principal_name` (`principal_name`),
   INDEX `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
---
--- Table structure for table `x509`
---
-
-DROP TABLE IF EXISTS `x509`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `x509` (
-  `x509dn` varchar(255) NOT NULL,
-  `user_id` smallint(5) unsigned NOT NULL,
-  PRIMARY KEY (`x509dn`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

@@ -19,12 +19,12 @@ import configparser
 # Constants
 MonteCarloRseID = 1
 
-justinRunDir     = '/var/run/justin'
+justinRunDir    = '/var/run/justin'
 
-mysqlUsername = None
-mysqlPassword = None
-mysqlHostname = None
-mysqlDbName   = None
+mysqlUsername   = None
+mysqlPassword   = None
+mysqlHostname   = None
+mysqlDbName     = None
 
 cilogonClientID = None
 cilogonSecret   = None

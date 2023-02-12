@@ -433,6 +433,29 @@ def createRequestCmd(startResponse, jsonDict, userID):
                        '400 Bad Request', 
                        'Monte Carlo option requires an integer count')
 
+# STILL NEED TO CHECK THIS USER CAN WRITE INTO THIS SCOPE
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so check the scope is known
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
+                                  'WHERE scope_name="%s"' % scopeName, 
+                                  justOne=True)
+      scopeID = int(scopeRow['scope_id'])
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scope)
+  else:
+    scopeName = None
+    scopeID   = 0
+
   if 'refind_interval_hours' in jsonDict and jsonDict['refind_interval_hours']:
     try:
       refindIntervalSeconds = int(jsonDict['refind_interval_hours'] * 3600)
@@ -474,12 +497,14 @@ def createRequestCmd(startResponse, jsonDict, userID):
     requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
           'description="%s",'
           'mql="%s",'
+          'scope_id=%d,'
           'user_id=%d,'
           'refind_seconds=%d,'
           'refind_start_time="%s",'
           'refind_end_time="%s"' %
           (description,
            mql,
+           scopeID,
            userID,
            refindIntervalSeconds,
            refindStartDate,
@@ -532,6 +557,29 @@ def quickRequestCmd(startResponse, jsonDict, userID):
                        '400 Bad Request', 
                        'Monte Carlo option requires an integer count')
       
+# NEED TO CHECK USER IS ALLOWED TO USE THIS SCOPE STILL
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so check the scope is known
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
+                                  'WHERE scope_name="%s"' % scopeName, 
+                                  justOne=True)
+      scopeID = int(scopeRow['scope_id'])
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scope)
+  else:
+    scopeName = None
+    scopeID   = 0
+
   if 'refind_hours' in jsonDict and jsonDict['refind_hours']:
     try:
       refindSeconds = int(jsonDict['refind_hours'] * 3600)
@@ -576,12 +624,14 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           'state="running",'
           'description="%s",'
           'mql="%s",'
+          'scope_id=%d,'
           'user_id=%d,'
           'refind_seconds=%d,'
           'refind_start_time="%s",'
           'refind_end_time="%s"' %
           (description,
            mql,
+           scopeID,
            userID,
            refindSeconds,
            refindStart,
@@ -629,41 +679,18 @@ def quickRequestCmd(startResponse, jsonDict, userID):
     jobscript   = response['jobscript']
     jobscriptID = response['jobscript_id']
 
-  if 'scope' in jsonDict and jsonDict['scope']:
-    # --scope option given, so check the scope is known
-    scopeName = jsonDict['scope'].lower()
-
-    if not justin.db.stringIsDomain(scopeName):
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       'Scope name can only be characters a-z 0-9 - _ .')
-
-    try:
-      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
-                                  'WHERE scope_name="%s"' % scopeName, 
-                                  justOne=True)
-      scopeID = int(scopeRow['scope_id'])
-    except:
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       'Failed to find scope %s in justIN database' % scope)
-  else:
-    scopeName = None
-    scopeID   = 0
-
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
           "stage_rank=0,"
           "request_id=%d,"
           "stage_id=1,"
-          "scope_id=%d,"
           "jobscript_id=%d,"
           "processors=%d,"
           "wall_seconds=%d,"
           "rss_bytes=%d,"
           "max_distance=%f,"
           "max_files_per_job=%d" 
-          % (requestID, scopeID, jobscriptID, processors,
+          % (requestID, jobscriptID, processors,
              wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
           
     justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
@@ -682,12 +709,10 @@ def quickRequestCmd(startResponse, jsonDict, userID):
   except:
     lifetimeDays = 1
 
-  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage']) \
-     and not scopeName:
+  if jsonDict['output_pattern'] and not scopeName:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     '--scope must by given too for --output_pattern and '
-                     '--output_pattern_next_stage')
+                     '--scope must by given too for --output_pattern')
 
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
@@ -865,12 +890,21 @@ def finishRequestCmd(startResponse, jsonDict):
 def createStageCmd(startResponse, jsonDict):
 
   try:
-    requestID = int(jsonDict['request_id'])
+    requestID  = int(jsonDict['request_id'])
+    requestRow = justin.select('SELECT requests.scope_id,scope_name '
+                               'FROM requests '
+                               'LEFT JOIN scopes '
+                               'ON scopes.scope_id=requests.scope_id '
+                               'WHERE request_id=%d' % requestID, 
+                               justOne = True)
+    scopeID   = int(requestRow['scope_id'])
+    scopeName = requestRow['scope_name']
   except:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Request ID must be given')
-  try:
+                     'Valid request ID must be given') 
+
+ try:
     stageID = int(jsonDict['stage_id'])
   except:
     return httpError(startResponse, 
@@ -940,41 +974,18 @@ def createStageCmd(startResponse, jsonDict):
     jobscript   = response['jobscript']
     jobscriptID = response['jobscript_id']
 
-  if 'scope' in jsonDict and jsonDict['scope']:
-    # --scope option given, so check the scope is known
-    scopeName = jsonDict['scope'].lower()
-
-    if not justin.db.stringIsDomain(scopeName):
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       'Scope name can only be characters a-z 0-9 - _ .')
-
-    try:
-      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
-                                  'WHERE scope_name="%s"' % scopeName, 
-                                  justOne=True)
-      scopeID = int(scopeRow['scope_id'])
-    except:
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       'Failed to find scope %s in justIN database' % scope)
-  else:
-    scopeName = None
-    scopeID   = 0
-
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
                         "stage_rank=0,"
                         "request_id=%d,"
                         "stage_id=%d,"
-                        "scope_id=%d,"
                         "jobscript_id=%d,"
                         "processors=%d,"
                         "wall_seconds=%d,"
                         "rss_bytes=%d,"
                         "max_distance=%f," 
                         "max_files_per_job=%d"
-                        % (requestID, stageID, scopeID,
+                        % (requestID, stageID, 
                            jobscriptID, processors,
                            wallSeconds, rssBytes, maxDistance,
                            maxFilesPerJob))
@@ -1000,8 +1011,9 @@ def createStageCmd(startResponse, jsonDict):
      and not scopeName:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     '--scope must by given too for --output_pattern and '
-                     '--output_pattern_next_stage')
+                     'Scope must be specified when creating the request if '
+                     '--output_pattern or '
+                     '--output_pattern_next_stage given for this stage')
 
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:

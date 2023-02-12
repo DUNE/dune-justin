@@ -43,12 +43,16 @@ used to check that the client is installed correctly and that the user is
 properly registered in justIN.
 
 .HP
-.B "create-request [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
+.B "create-request [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
 .br
 Create a new, empty request in the database, optionally with the given
-short, human-readable description and either a MetaCat Query Language expression or
-the count of the number of Monte Carlo instances to run. If a description is not 
-given, a description based on a timestamp is created. 
+short, human-readable description and either a MetaCat Query Language 
+expression or the count of the number of Monte Carlo instances to run. 
+
+.B --scope SCOPE
+specifies the Rucio scope used for any output files to be registered with 
+Rucio and uploaded to Rucio-managed storage.
+
 Requests are created in the state "draft" and the command returns the new 
 request's ID number.
 Once the request is in the running state, justIN will use the 
@@ -100,7 +104,7 @@ excludes a request from the workflow allocation process.
 .B "create-stage --request-id ID --stage-id ID 
 .B --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
-.B [--max-files-per-job N] [--scope SCOPE] 
+.B [--max-files-per-job N]
 .B [--output-pattern DATASET:PATTERN] 
 .B [--output-pattern-next-stage DATASET:PATTERN] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
@@ -146,18 +150,14 @@ limits the number of files which will be allocated to a job. This can be
 used to ensure that jobscripts which request files to work on, one after 
 another, do not run for too long. Default 1.
 
-.B --scope SCOPE
-specifies the Rucio scope used for any output files to be registered with 
-Rucio and uploaded to Rucio-managed storage.
-
 If one or more options 
 .B --output-pattern DATASET:PATTERN
 is given then the generic job will look for files created by the script
 which match the pattern given as PATTERN. The pattern is a Bash 
 shell pattern using *, ? and
 [...] expressions. See the bash(1) Pattern Matching section for details. The
-.B --scope SCOPE 
-option is also required. Any output files found by the pattern matching
+scope given when creating the parent request is required and used.
+Any output files found by the pattern matching
 will be uploaded and registered by the
 generic job in the Rucio dataset given by SCOPE:DATASET, with a 
 DID composed of the scope given and the found filename. Furthermore, if the 
@@ -188,11 +188,12 @@ jobscript is executed.
 
 .HP
 .B "quick-request [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
+.B [--scope SCOPE] 
 .B [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] 
 .B [--refind-interval-hours HOURS] --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N]
 .B [--max-files-per-job N] 
-.B [--rss-mb N] [--processors N] [--max-distance DIST] [--scope SCOPE] 
+.B [--rss-mb N] [--processors N] [--max-distance DIST]
 .B [--output-pattern DATASET:PATTERN] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
 .br
