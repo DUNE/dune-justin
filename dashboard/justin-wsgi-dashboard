@@ -345,8 +345,6 @@ def oidcTokensRequest(cilogonCode):
          'redirect_uri'  : 'https://justin.dune.hep.ac.uk/login/cilogon/login'
        })
 
-#  print(postData.encode(), file=sys.stderr)
-
   httpRequest = urllib.request.Request('https://cilogon.org/oauth2/token',
                                        data = postData.encode(),
                                        method = 'POST')
@@ -371,6 +369,8 @@ def oidcTokensRequest(cilogonCode):
   except Exception as e:
     print('OIDC tokens request failed loading json: '+str(e), file=sys.stderr)
     return None
+
+  print('responseDict=',responseDict,file=sys.stderr)
 
   try:
     tokensDict = {} 
@@ -2350,7 +2350,7 @@ def showUser(uriPrefix, environ, user, cgiValues):
     output += ('<tr><td>Groups</td><td>%s</td></tr>' 
                % ' &nbsp; '.join(user['groups']))
 
-    output += ('<tr><td>Valid</td><td>%s to %s</td></tr>' 
+    output += ('<tr><td>Valid</td><td>%s to %s UTC</td></tr>' 
                % (userRow['created_time'], userRow['expires_time']))
 
     output += ("</table>")
