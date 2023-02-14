@@ -445,13 +445,14 @@ def updateScopes():
   logLine('---- Start updateScopes ----')
 
   try:
-    row = justin.select('SELECT group_id FROM groups '
-                        'WHERE group_name="/dune"', justOne = True)
-    duneGroupID = int(row['group_id'])
-                        
-    row = justin.select('SELECT group_id FROM groups '
-                        'WHERE group_name="/dune/production"', justOne = True)
-    productionGroupID = int(row['group_id'])
+    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
+                        'WHERE wlcg_group_name="/dune"', justOne = True)
+    duneWLCGGroupID = int(row['wlcg_group_id'])
+
+    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
+                        'WHERE wlcg_group_name="/dune/production"', 
+                        justOne = True)
+    productionWLCGGroupID = int(row['wlcg_group_id'])
   except Exception as e:
     logLine('Failed getting /dune and /dune/production group IDs: ' + str(e))
     return
@@ -501,22 +502,23 @@ def updateScopes():
       # A dunepro scope, that generic jobs can write to
       if rucioScopeName == 'testpro':
         # Any /dune member can write to testpro via justIN
-        groupID = duneGroupID
+        wlcgGroupID = duneWLCGGroupID
       else:
         # Everything else requires /dune/production group membership
-        groupID = productionGroupID
+        wlcgGroupID = productionWLCGGroupID
     else:
       # If not writeable via generic jobs as dunepro, then no groups
-      groupID = 0
+      wlcgGroupID = 0
 
-    logLine('Update scope %s with write_group_id=%d' 
-            % (rucioScopeName, groupID))
+    logLine('Update scope %s with wlcg_group_id=%d' 
+            % (rucioScopeName, wlcgGroupID))
     try:
-      justin.insertUpdate('UPDATE scopes SET write_group_id=%d '
-                          'WHERE scope_name="%s"' % (groupID, rucioScopeName))
+      justin.insertUpdate('UPDATE scopes SET wlcg_group_id=%d '
+                          'WHERE scope_name="%s"' 
+                          % (wlcgGroupID, rucioScopeName))
     except Exception as e:
-      logLine('Failed upding write_group_id=%d for %s: %s'
-              % (groupID, rucioScopeName, str(e)))
+      logLine('Failed upding wlcg_group_id=%d for %s: %s'
+              % (wlcgGroupID, rucioScopeName, str(e)))
       continue
 
   justin.db.conn.commit()

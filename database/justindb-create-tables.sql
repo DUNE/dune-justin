@@ -61,23 +61,38 @@ DROP TABLE IF EXISTS `scopes`;
 CREATE TABLE `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
-  `write_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `accounting_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `groups`
+-- Table structure for table `wlcg_groups`
 --
 
-DROP TABLE IF EXISTS `groups`;
+DROP TABLE IF EXISTS `wlcg_groups`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `groups` (
-  `group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `group_name` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY `group_id` (`group_id`)
+CREATE TABLE `wlcg_groups` (
+  `wlcg_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `wlcg_group_name` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY `wlcg_group_id` (`wlcg_group_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `accounting_groups`
+--
+
+DROP TABLE IF EXISTS `accounting_groups`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `accounting_groups` (
+  `accounting_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `accounting_group_name` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY `accounting_group_id` (`accounting_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

@@ -153,8 +153,16 @@ do
 done
 )
 
-echo 'insert into groups set group_name="/dune";'
-echo 'insert into groups set group_name="/dune/production";'
+echo 'insert into wlcg_groups set wlcg_group_name="/dune";'
+echo 'insert into wlcg_groups set wlcg_group_name="/dune/production";'
+
+for i in \
+prod_keepup \
+prod_mcsim \
+test 
+do
+  echo "insert into accounting_groups set accounting_group_name=\"group_dune.$i\";"
+done
 
 ) > justindb-populate.sql
 
