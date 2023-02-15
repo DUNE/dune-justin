@@ -504,6 +504,7 @@ CREATE TABLE `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `main_pn_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
+  `create_requests` tinyint(1) NOT NULL DEFAULT FALSE,
   PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -540,6 +541,7 @@ CREATE TABLE `sessions` (
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `created_time` datetime NOT NULL DEFAULT '1970-01-01',
   `expires_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `linked_session_id` mediumint(5) unsigned NOT NULL DEFAULT 0,,
   `justin_session` varchar(255) NOT NULL,
   `justin_secret` varchar(255) NOT NULL,
   `justin_code` varchar(255) NOT NULL,

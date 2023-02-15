@@ -413,7 +413,13 @@ def showSitesStoragesCmd(startResponse, jsonDict):
    
   return httpOK(startResponse, outputString)
 
-def createRequestCmd(startResponse, jsonDict, userID):
+def createRequestCmd(startResponse, jsonDict, user):
+
+# WE WILL REMOVE AS SOON AS THE FULL SECURITY MODEL IS IMPLEMENTED IN JOBS
+  if not user['create_requests']:
+    return httpError(startResponse, 
+                     '403 Forbidden',
+                     'Your account is not yet enabled for creating requests!')
 
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
@@ -505,7 +511,7 @@ def createRequestCmd(startResponse, jsonDict, userID):
           (description,
            mql,
            scopeID,
-           userID,
+           user['user_id'],
            refindIntervalSeconds,
            refindStartDate,
            refindFinishDate))
@@ -516,7 +522,13 @@ def createRequestCmd(startResponse, jsonDict, userID):
 
   return httpOK(startResponse, str(requestID) + '\n')
 
-def quickRequestCmd(startResponse, jsonDict, userID):
+def quickRequestCmd(startResponse, jsonDict, user):
+
+# WE WILL REMOVE AS SOON AS THE FULL SECURITY MODEL IS IMPLEMENTED IN JOBS
+  if not user['create_requests']:
+    return httpError(startResponse, 
+                     '403 Forbidden',
+                     'Your account is not yet enabled for creating requests!')
 
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
@@ -632,7 +644,7 @@ def quickRequestCmd(startResponse, jsonDict, userID):
           (description,
            mql,
            scopeID,
-           userID,
+           user['user_id'],
            refindSeconds,
            refindStart,
            refindEnd))
@@ -887,7 +899,13 @@ def finishRequestCmd(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-def createStageCmd(startResponse, jsonDict):
+def createStageCmd(startResponse, jsonDict, user):
+
+# WE WILL REMOVE AS SOON AS THE FULL SECURITY MODEL IS IMPLEMENTED IN JOBS
+  if not user['create_requests']:
+    return httpError(startResponse, 
+                     '403 Forbidden',
+                     'Your account is not yet enabled for creating stages!')
 
   try:
     requestID  = int(jsonDict['request_id'])
@@ -904,7 +922,7 @@ def createStageCmd(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Valid request ID must be given') 
 
- try:
+  try:
     stageID = int(jsonDict['stage_id'])
   except:
     return httpError(startResponse, 
@@ -1330,7 +1348,8 @@ def getUser(environ):
   clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
 
   try:
-    row = justin.db.select('SELECT x509.user_id,principal_name FROM x509 '
+    row = justin.db.select('SELECT x509.user_id,principal_name,create_requests '
+           'FROM x509 '
            'LEFT JOIN users ON users.user_id=x509.user_id '
            'LEFT JOIN principal_names '
            'ON principal_names.pn_id=users.main_pn_id '
@@ -1338,12 +1357,16 @@ def getUser(environ):
            % clientDN.replace('\\','\\\\').replace('"','\\"'),
            justOne = True)
   
-    userID   = int(row['user_id'])
-    userName = row['principal_name']
+    userID         = int(row['user_id'])
+    createRequests = bool(row['create_requests'])
+    userName       = row['principal_name']
   except:
     return { 'error': 'Forbidden - acceptable identity not provided' }
 
-  return { 'user_id': userID, 'user_name': userName, 'error': None }
+  return { 'user_id'         : userID,
+           'user_name'       : userName,
+           'create_requests' : createRequests,
+           'error'           : None }
 
 #
 # Entry point from mod_wsgi
@@ -1427,10 +1450,10 @@ def application(environ, startResponse):
     return showSitesStoragesCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-request':
-    return createRequestCmd(startResponse, jsonDict, userDict['user_id'])
+    return createRequestCmd(startResponse, jsonDict, userDict)
 
   if jsonDict['command'] == 'quick-request':
-    return quickRequestCmd(startResponse, jsonDict, userDict['user_id'])
+    return quickRequestCmd(startResponse, jsonDict, userDict)
 
   if jsonDict['command'] == 'submit-request':
     return submitRequestCmd(startResponse, jsonDict)
@@ -1445,7 +1468,7 @@ def application(environ, startResponse):
     return finishRequestCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-stage':
-    return createStageCmd(startResponse, jsonDict)
+    return createStageCmd(startResponse, jsonDict, userDict)
 
   if jsonDict['command'] == 'create-jobscript':
     return createJobscriptCmd(startResponse, jsonDict, 
