@@ -4,15 +4,17 @@
 # the justin and justin-cvmfs-upload commands from the justIN GitHub:
 # https://github.com/DUNE/dune-justin/tree/main/commands
 #
-# 1) Create a tar file 
+# 1) Create an X.509 proxy (no need for VOMS)
+#    kx509
+# 2) Create a tar file 
 #    date > hello_world.txt
 #    tar cvf hello_world.tar hello_world.txt
-# 2) Upload to cvmfs
-#    HELLO_WORLD_DIR=`justin-cvmfs-upload hello_world.tar`
-# 3) Wait until  ls $HELLO_WORLD_DIR  works (minutes?)
-# 4) Create and run a request
+# 3) Upload to cvmfs
+#    INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`
+# 4) Wait until  ls $INPUT_TAR_DIR_LOCAL  works (minutes?)
+# 5) Create and run a request
 #    justin quick-request --monte-carlo 1 \
-#    --env HELLO_WORLD_DIR="$HELLO_WORLD_DIR" \
+#    --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
 #    --jobscript cvmfs-hello-world.jobscript
 #
 # Check the output through the dashboard:
@@ -24,6 +26,6 @@ did=`echo $did_pfn_rse | cut -f1 -d' '`
 echo "$did" > justin-processed-dids.txt
 
 # Look at the file in cvmfs
-echo "Contents of $HELLO_WORLD_DIR/hello_world.txt"
-cat $HELLO_WORLD_DIR/hello_world.txt
+echo "Contents of $INPUT_TAR_DIR_LOCAL/hello_world.txt"
+cat $INPUT_TAR_DIR_LOCAL/hello_world.txt
 exit 0
