@@ -1,4 +1,4 @@
-.TH JUSTIN  "2022" "justin" "justin Manual"
+.TH JUSTIN  "2023" "justin" "justIN Manual"
 .SH NAME
 .B justin
 \- justIN workflow system utility command
@@ -7,7 +7,7 @@
 .SH DESCRIPTION
 .B justin
 is a command-line utility for managing requests, stages, files, and replicas
-in the justIN Database (JDB).
+in the justIN workflow system.
 
 .SH GENERAL OPTIONS
 
@@ -383,6 +383,17 @@ Each of these placeholder files has a DID of the form
 monte-carlo-REQUEST_ID-NUMBER where
 NUMBER is in the range 1 to COUNT, and REQUEST_ID is the assigned request ID
 number. 
+
+.SH AUTHENTICATION AND AUTHORIZATION
+
+When first used on a given computer, the justin command contacts the central
+justIN services and obtains a session ID and secret which are placed
+in a temporary file. You will then be invited to visit a web page on the
+justIN dashboard which has instructions on how to authorize that session,
+using CILogon and your identity provider. Once authorized, you can use the
+justin command on that computer for 7 days, and then you will be invited 
+to re-authorize it. You can have multiple computers at multiple sites
+authorized at the same time. 
 
 .SH FILES
 
