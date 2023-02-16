@@ -336,12 +336,12 @@ JOBSCRIPTS
 
 REQUEST PROCESSING
        Once  a  request  enters the running state, it is processed by justIN's
-       finder agent. Usually this is just done once, but it can be repeated if
-       the  --refind-interval-hours option is given when creating the request.
-       When the request is processed,  the  finder  uses  the  requests's  MQL
-       expression to create a list of input files for the first stage. Work is
-       only assigned to jobs when a matching file is found and so these  lists
-       of files are essential.
+       Finder agent to find its input files. Usually this is just  done  once,
+       but  it  can be repeated if the --refind-interval-hours option is given
+       when creating the request. When the request is  processed,  the  finder
+       uses  the requests's MQL expression to create a list of input files for
+       the first stage. Work is only assigned to jobs when a matching file  is
+       found and so these lists of files are essential.
 
        In  most  cases,  the MQL query is a MetaCat Query Language expression,
        which the Finder sends to the MetaCat service to get a list of matching
@@ -358,9 +358,8 @@ REQUEST PROCESSING
 
 
 FILES
-       An X.509 user proxy file is currently needed to contact  justIN,  which
-       is either given by $X509_USER_PROXY or /tmp/x509up_uUSERID where USERID
-       is the numeric Unix user id, given by id -u
+       A session file /tmp/justin.session.USERID is created by  justin,  where
+       USERID is the numeric Unix user id, given by id -u
 
 
 AUTHOR

@@ -657,7 +657,6 @@ def quickRequestCmd(startResponse, jsonDict, user):
                        '--refind-end requires a YYYYMMDD date')
   else:
     refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
-      
 
   try:
     requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
@@ -754,7 +753,7 @@ def quickRequestCmd(startResponse, jsonDict, user):
   if jsonDict['output_pattern'] and not scopeName:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     '--scope must by given too for --output_pattern')
+                     '--scope must by given too for --output-pattern')
 
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
@@ -763,8 +762,8 @@ def quickRequestCmd(startResponse, jsonDict, user):
       if len(splitList) < 2:
         continue
     
-      datasetName  = splitList[0]
-      pattern      = ':'.join(splitList[1:])
+      pattern      = splitList[0]
+      datasetName  = splitList[1]
 
       try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
@@ -1063,15 +1062,15 @@ def createStageCmd(startResponse, jsonDict, user):
 
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
-    
+
       splitList = i.split(':')
-       
+
       if len(splitList) < 2:
         continue
-    
-      datasetName = splitList[0]
-      pattern     = ':'.join(splitList[1:])
-        
+
+      pattern     = splitList[0]
+      datasetName = splitList[1]
+
       try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
@@ -1100,8 +1099,8 @@ def createStageCmd(startResponse, jsonDict, user):
       if len(splitList) < 2:
         continue
     
-      datasetName  = splitList[0]
-      pattern      = ':'.join(splitList[1:])
+      pattern      = splitList[0]
+      datasetName  = splitList[1]
 
       try:        
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '

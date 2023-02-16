@@ -101,8 +101,8 @@ excludes a request from the workflow allocation process.
 .B --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
 .B [--max-files-per-job N]
-.B [--output-pattern DATASET:PATTERN] 
-.B [--output-pattern-next-stage DATASET:PATTERN] [--output-rse NAME] 
+.B [--output-pattern PATTERN:DATASET] 
+.B [--output-pattern-next-stage PATTERN:DATASET] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
 .br
 Creates a new stage for the given request ID with the given stage ID. Stages
@@ -147,7 +147,7 @@ used to ensure that jobscripts which request files to work on, one after
 another, do not run for too long. Default 1.
 
 If one or more options 
-.B --output-pattern DATASET:PATTERN
+.B --output-pattern PATTERN:DATASET
 is given then the generic job will look for files created by the script
 which match the pattern given as PATTERN. The pattern is a Bash 
 shell pattern using *, ? and
@@ -162,7 +162,7 @@ file with the same name but with ".json" appended, that will be recorded for
 that file in MetaCat.
 
 Alternatively
-.B --output-pattern-next-stage DATASET:PATTERN
+.B --output-pattern-next-stage PATTERN:DATASET
 can be given in which the output file will also be registered in the
 justIN Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script.
@@ -190,7 +190,7 @@ jobscript is executed.
 .B [--wall-seconds N]
 .B [--max-files-per-job N] 
 .B [--rss-mb N] [--processors N] [--max-distance DIST]
-.B [--output-pattern DATASET:PATTERN] [--output-rse NAME] 
+.B [--output-pattern PATTERN:DATASET] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
 .br
 Combines the 
@@ -361,7 +361,8 @@ corresponding metadata files for MetaCat.
 .SH REQUEST PROCESSING
 
 Once a request enters the running state, it is processed by justIN's
-finder agent. Usually this is just done once, but it can be
+Finder agent to find its input files. Usually this is just done once, but it
+can be
 repeated if the --refind-interval-hours option is given when creating the 
 request. When the request is processed, the finder uses the requests's MQL 
 expression to create a list of input files for the first stage. Work is only
@@ -385,12 +386,9 @@ number.
 
 .SH FILES
 
-An X.509 user proxy file is currently needed to contact justIN,
-which is either given by 
-.B $X509_USER_PROXY 
-or 
-.B /tmp/x509up_uUSERID
-where 
+A session file 
+.B /tmp/justin.session.USERID
+is created by justin, where 
 .B USERID
 is the numeric Unix user id, given by 
 .B id -u
