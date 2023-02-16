@@ -75,29 +75,25 @@ query of one request.
 .HP
 .B "submit-request --request-id ID"
 .br
-.B Currently not used. 
-Changes the state of the given request from "draft" to "submitted". In the 
-future, this
-will allow automated sanity checking and prioritisation of requests. For 
-very large requests it may give an opportunity for manual approval by the 
-operations team.
+Changes the state of the given request from "draft" to "submitted". The
+justIN Finder agent will automatically set the request to running after any
+necessary initialisation.
 
 .HP
-.B "start-request --request-id ID"
+.B "restart-request --request-id ID"
 .br
-Starts a request in the "draft" or "submitted" state or restarts a request
-in the "paused" stated, and changes its state to "running".
+Restarts a request in the "paused" stated, and changes its state to "running".
 
 .HP
 .B "pause-request --request-id ID"
 .br
-Changes the state of the given request to "paused". This state temporarily
-excludes a request from the workflow allocation process.
+Changes the state of the given running request to "paused". This state 
+temporarily excludes a request from the workflow allocation process.
 
 .HP
 .B "finish-request --request-id ID"
 .br
-Changes the state of the given request to "finished". This state 
+Changes the state of the given running request to "finished". This state 
 excludes a request from the workflow allocation process.
 
 .HP
@@ -200,10 +196,10 @@ jobscript is executed.
 Combines the 
 .B create-request, create-stage
 and
-.B start-request
+.B submit-request
 subcommands into a single operation, for use with single-stage requests. The
-options available to the two subcommands are described in their respective
-sections above.
+options are repeated from the first two subcommands and are described in their
+respective sections above.
 
 .HP
 .B "show-stages --request-id ID [--stage-id ID]"

@@ -390,15 +390,17 @@ def cilogonCallback(startResponse, environ):
   (justinSession, justinSecret) = getSessionCookies(environ)
 
   try:
-    row = justin.select('SELECT saved_uri FROM sessions '
+    row = justin.select('SELECT saved_uri,linked_session_id FROM sessions '
                         'WHERE justin_session="%s" AND justin_secret="%s" AND '
-                        'NOW() < expires_time'
+                        'NOW() < expires_time AND session_type="web"'
                         % (justinSession, justinSecret), justOne = True)
 
-    savedURI = row['saved_uri']
+    savedURI           = row['saved_uri']
+    authorizeSessionID = int(row['linked_session_id'])
   except:
-    justinSession = None
-    savedURI = ''
+    justinSession      = None
+    savedURI           = ''
+    authorizeSessionID = 0
 
   cilogonCode  = None
   cilogonState = None
@@ -410,7 +412,7 @@ def cilogonCallback(startResponse, environ):
       cilogonState = str(rawValues[i][0])
 
   if not justinSession or (justinSession != cilogonState):
-    output = errorPage('/dashboard/', None, None,
+    output = errorPage('/dashboard/', environ, None,
                        'Required session cookie not found! '
                        'Have you got cookies disabled in your web browser?')
     startResponseOK(startResponse, output)
@@ -418,7 +420,7 @@ def cilogonCallback(startResponse, environ):
 
   tokensDict = oidcTokensRequest(cilogonCode)
   if not tokensDict:
-    output = errorPage('/dashboard/', None, None,
+    output = errorPage('/dashboard/', environ, None,
                        'Failed to get your tokens from CILogon')
     startResponseOK(startResponse, output)
     return output
@@ -426,11 +428,11 @@ def cilogonCallback(startResponse, environ):
   pprint.pprint(tokensDict, stream = sys.stderr)
 
   try:
-    groups = tokensDict['access']['wlcg.groups']
-    if '/dune' not in groups:
+    wlcgGroups = tokensDict['access']['wlcg.groups']
+    if '/dune' not in wlcgGroups:
       raise
   except:
-    output = errorPage('/dashboard/', None, None,
+    output = errorPage('/dashboard/', environ, None,
                        'You are not registered in the /dune group on CILogon!')
     startResponseOK(startResponse, output)
     return output
@@ -440,7 +442,7 @@ def cilogonCallback(startResponse, environ):
     if not justin.stringIsUsername(eppn):
       raise
   except:
-    output = errorPage('/dashboard/', None,
+    output = errorPage('/dashboard/', environ,
                        'No eduPersonPrincipalName provided '
                        'by your identity provider / SSO!')
     startResponseOK(startResponse, output)
@@ -461,10 +463,25 @@ def cilogonCallback(startResponse, environ):
     userID = createUser(eppn)
 
   if userID:
+    if authorizeSessionID:
+      try:
+        query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s",'
+                 'expires_time=DATE_ADD(NOW(),INTERVAL 7 DAY) '
+                 'WHERE session_id = %d AND NOW() < expires_time AND '
+                 'user_id = 0 AND session_type = "command"'
+                 % (userID, ' '.join(wlcgGroups), authorizeSessionID))
+        
+        justin.insertUpdate(query)
+      except Exception as e:
+        print('UPDATE command sessions fails: ' + str(e), file=sys.stderr)
+### NEED A PROPER RESPONSE HERE eg FOR EXPIRED command SESSION
+        return ''
+
     try:
-      query = ('UPDATE sessions SET user_id=%d,groups="%s" '
-               'WHERE justin_session="%s" AND justin_secret="%s" AND user_id=0'
-               % (userID, ' '.join(groups), justinSession, justinSecret))
+      query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s" '
+               'WHERE justin_session="%s" AND justin_secret="%s" AND '
+               'user_id=0 AND session_type="web"'
+               % (userID, ' '.join(wlcgGroups), justinSession, justinSecret))
       justin.insertUpdate(query)
     except Exception as e:
       print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
@@ -473,58 +490,106 @@ def cilogonCallback(startResponse, environ):
       justin.db.conn.commit()
 
   if not savedURI:
-    savedURI = '/dashboard/'   
+    savedURI = '/dashboard/'
 
   startResponse('302 Moved', [('Location',       savedURI),
                               ('Content-length', '0')
                              ])
   return ''
 
-def loginPage(uriPrefix, startResponse, environ):
+def loginPage(uriPrefix, startResponse, environ, authorize=False):
 
-  # Always create a new session: they are here to log in
+  # Always create a new session
   justinSession = secrets.token_urlsafe(64)
   justinSecret  = secrets.token_urlsafe(64)
   justinCode    = secrets.token_urlsafe(64)
-  savedURI      = environ['REQUEST_URI'][:-6] # remove '&login'
   userAgent     = environ.get('HTTP_USER_AGENT', '')
   ip            = environ.get('REMOTE_ADDR', '')
+
+  if authorize:
+    justinAuthorizeCode = environ['REQUEST_URI'].split('/')[-1]
+    if not justin.stringIsSite(justinAuthorizeCode):
+      output = errorPage(uriPrefix, environ, '', "Failed to get authorize code")
+      startResponseOK(startResponse, output)
+      return output
+
+    try:
+      # Find the session ID created when the command contacted the 
+      # justin-wsgi-commands service, so can link that and new web session
+      row = justin.select('SELECT session_id,justin_session '
+                          'FROM sessions '
+                          'WHERE justin_code="%s" AND sessions.user_id=0 '
+                          'AND session_type="command"'
+                          % justinAuthorizeCode, justOne = True)
+
+      authorizeSessionID = int(row['session_id'])
+      authorizeJustinSession = row['justin_session']
+    except:
+      output = errorPage(uriPrefix, environ, '', "Invalid authorize code")
+      startResponseOK(startResponse, output)
+      return output
+
+    savedURI = '/dashboard/?method=authorized'
+  else:
+    authorizeSessionID = 0
+    savedURI = environ['REQUEST_URI'][:-6] # remove '&login'
 
   try:
     justin.insertUpdate('INSERT INTO sessions SET '
                         'session_type="web",'
                         'created_time=NOW(),'
                         'expires_time=DATE_ADD(NOW(),INTERVAL 24 HOUR),'
+                        'linked_session_id=%d,'
                         'justin_session="%s",'
                         'justin_secret="%s",'
                         'justin_code="%s",'
                         'user_agent="%s",'
                         'saved_uri="%s",'
                         'ip="%s"'
-                        % (justinSession, justinSecret, justinCode,
+                        % (authorizeSessionID,
+                           justinSession, justinSecret, justinCode,
                            userAgent.replace('\\','\\\\').replace('"','\\"'),
                            savedURI,
                            ip))
     justin.db.conn.commit()
   except:
-    output = errorPage(uriPrefix, None, None, "Session creation fails")
+    output = errorPage(uriPrefix, environ, '', "Session creation fails")
     startResponseOK(startResponse, output)
     return output
 
-  output = header(uriPrefix, environ, '', "justIN: Login")
-
-  output += '<h1 style="text-align: center">justIN login</h1>'
+  if authorize:
+    output = header('/dashboard/', environ, '', "justIN: Authorize computer")
+    output += '<h1 style="text-align: center">Authorize computer</h1>'
+  else:
+    output = header(uriPrefix, environ, '', "justIN: Login")
+    output += '<h1 style="text-align: center">justIN login</h1>'
 
   output += '<table style="border: 0"><tr>'
   output += '<td style="border: 0"><img src="/cilogon-login.png" width="300"></td>'
 
-  output += \
+  if authorize:
+    output += \
+'''<td style="border: 0"><p>Session ID: %s</p>
+<p>You can use the button below to authorize your
+computer to use the justin command. 
+Your web browser will be directed to the CILogon website (screenshot to
+the left) and you will be asked to select an identity provider. Currently 
+only the Fermilab SSO is enabled for DUNE. The Log On button will then take 
+you to Fermilab where you can authenticate with your Services username and 
+password. (Screenshot to right.) 
+Once you have successfully authenticated you will be directed
+back to the justIN dashboard with a confirmation that the justin command
+on your computer is now authorized for the next 7 days.</p>
+
+''' % authorizeJustinSession[:7]
+  else:
+    output += \
 '''<td style="border: 0">You can use the button below to login in the 
 justIN dashboard. 
 Your web browser will be directed to the CILogon website (screenshot to
-the left) and asked to select an identity provider. Currently only the
-Fermilab SSO is enabled for DUNE. The Log On button will then take you
-to Fermilab where you can authenticate with your Services username and 
+the left) and you will be asked to select an identity provider. Currently 
+only the Fermilab SSO is enabled for DUNE. The Log On button will then take 
+you to Fermilab where you can authenticate with your Services username and 
 password. (Screenshot to right.) 
 Once you have successfully authenticated you will be directed
 back to the justIN dashboard, with your Fermilab eduPersonPrincipalName
@@ -533,7 +598,8 @@ your user name.
 
 '''
 
-  output += '<p><form style="text-align: center" method="GET" action="https://cilogon.org/authorize">\n'
+  output += '<p><form style="text-align: center" method="GET" ' \
+            'action="https://cilogon.org/authorize">\n'
   output += ('<input type="hidden" name="client_id" value="%s">\n'
              % justin.conf.cilogonClientID)
   output += '<input type="hidden" name="state" value="%s">\n' % justinSession
@@ -543,10 +609,10 @@ your user name.
 <input type="hidden" name="redirect_uri" 
  value="https://justin.dune.hep.ac.uk/login/cilogon/login">
 <input type="hidden" name="scope" 
- value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune wlcg.groups:/dune/production wlcg.groups:/dune/operations">
+ value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune wlcg.groups:/dune/production">
 <button type="submit" 
- style="background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer">Login</button>
-</form></p>'''
+ style="background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer">%s</button>
+</form></p>''' % ('Authorize' if authorize else 'Login')
 
   output += '</td>'
 
@@ -595,7 +661,7 @@ def getUser(environ):
     return None
 
   try:
-    query = ('SELECT principal_name,sessions.user_id,justin_code,groups '
+    query = ('SELECT principal_name,sessions.user_id,justin_code,wlcg_groups '
              'FROM sessions '
              'LEFT JOIN users '
              'ON users.user_id=sessions.user_id '
@@ -609,7 +675,7 @@ def getUser(environ):
     userName   = row['principal_name']
     userID     = row['user_id']
     justinCode = row['justin_code']
-    groups     = row['groups'].split()
+    wlcgGroups = row['wlcg_groups'].split()
     print(userName,userID,file=sys.stderr)
   except:
     return None
@@ -618,7 +684,7 @@ def getUser(environ):
            'user_id'        : userID,
            'justin_session' : justinSession,
            'justin_code'    : justinCode,
-           'groups'         : groups  }
+           'wlcg_groups'    : wlcgGroups  }
 
 def createUser(principalName):
   
@@ -636,6 +702,24 @@ def createUser(principalName):
     return None
   else:
     return userID
+
+def authorizedPage(uriPrefix, environ, user):
+
+  output = header(uriPrefix, environ, user, "justIN: Computer is authorized")
+
+  output += \
+'''<h1>Your computer is authorized</h1>
+<p>The justin command on your computer is now authorized. In 7 days the 
+authorization will expire and the justin command will give you another link
+to visit.</p>
+<p>For more about using the justin command, please see its
+<a href="https://dune.github.io/dune-justin/justin-command.html">documentation</a>.
+</p>
+'''
+  
+  output += footer()
+  
+  return output
 
 def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
@@ -2042,8 +2126,7 @@ def listScopes(uriPrefix, environ, user, cgiValues):
   
   output += ('<tr>'
         '<th>Scope</th>'
-        '<th>Write if in group</th>'
-        '</tr>')
+        '<th>Write if in group</th>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
@@ -2350,7 +2433,7 @@ def showUser(uriPrefix, environ, user, cgiValues):
                % userName)
 
     output += ('<tr><td>Groups</td><td>%s</td></tr>' 
-               % ' &nbsp; '.join(user['groups']))
+               % ' &nbsp; '.join(user['wlcg_groups']))
 
     output += ('<tr><td>Valid</td><td>%s to %s UTC</td></tr>' 
                % (userRow['created_time'], userRow['expires_time']))
@@ -2777,17 +2860,21 @@ def application(environ, startResponse):
     output = cilogonCallback(startResponse, environ)
     return [output.encode('UTF-8')]
 
-  user = getUser(environ)
-
   try:
     uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'
   except:
     uriPrefix = '/dashboard/'
 
+  if environ['REQUEST_URI'].startswith('/authorize/'):
+    output = loginPage('/dashboard/', startResponse, environ, authorize=True)
+    return [output.encode('UTF-8')]
+
   if environ['REQUEST_URI'].endswith('&login'):
     # loginPage does startResponse() itself so it can create session cookies
     output = loginPage(uriPrefix, startResponse, environ)
     return [output.encode('UTF-8')]
+
+  user = getUser(environ)
 
   cgiValues  = { }
   
@@ -2829,6 +2916,9 @@ def application(environ, startResponse):
   if method is None:
     output = mainPage(uriPrefix, environ, user)
   
+  elif method == "authorized":
+    output = authorizedPage(uriPrefix, environ, user)
+
   elif method == "list-jobscripts":
     output = listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
 

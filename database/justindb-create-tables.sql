@@ -545,10 +545,11 @@ CREATE TABLE `sessions` (
   `justin_session` varchar(255) NOT NULL,
   `justin_secret` varchar(255) NOT NULL,
   `justin_code` varchar(255) NOT NULL,
-  `groups` text NOT NULL DEFAULT '',
+  `wlcg_groups` text NOT NULL DEFAULT '',
   `saved_uri` varchar(255) NOT NULL DEFAULT '',
   `user_agent` varchar(255) NOT NULL DEFAULT '',
   `ip` varchar(255) NOT NULL DEFAULT '',
+  `hostname` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`session_id`),
   UNIQUE KEY `session` (`session`),
   UNIQUE KEY `justin_code` (`justin_code`)

@@ -19,20 +19,14 @@
 # This WSGI script relies on justin-api-import-script being run by
 # the mod_wsgi directive WSGIImportScript
 
-# This WSGI script must be run from an Apache httpd server with
-# X.509 proxy certificates enabled. On a systemd system (like 
-# CentOS 7) you need to enable this in OpenSSL inside mod_ssl
-# by adding this line to /usr/lib/systemd/system/httpd.service
-# in the [Service] section:
-#
-# Environment=OPENSSL_ALLOW_PROXY_CERTS=1
-
 import os
 import re
 import sys
 import time
 import json
 import string
+import socket
+import secrets
 import datetime
 
 import justin
@@ -439,7 +433,6 @@ def createRequestCmd(startResponse, jsonDict, user):
                        '400 Bad Request', 
                        'Monte Carlo option requires an integer count')
 
-# STILL NEED TO CHECK THIS USER CAN WRITE INTO THIS SCOPE
   if 'scope' in jsonDict and jsonDict['scope']:
     # --scope option given, so check the scope is known
     scopeName = jsonDict['scope'].lower()
@@ -450,14 +443,33 @@ def createRequestCmd(startResponse, jsonDict, user):
                        'Scope name can only be characters a-z 0-9 - _ .')
 
     try:
-      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
-                                  'WHERE scope_name="%s"' % scopeName, 
-                                  justOne=True)
-      scopeID = int(scopeRow['scope_id'])
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
+                          'FROM scopes '
+                          'LEFT JOIN wlcg_groups '
+                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                          'WHERE scope_name="%s"' % scopeName, 
+                          justOne=True)
+
+      wlcgGroupName = row['wlcg_group_name']
+      scopeID       = int(scopeRow['scope_id'])
+      if not scopeID:
+        raise
     except:
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Failed to find scope %s in justIN database' % scope)
+ 
+   if not wlcgGroupName:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'Scope %s has no group defined and cannot yet be '
+                       'used via justIN' % scope)
+
+   if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'You need to be in group %s to use scope %s' 
+                       % (wlcgGroupName, scope))
   else:
     scopeName = None
     scopeID   = 0
@@ -569,7 +581,6 @@ def quickRequestCmd(startResponse, jsonDict, user):
                        '400 Bad Request', 
                        'Monte Carlo option requires an integer count')
       
-# NEED TO CHECK USER IS ALLOWED TO USE THIS SCOPE STILL
   if 'scope' in jsonDict and jsonDict['scope']:
     # --scope option given, so check the scope is known
     scopeName = jsonDict['scope'].lower()
@@ -580,14 +591,33 @@ def quickRequestCmd(startResponse, jsonDict, user):
                        'Scope name can only be characters a-z 0-9 - _ .')
 
     try:
-      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
-                                  'WHERE scope_name="%s"' % scopeName, 
-                                  justOne=True)
-      scopeID = int(scopeRow['scope_id'])
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
+                          'FROM scopes '
+                          'LEFT JOIN wlcg_groups '
+                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                          'WHERE scope_name="%s"' % scopeName, 
+                          justOne=True)
+
+      wlcgGroupName = row['wlcg_group_name']
+      scopeID       = int(scopeRow['scope_id'])
+      if not scopeID:
+        raise
     except:
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Failed to find scope %s in justIN database' % scope)
+ 
+   if not wlcgGroupName:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'Scope %s has no group defined and cannot yet be '
+                       'used via justIN' % scope)
+
+   if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'You need to be in group %s to use scope %s' 
+                       % (wlcgGroupName, scope))
   else:
     scopeName = None
     scopeID   = 0
@@ -804,7 +834,9 @@ def quickRequestCmd(startResponse, jsonDict, user):
 
   return httpOK(startResponse, str(requestID) + '\n')
 
-def submitRequestCmd(startResponse, jsonDict):
+def modifyRequestCmds(startResponse, jsonDict, user):
+  # Generic handler for restart-request, submit-request, pause-request and
+  # finish-request
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -813,85 +845,71 @@ def submitRequestCmd(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Request ID must be given')
 
-# change to handle errors properly eg no such request
-# and state not draft
   try:
-    justin.db.insertUpdate("UPDATE requests SET "
-                        "state='submitted',submitted=NOW() "
-                        "WHERE request_id=%d AND state='draft'" % requestID)
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Error updating justIN database ' + str(e))
+    row = justin.select('SELECT requests.user_id,requests.state,'
+                        'wlcg_group_name FROM requests '
+                        'LEFT JOIN scopes '
+                        'ON scopes.scope_id=requests.scope_id '
+                        'LEFT JOIN wlcg_groups '
+                        'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                        'WHERE requests.request_id=%d' % requestID)
 
-  return httpOK(startResponse, '')
-
-def startRequestCmd(startResponse, jsonDict):
-
-  try:
-    requestID = int(jsonDict['request_id'])
+    requestUserID = int(row['user_id'])
+    requestState  = row['state']
+    wlcgGroupName = row['wlcg_group_name']
   except:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Request ID must be given')
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Database error')
+  
+  if requestUserID != user['user_id'] and \
+     wlcgGroupName not in user['wlcg_groups']:
+    return httpError(startResponse,
+                     '403 Forbidden',
+                     'You do not have permission to update that request')
+  
+  if jsonDict['command'] == 'submit-request':
+    if requestState != 'draft':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot submit a request that was already submitted')
 
-# change to handle errors properly eg no such request
-# or not in draft or submitted states
+    query = ("UPDATE requests SET "
+             "state='submitted',submitted=NOW() "
+             "WHERE request_id=%d AND state='draft'" % requestID)
+
+  elif jsonDict['command'] == 'restart-request':
+    if requestState != 'paused':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot restart a request that is not paused')
+
+    query = ("UPDATE requests SET state='running' "
+             "WHERE request_id=%d AND state='paused'"
+             % requestID)
+
+  elif jsonDict['command'] == 'pause-request':
+    if requestState != 'running':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot pause a request that is not running')
+
+    query = ("UPDATE requests SET state='paused' "
+             "WHERE request_id=%d "
+             "AND state='running'" % requestID)
+
+  elif jsonDict['command'] == 'finish-request':
+    if requestState != 'running':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot finish a request that is not running')
+
+    query = ("UPDATE requests SET state='finished' "
+             "WHERE request_id=%d "
+             "AND state='running'" % requestID)
+
   try:
-    justin.db.insertUpdate("UPDATE requests SET started=NOW() "
-          "WHERE request_id=%d AND "
-          "(state='draft' OR state='submitted')"
-          % requestID)
-
-    justin.db.insertUpdate("UPDATE requests SET state='running' "
-          "WHERE request_id=%d AND "
-          "(state='draft' OR state='submitted' OR state='paused')"
-          % requestID)
-
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Error updating justIN database ' + str(e))
-
-  return httpOK(startResponse, '')
-
-def pauseRequestCmd(startResponse, jsonDict):
-
-  try:
-    requestID = int(jsonDict['request_id'])
-  except:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Request ID must be given')
-
-# change to handle errors properly eg no such request
-  try:
-    justin.db.insertUpdate("UPDATE requests SET state='paused' "
-                        "WHERE request_id=%d "
-                        "AND state='running'" % requestID)
-
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Error updating justIN database ' + str(e))
-
-  return httpOK(startResponse, '')
-
-def finishRequestCmd(startResponse, jsonDict):
-
-  try:
-    requestID = int(jsonDict['request_id'])
-  except:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Request ID must be given')
-
-# change to handle errors properly eg no such request
-  try:
-    justin.db.insertUpdate("UPDATE requests SET state='finished' "
-                        "WHERE request_id=%d "
-                        "AND state<>'deleted'" % requestID)
-
+    justin.insertUpdate(query)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -909,18 +927,28 @@ def createStageCmd(startResponse, jsonDict, user):
 
   try:
     requestID  = int(jsonDict['request_id'])
-    requestRow = justin.select('SELECT requests.scope_id,scope_name '
-                               'FROM requests '
-                               'LEFT JOIN scopes '
-                               'ON scopes.scope_id=requests.scope_id '
-                               'WHERE request_id=%d' % requestID, 
-                               justOne = True)
-    scopeID   = int(requestRow['scope_id'])
-    scopeName = requestRow['scope_name']
+    requestRow = justin.select('SELECT requests.scope_id,scope_name,'
+                           'wlcg_group_name,requests.user_id FROM requests '
+                           'LEFT JOIN scopes '
+                           'ON scopes.scope_id=requests.scope_id '
+                           'LEFT JOIN wlcg_groups '
+                           'ON wlcg_group.wlcg_group_id=scopes.wlcg_group_id '
+                           'WHERE request_id=%d' % requestID, 
+                           justOne = True)
+    requestUserID = int(requestRow['user_id'])
+    scopeID       = int(requestRow['scope_id'])
+    scopeName     = requestRow['scope_name']
+    wlcgGroupName = requestRow['wlcg_group_name']
   except:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Valid request ID must be given') 
+                     'Valid request ID must be given')
+
+  if requestUserID != user['user_id'] and \
+     wlcgGroupName not in user['wlcg_groups']:
+    return httpError(startResponse, 
+                 '403 Forbidden', 
+                 'You do not have permission to add a stage to that request')
 
   try:
     stageID = int(jsonDict['stage_id'])
@@ -1148,7 +1176,7 @@ def createStageCmd(startResponse, jsonDict, user):
 
   return httpOK(startResponse, '')
 
-def createJobscriptCmd(startResponse, jsonDict, userID, user_name):
+def createJobscriptCmd(startResponse, jsonDict, user):
   # Add a named jobscript to the jobscripts library NOT to a stage
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
@@ -1185,22 +1213,38 @@ def createJobscriptCmd(startResponse, jsonDict, userID, user_name):
                        'Scope name can only be characters a-z 0-9 - _ .')
 
     try:
-      scopeRow = justin.db.select('SELECT scope_id FROM scopes '
-                                  'WHERE scope_name="%s"' % scopeName,
-                                  justOne=True)
-      scopeID = int(scopeRow['scope_id'])
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
+                           'FROM scopes '
+                           'LEFT JOIN wlcg_groups '
+                           'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                           'WHERE scope_name="%s"' % scopeName,
+                           justOne=True)
+      scopeID       = int(scopeRow['scope_id'])
+      wlcgGroupName = scopeRow['wlcg_group_name']
     except:
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Failed to find scope %s in justIN database' % scopeName) 
+
+    if not wlcgGroupName:
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'Scope %s has no group defined and cannot yet be '
+                       'used via justIN' % scope)
+
+    if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'You need to be in group %s to use scope %s' 
+                       % (wlcgGroupName, scope))
 
     jobscriptIdentifier = scopeName + ':' + name
     jobscriptUserID = 0
   else:
     # No scope, so set user_id instead
     scopeID = 0
-    jobscriptUserID = userID
-    jobscriptIdentifier = user_name + ':' + name
+    jobscriptUserID = user['user_id']
+    jobscriptIdentifier = user['user_name'] + ':' + name
 
   try:
     # Check if jobscript with this user/scope and name exists already
@@ -1225,7 +1269,7 @@ def createJobscriptCmd(startResponse, jsonDict, userID, user_name):
                              'created_time=NOW()'
                        % (scopeID,
                           jobscriptUserID,
-                          userID,
+                          user['user_id'],
                           name,
                           jobscript.replace('\\','\\\\').replace('"','\\"'),
                           description.replace('\\','\\\\').replace('"','\\"')
@@ -1245,7 +1289,7 @@ def createJobscriptCmd(startResponse, jsonDict, userID, user_name):
                              'created_time=NOW() '
                              'WHERE jobscript_id=%d '
                        % (jobscript.replace('\\','\\\\').replace('"','\\"'),
-                          userID,
+                          user['user_id'],
                           description.replace('\\','\\\\').replace('"','\\"'),
                           jobscriptID))
 
@@ -1256,7 +1300,7 @@ def createJobscriptCmd(startResponse, jsonDict, userID, user_name):
 
   return httpOK(startResponse, jobscriptIdentifier + '\n')
 
-def failFilesCmd(startResponse, jsonDict):
+def failFilesCmd(startResponse, jsonDict, user):
 
   try:
     requestID = int(jsonDict['request_id'])
@@ -1264,6 +1308,28 @@ def failFilesCmd(startResponse, jsonDict):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Request ID must be given')
+
+  try:
+    row = justin.select('SELECT requests.user_id,wlcg_group_name '
+                        'FROM requests '
+                        'LEFT JOIN scopes '
+                        'ON scopes.scope_id=requests.scope_id '
+                        'LEFT JOIN wlcg_groups '
+                        'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                        'WHERE requests.request_id=%d' % requestID)
+
+    requestUserID = row['user_id']
+    wlcgGroupName = row['wlcg_group_name']
+  except:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Database error')
+  
+  if requestUserID != user['user_id'] and \
+     wlcgGroupName not in user['wlcg_groups']:
+    return httpError(startResponse,
+                     '403 Forbidden',
+                     'You do not have permission to update that request')
 
   try:
     stageID  = int(jsonDict['stage_id'])
@@ -1338,35 +1404,101 @@ def showJobsCmd(startResponse, jsonDict):
    
   return httpOK(startResponse, outputString)
 
-def getUser(environ):
-
-  # Use certificates and proxies for now; will transition to tokens in future
-  if 'SSL_CLIENT_S_DN' not in environ or not environ['SSL_CLIENT_S_DN']:
-    return { 'error': 'Forbidden - identity not provided' }
-
-  # Convert to the older format with slashes 
-  clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
+#
+# Start of utility functions
+#
+def getUser(jsonDict):
 
   try:
-    row = justin.db.select('SELECT x509.user_id,principal_name,create_requests '
-           'FROM x509 '
-           'LEFT JOIN users ON users.user_id=x509.user_id '
+    session = jsonDict['session']
+    secret  = jsonDict['secret']
+
+    if not session or not secret or \
+       not justin.stringIsSite(session) or not justin.stringIsSite(secret):
+      raise
+  except:
+    return None
+
+  try:
+    row = justin.select(
+           'SELECT principal_name,sessions.user_id,create_requests,'
+           'sessions.wlcg_groups '
+           'FROM sessions '
+           'LEFT JOIN users ON users.user_id=sessions.user_id '
            'LEFT JOIN principal_names '
            'ON principal_names.pn_id=users.main_pn_id '
-           'WHERE x509dn=LEFT("%s",LENGTH(x509dn))' 
-           % clientDN.replace('\\','\\\\').replace('"','\\"'),
+           'WHERE justin_session="%s" AND justin_secret="%s" AND sessions.user_id<>0 '
+           'AND session_type="command"' % (session, secret),
            justOne = True)
   
     userID         = int(row['user_id'])
     createRequests = bool(row['create_requests'])
     userName       = row['principal_name']
-  except:
-    return { 'error': 'Forbidden - acceptable identity not provided' }
+    wlcgGroups     = row['wlcg_groups'].split()
+  except Exception as e:
+    print('Finding session fails with: ' + str(e), file=sys.stderr)
+    return None
 
   return { 'user_id'         : userID,
            'user_name'       : userName,
            'create_requests' : createRequests,
-           'error'           : None }
+           'wlcg_groups'     : wlcgGroups }
+
+def newSession(startResponse, environ):
+  
+  justinSession = secrets.token_urlsafe(64)
+  justinSecret  = secrets.token_urlsafe(64)
+  justinCode    = secrets.token_urlsafe(28)
+  savedURI      = '/dashboard/'
+  userAgent     = environ.get('HTTP_USER_AGENT', '')
+  ip            = environ.get('REMOTE_ADDR', '')
+  hostname      = ''
+
+  if ip:
+    try:
+      hostname = socket.gethostbyaddr(ip)
+    except:
+      pass
+
+  try:
+    justin.insertUpdate('INSERT INTO sessions SET '
+                        'session_type="command",'
+                        'created_time=NOW(),'
+                        'expires_time=DATE_ADD(NOW(),INTERVAL 10 MINUTE),'
+                        'justin_session="%s",'
+                        'justin_secret="%s",'
+                        'justin_code="%s",'
+                        'user_agent="%s",'
+                        'saved_uri="%s",'
+                        'ip="%s",'
+                        'hostname="%s"'
+                        % (justinSession, justinSecret, justinCode,
+                           userAgent.replace('\\','\\\\').replace('"','\\"'),
+                           savedURI,
+                           ip, hostname))
+    justin.db.conn.commit()
+  except:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed creating session')
+
+  outputDict = { 'session' : justinSession, 'secret' : justinSecret }
+
+  outputDict['message'] = \
+'''
+To authorize this computer to run the justin command, visit this page with your
+usual web browser and follow the instructions within the next 10 minutes:
+https://justin.dune.hep.ac.uk/authorize/%s
+
+Check that the Session ID displayed on that page is %s
+
+Once you've followed the instructions on that web page, you can run the justin
+command without needing to authorize this computer again for 7 days.
+''' % (justinCode, justinSession[:7])
+   
+  return httpError(startResponse, 
+                   '401 Authorization Required',
+                   json.dumps(outputDict))
 
 #
 # Entry point from mod_wsgi
@@ -1396,15 +1528,8 @@ def application(environ, startResponse):
   # Avoid leftovers from partial, failed transactions in this instance
   justin.db.conn.rollback()
 
-  # This returns an error if an authorized DN is not found
-  userDict = getUser(environ)
-
-  if userDict['error']:
-    return httpError(startResponse, 
-                     '403 Forbidden', 
-                     response['error'])
-
   try:
+    # Client always uses POST
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
     inputString = environ['wsgi.input'].read(inputLength)
     jsonDict = json.loads(inputString)
@@ -1412,6 +1537,13 @@ def application(environ, startResponse):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Failed to read and parse JSON')
+
+  # This returns an error if an authorized DN is not found
+  user = getUser(jsonDict)
+
+  if not user:
+    # No valid session found
+    return newSession(startResponse, environ)
 
   # Check jsonDict specifies a method
   if 'command' not in jsonDict:
@@ -1438,7 +1570,7 @@ def application(environ, startResponse):
     return showFilesCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'fail-files':
-    return failFilesCmd(startResponse, jsonDict)
+    return failFilesCmd(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'show-replicas':
     return showReplicasCmd(startResponse, jsonDict)
@@ -1450,29 +1582,20 @@ def application(environ, startResponse):
     return showSitesStoragesCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-request':
-    return createRequestCmd(startResponse, jsonDict, userDict)
+    return createRequestCmd(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'quick-request':
-    return quickRequestCmd(startResponse, jsonDict, userDict)
+    return quickRequestCmd(startResponse, jsonDict, user)
 
-  if jsonDict['command'] == 'submit-request':
-    return submitRequestCmd(startResponse, jsonDict)
-
-  if jsonDict['command'] == 'start-request':
-    return startRequestCmd(startResponse, jsonDict)
-
-  if jsonDict['command'] == 'pause-request':
-    return pauseRequestCmd(startResponse, jsonDict)
-
-  if jsonDict['command'] == 'finish-request':
-    return finishRequestCmd(startResponse, jsonDict)
+  if jsonDict['command'] in ['submit-request', 'restart-request',
+                             'pause-request', 'finish-request']:
+    return modifyRequestCmds(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-stage':
-    return createStageCmd(startResponse, jsonDict, userDict)
+    return createStageCmd(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'create-jobscript':
-    return createJobscriptCmd(startResponse, jsonDict, 
-                              userDict['user_id'], userDict['user_name'])
+    return createJobscriptCmd(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)

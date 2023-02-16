@@ -487,6 +487,20 @@ def findReplicas():
   # All ok, so commit it all to the DB
   justin.db.conn.commit()
 
+def findSubmittedRequests():
+  # Find requests waiting in the submitted state and set them to running
+
+  try:
+    query = ('UPDATE requests SET state="running" WHERE state="submitted" '
+             'ORDER BY request_id')
+
+    justin.insertUpdate(query)
+  except:
+    logLine('Failed to update submitted requests')
+    return
+        
+  justin.db.conn.commit()
+
 def findFinishedRequests():
   # Find requests with all files in terminal states and set to finished
 
@@ -674,6 +688,7 @@ def findStalledAbortedJobs():
 
 def oneCycle():
 
+  findSubmittedRequests()
   findFiles()
   findReplicas()
   findFinishedRequests()

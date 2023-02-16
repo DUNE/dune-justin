@@ -22,16 +22,28 @@
 import os
 import sys
 import json
+import time
 import ssl
 import urllib.request
 import argparse
 
 # The make-justin-tag script looks for this and updates it - so format matters
 versionNumber = '00.04.00'
+sessionFile   = '/tmp/justin.session.' + str(os.getuid())
 
 def body(buf): 
 
   sys.stdout.write(buf.decode('UTF-8'))
+
+def getSession():
+
+  try:
+    (session, secret) = open(sessionFile, 'r').read().split()
+  except:
+    session = None
+    secret  = None
+        
+  return (session, secret)
 
 #
 # PROGRAM MAIN !!!
@@ -218,6 +230,11 @@ else:
   # This will move to justin.dune.hep.ac.uk once we are using tokens...
   url = 'https://justin-allocator-pro.dune.hep.ac.uk/api/commands'
 
+(session, secret) = getSession()
+
+jsonDict['session'] = session
+jsonDict['secret']  = secret
+
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),
                                      headers = { 'User-Agent': 
@@ -226,11 +243,6 @@ httpRequest = urllib.request.Request(url + '/' + args.command,
 
 sslContext = ssl.SSLContext()
 
-if 'X509_USER_PROXY' in os.environ and os.environ['X509_USER_PROXY']:
-  sslContext.load_cert_chain(os.environ['X509_USER_PROXY'])
-else:
-  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
-
 if 'X509_CERTIFICATES' in os.environ and os.environ['X509_CERTIFICATES']:
   sslContext.load_verify_locations(capath = os.environ['X509_CERTIFICATES'])
 else:
@@ -238,14 +250,42 @@ else:
 
 try:
   response = urllib.request.urlopen(httpRequest, context = sslContext)
-except urllib.error.URLError as e:
+
+except urllib.error.HTTPError as e:
+  if e.code == 401:
+    try:
+      responseDict = json.loads(e.read().decode('utf-8'))
+      session = responseDict['session']
+      secret  = responseDict['secret']
+      message = responseDict['message']
+    except:
+      print('Failed to parse JSON response from justIN!', file=sys.stderr)
+      sys.exit(21)
+
+    try:
+      os.umask(0)
+      fd = os.open(path  = sessionFile,
+                 flags = (os.O_WRONLY | os.O_CREAT | os.O_TRUNC),
+                 mode  = 0o600)
+
+      with open(fd, 'w') as f:
+        f.write(session + ' ' + secret)
+    except:
+      print('Failed to create new session file %s' % sessionFile, 
+            file=sys.stderr)
+      sys.exit(22)
+  
+    print(message)
+    sys.exit(0)
+
   print(e.read().decode('utf-8'), file=sys.stderr)
   sys.exit(21)
   
-if response.status != 200:
-  if jsonDict['verbose']:
-    print(response.read().decode('utf-8'), file=sys.stderr)
-  sys.exit(20)
+#if response.status != 200:
+#  if jsonDict['verbose']:
+#    print(response.read().decode('utf-8'), file=sys.stderr)
+#  sys.exit(20)
   
 print(response.read().decode('utf-8'), end='')
 sys.exit(0)
+ 
