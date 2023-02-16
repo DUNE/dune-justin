@@ -49,3 +49,4 @@ brackets.
 - username - the username to use (root)
 - password - the password to use (none)
 - db - the name of the database (justindb)
+

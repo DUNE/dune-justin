@@ -15,10 +15,14 @@ should be possible to install and run the workflow command directly from the
 If you have Python2 module directories in $PYTHONPATH, it may be necessary
 to unset PYTHONPATH in the session where you run the workflow command.
 
-To authenticate to justIN, the command expects to be able to 
-find a grid style X.509 proxy file in /tmp/x509up_uUUUU or in the file given
-by $X509_USER_PROXY. VOMS extensions are not required but will be safely
-ignored if present. 
+When first used on a given computer, the justin command contacts the central
+justIN services and obtains a session ID and secret which are placed
+in a temporary file. You will then be invited to visit a web page on the
+justIN dashboard which has instructions on how to authorize that session,
+using CILogon and your identity provider. Once authorized, you can use the
+justin command on that computer for 7 days, and then you will be invited 
+to re-authorize it. You can have multiple computers at multiple sites
+authorized at the same time. 
 
 The command `justin time` can be used to test the installation of the 
 command and your registration with justIN. It contacts the
