@@ -98,7 +98,7 @@ SUBCOMMANDS
        create-stage --request-id ID --stage-id ID --jobscript  FILENAME|--job-
               script-id  JSID [--wall-seconds N] [--rss-mb N] [--processors N]
               [--max-distance DIST] [--max-files-per-job N]  [--output-pattern
-              DATASET:PATTERN]  [--output-pattern-next-stage  DATASET:PATTERN]
+              PATTERN:DATASET]  [--output-pattern-next-stage  PATTERN:DATASET]
               [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]
               Creates a new stage for the given  request  ID  with  the  given
               stage ID. Stages must be numbered consecutively from 1, and each
@@ -136,7 +136,7 @@ SUBCOMMANDS
               which  request  files  to work on, one after another, do not run
               for too long. Default 1.
 
-              If one or more options --output-pattern DATASET:PATTERN is given
+              If one or more options --output-pattern PATTERN:DATASET is given
               then  the  generic job will look for files created by the script
               which match the pattern given as PATTERN. The pattern is a  Bash
               shell  pattern using *, ? and [...] expressions. See the bash(1)
@@ -149,7 +149,7 @@ SUBCOMMANDS
               data file with the same name but  with  ".json"  appended,  that
               will be recorded for that file in MetaCat.
 
-              Alternatively --output-pattern-next-stage DATASET:PATTERN can be
+              Alternatively --output-pattern-next-stage PATTERN:DATASET can be
               given in which the output file will also be  registered  in  the
               justIN  Database as an unprocessed input file for the next stage
               and available  for  allocation  to  instances  of  that  stage's
@@ -175,7 +175,7 @@ SUBCOMMANDS
               tion-days   DAYS]  [--refind-interval-hours  HOURS]  --jobscript
               FILENAME|--jobscript-id JSID  [--wall-seconds  N]  [--max-files-
               per-job  N]  [--rss-mb N] [--processors N] [--max-distance DIST]
-              [--output-pattern DATASET:PATTERN] [--output-rse NAME]  [--life-
+              [--output-pattern PATTERN:DATASET] [--output-rse NAME]  [--life-
               time-days DAYS] [--env NAME=VALUE]
               Combines  the  create-request,  create-stage  and submit-request
               subcommands into a single operation, for use  with  single-stage

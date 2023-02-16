@@ -53,7 +53,7 @@ parser = argparse.ArgumentParser()
 
 commands = [ "create-request", 
              "submit-request", 
-             "start-request",
+             "restart-request",
              "pause-request",
              "finish-request",
              "create-stage", 
