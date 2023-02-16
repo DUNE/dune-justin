@@ -2,7 +2,7 @@
 This man page is distributed along with the 
 [justin command](justin-command.md) itself.
 ```
-JUSTIN(2022)                                                      JUSTIN(2022)
+JUSTIN(2023)                                                      JUSTIN(2023)
 
 
 
@@ -14,7 +14,7 @@ SYNOPSIS
 
 DESCRIPTION
        justin  is a command-line utility for managing requests, stages, files,
-       and replicas in the justIN Database (JDB).
+       and replicas in the justIN workflow system.
 
 
 GENERAL OPTIONS
@@ -357,8 +357,19 @@ REQUEST PROCESSING
        COUNT, and REQUEST_ID is the assigned request ID number.
 
 
+AUTHENTICATION AND AUTHORIZATION
+       When first used on a given computer, the justin  command  contacts  the
+       central  justIN  services and obtains a session ID and secret which are
+       placed in a temporary file. You will then be invited  to  visit  a  web
+       page on the justIN dashboard which has instructions on how to authorize
+       that session, using CILogon and your  identity  provider.  Once  autho-
+       rized,  you can use the justin command on that computer for 7 days, and
+       then you will be invited to re-authorize it. You can have multiple com-
+       puters at multiple sites authorized at the same time.
+
+
 FILES
-       A session file /tmp/justin.session.USERID is created by  justin,  where
+       A  session  file /tmp/justin.session.USERID is created by justin, where
        USERID is the numeric Unix user id, given by id -u
 
 
@@ -371,5 +382,5 @@ SEE ALSO
 
 
 
-justin Manual                       justin                        JUSTIN(2022)
+justIN Manual                       justin                        JUSTIN(2023)
 ```
