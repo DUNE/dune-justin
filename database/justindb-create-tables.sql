@@ -548,11 +548,13 @@ CREATE TABLE `sessions` (
   `wlcg_groups` text NOT NULL DEFAULT '',
   `saved_uri` varchar(255) NOT NULL DEFAULT '',
   `user_agent` varchar(255) NOT NULL DEFAULT '',
+  `os_version` varchar(255) NOT NULL DEFAULT '',
   `ip` varchar(255) NOT NULL DEFAULT '',
   `hostname` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`session_id`),
   UNIQUE KEY `session` (`session`),
-  UNIQUE KEY `justin_code` (`justin_code`)
+  UNIQUE KEY `justin_code` (`justin_code`),
+  INDEX `linked_session_id` (`linked_session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

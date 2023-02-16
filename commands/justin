@@ -26,6 +26,7 @@ import time
 import ssl
 import urllib.request
 import argparse
+import platform
 
 # The make-justin-tag script looks for this and updates it - so format matters
 versionNumber = '00.04.00'
@@ -34,17 +35,6 @@ sessionFile   = '/tmp/justin.session.' + str(os.getuid())
 def body(buf): 
 
   sys.stdout.write(buf.decode('UTF-8'))
-
-def getSession():
-
-  try:
-    (session, secret) = open(sessionFile, 'r').read().split()
-  except:
-    session = None
-    secret  = None
-        
-  return (session, secret)
-
 #
 # PROGRAM MAIN !!!
 # 
@@ -230,10 +220,24 @@ else:
   # This will move to justin.dune.hep.ac.uk once we are using tokens...
   url = 'https://justin-allocator-pro.dune.hep.ac.uk/api/commands'
 
-(session, secret) = getSession()
+try:
+  (session, secret) = open(sessionFile, 'r').read().split()
+except:
+  session = None
+  secret  = None
+        
+jsonDict['session']    = session
+jsonDict['secret']     = secret
 
-jsonDict['session'] = session
-jsonDict['secret']  = secret
+try:
+  jsonDict['os_release'] = open('/etc/system-release','r').read().strip()
+except:
+  try:
+    macPlatform = platform.mac_ver()[0]
+    if macPlatform:
+      jsonDict['os_release'] = 'macOS ' + macPlatform
+  except:
+    jsonDict['os_release'] = ''
 
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),

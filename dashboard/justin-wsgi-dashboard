@@ -516,15 +516,16 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
     try:
       # Find the session ID created when the command contacted the 
       # justin-wsgi-commands service, so can link that and new web session
-      row = justin.select('SELECT session_id,justin_session '
+      authorizeRow = justin.select('SELECT session_id,justin_session,'
+                          'os_release,hostname,ip '
                           'FROM sessions '
                           'WHERE justin_code="%s" AND sessions.user_id=0 '
                           'AND session_type="command"'
                           % justinAuthorizeCode, justOne = True)
 
-      authorizeSessionID = int(row['session_id'])
-      authorizeJustinSession = row['justin_session']
-    except:
+      authorizeSessionID = int(authorizeRow['session_id'])
+    except Exception as e:
+      print('Get session for authorize fails: ' + str(e), file=sys.stderr)
       output = errorPage(uriPrefix, environ, '', "Invalid authorize code")
       startResponseOK(startResponse, output)
       return output
@@ -570,6 +571,7 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
   if authorize:
     output += \
 '''<td style="border: 0"><p>Session ID: %s</p>
+<p>Computer: %s (%s) %s</p>
 <p>You can use the button below to authorize your
 computer to use the justin command. 
 Your web browser will be directed to the CILogon website (screenshot to
@@ -581,7 +583,10 @@ Once you have successfully authenticated you will be directed
 back to the justIN dashboard with a confirmation that the justin command
 on your computer is now authorized for the next 7 days.</p>
 
-''' % authorizeJustinSession[:7]
+''' % (authorizeRow['justin_session'][:7],
+       authorizeRow['hostname'],
+       authorizeRow['ip'],
+       authorizeRow['os_release'])
   else:
     output += \
 '''<td style="border: 0">You can use the button below to login in the 
@@ -705,17 +710,35 @@ def createUser(principalName):
 
 def authorizedPage(uriPrefix, environ, user):
 
+  try:
+    query = ('SELECT command_sessions.hostname,'
+             'command_sessions.ip,'
+             'command_sessions.os_release FROM sessions AS web_sessions '
+             'LEFT JOIN sessions AS command_sessions '
+             'ON command_sessions.session_id=web_sessions.linked_session_id '
+             'WHERE web_sessions.justin_session="%s"'
+             % user['justin_session'])
+
+    authorizeRow = justin.select(query, justOne = True)
+  except Exception as e:
+    print('Get command session info fails: ' + str(e), file=sys.stderr)
+    return errorPage(uriPrefix, environ, user, 
+                     'Failed to find justin command session')
+
   output = header(uriPrefix, environ, user, "justIN: Computer is authorized")
 
   output += \
 '''<h1>Your computer is authorized</h1>
+<p><p>Computer: %s (%s) %s</p>
 <p>The justin command on your computer is now authorized. In 7 days the 
 authorization will expire and the justin command will give you another link
 to visit.</p>
 <p>For more about using the justin command, please see its
 <a href="https://dune.github.io/dune-justin/justin-command.html">documentation</a>.
 </p>
-'''
+''' % (authorizeRow['hostname'],
+       authorizeRow['ip'],
+       authorizeRow['os_release'])
   
   output += footer()
   

@@ -459,13 +459,13 @@ def createRequestCmd(startResponse, jsonDict, user):
                        '400 Bad Request', 
                        'Failed to find scope %s in justIN database' % scope)
  
-   if not wlcgGroupName:
+    if not wlcgGroupName:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'Scope %s has no group defined and cannot yet be '
                        'used via justIN' % scope)
 
-   if wlcgGroupName not in user['wlcg_groups']:
+    if wlcgGroupName not in user['wlcg_groups']:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'You need to be in group %s to use scope %s' 
@@ -607,13 +607,13 @@ def quickRequestCmd(startResponse, jsonDict, user):
                        '400 Bad Request', 
                        'Failed to find scope %s in justIN database' % scope)
  
-   if not wlcgGroupName:
+    if not wlcgGroupName:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'Scope %s has no group defined and cannot yet be '
                        'used via justIN' % scope)
 
-   if wlcgGroupName not in user['wlcg_groups']:
+    if wlcgGroupName not in user['wlcg_groups']:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'You need to be in group %s to use scope %s' 
@@ -1443,7 +1443,7 @@ def getUser(jsonDict):
            'create_requests' : createRequests,
            'wlcg_groups'     : wlcgGroups }
 
-def newSession(startResponse, environ):
+def newSession(startResponse, environ, jsonDict):
   
   justinSession = secrets.token_urlsafe(64)
   justinSecret  = secrets.token_urlsafe(64)
@@ -1455,7 +1455,7 @@ def newSession(startResponse, environ):
 
   if ip:
     try:
-      hostname = socket.gethostbyaddr(ip)
+      hostname = socket.gethostbyaddr(ip)[0]
     except:
       pass
 
@@ -1470,11 +1470,13 @@ def newSession(startResponse, environ):
                         'user_agent="%s",'
                         'saved_uri="%s",'
                         'ip="%s",'
-                        'hostname="%s"'
+                        'hostname="%s",'
+                        'os_release="%s"'
                         % (justinSession, justinSecret, justinCode,
                            userAgent.replace('\\','\\\\').replace('"','\\"'),
                            savedURI,
-                           ip, hostname))
+                           ip, hostname,
+              jsonDict['os_release'].replace('\\','\\\\').replace('"','\\"') ))
     justin.db.conn.commit()
   except:
     return httpError(startResponse, 
@@ -1542,7 +1544,7 @@ def application(environ, startResponse):
 
   if not user:
     # No valid session found
-    return newSession(startResponse, environ)
+    return newSession(startResponse, environ, jsonDict)
 
   # Check jsonDict specifies a method
   if 'command' not in jsonDict:
