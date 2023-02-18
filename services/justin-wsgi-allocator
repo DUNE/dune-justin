@@ -164,6 +164,18 @@ def getJobscript(stage):
 # Exceptions must by caught by the caller
 def delegateJobscriptsProxy(certRequest):
 
+  jobscriptsKey = \
+            M2Crypto.RSA.load_key_string(justin.allocator.jobscriptsProxy)
+
+  certsBIO = M2Crypto.BIO.MemoryBuffer(justin.allocator.jobscriptsProxy)
+  jobscriptsCerts = []
+  while True:
+    try:
+      jobscriptsCerts.append(M2Crypto.X509.load_cert_bio(certsBIO))
+    except:
+      certsBIO.close()
+      break
+
   newPubKey = M2Crypto.X509.load_request_string(certRequest, 
                                        M2Crypto.X509.FORMAT_PEM).get_pubkey()
 
@@ -171,11 +183,11 @@ def delegateJobscriptsProxy(certRequest):
   newCert = M2Crypto.X509.X509()
   newCert.set_pubkey(newPubKey)
   newCert.set_serial_number(int(time.time() * 100))
-  newCert.set_issuer_name(justin.allocator.jobscriptsCerts[0].get_subject())
+  newCert.set_issuer_name(jobscriptsCerts[0].get_subject())
   newCert.set_version(2) # "2" is X.509 for "v3" ...
 
   # Add CN=CENTISECONDS to existing VOMS proxy DN
-  newSubject = justin.allocator.jobscriptsCerts[0].get_subject()
+  newSubject = jobscriptsCerts[0].get_subject()
   newSubject.add_entry_by_txt(field = "CN",
                               type  = 0x1001,
                               entry = str(int(time.time() * 100)),
@@ -205,12 +217,12 @@ def delegateJobscriptsProxy(certRequest):
 
   # Sign this new cert with the VOMS proxy private key
   jobscriptsKeyEVP = M2Crypto.EVP.PKey()
-  jobscriptsKeyEVP.assign_rsa(justin.allocator.jobscriptsKey, capture=False)
+  jobscriptsKeyEVP.assign_rsa(jobscriptsKey, capture=False)
   newCert.sign(jobscriptsKeyEVP, 'sha256')
 
   # Return the results as PEM encoded strings
   certsChain = ''
-  for oneCert in justin.allocator.jobscriptsCerts:
+  for oneCert in jobscriptsCerts:
      certsChain += oneCert.as_pem().decode()
 
   return (newCert.as_pem().decode(), certsChain)

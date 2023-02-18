@@ -25,7 +25,7 @@ Turn on verbose logging of the communication with justIN service.
 .B "--url URL"
 .br
 Use an alternative justIN service, rather than 
-https://justin-allocator-pro.dune.hep.ac.uk/api/commands This 
+https://justin-ui-pro.dune.hep.ac.uk/api/commands This 
 option is only needed during development and testing.
 
 .SH SUBCOMMANDS
@@ -69,8 +69,8 @@ new matching files from the start of the day given by
 .B "show-requests [--request-id ID]"
 .br
 Show details of all requests or optionally of a single request. Each line
-of the output gives the request ID, state, creation time, description, and MetaCat
-query of one request.
+of the output gives the request ID, state, creation time, description, and 
+MetaCat query of one request.
 
 .HP
 .B "submit-request --request-id ID"
@@ -116,7 +116,7 @@ or
 .B --jobscript-id
 options. 
 Either the full, local path to the jobscript file is given, or the jobscript
-is taken from justIN's Jobscript Library using a JSID jobscript identifier.
+is taken from justIN's Jobscripts Library using a JSID jobscript identifier.
 The JSID is in the form SCOPE:NAME or USER:NAME, where USER includes
 an '@' character. In either case, a copy of the current text of the jobscript
 is cached in the stage definition and executed on worker nodes to process 

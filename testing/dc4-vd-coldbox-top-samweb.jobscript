@@ -135,7 +135,7 @@ if [ $larExit -eq 0 -a -f "$outFile" ] ; then
     echo
     echo "==================="
     # Create compressed tar file with all log files including the jobscript.log
-    tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log
+    tar zcf `echo "$JUSTIN_JOBSUB_ID.logs.tgz" | sed 's/@/_/g'` *.log
     exit 0
   fi
 fi
@@ -143,5 +143,5 @@ fi
 ls -lRS
 
 # Create compressed tar file with all log files including the jobscript.log
-tar zcf `echo "$JOBSUBJOBID.logs.tgz" | sed 's/@/_/g'` *.log
+tar zcf `echo "$JUSTIN_JOBSUB_ID.logs.tgz" | sed 's/@/_/g'` *.log
 exit 1

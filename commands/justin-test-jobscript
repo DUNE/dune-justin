@@ -80,7 +80,7 @@ export JUSTIN_STAGE_ID=1
 export JUSTIN_JOBSUB_ID='0.0@x'
 EOF
 
-# Wrapper to be run inside the Singularity container
+# Wrapper to be run inside the Apptainer/Singularity container
 cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 #!/bin/sh
 cd workspace

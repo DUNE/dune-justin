@@ -218,8 +218,7 @@ if jsonDict['verbose']:
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-  # This will move to justin.dune.hep.ac.uk once we are using tokens...
-  url = 'https://justin-allocator-pro.dune.hep.ac.uk/api/commands'
+  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
 
 try:
   (session, secret) = open(sessionFile, 'r').read().split()

@@ -25,13 +25,11 @@ import json
 import string
 import tarfile
 import MySQLdb
-import M2Crypto
 
 import justin
 
 # Globals
-jobscriptsKey       = None
-jobscriptsCerts     = None
+jobscriptsProxy     = None
 jobscriptsProxyFile = '/var/lib/justin/jobscripts-proxy.pem'
 
 # Populate the list unallocatedCounts with tuples for the number of
@@ -141,31 +139,3 @@ def lookupJobscript(jsid):
            'created_time' : jobscriptRow['created_time'],           
            'error'        : None }
 
-def loadJobscriptsProxy():
-  global jobscriptsKey, jobscriptsCerts
-  
-  try:
-    jobscriptsKey = M2Crypto.RSA.load_key(jobscriptsProxyFile)
-  except Exception as e:
-    print('Failed loading private key from %s : %s'
-          % (jobscriptsProxyFile, str(e)), file=sys.stderr)
-    return
-
-  print('Loaded private key from %s' % jobscriptsProxyFile, file=sys.stderr)
-
-  try:
-    certsBIO = M2Crypto.BIO.File(open(jobscriptsProxyFile))
-  except Exception as e:
-    print('Failed opening certs file %s : %s'
-          % (jobscriptsProxyFile, str(e)), file=sys.stderr)
-    return
-
-  jobscriptsCerts = []
-  while True:
-    try:
-      jobscriptsCerts.append(M2Crypto.X509.load_cert_bio(certsBIO))
-    except:
-      certsBIO.close()
-      break
-
-  print('Loaded certs from %s' % jobscriptsProxyFile, file=sys.stderr)

@@ -108,7 +108,7 @@ done
 # All paths are relative to this
 export JUSTIN_WORKDIR=`pwd`
 
-# Make $HOME directory and workspace subdirectory for Singularity container
+# Make $HOME directory and workspace subdirectory for Apptainer/Singularity
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
 # Make all of the justin-* scripts in jobutils available in $HOME
@@ -228,7 +228,7 @@ if [ -n "$JUSTIN_FOR_AWT" ] ; then
   chmod 0400 $JUSTIN_WORKDIR/home/awt-proxy.pem
 fi
 
-# Wrapper to be run inside the Singularity container
+# Wrapper to be run inside the container
 cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 #!/bin/sh
 export JUSTIN_PATH="\$HOME"
