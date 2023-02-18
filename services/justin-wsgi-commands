@@ -850,15 +850,16 @@ def modifyRequestCmds(startResponse, jsonDict, user):
                         'ON scopes.scope_id=requests.scope_id '
                         'LEFT JOIN wlcg_groups '
                         'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                        'WHERE requests.request_id=%d' % requestID)
+                        'WHERE requests.request_id=%d' % requestID,
+                        justOne = True)
 
     requestUserID = int(row['user_id'])
     requestState  = row['state']
     wlcgGroupName = row['wlcg_group_name']
-  except:
+  except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
-                     'Database error')
+                     'Database error: ' + str(e))
   
   if requestUserID != user['user_id'] and \
      wlcgGroupName not in user['wlcg_groups']:
@@ -1590,7 +1591,7 @@ def application(environ, startResponse):
 
   if jsonDict['command'] in ['submit-request', 'restart-request',
                              'pause-request', 'finish-request']:
-    return modifyRequestCmds(startResponse, jsonDict)
+    return modifyRequestCmds(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'create-stage':
     return createStageCmd(startResponse, jsonDict, user)

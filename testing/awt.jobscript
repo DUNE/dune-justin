@@ -1,19 +1,12 @@
-#cat <<EOF >rucio.cfg
-#[client]
-#rucio_host = https://dune-rucio.fnal.gov
-#auth_host = https://auth-dune-rucio.fnal.gov
-#account = dunepro
-#auth_type = x509_proxy
-#request_retries = 3
-#EOF
 
 # File name of test file in Rucio, in scope testpro
 export AWT_DOWNLOAD_FILE=awt-download-2023-01-13-01.txt
 
+openssl x509 -in $JUSTIN_PATH/awt-proxy.pem -text
+
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
 which rucio
-#rucio --config rucio.cfg --version
 rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
 
@@ -41,16 +34,19 @@ do
   echo "$fn" > $fn
 
   echo "GFAL_CONFIG_DIR: $GFAL_CONFIG_DIR   GFAL_PLUGIN_DIR: $GFAL_PLUGIN_DIR"
-  rucio --verbose \
-        upload \
-        --rse "$rse_name" \
-        --protocol "$write_protocol" \
-        --scope testpro \
-        --lifetime 86400 \
-        --name "$fn" "$fn"
+   rucio --verbose \
+         --certificate $JUSTIN_PATH/awt-proxy.pem \
+         --account dunepro \
+         --vo dune \
+         upload \
+         --rse "$rse_name" \
+         --protocol "$write_protocol" \
+         --scope testpro \
+         --lifetime 86400 \
+         --name "$fn" "$fn"
 
   upload_retval=$?
-  echo "'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
+  echo "'rucio --certificate $JUSTIN_PATH/awt-proxy.pem --verbose --account dunepro --vo dune upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
   echo
   echo
 

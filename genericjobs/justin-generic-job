@@ -112,7 +112,7 @@ export JUSTIN_WORKDIR=`pwd`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
 # Make all of the justin-* scripts in jobutils available in $HOME
-ln -s /cvmfs/dune.opensciencegrid.org/products/dune/justin/$JUSTIN_VERSION/NULL/jobutils/justin-* \
+ln -s /cvmfs/dune.opensciencegrid.org/products/dune/justin/$JUSTIN_VERSION/NULL/jobutils/* \
  $JUSTIN_WORKDIR/home
 
 # Assemble values to record
@@ -226,6 +226,7 @@ if [ -n "$JUSTIN_FOR_AWT" ] ; then
   # If an AWT job, then we give it the generic job's proxy too
   cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/awt-proxy.pem
   chmod 0400 $JUSTIN_WORKDIR/home/awt-proxy.pem
+  cp justin-awt-rse-list.txt $JUSTIN_WORKDIR/home
 fi
 
 # Wrapper to be run inside the container

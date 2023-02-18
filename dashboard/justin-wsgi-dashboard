@@ -2697,7 +2697,8 @@ def awtResults(uriPrefix, environ, user, cgiValues):
   output += ("<p>Hover over each coloured box to see the most recent test "
       "values for xrdcp read and rucio write, run in jobs at each site, "
       "contacting each RSE.</p>"
-      "<p>Exit code 0 = success. Other codes are failure modes.</p>")
+      "<p>Exit code 0 = success. Other codes are failure modes. "
+      "Green if read and write ok; orange if only read ok; red if neither.</p>")
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
@@ -2813,8 +2814,11 @@ def awtResults(uriPrefix, environ, user, cgiValues):
         else:
           s += ' Write=%d' % writeResult
 
-        if (readResult and readResult != 255) or \
-           (writeResult and writeResult != 255):
+        if readResult == 0 and \
+             (writeResult and writeResult != 255):
+          boxColor = 'orange'
+        elif (readResult and readResult != 255) or \
+             (writeResult and writeResult != 255):
           boxColor = 'red'
         elif readResult == 0 and writeResult == 0:
           boxColor = 'green'

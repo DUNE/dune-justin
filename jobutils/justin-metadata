@@ -2,7 +2,7 @@
 #
 # Check any metadata JSON from jobscript for a given file and add
 # workflow metadata to it. The output file and its JSON file will be looked for
-# in the workspace subdirectory.
+# in the workspace subdirectory of the container $HOME.
 
 import os
 import sys
@@ -16,11 +16,11 @@ except:
   sys.exit(1)
     
 try:
-  metadata = json.load(open('workspace/' + fileName + '.json', 'r'))
+  metadata = json.load(open('home/workspace/' + fileName + '.json', 'r'))
 except FileNotFoundError:
   metadata = { "metadata" : {} }
 except Exception as e:
-  print("File workspace/%s.json exists but JSON load fails: %s" % 
+  print("File home/workspace/%s.json exists but JSON load fails: %s" % 
         (fileName, str(e)))
 
 metadata['size']      = os.path.getsize('workspace/' + fileName)
