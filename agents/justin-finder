@@ -491,8 +491,8 @@ def findSubmittedRequests():
   # Find requests waiting in the submitted state and set them to running
 
   try:
-    query = ('UPDATE requests SET state="running" WHERE state="submitted" '
-             'ORDER BY request_id')
+    query = ('UPDATE requests SET started=NOW(),state="running" '
+             'WHERE state="submitted" ORDER BY request_id')
 
     justin.insertUpdate(query)
   except:

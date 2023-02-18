@@ -28,6 +28,7 @@ EOF
   curl \
      --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
+     --header "Expect:" \
      --key $X509_USER_PROXY \
      --cert $X509_USER_PROXY \
      --cacert $X509_USER_PROXY \
@@ -40,6 +41,7 @@ EOF
   exit $1
 }
 
+# This is just used for finding utility scripts in cvmfs
 export JUSTIN_VERSION=00.03.00
 
 echo '### Start of  printenv | sort'
@@ -54,33 +56,6 @@ echo '### pwd ; ls -lt ###'
 pwd
 ls -lt
 echo '##############'
-
-# Used by user's jobscript to find files from this generic job
-export JUSTIN_PATH=`pwd`
-
-# Make all of the justin-* scripts in jobutils available via $JUSTIN_PATH
-ln -s /cvmfs/dune.opensciencegrid.org/products/dune/justin/$JUSTIN_VERSION/NULL/jobutils/justin-* \
- $JUSTIN_PATH
-
-# Assemble values to record
-export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
-export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
-export JUSTIN_HOSTNAME=${HOSTNAME:-`hostname`}
-export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
-if [ "$site_name" = "US_FermiGrid" ] ; then
-  export site_name=US_FNAL-FermiGrid
-fi
-if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FNAL" ] ; then
-  export site_name=US_FNAL-T1
-fi
-if [ "$site_name" = "XX_UNKNOWN" -a "$GLIDEIN_Site" = "FermiGrid" ] ; then
-  export site_name=US_FNAL-FermiGrid
-fi
-
-export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
-export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
-export rss_bytes=`expr $rss_mb \* 1048576`
-export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
 
 export X509_CERTIFICATES=${X509_CERTIFICATES:-/etc/grid-security/certificates/}
 
@@ -130,6 +105,30 @@ done
 
 ) >justin-heartbeat.log 2>&1 &
 
+# All paths are relative to this
+export JUSTIN_WORKDIR=`pwd`
+
+# Make $HOME directory and workspace subdirectory for Singularity container
+mkdir -p $JUSTIN_WORKDIR/home/workspace
+
+# Make all of the justin-* scripts in jobutils available in $HOME
+ln -s /cvmfs/dune.opensciencegrid.org/products/dune/justin/$JUSTIN_VERSION/NULL/jobutils/justin-* \
+ $JUSTIN_WORKDIR/home
+
+# Assemble values to record
+export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
+export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
+export JUSTIN_HOSTNAME=${HOSTNAME:-`hostname`}
+export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
+
+export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
+export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
+export rss_bytes=`expr $rss_mb \* 1048576`
+export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
+
+openssl req -batch -nodes -newkey rsa:2048 \
+ -keyout jobscript-proxy.key.pem -out jobscript-proxy.csr.pem
+
 # Create the JSON to send to the allocator
 cat <<EOF >justin-get-stage.json
 {
@@ -142,7 +141,8 @@ cat <<EOF >justin-get-stage.json
   "rss_bytes"    : ${rss_bytes:-0},
   "processors"   : ${processors:-0},
   "wall_seconds" : ${wall_seconds:-0},
-  "site_job_id"  : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}"
+  "site_job_id"  : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
+  "csr"          : "`sed -z 's/\n/\\\\n/g' jobscript-proxy.csr.pem`"
 }
 EOF
 
@@ -157,10 +157,12 @@ do
 sleep `expr $RANDOM / 512`
 
 # Make the call to the Workflow Allocator
+log_line "Attempt $i/5 of curl get_stage"
 http_code=`curl \
 --retry 0 \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
+--header "Expect:" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
@@ -170,15 +172,16 @@ http_code=`curl \
 --write-out "%{http_code}\n" \
 https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_stage`
 
+chmod 0600 justin-files.tar 
 log_line "($i/5) curl returns HTTP code $http_code"
 
-if [ "$http_code" != "503" ] ; then
+if [ "$http_code" != "503" -a "$http_code" != "000" ] ; then
  break
 fi
 done
 
 if [ "$http_code" != "200" ] ; then
-  log_line "curl call to WFA to get stage fails with code $http_code"
+  log_line "curl call to allocator to get stage fails with code $http_code"
   cat justin-files.tar
   echo
   exit 0
@@ -201,42 +204,58 @@ echo '====End justin-env.sh===='
 echo '====Start justin-jobscript-env.sh===='
 cat justin-jobscript-env.sh
 echo '====End justin-jobscript-env.sh===='
+cp justin-jobscript-env.sh $JUSTIN_WORKDIR/home
 
 echo '====Start justin-get-file.json===='
 cat justin-get-file.json
 echo '====End justin-get-file.json===='
+cp justin-get-file.json $JUSTIN_WORKDIR/home
 
-# Run the jobscript
-if [ -f justin-jobscript.sh ] ; then
-  chmod +x justin-jobscript.sh
+echo '====Start justin-jobscript.sh===='
+cat justin-jobscript.sh
+echo '====End justin-jobscript.sh===='
+cp justin-jobscript.sh $JUSTIN_WORKDIR/home
+chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
 
-  echo '====Start justin-jobscript.sh===='
-  cat justin-jobscript.sh
-  echo '====End justin-jobscript.sh===='
+# Make proxy for jobscript
+cat jobscript-proxy.cert.pem jobscript-proxy.key.pem \
+    jobscript-proxy.chain.pem > $JUSTIN_WORKDIR/home/jobscript-proxy.pem
+chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
 
-  mkdir workspace
-  echo '====Run justin-jobscript.sh===='
-  export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
-  ( . ./justin-jobscript-env.sh
-    cd workspace
-    stdbuf -oL -eL $JUSTIN_PATH/justin-jobscript.sh ) \
-      > workspace/justin-jobscript.log 2>&1
-  export JOBSCRIPT_EXIT=$?
-  export JUSTIN_JOBSCRIPT_FINISH=`date --iso-8601=seconds --utc`
-  echo '====After justin-jobscript.sh===='
-else
-  # How can this happen???
-  log_line No justin-jobscript.sh found
-  exit 0
+if [ -n "$JUSTIN_FOR_AWT" ] ; then
+  # If an AWT job, then we give it the generic job's proxy too
+  cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/awt-proxy.pem
+  chmod 0400 $JUSTIN_WORKDIR/home/awt-proxy.pem
 fi
 
-echo '#### justin-jobscript.log'
-cat workspace/justin-jobscript.log
-echo '####'
+# Wrapper to be run inside the Singularity container
+cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
+#!/bin/sh
+export JUSTIN_PATH="\$HOME"
+export X509_USER_PROXY="\$HOME/jobscript-proxy.pem"
+cd workspace
+. ../justin-jobscript-env.sh
+exec ../justin-jobscript.sh
+EOF
+chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 
-#if [ "$retval" != 0 ] ; then
-#  job_aborted 0 900 "jobscript script error $JOBSCRIPT_EXIT"
-#fi
+echo "====Start of jobscript execution===="
+export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
+stdbuf -oL -eL singularity shell \
+  --shell /home/jobscript-wrapper.sh \
+  --containall \
+  --workdir $JUSTIN_WORKDIR \
+  --home $JUSTIN_WORKDIR/home:/home \
+  --bind /cvmfs \
+  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 \
+  > $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log
+export JOBSCRIPT_EXIT=$?
+export JUSTIN_JOBSCRIPT_FINISH=`date --iso-8601=seconds --utc`
+echo "====End of jobscript execution===="
+
+echo '#### justin-jobscript.log'
+cat $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log
+echo '####'
 
 # Make the lists of output files and files for the next stage
 echo -n > justin-outputs.txt
@@ -251,20 +270,20 @@ cat justin-output-patterns.txt | (
 while read lifetime for_next_stage dataset scope pattern
 do  
   (
-    cd workspace
+    cd $JUSTIN_WORKDIR/home/workspace
     # $pattern is wildcard-expanded here - so a list of files
     for fn in $pattern
     do
       if [ -r "$fn" ] ; then
         # justin-outputs.txt gets DATASET SCOPE FILENAME on each line
-        echo "$lifetime $dataset $scope $fn" >> $JUSTIN_PATH/justin-outputs.txt
+        echo "$lifetime $dataset $scope $fn" >> $JUSTIN_WORKDIR/justin-outputs.txt
 
         if [ "$for_next_stage" = "True" ] ; then
           # justin-next-stage-dids gets a list of DIDs
-          echo "$scope:$fn" >> $JUSTIN_PATH/justin-next-stage-dids.txt
+          echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-next-stage-dids.txt
         else
           # justin-output-dids.txt gets DID = SCOPE:FILENAME
-          echo "$scope:$fn" >> $JUSTIN_PATH/justin-output-dids.txt
+          echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-output-dids.txt
         fi
       fi
     done
@@ -273,19 +292,19 @@ done
 )
 
 echo '#### justin-outputs.txt'
-cat $JUSTIN_PATH/justin-outputs.txt
+cat $JUSTIN_WORKDIR/justin-outputs.txt
 echo '####'
 echo
 echo '#### justin-output-dids.txt'
-cat $JUSTIN_PATH/justin-output-dids.txt
+cat $JUSTIN_WORKDIR/justin-output-dids.txt
 echo '####'
 echo
 echo '#### justin-next-stage-dids.txt'
-cat $JUSTIN_PATH/justin-next-stage-dids.txt
+cat $JUSTIN_WORKDIR/justin-next-stage-dids.txt
 echo '####'
 echo
 echo '#### justin-output-rse-list.txt'
-cat $JUSTIN_PATH/justin-output-rse-list.txt
+cat $JUSTIN_WORKDIR/justin-output-rse-list.txt
 echo '####'
 
 output_dids=`echo \`sed 's/.*/"&"/' justin-output-dids.txt\`|sed 's/ /,/g'`
@@ -293,15 +312,15 @@ output_dids=`echo \`sed 's/.*/"&"/' justin-output-dids.txt\`|sed 's/ /,/g'`
 next_stage_dids=`echo \`sed 's/.*/"&"/' justin-next-stage-dids.txt\`|sed 's/ /,/g'`
 
 # justin-jobscript.sh should produce lists of successfully processed input files
-if [ -f workspace/justin-processed-dids.txt ] ; then
-  processed_dids=`echo \`sed -r 's/.+/"&"/' workspace/justin-processed-dids.txt\`|sed 's/ /,/g'`
+if [ -f $JUSTIN_WORKDIR/home/workspace/justin-processed-dids.txt ] ; then
+  processed_dids=`echo \`sed -r 's/.+/"&"/' $JUSTIN_WORKDIR/home/workspace/justin-processed-dids.txt\`|sed 's/ /,/g'`
 fi
 
-if [ -f workspace/justin-processed-pfns.txt ] ; then
-  processed_pfns=`echo \`sed -r 's/.+/"&"/' workspace/justin-processed-pfns.txt\`|sed 's/ /,/g'`
+if [ -f $JUSTIN_WORKDIR/home/workspace/justin-processed-pfns.txt ] ; then
+  processed_pfns=`echo \`sed -r 's/.+/"&"/' $JUSTIN_WORKDIR/home/workspace/justin-processed-pfns.txt\`|sed 's/ /,/g'`
 fi
 
-tail -c 10000 workspace/justin-jobscript.log | base64 --wrap=0 > justin-jobscript.log.b64
+tail -c 10000 $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log | base64 --wrap=0 > justin-jobscript.log.b64
 
 cat <<EOF >justin-record-results.json
 {
@@ -329,6 +348,7 @@ http_code=`curl \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \
 --header "X-Jobid: $JOBSUBJOBID" \
+--header "Expect:" \
 --capath $X509_CERTIFICATES \
 --data @justin-record-results.json \
 --output record-results.log \
@@ -354,9 +374,9 @@ export OUTPUT_RSE=`head -1 justin-output-rse-list.txt | cut -f1 -d' '`
 export OUTPUT_PROTOCOL=`head -1 justin-output-rse-list.txt | cut -f2 -d' '`
 log_line "Using $OUTPUT_RSE for output"
 
-cat $JUSTIN_PATH/justin-outputs.txt | (
+cat $JUSTIN_WORKDIR/justin-outputs.txt | (
 
-cat <<EOF >$JUSTIN_PATH/rucio.cfg
+cat <<EOF >$JUSTIN_WORKDIR/rucio.cfg
 [client]
 rucio_host = https://dune-rucio.fnal.gov
 auth_host = https://auth-dune-rucio.fnal.gov
@@ -366,7 +386,7 @@ request_retries = 3
 EOF
 
 echo '====Start rucio.cfg===='
-cat $JUSTIN_PATH/rucio.cfg
+cat $JUSTIN_WORKDIR/rucio.cfg
 echo '====End rucio.cfg===='
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
@@ -376,7 +396,7 @@ setup metacat
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
 
-rucio --config $JUSTIN_PATH/rucio.cfg --version
+rucio --config $JUSTIN_WORKDIR/rucio.cfg --version
 if [ $? != 0 ] ; then
   job_aborted 1 900 'Rucio test fails'
 fi
@@ -391,7 +411,7 @@ touch justin-output-dids-rses.txt
 
 while read lifetime dataset scope fn
 do
-  $JUSTIN_PATH/justin-metadata "$scope" "$fn" > tmp.json
+  $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
   echo "==== Start MetaCat JSON for $fn ===="
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="
@@ -417,17 +437,17 @@ do
       lifetime_option="--lifetime $lifetime"
     fi
     log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
-    rucio --config $JUSTIN_PATH/rucio.cfg --verbose \
+    rucio --config $JUSTIN_WORKDIR/rucio.cfg --verbose \
           upload \
           $lifetime_option \
           --rse "$OUTPUT_RSE" \
           --transfer-timeout 1200 \
           --protocol "$OUTPUT_PROTOCOL" \
-          --scope "$scope" --name "$fn" "workspace/$fn"
+          --scope "$scope" --name "$fn" "$JUSTIN_WORKDIR/home/workspace/$fn"
 
     if [ $? = 0 ] ; then
       log_line "Add $scope:$fn to $dataset"
-      rucio --config $JUSTIN_PATH/rucio.cfg \
+      rucio --config $JUSTIN_WORKDIR/rucio.cfg \
             --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         log_line "rucio attach fails"
@@ -474,6 +494,7 @@ http_code=`curl \
 --max-time 600 \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
+--header "Expect:" \
 --key $X509_USER_PROXY \
 --cert $X509_USER_PROXY \
 --cacert $X509_USER_PROXY \

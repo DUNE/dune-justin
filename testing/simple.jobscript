@@ -22,7 +22,8 @@ rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
 # These files are found by the generic job using the --output-pattern
 # form given on the justin command line (see above).
-xrdcp --silent $pfn - | sha1sum >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
+xrdcp --nopbar --debug 2 $pfn tmp
+sha1sum tmp >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
 
 # We say we processed whatever we were given
 echo "$did" > justin-processed-dids.txt

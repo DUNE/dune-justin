@@ -450,7 +450,7 @@ def createRequestCmd(startResponse, jsonDict, user):
                           'WHERE scope_name="%s"' % scopeName, 
                           justOne=True)
 
-      wlcgGroupName = row['wlcg_group_name']
+      wlcgGroupName = scopeRow['wlcg_group_name']
       scopeID       = int(scopeRow['scope_id'])
       if not scopeID:
         raise
@@ -463,13 +463,13 @@ def createRequestCmd(startResponse, jsonDict, user):
       return httpError(startResponse,
                        '403 Forbidden', 
                        'Scope %s has no group defined and cannot yet be '
-                       'used via justIN' % scope)
+                       'used via justIN' % scopeName)
 
     if wlcgGroupName not in user['wlcg_groups']:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'You need to be in group %s to use scope %s' 
-                       % (wlcgGroupName, scope))
+                       % (wlcgGroupName, scopeName))
   else:
     scopeName = None
     scopeID   = 0
@@ -598,26 +598,26 @@ def quickRequestCmd(startResponse, jsonDict, user):
                           'WHERE scope_name="%s"' % scopeName, 
                           justOne=True)
 
-      wlcgGroupName = row['wlcg_group_name']
+      wlcgGroupName = scopeRow['wlcg_group_name']
       scopeID       = int(scopeRow['scope_id'])
       if not scopeID:
         raise
     except:
       return httpError(startResponse,
                        '400 Bad Request', 
-                       'Failed to find scope %s in justIN database' % scope)
+                       'Failed to find scope %s in justIN database' % scopeName)
  
     if not wlcgGroupName:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'Scope %s has no group defined and cannot yet be '
-                       'used via justIN' % scope)
+                       'used via justIN' % scopeName)
 
     if wlcgGroupName not in user['wlcg_groups']:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'You need to be in group %s to use scope %s' 
-                       % (wlcgGroupName, scope))
+                       % (wlcgGroupName, scopeName))
   else:
     scopeName = None
     scopeID   = 0
@@ -661,8 +661,7 @@ def quickRequestCmd(startResponse, jsonDict, user):
   try:
     requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
           'submitted=NOW(),'
-          'started=NOW(),'
-          'state="running",'
+          'state="submitted",'
           'description="%s",'
           'mql="%s",'
           'scope_id=%d,'
@@ -1220,7 +1219,8 @@ def createJobscriptCmd(startResponse, jsonDict, user):
                            justOne=True)
       scopeID       = int(scopeRow['scope_id'])
       wlcgGroupName = scopeRow['wlcg_group_name']
-    except:
+    except Exception as e:
+      print('Finding scope fails: ' + str(e), file=sys.stderr)
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Failed to find scope %s in justIN database' % scopeName) 
@@ -1229,13 +1229,13 @@ def createJobscriptCmd(startResponse, jsonDict, user):
       return httpError(startResponse,
                        '403 Forbidden',
                        'Scope %s has no group defined and cannot yet be '
-                       'used via justIN' % scope)
+                       'used via justIN' % scopeName)
 
     if wlcgGroupName not in user['wlcg_groups']:
       return httpError(startResponse,
                        '403 Forbidden', 
                        'You need to be in group %s to use scope %s' 
-                       % (wlcgGroupName, scope))
+                       % (wlcgGroupName, scopeName))
 
     jobscriptIdentifier = scopeName + ':' + name
     jobscriptUserID = 0

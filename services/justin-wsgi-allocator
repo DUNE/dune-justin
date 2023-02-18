@@ -32,12 +32,14 @@ import io
 import re
 import sys
 import time
+import stat
 import json
 import secrets
 import base64
 import string
 import tarfile
 import urllib
+import M2Crypto
 
 import justin
 
@@ -87,7 +89,6 @@ def makeJobDict(jobsubID, cookie = None):
              'jobs.cookie,'
              'stages.max_distance,'
              'stages.max_files_per_job,'
-#             'scopes.scope_name,'
              'jobs.request_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
@@ -106,7 +107,6 @@ def makeJobDict(jobsubID, cookie = None):
              'FROM jobs '
              'LEFT JOIN stages ON jobs.request_id=stages.request_id '
              'AND jobs.stage_id=stages.stage_id '
-# IN REQUESTS NOW!!!!  'LEFT JOIN scopes ON stages.scope_id=scopes.scope_id '
              'LEFT JOIN sites ON jobs.site_id=sites.site_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
 
@@ -125,7 +125,6 @@ def makeJobDict(jobsubID, cookie = None):
   return { "error_message"    : None,
            "request_id"       : job['request_id'],
            "stage_id"         : job['stage_id'],
-#           "scope_name"       : job['scope_name'],
            "site_id"          : job['site_id'],
            "site_name"        : job['site_name'],
            "running_jobs"     : job['running_jobs'],
@@ -160,6 +159,62 @@ def getJobscript(stage):
   
   return jobscript
 
+# Make a new certificate from the certificate request sent by the 
+# generic job, signed by the VOMS proxy loaded from local disk
+# Exceptions must by caught by the caller
+def delegateJobscriptsProxy(certRequest):
+
+  newPubKey = M2Crypto.X509.load_request_string(certRequest, 
+                                       M2Crypto.X509.FORMAT_PEM).get_pubkey()
+
+  # Create and populate new certificate   
+  newCert = M2Crypto.X509.X509()
+  newCert.set_pubkey(newPubKey)
+  newCert.set_serial_number(int(time.time() * 100))
+  newCert.set_issuer_name(justin.allocator.jobscriptsCerts[0].get_subject())
+  newCert.set_version(2) # "2" is X.509 for "v3" ...
+
+  # Add CN=CENTISECONDS to existing VOMS proxy DN
+  newSubject = justin.allocator.jobscriptsCerts[0].get_subject()
+  newSubject.add_entry_by_txt(field = "CN",
+                              type  = 0x1001,
+                              entry = str(int(time.time() * 100)),
+                              len   = -1,
+                              loc   = -1,
+                              set   = 0)
+
+  newCert.set_subject_name(newSubject)
+
+  # Set not before time to now
+  newNotBefore = M2Crypto.ASN1.ASN1_UTCTIME()
+  newNotBefore.set_time(int(time.time()))
+  newCert.set_not_before(newNotBefore)
+
+  # Set not after time to now + 7 days
+  newNotAfter = M2Crypto.ASN1.ASN1_UTCTIME()
+  newNotAfter.set_time(int(time.time()) + 604800)
+  newCert.set_not_after(newNotAfter)
+
+  # Usual extension giving key usage
+  newCert.add_ext(M2Crypto.X509.new_extension("keyUsage", 
+                  "Digital Signature, Key Encipherment, Key Agreement", 1))
+
+  # Special extension for RFC X.509 proxies 
+  newCert.add_ext(M2Crypto.X509.new_extension("proxyCertInfo", 
+                  "critical, language:1.3.6.1.4.1.3536.1.1.1.9", 1, 0))
+
+  # Sign this new cert with the VOMS proxy private key
+  jobscriptsKeyEVP = M2Crypto.EVP.PKey()
+  jobscriptsKeyEVP.assign_rsa(justin.allocator.jobscriptsKey, capture=False)
+  newCert.sign(jobscriptsKeyEVP, 'sha256')
+
+  # Return the results as PEM encoded strings
+  certsChain = ''
+  for oneCert in justin.allocator.jobscriptsCerts:
+     certsChain += oneCert.as_pem().decode()
+
+  return (newCert.as_pem().decode(), certsChain)
+
 def addFileToTarFile(tar, name, value):
 
   buffer = io.BytesIO()
@@ -167,6 +222,7 @@ def addFileToTarFile(tar, name, value):
 
   info       = tarfile.TarInfo(name = name)
   info.size  = buffer.tell()
+  info.mode  = stat.S_IRUSR | stat.S_IWUSR
   info.mtime = time.time()
 
   buffer.seek(0)
@@ -188,6 +244,17 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
     return None
 
   addFileToTarFile(tar, "justin-jobscript.sh", jobscript)
+
+  # Create and add files for VOMS proxy for the jobscript to use
+  try:
+    (newCert, certsChain) = delegateJobscriptsProxy(jsonDict['csr'])
+  except Exception as e:
+    print('Failed to create cert for delegated proxy for jobscript: '
+          + str(e), file=sys.stderr)
+    return None
+
+  addFileToTarFile(tar, "jobscript-proxy.cert.pem",  newCert)
+  addFileToTarFile(tar, "jobscript-proxy.chain.pem", certsChain)
 
   # Create a file containing the output file patterns
   try:
@@ -292,8 +359,23 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
       
   addFileToTarFile(tar, 'justin-output-rse-list.txt', outputRseFile)
 
+  # Standard justin environment variables in justin-env.sh  These are also 
+  # put in justin-jobscript-env.sh for the jobscript Singularity container
+  justinEnvList = [ 'export JUSTIN_SITE_NAME=' + str(jobDict['site_name']),
+                    'export JUSTIN_REQUEST_ID=' + str(stage['request_id']),
+                    'export JUSTIN_STAGE_ID=' + str(stage['stage_id']),
+                    'export JUSTIN_JOBSUB_ID=' + str(jsonDict['jobsub_id']),
+                    'export JUSTIN_COOKIE="' + cookie + '"',
+                 'export JUSTIN_FOR_AWT="' + ('TRUE' if forAwt else '') + '"',
+                 'export JUSTIN_SAM_WEB_URI='
+                 '"https://justin.dune.hep.ac.uk/api/samweb/' + 
+                 str(jsonDict['jobsub_id']) + '/' +
+                 cookie + '"'
+               ]
+  addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
+
   # User defined environment variables for the jobscript
-  jobscriptEnvList = []
+  jobscriptEnvList = [] 
 
   try:
     query = ('SELECT env_name,env_value FROM stages_environment '
@@ -309,22 +391,12 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
       jobscriptEnvList.append('export %s="%s"'
                               % (envRow['env_name'], envRow['env_value']))
 
+  # Append standard list. Standard envs always override user-set versions
+  jobscriptEnvList += justinEnvList
+
   addFileToTarFile(tar,
                    'justin-jobscript-env.sh',
                    '\n'.join(jobscriptEnvList) + '\n')
-
-  # Standard justin environment variables
-  justinEnvList = [ 'export JUSTIN_SITE_NAME=' + str(jobDict['site_name']),
-                 'export JUSTIN_REQUEST_ID=' + str(stage['request_id']),
-                 'export JUSTIN_STAGE_ID=' + str(stage['stage_id']),
-                 'export JUSTIN_COOKIE="' + cookie + '"',
-                 'export JUSTIN_SAM_WEB_URI='
-                 '"https://justin.dune.hep.ac.uk/api/samweb/' + 
-                 str(jsonDict['jobsub_id']) + '/' +
-                 cookie + '"'
-               ]
-                  
-  addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
 
   # JSON files to for utility commands to use to contact allocator
   addFileToTarFile(tar, 'justin-get-file.json', 
@@ -419,13 +491,16 @@ def getStageMethod(startResponse, jsonDict):
 
   # Check jsonDict contains required string values
   for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
-    if name not in jsonDict or not justin.db.stringNoQuotes(jsonDict[name]) or not jsonDict[name]:
+    if name not in jsonDict or not justin.db.stringNoQuotes(jsonDict[name]) \
+       or not jsonDict[name]:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
                        '400 Bad Request', 
                        'Missing/invalid value for %s in JSON' % name)
 
   if jsonDict['site_name'] == 'XX_UNKNOWN':
+    print('Job %s has site_name = XX_UNKNOWN - aborting' 
+          % jsonDict['jobsub_id'], file=sys.stderr)
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
 
