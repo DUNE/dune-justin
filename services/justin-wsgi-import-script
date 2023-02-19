@@ -42,11 +42,23 @@ except Exception as e:
 else:
   print('Connected to %s database' % justin.conf.mysqlDbName, file=sys.stderr)
 
+
+#
+# Load X.509 proxy files into global strings
+#
+
 try:
-  with open(justin.allocator.jobscriptsProxyFile, 'rb') as f:
-    justin.allocator.jobscriptsProxy = f.read()
+  with open(justin.allocator.jobsNoRolesProxyFile, 'rb') as f:
+    justin.allocator.jobsNoRolesProxyString = f.read()
 except:
-  print('Failed loading private key from %s : %s'
-        % (justin.allocator.jobscriptsProxyFile, str(e)), file=sys.stderr)
+  print('Failed loading X.509 proxy from %s : %s'
+        % (justin.allocator.jobsNoRolesProxyFile, str(e)), file=sys.stderr)
+
+try:
+  with open(justin.allocator.jobsProductionProxyFile, 'rb') as f:
+    justin.allocator.jobsProductionProxyString = f.read()
+except:
+  print('Failed loading X.509 proxy from %s : %s'
+        % (justin.allocator.jobsProductionProxyFile, str(e)), file=sys.stderr)
   
 

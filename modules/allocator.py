@@ -29,8 +29,11 @@ import MySQLdb
 import justin
 
 # Globals
-jobscriptsProxy     = None
-jobscriptsProxyFile = '/var/lib/justin/jobscripts-proxy.pem'
+jobsProductionProxyString = None
+jobsProductionProxyFile   = '/var/lib/justin/justin-jobs-production.proxy.pem'
+
+jobsNoRolesProxyString = None
+jobsNoRolesProxyFile   = '/var/lib/justin/justin-jobs-no-roles.proxy.pem'
 
 # Populate the list unallocatedCounts with tuples for the number of
 # unallocated files for any running request or stage for each processor

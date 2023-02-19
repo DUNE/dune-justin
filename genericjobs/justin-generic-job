@@ -41,9 +41,6 @@ EOF
   exit $1
 }
 
-# This is just used for finding utility scripts in cvmfs
-export JUSTIN_VERSION=00.03.00
-
 echo '### Start of  printenv | sort'
 printenv | sort
 echo '### End of printenv'
@@ -112,7 +109,7 @@ export JUSTIN_WORKDIR=`pwd`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
 # Make all of the justin-* scripts in jobutils available in $HOME
-ln -s /cvmfs/dune.opensciencegrid.org/products/dune/justin/$JUSTIN_VERSION/NULL/jobutils/* \
+ln -s /cvmfs/dune.opensciencegrid.org/products/dune/justin/00.03.00/NULL/jobutils/* \
  $JUSTIN_WORKDIR/home
 
 # Assemble values to record
@@ -127,22 +124,26 @@ export rss_bytes=`expr $rss_mb \* 1048576`
 export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
 
 openssl req -batch -nodes -newkey rsa:2048 \
- -keyout jobscript-proxy.key.pem -out jobscript-proxy.csr.pem
+ -keyout justin-jobs-no-roles.key.pem -out justin-jobs-no-roles.csr.pem
+
+openssl req -batch -nodes -newkey rsa:2048 \
+ -keyout justin-jobs-production.key.pem -out justin-jobs-production.csr.pem
 
 # Create the JSON to send to the allocator
 cat <<EOF >justin-get-stage.json
 {
-  "method"       : "get_stage",
-  "jobsub_id"    : "$JOBSUBJOBID",
-  "site_name"    : "${site_name:-XX-UNKNOWN}",
-  "cpuinfo"      : "${JUSTIN_CPUINFO:-Unknown}",
-  "os_release"   : "${JUSTIN_OS_RELEASE:-Unknown}",
-  "hostname"     : "${JUSTIN_HOSTNAME:-unknown}",
-  "rss_bytes"    : ${rss_bytes:-0},
-  "processors"   : ${processors:-0},
-  "wall_seconds" : ${wall_seconds:-0},
-  "site_job_id"  : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
-  "csr"          : "`sed -z 's/\n/\\\\n/g' jobscript-proxy.csr.pem`"
+  "method"         : "get_stage",
+  "jobsub_id"      : "$JOBSUBJOBID",
+  "site_name"      : "${site_name:-XX-UNKNOWN}",
+  "cpuinfo"        : "${JUSTIN_CPUINFO:-Unknown}",
+  "os_release"     : "${JUSTIN_OS_RELEASE:-Unknown}",
+  "hostname"       : "${JUSTIN_HOSTNAME:-unknown}",
+  "rss_bytes"      : ${rss_bytes:-0},
+  "processors"     : ${processors:-0},
+  "wall_seconds"   : ${wall_seconds:-0},
+  "site_job_id"    : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
+  "csr-no-roles"   : "`sed -z 's/\n/\\\\n/g' justin-jobs-no-roles.csr.pem`",
+  "csr-production" : "`sed -z 's/\n/\\\\n/g' justin-jobs-production.csr.pem`"
 }
 EOF
 
@@ -217,10 +218,18 @@ echo '====End justin-jobscript.sh===='
 cp justin-jobscript.sh $JUSTIN_WORKDIR/home
 chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
 
-# Make proxy for jobscript
-cat jobscript-proxy.cert.pem jobscript-proxy.key.pem \
-    jobscript-proxy.chain.pem > $JUSTIN_WORKDIR/home/jobscript-proxy.pem
-chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
+# Assemble proxy to be used by jobscript
+cat justin-jobs-no-roles.cert.pem  \
+    justin-jobs-no-roles.key.pem   \
+    justin-jobs-no-roles.chain.pem \
+  > $JUSTIN_WORKDIR/home/justin-jobs-no-roles.proxy.pem
+chmod 0400 $JUSTIN_WORKDIR/home/justin-jobs-no-roles.proxy.pem
+    
+# Assemble proxy for uploads by generic job itself
+cat justin-jobs-production.cert.pem  \
+    justin-jobs-production.key.pem   \
+    justin-jobs-production.chain.pem > justin-jobs-production.proxy.pem
+chmod 0400 justin-jobs-production.proxy.pem
 
 if [ -n "$JUSTIN_FOR_AWT" ] ; then
   # If an AWT job, then we give it the generic job's proxy too
@@ -233,16 +242,16 @@ fi
 cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 #!/bin/sh
 export JUSTIN_PATH="\$HOME"
-export X509_USER_PROXY="\$HOME/jobscript-proxy.pem"
+export X509_USER_PROXY="\$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
-exec ../justin-jobscript.sh
+stdbuf -oL -eL ../justin-jobscript.sh
 EOF
 chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 
 echo "====Start of jobscript execution===="
 export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
-stdbuf -oL -eL singularity shell \
+singularity shell \
   --shell /home/jobscript-wrapper.sh \
   --containall \
   --workdir $JUSTIN_WORKDIR \
