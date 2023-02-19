@@ -58,6 +58,7 @@ commands = [ "create-request",
              "fail-files",
              "show-replicas", "show-storages",
              "show-sites-storages", "show-jobs",
+             "whoami",
              "time" ]
 
 parser.add_argument("command",

@@ -60,6 +60,16 @@ def timeCmd(startResponse):
   return httpOK(startResponse, 
                 datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S UTC\n'))
 
+def whoamiCmd(startResponse, user):
+
+  outputString = \
+'''      User name : %s
+Session expires : %s UTC
+         Groups : %s
+''' % (user['user_name'], user['expires_time'], '  '.join(user['wlcg_groups']))
+
+  return httpOK(startResponse, outputString)
+
 def showRequestsCmd(startResponse, jsonDict):
 
   try:
@@ -1422,12 +1432,13 @@ def getUser(jsonDict):
   try:
     row = justin.select(
            'SELECT principal_name,sessions.user_id,create_requests,'
-           'sessions.wlcg_groups '
+           'sessions.wlcg_groups,expires_time '
            'FROM sessions '
            'LEFT JOIN users ON users.user_id=sessions.user_id '
            'LEFT JOIN principal_names '
            'ON principal_names.pn_id=users.main_pn_id '
-           'WHERE justin_session="%s" AND justin_secret="%s" AND sessions.user_id<>0 '
+           'WHERE justin_session="%s" AND justin_secret="%s" AND '
+           'sessions.user_id<>0 AND sessions.expires_time > NOW() '
            'AND session_type="command"' % (session, secret),
            justOne = True)
   
@@ -1435,12 +1446,14 @@ def getUser(jsonDict):
     createRequests = bool(row['create_requests'])
     userName       = row['principal_name']
     wlcgGroups     = row['wlcg_groups'].split()
+    expiresTime    = row['expires_time']
   except Exception as e:
     print('Finding session fails with: ' + str(e), file=sys.stderr)
     return None
 
   return { 'user_id'         : userID,
            'user_name'       : userName,
+           'expires_time'    : expiresTime,
            'create_requests' : createRequests,
            'wlcg_groups'     : wlcgGroups }
 
@@ -1555,6 +1568,9 @@ def application(environ, startResponse):
 
   if jsonDict['command'] == 'time':
     return timeCmd(startResponse)
+
+  if jsonDict['command'] == 'whoami':
+    return whoamiCmd(startResponse, user)
 
   if jsonDict['command'] == 'show-requests':
     return showRequestsCmd(startResponse, jsonDict)

@@ -37,6 +37,8 @@ import pygal
 
 import justin
 
+timeNow = int(time.time())
+
 class justinStackedLine(pygal.StackedLine):
 
   def __init__(self, imageSize, firstTime, hoursPerBin, numBins,
@@ -2689,6 +2691,9 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   return output
 
 def awtResults(uriPrefix, environ, user, cgiValues):
+
+  # Number of hours before results go grey to indicate stale
+  greyHours = 12
               
   output = header(uriPrefix, environ, user, "justIN: Automated Workflow Tests")
 
@@ -2697,8 +2702,9 @@ def awtResults(uriPrefix, environ, user, cgiValues):
   output += ("<p>Hover over each coloured box to see the most recent test "
       "values for xrdcp read and rucio write, run in jobs at each site, "
       "contacting each RSE.</p>"
-      "<p>Exit code 0 = success. Other codes are failure modes. "
-      "Green if read and write ok; orange if only read ok; red if neither.</p>")
+      "<p>Exit code 0 = success. Other codes are failure modes.</p>"
+      "<p>Green if read and write ok; orange if only read ok; red if neither; "
+      "grey if no result for %d hours.</p>" % greyHours)
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
@@ -2741,7 +2747,8 @@ def awtResults(uriPrefix, environ, user, cgiValues):
       sitesStoragesMatrix[siteName][rseName] = []
  
   resultsRows = justin.select(
-           'SELECT site_name,rse_name,read_result,write_result,jobsub_id '
+           'SELECT site_name,rse_name,read_result,write_result,jobsub_id,'
+           'UNIX_TIMESTAMP(jobs.finished_time) AS finished_time '
            'FROM sites_storages '
            'LEFT JOIN sites ON sites_storages.site_id=sites.site_id '
            'LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id '
@@ -2751,7 +2758,10 @@ def awtResults(uriPrefix, environ, user, cgiValues):
   # Put the results in nested dictionaries
   for results in resultsRows:
     sitesStoragesMatrix[results['site_name']][results['rse_name']] = \
-      [results['read_result'], results['write_result'], results['jobsub_id']]
+      [results['read_result'], 
+       results['write_result'], 
+       results['jobsub_id'],
+       results['finished_time']]
 
   output += ('<table class="center">')
 
@@ -2790,14 +2800,14 @@ def awtResults(uriPrefix, environ, user, cgiValues):
                  '<a href="%s?method=show-job&jobsub_id=%s">%s</a></td>\n'
                  % (uriPrefix, 
                     lastJobIDs[siteName],
-                    daysHoursMinutes(int(time.time()) - lastJobTimes[siteName])
+                    daysHoursMinutes(timeNow - lastJobTimes[siteName])
                    ))
     else:
       output += ('<td style="text-align: right">%s</td>' % 
-            daysHoursMinutes(int(time.time()) - lastJobTimes[siteName]))
+            daysHoursMinutes(timeNow - lastJobTimes[siteName]))
   
     for rseName in rseNames:
-      (readResult, writeResult, jobsubID) = \
+      (readResult, writeResult, jobsubID, finishedTime) = \
                       sitesStoragesMatrix[siteName][rseName]
 
       if readResult == 255 and writeResult == 255:
@@ -2814,7 +2824,9 @@ def awtResults(uriPrefix, environ, user, cgiValues):
         else:
           s += ' Write=%d' % writeResult
 
-        if readResult == 0 and \
+        if finishedTime < timeNow - 3600 * greyHours:
+          boxColor = 'grey'
+        elif readResult == 0 and \
              (writeResult and writeResult != 255):
           boxColor = 'orange'
         elif (readResult and readResult != 255) or \

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # Check any metadata JSON from jobscript for a given file and add
-# workflow metadata to it. The output file and its JSON file will be looked for
-# in the workspace subdirectory of the container $HOME.
+# workflow metadata to it. The output file and its JSON file will be looked
+# for in the workspace subdirectory of the container $HOME.
 
 import os
 import sys
@@ -23,7 +23,7 @@ except Exception as e:
   print("File home/workspace/%s.json exists but JSON load fails: %s" % 
         (fileName, str(e)))
 
-metadata['size']      = os.path.getsize('workspace/' + fileName)
+metadata['size']      = os.path.getsize('home/workspace/' + fileName)
 metadata['namespace'] = fileScope
 metadata['name']      = fileName
 metadata['metadata']['DUNE.workflow'] = {}
@@ -45,6 +45,6 @@ metadata['metadata']['DUNE.workflow']['cpuinfo'] \
 metadata['metadata']['DUNE.workflow']['os_release'] \
  = os.environ['JUSTIN_OS_RELEASE']
 metadata['metadata']['DUNE.workflow']['job_id'] \
- = os.environ['JOBSUBJOBID']
+ = os.environ['JUSTIN_JOBSUB_ID']
 
 print(json.dumps(metadata, indent = 4, sort_keys = True))
