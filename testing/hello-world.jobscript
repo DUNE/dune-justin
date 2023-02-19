@@ -1,12 +1,23 @@
 #!/bin/sh
-#
-# Submit with something like this:
-#
-# justin quick-request --monte-carlo 10 --jobscript-id testpro:hello-world
-#
-# Then monitor with dashboard or justin show-jobs --request-id ID
-# where ID is the value printed by the first command
-#
+: <<EOF
+
+Hello World jobscript for justIN
+
+Submit a request like this to run 10 jobs:
+
+justin quick-request --monte-carlo 10 --jobscript hello-world.jobscript
+
+
+Or like this to run jobs and put the output file into Rucio-managed storage:
+
+justin quick-request \
+     --monte-carlo 1 \
+     --jobscript hello-world.jobscript \
+     --description 'Hello World!!!' \
+     --scope testpro \
+     --output-pattern 'hello-world-*.txt:output-test-01'
+
+EOF
 
 # Get an unprocessed file from this stage
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
