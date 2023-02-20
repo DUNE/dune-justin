@@ -8,7 +8,7 @@ Rucio, use this command to create the request:
 
 justin quick-request \
 --mql "files from dc4:dc4 where core.run_type='dc4-hd-protodune' limit 10" \
---jobscript dc4-hd-protodune.jobscript --max-distance 30 \
+--jobscript dc4-hd-protodune.jobscript --max-distance 30 --rss-mb 4000 \
 --scope testpro --output-pattern '*_reco_data_*.root:output-test-01' 
 
 The following optional environment variables can be set when creating the
@@ -79,8 +79,8 @@ if [ $larExit -eq 0 ] ; then
   echo "extractor_prod.py exit code $extractorExit"
 
   # Run pdjson2meta. THIS SHOULD MOVE TO SOMEWHERE LIKE duneutil ?
-  $JUSTIN_PATH/pdjson2metadata $outFile.ext.json all-input-dids.txt \
-    > $outFile.json
+  /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/pdjson2metadata \
+     $outFile.ext.json all-input-dids.txt > $outFile.json
   p2mExit=$?
   echo "pdjson2metadata exit code $p2mExit"
 

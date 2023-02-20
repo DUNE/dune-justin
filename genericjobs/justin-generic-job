@@ -109,13 +109,13 @@ export JUSTIN_WORKDIR=`pwd`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
 # Copy all of the justin-* scripts in jobutils to $HOME
-cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/00.03.00/NULL/jobutils/* \
+cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
  $JUSTIN_WORKDIR/home/
 
-# TEMPORARILY OVERWRITE justin-metadata WITH VERSION FROM GITHUB
-curl --output $JUSTIN_WORKDIR/home/justin-metadata \
- https://raw.githubusercontent.com/DUNE/dune-justin/main/jobutils/justin-metadata
-chmod +x $JUSTIN_WORKDIR/home/justin-metadata 
+## TEMPORARILY OVERWRITE justin-metadata WITH VERSION FROM GITHUB
+#curl --output $JUSTIN_WORKDIR/home/justin-metadata \
+# https://raw.githubusercontent.com/DUNE/dune-justin/main/jobutils/justin-metadata
+#chmod +x $JUSTIN_WORKDIR/home/justin-metadata 
 
 # Assemble values to record
 export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`

@@ -2693,7 +2693,7 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 def awtResults(uriPrefix, environ, user, cgiValues):
 
   # Number of hours before results go grey to indicate stale
-  greyHours = 12
+  greyHours = 48
               
   output = header(uriPrefix, environ, user, "justIN: Automated Workflow Tests")
 
