@@ -53,8 +53,6 @@ voms-proxy-init \
 
 if [ $? = 0 -a -s /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp ]
 then
-  cp -f /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp /tmp/x509up_u0
-
   chown apache.apache /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp
   mv -f /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp \
         /var/lib/justin/justin-jobs-no-roles.proxy.pem

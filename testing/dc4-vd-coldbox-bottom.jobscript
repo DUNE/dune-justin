@@ -1,18 +1,20 @@
 #!/bin/bash
-#
-# To use this jobscript to process 10 files from the dc4-vd-coldbox-bottom
-# data and put the output in the dc4-vd-coldbox-bottom namespace (MetaCat) and 
-# scope (Rucio), and in the dc4-vd-coldbox-bottom:test-01 dataset in MetaCat and
-# Rucio, use this command to create the request:
-#
-# justin quick-request \
-# --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
-# --jobscript dc4-vd-coldbox-bottom:default --max-distance 30 \
-# --scope dc4-vd-coldbox-bottom --output-pattern '*_reco_data_*.root:test-01' 
-#
-# The following optional environment variables can be set when creating the
-# request/stage: FCL_FILE, NUM_EVENTS, DUNE_VERSION, DUNE_QUALIFIER 
-#
+:<<EOF
+
+To use this jobscript to process 10 files from the dc4-vd-coldbox-bottom
+data and put the output in the dc4-vd-coldbox-bottom namespace (MetaCat) and 
+scope (Rucio), and in the dc4-vd-coldbox-bottom:test-01 dataset in MetaCat and
+Rucio, use this command to create the request:
+
+justin quick-request \
+--mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+--jobscript dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
+--scope testpro --output-pattern '*_reco_data_*.root:output-test-01' 
+
+The following optional environment variables can be set when creating the
+request/stage: FCL_FILE, NUM_EVENTS, DUNE_VERSION, DUNE_QUALIFIER 
+
+EOF
 
 # fcl file and DUNE software version/qualifier to be used
 FCL_FILE=${FCL_FILE:-vdcoldbox_raw_dataprep_reco.fcl}
@@ -77,8 +79,8 @@ if [ $larExit -eq 0 ] ; then
   echo "extractor_prod.py exit code $extractorExit"
 
   # Run pdjson2meta. THIS SHOULD MOVE TO SOMEWHERE LIKE duneutil ?
-  /cvmfs/dune.opensciencegrid.org/products/dune/justin/$JUSTIN_VERSION/NULL/jobutils/pdjson2metadata \
-    $outFile.ext.json all-input-dids.txt > $outFile.json
+  $JUSTIN_PATH/pdjson2metadata $outFile.ext.json all-input-dids.txt \
+    > $outFile.json
   p2mExit=$?
   echo "pdjson2metadata exit code $p2mExit"
 

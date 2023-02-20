@@ -80,13 +80,13 @@ def httpOK(startResponse, outputString):
   return [outputString.encode('UTF-8')]
 
 # Return information about the job from the jobsubID
-def makeJobDict(jobsubID, cookie = None):
+def makeJobDict(jobsubID, secret = None):
 
   # Find the job info and the stage's max_distance value
   try:
     query = ('SELECT '
              'jobs.allocation_state,'
-             'jobs.cookie,'
+             'jobs.secret,'
              'stages.max_distance,'
              'stages.max_files_per_job,'
              'jobs.request_id,'
@@ -119,8 +119,8 @@ def makeJobDict(jobsubID, cookie = None):
   if not job:
     return { "error_message": "Failed to find job from jobsubID " + jobsubID }
 
-  if cookie is not None and job['cookie'] != cookie:
-    return { "error_message": "Cookie mismatch" }
+  if secret is not None and job['secret'] != secret:
+    return { "error_message": "Secret mismatch" }
 
   return { "error_message"    : None,
            "request_id"       : job['request_id'],
@@ -130,7 +130,7 @@ def makeJobDict(jobsubID, cookie = None):
            "running_jobs"     : job['running_jobs'],
            "max_jobs"         : job['max_jobs'],
            "site_enabled"     : job['enabled'],
-           "justin_job_id"       : job['justin_job_id'],
+           "justin_job_id"    : job['justin_job_id'],
            "allocation_state" : job['allocation_state'],
            "allocation_count" : job['allocation_count'],
            "for_awt"          : job['for_awt'],
@@ -142,22 +142,6 @@ def makeJobDict(jobsubID, cookie = None):
            "max_rss_bytes"    : job['max_rss_bytes'],
            "max_wall_seconds" : job['max_wall_seconds']
          }
-
-# Successfully identified the request+stage and files so get the 
-# jobscript for this stage and return it
-def getJobscript(stage):
-
-  try:
-    query = ("SELECT jobscript FROM stages_jobscripts "
-             "WHERE request_id=%d AND stage_id=%d" 
-             % (stage['request_id'], stage['stage_id']))
-
-    row = justin.db.select(query, justOne = True)
-    jobscript = row['jobscript']
-  except:
-    return None
-  
-  return jobscript
 
 # Make a new certificate from the certificate request sent by the 
 # generic job, signed by the VOMS proxy loaded from local disk
@@ -244,14 +228,25 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
+def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
 
-  # Get and add the jobscript
-  jobscript = getJobscript(stage)
-  if not jobscript:
+  try:
+    query = ("SELECT jobscript,scope_name FROM stages_jobscripts "
+             "LEFT JOIN requests "
+             "ON requests.request_id=stages_jobscripts.request_id "
+             "LEFT JOIN scopes ON scopes.scope_id=requests.scope_id "
+             "WHERE stages_jobscripts.request_id=%d "
+             "AND stages_jobscripts.stage_id=%d" 
+             % (stage['request_id'], stage['stage_id']))
+
+    row = justin.db.select(query, justOne = True)
+    jobscript = row['jobscript']
+    scopeName = row['scope_name'] if row['scope_name'] else ''
+  except Exception as e:
+    print('SELECT stages_jobscripts fails: ' + str(e), file=sys.stderr)
     return None
 
   addFileToTarFile(tar, "justin-jobscript.sh", jobscript)
@@ -385,13 +380,14 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
   justinEnvList = [ 'export JUSTIN_SITE_NAME=' + str(jobDict['site_name']),
                     'export JUSTIN_REQUEST_ID=' + str(stage['request_id']),
                     'export JUSTIN_STAGE_ID=' + str(stage['stage_id']),
+                    'export JUSTIN_SCOPE=' + scopeName,
                     'export JUSTIN_JOBSUB_ID=' + str(jsonDict['jobsub_id']),
-                    'export JUSTIN_COOKIE="' + cookie + '"',
+                    'export JUSTIN_SECRET="' + secret + '"',
                  'export JUSTIN_FOR_AWT="' + ('TRUE' if forAwt else '') + '"',
                  'export JUSTIN_SAM_WEB_URI='
                  '"https://justin.dune.hep.ac.uk/api/samweb/' + 
                  str(jsonDict['jobsub_id']) + '/' +
-                 cookie + '"'
+                 secret + '"'
                ]
   addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
 
@@ -425,7 +421,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
          '{\n' +
          '"method" : "get_file",\n' +
          '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
-         '"cookie" : "' + cookie + '"\n' 
+         '"secret" : "' + secret + '"\n' 
          '}\n'
        )
                   )
@@ -435,7 +431,7 @@ def makeTarFile(jsonDict, jobDict, stage, cookie, forAwt):
          '{\n' +
          '"method" : "get_allocated_files",\n' +
          '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
-         '"cookie" : "' + cookie + '"\n' 
+         '"secret" : "' + secret + '"\n' 
          '}\n'
        )
                   )
@@ -601,7 +597,7 @@ def getStageMethod(startResponse, jsonDict):
                      '404 Not Found', 
                      'No eligible stages found')
 
-  cookie = secrets.token_urlsafe(64)
+  secret = secrets.token_urlsafe(64)
 
 #  print('Before UPDATE jobs SET', file=sys.stderr)
   try:
@@ -624,7 +620,7 @@ def getStageMethod(startResponse, jsonDict):
              'rss_bytes=' + str(jsonDict['rss_bytes']) + ',' 
              'processors=' + str(jsonDict['processors']) + ',' 
              'wall_seconds=' + str(jsonDict['wall_seconds']) + ',' 
-             'cookie="' + cookie + '" ' 
+             'secret="' + secret + '" ' 
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
@@ -634,7 +630,7 @@ def getStageMethod(startResponse, jsonDict):
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
-  tarFile = makeTarFile(jsonDict, jobDict, stage, cookie, jobDict['for_awt'])
+  tarFile = makeTarFile(jsonDict, jobDict, stage, secret, jobDict['for_awt'])
   
   if not tarFile:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -818,14 +814,14 @@ def getFileMethod(startResponse, jsonDict):
                      '400 Bad Request',
                      'Missing/invalid jobsub_id in JSON')
 
-  if 'cookie' not in jsonDict or \
-     not justin.db.stringNoQuotes(jsonDict['cookie']):
+  if 'secret' not in jsonDict or \
+     not justin.db.stringNoQuotes(jsonDict['secret']):
     return httpError(startResponse,
                      '400 Bad Request',
-                     'Missing/invalid cookie in JSON')
+                     'Missing/invalid secret in JSON')
 
   # Lookup job details
-  jobDict = makeJobDict(jsonDict['jobsub_id'], jsonDict['cookie'])
+  jobDict = makeJobDict(jsonDict['jobsub_id'], jsonDict['secret'])
 
   if jobDict['error_message']:
     return httpError(startResponse,
@@ -1429,11 +1425,11 @@ def application(environ, startResponse):
       jsonDict = urllib.parse.parse_qs(inputString)
       print('inputString ' + inputString, file=sys.stderr)
 
-      # URIs like /api/samweb/JOBSUBJOBID/COOKIE/processes/N/METHOD
+      # URIs like /api/samweb/JOBSUBJOBID/SECRET/processes/N/METHOD
       uriSplit = environ['REQUEST_URI'].split('/')
       jsonDict['method']    = 'samweb_' + uriSplit[-1].lower()
       jsonDict['jobsub_id'] = str(uriSplit[3])
-      jsonDict['cookie']    = str(uriSplit[4])
+      jsonDict['secret']    = str(uriSplit[4])
 
     except Exception as e:
       return httpError(startResponse, 
@@ -1472,8 +1468,8 @@ def application(environ, startResponse):
     return getAllocatedFilesMethod(startResponse, jsonDict)
 
   # Get one or more files to process
-  # This request comes from jobscripts using cookies so we 
-  # do not run checkJobUser() as getFileMethod() checks the cookie
+  # This request comes from jobscripts using secrets so we 
+  # do not run checkJobUser() as getFileMethod() checks the secret
   if jsonDict['method'] == 'get_file' or \
      jsonDict['method'] == 'samweb_getnextfile':
     return getFileMethod(startResponse, jsonDict)

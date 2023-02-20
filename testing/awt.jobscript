@@ -34,19 +34,18 @@ do
   echo "$fn" > $fn
 
   echo "GFAL_CONFIG_DIR: $GFAL_CONFIG_DIR   GFAL_PLUGIN_DIR: $GFAL_PLUGIN_DIR"
-   rucio --verbose \
-         --certificate $JUSTIN_PATH/awt-proxy.pem \
-         --account dunepro \
-         --vo dune \
-         upload \
-         --rse "$rse_name" \
-         --protocol "$write_protocol" \
-         --scope testpro \
-         --lifetime 86400 \
-         --name "$fn" "$fn"
+  ( export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
+    rucio --verbose \
+          upload \
+          --rse "$rse_name" \
+          --protocol "$write_protocol" \
+          --scope testpro \
+          --lifetime 86400 \
+          --name "$fn" "$fn" 2>&1
+  )
 
   upload_retval=$?
-  echo "'rucio --certificate $JUSTIN_PATH/awt-proxy.pem --verbose --account dunepro --vo dune upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
+  echo "'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
   echo
   echo
 
@@ -62,7 +61,7 @@ echo '===== Results ====='
 echo
 echo 'Download/upload commands:'
 echo 'xrdcp --force --nopbar --verbose $read_pfn $AWT_DOWNLOAD_FILE'
-echo 'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --name FILENAME FILENAME'
+echo 'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name FILENAME FILENAME'
 echo 'Use the Landscape link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
 echo
 echo 'Each line: $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval $read_pfn $write_protocol'

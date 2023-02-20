@@ -37,7 +37,7 @@ import pygal
 
 import justin
 
-timeNow = int(time.time())
+timeNow = None 
 
 class justinStackedLine(pygal.StackedLine):
 
@@ -2793,6 +2793,7 @@ def awtResults(uriPrefix, environ, user, cgiValues):
           '</a></%s>\n' % 
           (cellType, uriPrefix, siteName, siteName, cellType))
 
+    output += '\n<!-- %d %d -->\n' % (timeNow, lastJobTimes[siteName])
     if lastJobTimes[siteName] == 0:
       output += ('<td> </td>')
     elif siteName in lastJobIDs:
@@ -2869,6 +2870,9 @@ def awtResults(uriPrefix, environ, user, cgiValues):
 # Entry point from mod_wsgi
 #
 def application(environ, startResponse):
+
+  global timeNow
+  timeNow = time.time()
 
   justin.db.wsgiCallsCount += 1
   print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
