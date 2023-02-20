@@ -8,7 +8,7 @@ Rucio, use this command to create the request:
 
 justin quick-request \
 --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
---jobscript dc4-vd-coldbox-top.jobscript --max-distance 30 \
+--jobscript dc4-vd-coldbox-top.jobscript --max-distance 30 --rss-mb 4000 \
 --scope testpro --output-pattern '*_reco_data_*.root:output-test-01' 
 
 The following optional environment variables can be set when creating the

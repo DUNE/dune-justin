@@ -419,12 +419,6 @@ def showSitesStoragesCmd(startResponse, jsonDict):
 
 def createRequestCmd(startResponse, jsonDict, user):
 
-# WE WILL REMOVE AS SOON AS THE FULL SECURITY MODEL IS IMPLEMENTED IN JOBS
-  if not user['create_requests']:
-    return httpError(startResponse, 
-                     '403 Forbidden',
-                     'Your account is not yet enabled for creating requests!')
-
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
   else:
@@ -545,12 +539,6 @@ def createRequestCmd(startResponse, jsonDict, user):
   return httpOK(startResponse, str(requestID) + '\n')
 
 def quickRequestCmd(startResponse, jsonDict, user):
-
-# WE WILL REMOVE AS SOON AS THE FULL SECURITY MODEL IS IMPLEMENTED IN JOBS
-  if not user['create_requests']:
-    return httpError(startResponse, 
-                     '403 Forbidden',
-                     'Your account is not yet enabled for creating requests!')
 
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
@@ -927,12 +915,6 @@ def modifyRequestCmds(startResponse, jsonDict, user):
   return httpOK(startResponse, '')
 
 def createStageCmd(startResponse, jsonDict, user):
-
-# WE WILL REMOVE AS SOON AS THE FULL SECURITY MODEL IS IMPLEMENTED IN JOBS
-  if not user['create_requests']:
-    return httpError(startResponse, 
-                     '403 Forbidden',
-                     'Your account is not yet enabled for creating stages!')
 
   try:
     requestID  = int(jsonDict['request_id'])
@@ -1431,7 +1413,7 @@ def getUser(jsonDict):
 
   try:
     row = justin.select(
-           'SELECT principal_name,sessions.user_id,create_requests,'
+           'SELECT principal_name,sessions.user_id,'
            'sessions.wlcg_groups,expires_time '
            'FROM sessions '
            'LEFT JOIN users ON users.user_id=sessions.user_id '
@@ -1443,7 +1425,6 @@ def getUser(jsonDict):
            justOne = True)
   
     userID         = int(row['user_id'])
-    createRequests = bool(row['create_requests'])
     userName       = row['principal_name']
     wlcgGroups     = row['wlcg_groups'].split()
     expiresTime    = row['expires_time']
@@ -1454,7 +1435,6 @@ def getUser(jsonDict):
   return { 'user_id'         : userID,
            'user_name'       : userName,
            'expires_time'    : expiresTime,
-           'create_requests' : createRequests,
            'wlcg_groups'     : wlcgGroups }
 
 def newSession(startResponse, environ, jsonDict):
