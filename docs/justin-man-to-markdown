@@ -13,10 +13,9 @@ fi
 cat <<EOF
 ## justin command man page
 This man page is distributed along with the 
-[justin command](justin-command.md) itself.
+[justin command](justin_command.md) itself.
+
 EOF
-echo '```'
-groff -mandoc -Tascii -P -b ../commands/justin.1 
-echo '```'
+groff -mandoc -Tascii -P -b ../commands/justin.1 | sed 's/.*/    &/'
 
 ) > justin_command.man_page.md

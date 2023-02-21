@@ -14,7 +14,7 @@ in place:
    the DUNE Rucio list of users and X.509 DNs, or added by hand (ask Andrew.)
 3. Make sure you can initialise the DUNE UPS environment from cvmfs, by 
    running 
-```source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh```
+    source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 
 # Checking the prerequisites
 

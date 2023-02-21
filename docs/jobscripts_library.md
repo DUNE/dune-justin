@@ -21,17 +21,15 @@ with the stage, and future changes in the library are ignored for that stage.
 
 To put a jobscript into the library, use the create-jobscript subcommand.
 
-```
-justin create-jobscript --name example1 \
-                        --jobscript exam1.jobscript
+    justin create-jobscript --name example1 \
+                            --jobscript exam1.jobscript
 
-justin create-jobscript --scope myscope --name example2 \
-                        --jobscript exam2.jobscript
-```
+    justin create-jobscript --scope myscope --name example2 \
+                            --jobscript exam2.jobscript
 
 The first example takes your user name in NAME@DOMAIN format and uploads
 the exam1.jobscript file to the library with a jobscript identifier like 
-NAM@DOMAIN:example1. The second example uses the Rucio scope myscope and 
+NAME@DOMAIN:example1. The second example uses the Rucio scope myscope and 
 uploads exam2.jobscript with jobscript identifier myscope:example2.
 
 You can create a description for the jobscript with the --description option.

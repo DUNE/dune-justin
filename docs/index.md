@@ -22,10 +22,10 @@ current release branch is available on the justIN dashboard
 - [Agents](agents.md)
 - [Services](services.md)
 - [Dashboard](dashboard.md)
-- [Jobscripts library](jobscripts-library.md)
+- [Jobscripts library](jobscripts_library.md)
 
 ### Reference 
 
-- [Event types](event-types.md)
-- [Generic jobs](generic-jobs.md)
+- [Event types](event_types.md)
+- [Generic jobs](generic_jobs.md)
 - [Files](files.md)

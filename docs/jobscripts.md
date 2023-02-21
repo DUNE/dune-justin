@@ -18,12 +18,10 @@ the optimal RSE, and the name of that RSE, all separated by spaces. This
 code fragment shows how the DID, PFN and RSE can be put into shell 
 variables:
 
-```
-did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
-did=`echo $did_pfn_rse | cut -f1 -d' '`
-pfn=`echo $did_pfn_rse | cut -f2 -d' '`
-rse=`echo $did_pfn_rse | cut -f3 -d' '`
-```
+    did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+    did=`echo $did_pfn_rse | cut -f1 -d' '`
+    pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+    rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
 If no file is available to be processed, then justin-get-file produces no 
 output to stdout, which should also be checked for.  justin-get-file logs 
@@ -46,10 +44,10 @@ ready for matching by another job.
 
 Files can be referred to either by DID or PFN, one  per  line,  in  the
 appropriate list file:
-```
-justin-processed-dids.txt
-justin-processed-pfns.txt
-```
+
+    justin-processed-dids.txt
+    justin-processed-pfns.txt
+
 
 It is not necessary to create list files which would otherwise be empty. 
 You can refer to each processed file either by its DID or PFN (or both!) as
