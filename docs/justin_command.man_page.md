@@ -374,8 +374,8 @@ This man page is distributed along with the
     
     
     FILES
-           A session file /tmp/justin.session.USERID is created by  justin,  where
-           USERID is the numeric Unix user id, given by id -u
+           A session file /var/tmp/justin.session.USERID  is  created  by  justin,
+           where USERID is the numeric Unix user id, given by id -u
     
     
     AUTHOR

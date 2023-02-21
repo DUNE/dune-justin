@@ -3,33 +3,57 @@
 # Prerequisites
 
 This tutorial has been tested on the DUNE interactive VMs at Fermilab and on
-lxplus at CERN. It should also work on similar machines elsewhere.
+lxplus at CERN. It should also work on similar Linux machines elsewhere.
 
-Before following this tutorial, you need to make sure you have the following
-in place:
+You need to be a member of DUNE and have a Fermilab computer account. You
+can check this by going to the justIN dashboard at 
+[https://justin.dune.hep.ac.uk/dashboard/](https://justin.dune.hep.ac.uk/dashboard/)
+and logging in: go to that address, click on the orange Login button on the 
+top right and follow the instructions. If you get back to the justIN
+dashboard with your NAME@fnal.gov shown in place of the Login button, you
+have the right registrations.
 
-1. Make sure you can create an X.509 proxy, either with kx509 at Fermilab or 
-   with grid-proxy-init or voms-proxy-init.
-2. Make sure your X.509 DN is in the justIN database, either automatically from
-   the DUNE Rucio list of users and X.509 DNs, or added by hand (ask Andrew.)
-3. Make sure you can initialise the DUNE UPS environment from cvmfs, by 
-   running 
+Before following this tutorial, make sure you can initialise the DUNE UPS 
+environment from cvmfs and set up justin with these commands:
+
     source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+    setup justin
+    justin version
 
-# Checking the prerequisites
+You should see a version number displayed. 
 
-Setup DUNE UPS (if you've not already done that within your session),
-setup justin from cvmfs and then run the time subcommand.
+# Logging in from the command line 
 
+Now we can start the tutorial itself.
 
-```
-source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
-setup justin
-justin time
-```
+Setup DUNE UPS and justin if you've not already done that within your
+session:
 
-The last command should display the UTC time from the justIN service after
-authenticating to the service and after it checks you are authorized.
+    source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+    setup justin
+
+Then run these two commands to clear any existing session and trigger
+a new one:
+
+    rm -f /tmp/justin.session.`id -u`
+    justin time
+
+The justin command will display a message like this:
+
+    To authorize this computer to run the justin command, visit this page with your
+    usual web browser and follow the instructions within the next 10 minutes:
+    https://justin.dune.hep.ac.uk/authorize/.........
+
+    Check that the Session ID displayed on that page is .......
+
+    Once you've followed the instructions on that web page, you can run the justin
+    command without needing to authorize this computer again for 7 days.
+
+    This subcommand should display the UTC time from the justIN service after
+    authenticating to the service and after it checks you are authorized.
+
+Follow those instructions to authorize the justin command to run on your
+account on that computer.
 
 # Run some hello world jobs
 

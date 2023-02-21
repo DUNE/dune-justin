@@ -2924,7 +2924,7 @@ def docsPage(uriPrefix, startResponse, environ, user):
 
   output += ' : %s</p>' % splitFileName[-1].upper().replace('_', ' ')
 
-  output += markdown.markdown(fileText)
+  output += markdown.markdown(fileText, extensions=['tables'])
 
   output += '</div>\n'
   output += footer()
