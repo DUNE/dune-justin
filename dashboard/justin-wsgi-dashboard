@@ -2867,7 +2867,7 @@ def awtResults(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def docsPage(uriPrefix, startResponse, environ):
+def docsPage(uriPrefix, startResponse, environ, user):
 
   try:
     htmlFileName = environ['REQUEST_URI'].split('/')[2]
@@ -2910,7 +2910,7 @@ def docsPage(uriPrefix, startResponse, environ):
     return output
 
   output = header(uriPrefix, 
-                  environ, '', 
+                  environ, user, 
                   "justIN: Docs - %s" % splitFileName[-1].replace('_', ' '))
 
   output += '<div class="center" style="max-width: 800px">\n'
@@ -2971,7 +2971,6 @@ def application(environ, startResponse):
 
   try:
     if environ['REQUEST_URI'].split('/')[1].endswith('-dev'):
-      # /dashboard-dev/ or /docs-dev/
       uriPrefix = '/dashboard-dev/'
     else:
       uriPrefix = '/dashboard/'
@@ -2991,7 +2990,7 @@ def application(environ, startResponse):
   user = getUser(environ)
 
   if environ['REQUEST_URI'].startswith('/docs'):
-    output = docsPage(uriPrefix, startResponse, environ)
+    output = docsPage(uriPrefix, startResponse, environ, user)
     return [output.encode('UTF-8')]
 
   cgiValues  = { }

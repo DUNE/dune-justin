@@ -14,7 +14,7 @@ states given here:
 - **submitted** - the job has been submitted by the 
   [Generic Job Factory](agents.job_factory.md) but not yet allocated a request/stage
 - **started** - the job has succesfully been allocated a stage within a 
-  request to work on by the [allocator service](allocator-service.md) and 
+  request to work on by the [allocator service](services.allocator.md) and 
   the supplied jobscript should be running
 - **processing** - the jobscript has successfully been allocated at 
   least one input file to process by the allocator service.
