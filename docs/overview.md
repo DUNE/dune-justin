@@ -41,7 +41,7 @@ first stage of that request. All these files are set to the unallocated
 state.
 
 Once the request has moved to the running state the 
-[Finder agent](finder.md) builds the list of input files for its first
+[Finder agent](agents.finder.md) builds the list of input files for its first
 stage, and looks up the replicas of each file. Once replicas are available,
-then generic jobs submitted by the [Generic Job Factory](job-factory.md)
+then generic jobs submitted by the [Generic Job Factory](agents.job_factory.md)
 will begin to match unallocated files and processing can begin.

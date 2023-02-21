@@ -12,7 +12,7 @@ Within justIN, a generic job is in one of several allocation
 states given here:
 
 - **submitted** - the job has been submitted by the 
-  [Generic Job Factory](job-factory.md) but not yet allocated a request/stage
+  [Generic Job Factory](agents.job_factory.md) but not yet allocated a request/stage
 - **started** - the job has succesfully been allocated a stage within a 
   request to work on by the [allocator service](allocator-service.md) and 
   the supplied jobscript should be running

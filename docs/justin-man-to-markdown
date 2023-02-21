@@ -19,4 +19,4 @@ echo '```'
 groff -mandoc -Tascii -P -b ../commands/justin.1 
 echo '```'
 
-) > justin-man-page.md
+) > justin_command.man_page.md

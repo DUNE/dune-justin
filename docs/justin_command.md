@@ -4,8 +4,8 @@ The justin command allows the creation and monitoring of requests, and
 various queries of the [justIN database](database.md)'s knowledge of
 sites, storages etc.
 
-See the [snapshot of its man page](justin-man-page.md) for the full list
-of subcommands, options, and their syntax.
+See the [snapshot of its man page](justin_command.man_page.md) for the 
+full list of subcommands, options, and their syntax.
 
 The command requires Python 3.6 or above and has no dependencies beyond the
 standard Python 3 modules. On a Linux system with python3 on the path, it

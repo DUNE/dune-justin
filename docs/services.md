@@ -11,7 +11,7 @@ clients to authenticate using X.509 certificates or grid style X.509
 proxies of users or grid jobs. 
 
 - justin-wsgi-allocator - [allocator service](allocator-service.md), which responds to queries from generic jobs
-- justin-wsgi-commands - justIN commands service, which responds to queries from the [justin command](justin-command.md)
+- justin-wsgi-commands - justIN commands service, which responds to queries from the [justin command](justin_command.md)
 
 The [justIN dashboard](dashboard.md) is currently implemented as a Python3 
 CGI script.

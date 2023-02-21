@@ -28,6 +28,7 @@ import json
 import secrets
 import base64
 import pprint
+import markdown
 import urllib
 import urllib.parse
 import urllib.request
@@ -208,7 +209,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="%s?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
 <a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
-<a href="https://dune.github.io/dune-justin/">Docs</a>%s
+<a href="/docs/">Docs</a>%s
 </div>
 <div id="main_box">
 <Xdiv style="margin-left:auto; margin-right:auto">
@@ -2866,6 +2867,71 @@ def awtResults(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
+def docsPage(uriPrefix, startResponse, environ):
+
+  try:
+    htmlFileName = environ['REQUEST_URI'].split('/')[2]
+ 
+    if not justin.stringNoQuotes(htmlFileName):
+      raise
+  except:
+    output = errorPage(uriPrefix, environ, '', "Page name problem")
+    startResponseOK(startResponse, output)
+    return output
+
+  # If explicitly index.html/.md then redirect to "/docs/"
+  if htmlFileName == 'index.html' or htmlFileName == 'index.md':
+    startResponse('302 Moved', 
+                  [('Location',       './'),
+                   ('Content-length', '0')
+                  ])
+    return ''
+
+  # But if really given as "/", then put the index so we can find the file!
+  if htmlFileName == '':
+    htmlFileName = 'index.md'
+
+  splitFileName = htmlFileName.split('.')[:-1]
+
+  if htmlFileName.endswith('.html'):
+    startResponse('302 Moved', 
+                  [('Location', '%s.md' % '.'.join(splitFileName)),
+                   ('Content-length', '0')
+                  ])
+    return ''
+    
+  try:
+    fileText = open('/var/www/html/docs/' + 
+                '.'.join(splitFileName) + '.md', 'r', encoding="utf-8").read()
+  except Exception as e:
+    print('Error opening %s: %s' % (htmlFileName, str(e)))
+    output = errorPage(uriPrefix, environ, '', "Page not found")
+    startResponseOK(startResponse, output)
+    return output
+
+  output = header(uriPrefix, 
+                  environ, '', 
+                  "justIN: Docs - %s" % splitFileName[-1].replace('_', ' '))
+
+  output += '<div class="center" style="max-width: 800px">\n'
+
+  output += '<p><a href="./">DOCS</a>'
+
+  for i in range(0, len(splitFileName) - 1):
+    output += ' : <a href="%s.md">%s</a>' \
+              % ('.'.join(splitFileName[:-1]), 
+                 splitFileName[i].upper().replace('_', ' '))
+
+  output += ' : %s</p>' % splitFileName[-1].upper().replace('_', ' ')
+
+  output += markdown.markdown(fileText)
+
+  output += '</div>\n'
+  output += footer()
+
+  startResponseOK(startResponse, output)
+  return output
+ 
 #
 # Entry point from mod_wsgi
 #
@@ -2904,9 +2970,14 @@ def application(environ, startResponse):
     return [output.encode('UTF-8')]
 
   try:
-    uriPrefix = '/' + environ['REQUEST_URI'].split('/')[1] + '/'
+    if environ['REQUEST_URI'].split('/')[1].endswith('-dev'):
+      # /dashboard-dev/ or /docs-dev/
+      uriPrefix = '/dashboard-dev/'
+    else:
+      uriPrefix = '/dashboard/'
   except:
-    uriPrefix = '/dashboard/'
+    # We don't serve "/"
+    return
 
   if environ['REQUEST_URI'].startswith('/authorize/'):
     output = loginPage('/dashboard/', startResponse, environ, authorize=True)
@@ -2918,6 +2989,10 @@ def application(environ, startResponse):
     return [output.encode('UTF-8')]
 
   user = getUser(environ)
+
+  if environ['REQUEST_URI'].startswith('/docs'):
+    output = docsPage(uriPrefix, startResponse, environ)
+    return [output.encode('UTF-8')]
 
   cgiValues  = { }
   
