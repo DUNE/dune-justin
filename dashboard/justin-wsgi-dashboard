@@ -87,7 +87,7 @@ class justinStackedLine(pygal.StackedLine):
                 else:
                     serie.interpolated = []
 
-def header(uriPrefix, environ, user, title):
+def header(environ, user, title):
 
   if user is None:
     loginStr = (' &nbsp; &nbsp; &nbsp; '
@@ -101,12 +101,10 @@ def header(uriPrefix, environ, user, title):
     loginStr = ''
   else:
     loginStr = (' &nbsp; &nbsp; &nbsp; '
-                '<a href="%s?method=show-user&user_name=%s" '
+                '<a href="/dashboard/?method=show-user&user_name=%s" '
                 'style="background: #E1703D; border-radius: 5px; padding: 5px">'
                 '%s</a>'
-                % (uriPrefix, user['user_name'], user['user_name']))
-
-  widthStr = ''
+                % (user['user_name'], user['user_name']))
 
   return ("""<html><head><title>%s</title>
 <link rel="icon" href="/favicon.png">
@@ -136,9 +134,8 @@ a {
 }
             
 #top_strip a { color: #FFFFFF; text-decoration: none; }
- 
+
 #main_box {
-  %s
   padding: 10px;
   overflow-x: auto;
   background-color: #FFFFFF;
@@ -199,35 +196,28 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 </head>
 <body>
 <div id="top_strip">
-<a href="%s" style="font-size: 48px; color: #E1703D;">justIN</a> &nbsp; &nbsp;
-<a href="%s"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp;
-<a href="%s">%s</a> &nbsp; &nbsp; &nbsp;
-<a href="%s?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
-<a href="%s?method=list-jobs">Jobs</a> &nbsp; &nbsp; &nbsp;
-<a href="%s?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
-<a href="%s?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
-<a href="%s?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/" style="font-size: 48px; color: #E1703D;">%s</a> &nbsp; &nbsp;
+<a href="/dashboard/"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/">Dashboard</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/?method=list-jobs">Jobs</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
 <a href="/docs/">Docs</a>%s
 </div>
 <div id="main_box">
-<Xdiv style="margin-left:auto; margin-right:auto">
 """ % (title, 
-       widthStr,
-       uriPrefix,
-       uriPrefix,
-       uriPrefix,
-       'Dashboard' if uriPrefix.startswith('/dashboard/') else uriPrefix,
-       uriPrefix, uriPrefix, uriPrefix,
-       uriPrefix, uriPrefix,
+       'DEV' if '-dev' in environ['SERVER_NAME']  else 'justIN',
        loginStr))
 
 def footer():
-  return ('</Xdiv></div>'
+  return ('</div>'
           '<div id="bottomstrip">justIN time now: %s</div>\n</body></html>' 
           % time.strftime('%Y-%m-%d %H:%M:%S %Z'))
 
-def errorPage(uriPrefix, environ, user, message):
-  output = header(uriPrefix, environ, user, "Error")
+def errorPage(environ, user, message):
+  output = header(environ, user, "Error")
   output += "<h1>Error</h1>\n<p>%s</p>" % html.escape(message, quote=True)
   output += footer()
   return output
@@ -254,7 +244,7 @@ def daysHoursMinutes(seconds):
     
   return '%dm' % int(seconds / 60)
 
-def makePager(uriPrefix, pageNumber, pageLength, rowsLen, urlTemplate):
+def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
 
   output = '<p>Page: '
 
@@ -263,17 +253,17 @@ def makePager(uriPrefix, pageNumber, pageLength, rowsLen, urlTemplate):
       output += ' %d ' % (pageno + 1)
     else:
       output += ((' <a href="' + urlTemplate + '">%d</a> ') % 
-                 (uriPrefix, pageno, pageLength, pageno + 1))
+                 (pageno, pageLength, pageno + 1))
             
   if rowsLen > pageLength:
     output += ((' <a href="' + urlTemplate + '">Next</a> ') % 
-               (uriPrefix, pageNumber + 1, pageLength))
+               (pageNumber + 1, pageLength))
                
   return output
   
-def mainPage(uriPrefix, environ, user):
+def mainPage(environ, user):
 
-  output = header(uriPrefix, environ, user, "justIN: Dashboard")
+  output = header(environ, user, "justIN: Dashboard")
 
   output += \
      ('<h1 style="text-align: center">DUNE justIN service dashboard</h1>'
@@ -282,35 +272,35 @@ def mainPage(uriPrefix, environ, user):
   cells = [
    { 'startRow'  : True,
      'endRow'    : False,
-     'uri'       : uriPrefix + '?method=list-requests',
+     'uri'       : '/dashboard/?method=list-requests',
      'text'      : 'Requests' },
    { 'startRow'  : False,
      'endRow'    : True,
-     'uri'       : uriPrefix + '?method=list-jobs',
+     'uri'       : '/dashboard/?method=list-jobs',
      'text'      : 'Jobs' },
    { 'startRow'  : True,
      'endRow'    : False,
-     'uri'       : uriPrefix + '?method=list-events',
+     'uri'       : '/dashboard/?method=list-events',
      'text'      : 'Events' },
    { 'startRow'  : False,
      'endRow'    : True,
-     'uri'       : uriPrefix + '?method=awt-results',
+     'uri'       : '/dashboard/?method=awt-results',
      'text'      : 'Automated Workflow Tests' },
    { 'startRow'  : True,
      'endRow'    : True,
-     'uri'       : uriPrefix + '?method=list-scopes',
+     'uri'       : '/dashboard/?method=list-scopes',
      'text'      : 'Scopes' },
    { 'startRow'  : True,
      'endRow'    : False,
-     'uri'       : uriPrefix + '?method=list-sites',
+     'uri'       : '/dashboard/?method=list-sites',
      'text'      : 'Sites' },
    { 'startRow'  : False,
      'endRow'    : True,
-     'uri'       : uriPrefix + '?method=list-storages',
+     'uri'       : '/dashboard/?method=list-storages',
      'text'      : 'Storages' },
    { 'startRow'  : True,
      'endRow'    : False,
-     'uri'       : uriPrefix + '?method=list-jobscripts',
+     'uri'       : '/dashboard/?method=list-jobscripts',
      'text'      : 'Jobscripts' },
    { 'startRow'  : False,
      'endRow'    : True,
@@ -336,7 +326,7 @@ def mainPage(uriPrefix, environ, user):
   output += '</table>' + footer()
   return output
 
-def oidcTokensRequest(cilogonCode):
+def oidcTokensRequest(cilogonCode, environ):
   # Send an OIDC request to CILogon to get tokens for a user, using an
   # authorization code received from CILogon via the user's browser
 
@@ -345,7 +335,7 @@ def oidcTokensRequest(cilogonCode):
          'client_id'     : justin.conf.cilogonClientID,
          'client_secret' : justin.conf.cilogonSecret,
          'code'          : cilogonCode,
-         'redirect_uri'  : 'https://justin.dune.hep.ac.uk/login/cilogon/login'
+         'redirect_uri'  : 'https://%s/login/cilogon/login' % environ['SERVER_NAME']
        })
 
   httpRequest = urllib.request.Request('https://cilogon.org/oauth2/token',
@@ -421,7 +411,7 @@ def cilogonCallback(startResponse, environ):
     startResponseOK(startResponse, output)
     return output
 
-  tokensDict = oidcTokensRequest(cilogonCode)
+  tokensDict = oidcTokensRequest(cilogonCode, environ)
   if not tokensDict:
     output = errorPage('/dashboard/', environ, None,
                        'Failed to get your tokens from CILogon')
@@ -500,7 +490,7 @@ def cilogonCallback(startResponse, environ):
                              ])
   return ''
 
-def loginPage(uriPrefix, startResponse, environ, authorize=False):
+def loginPage(startResponse, environ, authorize=False):
 
   # Always create a new session
   justinSession = secrets.token_urlsafe(64)
@@ -512,7 +502,7 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
   if authorize:
     justinAuthorizeCode = environ['REQUEST_URI'].split('/')[-1]
     if not justin.stringIsSite(justinAuthorizeCode):
-      output = errorPage(uriPrefix, environ, '', "Failed to get authorize code")
+      output = errorPage(environ, '', "Failed to get authorize code")
       startResponseOK(startResponse, output)
       return output
 
@@ -529,7 +519,7 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
       authorizeSessionID = int(authorizeRow['session_id'])
     except Exception as e:
       print('Get session for authorize fails: ' + str(e), file=sys.stderr)
-      output = errorPage(uriPrefix, environ, '', "Invalid authorize code")
+      output = errorPage(environ, '', "Invalid authorize code")
       startResponseOK(startResponse, output)
       return output
 
@@ -557,7 +547,7 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
                            ip))
     justin.db.conn.commit()
   except:
-    output = errorPage(uriPrefix, environ, '', "Session creation fails")
+    output = errorPage(environ, '', "Session creation fails")
     startResponseOK(startResponse, output)
     return output
 
@@ -565,7 +555,7 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
     output = header('/dashboard/', environ, '', "justIN: Authorize computer")
     output += '<h1 style="text-align: center">Authorize computer</h1>'
   else:
-    output = header(uriPrefix, environ, '', "justIN: Login")
+    output = header(environ, '', "justIN: Login")
     output += '<h1 style="text-align: center">DUNE justIN service login</h1>'
 
   output += '<table style="border: 0"><tr>'
@@ -615,12 +605,12 @@ your user name.
 
   output += '''
 <input type="hidden" name="redirect_uri" 
- value="https://justin.dune.hep.ac.uk/login/cilogon/login">
+ value="https://%s/login/cilogon/login">
 <input type="hidden" name="scope" 
  value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune wlcg.groups:/dune/production">
 <button type="submit" 
  style="background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer">%s</button>
-</form></p>''' % ('Authorize' if authorize else 'Login')
+</form></p>''' % (environ['SERVER_NAME'], 'Authorize' if authorize else 'Login')
 
   output += '</td>'
 
@@ -711,7 +701,7 @@ def createUser(principalName):
   else:
     return userID
 
-def authorizedPage(uriPrefix, environ, user):
+def authorizedPage(environ, user):
 
   try:
     query = ('SELECT command_sessions.hostname,'
@@ -725,10 +715,10 @@ def authorizedPage(uriPrefix, environ, user):
     authorizeRow = justin.select(query, justOne = True)
   except Exception as e:
     print('Get command session info fails: ' + str(e), file=sys.stderr)
-    return errorPage(uriPrefix, environ, user, 
+    return errorPage(environ, user, 
                      'Failed to find justin command session')
 
-  output = header(uriPrefix, environ, user, "justIN: Computer is authorized")
+  output = header(environ, user, "justIN: Computer is authorized")
 
   output += \
 '''<h1>Your computer is authorized</h1>
@@ -747,9 +737,9 @@ to visit.</p>
   
   return output
 
-def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
+def listJobscripts(environ, user, cgiValues, pageNumber, pageLength):
 
-  output = header(uriPrefix, environ, user, "justIN: Jobscripts Library")
+  output = header(environ, user, "justIN: Jobscripts Library")
 
   output += "<h1>Jobscripts Library</h1>"
   
@@ -772,7 +762,7 @@ def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
  
   rows = justin.db.select(query)
 
-  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
+  output += makePager(pageNumber, pageLength, len(rows), 
                       "%s?method=list-jobscripts&page_number=%d&page_length=%d") 
              
   output += '<p><table>'
@@ -785,11 +775,10 @@ def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
     else:
       prefix = row["jobscript_user_name"]
 
-    output += ('<tr><td><a href="%s?method=show-jobscript&jobscript_id=%s:%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">'
                '%s:%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
                '</tr>'
-               % (uriPrefix,
-                  prefix, row["jobscript_name"], 
+               % (prefix, row["jobscript_name"], 
                   prefix, row["jobscript_name"], 
                   html.escape(row["description"], quote=True),
                   row["author_name"],
@@ -799,24 +788,24 @@ def listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
   output += "</table>"
   
-  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
+  output += makePager(pageNumber, pageLength, len(rows), 
                       "%s?method=list-jobscripts&page_number=%d&page_length=%d")
   output += footer()
   
   return output
 
-def showJobscript(uriPrefix, environ, user, cgiValues):
+def showJobscript(environ, user, cgiValues):
 
   try:
     jsid = str(cgiValues["jobscript_id"]).lower()
   except:
-    return errorPage(uriPrefix, environ, user, "jobscript_id must be given")
+    return errorPage(environ, user, "jobscript_id must be given")
 
   response = justin.lookupJobscript(jsid)
   if response['error']:
-    return errorPage(uriPrefix, environ, user, response['error'])
+    return errorPage(environ, user, response['error'])
 
-  output = header(uriPrefix, environ, user, "justIN: Jobscript %s" % jsid)
+  output = header(environ, user, "justIN: Jobscript %s" % jsid)
   output += '<!-- %s -->\n' % str(time.time())
   output += ("<h1>Jobscript %s</h1>\n" % jsid)
 
@@ -837,9 +826,9 @@ def showJobscript(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
+def listRequests(environ, user, cgiValues, pageNumber, pageLength):
 
-  output = header(uriPrefix, environ, user, "justIN: Requests")
+  output = header(environ, user, "justIN: Requests")
 
   output += "<h1>Requests</h1>"
   
@@ -855,8 +844,8 @@ def listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   justin.db.cur.execute(query)
   rows = justin.db.cur.fetchall()
 
-  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
-                      "%s?method=list-requests&page_number=%d&page_length=%d") 
+  output += makePager(pageNumber, pageLength, len(rows), 
+                      "/dashboard/?method=list-requests&page_number=%d&page_length=%d") 
              
   output += '<p><table>'
   output += ('<tr><th>Request ID</th><th>Description</th><th>User</th><th>State</th>'
@@ -864,12 +853,11 @@ def listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
              '<th>Finished</th><tr>')
 
   for row in rows[:pageLength]:
-    output += ('<tr><td><a href="%s?method=show-request&request_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
           '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '</tr>' % 
-          (uriPrefix,
-           row["request_id"], row["request_id"],
+          (row["request_id"], row["request_id"],
            html.escape(row["description"], quote=True),
            row["user_name"],
            row["state"],
@@ -883,19 +871,19 @@ def listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 
   output += "</table>"
   
-  output += makePager(uriPrefix, pageNumber, pageLength, len(rows), 
-                      "%s?method=list-requests&page_number=%d&page_length=%d")
+  output += makePager(pageNumber, pageLength, len(rows), 
+                      "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
   output += footer()
   
   return output
 
-def showRequest(uriPrefix, environ, user, cgiValues):
+def showRequest(environ, user, cgiValues):
   try:
     requestID = int(cgiValues['request_id'])
   except:
-    return errorPage(uriPrefix, environ, user, "request_id must be given")
+    return errorPage(environ, user, "request_id must be given")
   
-  output = header(uriPrefix, environ, user, "justIN: Request %d" % requestID)
+  output = header(environ, user, "justIN: Request %d" % requestID)
 
   query = ("SELECT requests.description,requests.state,"
            "principal_name AS user_name,"
@@ -998,22 +986,22 @@ def showRequest(uriPrefix, environ, user, cgiValues):
              "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:    
-    output += ('<tr><td><a href="%s?method=show-stage&request_id=%s&stage_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%d</a></td>'
           '<td>%d</td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=allocated">%d</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=outputting">%d</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=processed">%d</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=notfound">%d</a></td>'
-          '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=failed">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%d</a></td>'
           '</tr>' % 
-          (uriPrefix,
+          (
            stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
            stageRow["stage_rank"],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"], 
+            stageRow["request_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['finding'] +
             stateCounts[stageRow['stage_id']]['unallocated'] +
             stateCounts[stageRow['stage_id']]['allocated'] +
@@ -1021,37 +1009,37 @@ def showRequest(uriPrefix, environ, user, cgiValues):
             stateCounts[stageRow['stage_id']]['processed'] +
             stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
+            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finding'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
+            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['unallocated'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
+            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['allocated'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
+            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
+            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['processed'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"],
+            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['notfound'],
-           uriPrefix, stageRow["request_id"], stageRow["stage_id"], 
+            stageRow["request_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['failed']))
 
   output += "</table>"
   output += footer()
   return output
 
-def showStage(uriPrefix, environ, user, cgiValues):
+def showStage(environ, user, cgiValues):
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage(uriPrefix, environ, user, "request_id must be given")
+    return errorPage(environ, user, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(uriPrefix, environ, user, "stage_id must be given")
+    return errorPage(environ, user, "stage_id must be given")
   
-  output = header(uriPrefix, environ, user, "justIN: Request %d, Stage %d" % (requestID, stageID))
+  output = header(environ, user, "justIN: Request %d, Stage %d" % (requestID, stageID))
   output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
@@ -1216,29 +1204,29 @@ def showStage(uriPrefix, environ, user, cgiValues):
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
-  output += ('<tr><td><a href="%s?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
-        '<td><a href="%s?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
+  output += ('<tr><td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
         '</tr>' % 
-          (uriPrefix, requestID, stageID, stateCounts['finding']
+          ( requestID, stageID, stateCounts['finding']
                                         + stateCounts['unallocated']
                                         + stateCounts['allocated'] 
                                         + stateCounts['outputting']
                                         + stateCounts['processed']
                                         + stateCounts['notfound']
                                         + stateCounts['failed'],
-           uriPrefix, requestID, stageID, stateCounts['finding'], 
-           uriPrefix, requestID, stageID, stateCounts['unallocated'], 
-           uriPrefix, requestID, stageID, stateCounts['allocated'], 
-           uriPrefix, requestID, stageID, stateCounts['outputting'],
-           uriPrefix, requestID, stageID, stateCounts['processed'],
-           uriPrefix, requestID, stageID, stateCounts['notfound'],
-           uriPrefix, requestID, stageID, stateCounts['failed']))
+            requestID, stageID, stateCounts['finding'], 
+            requestID, stageID, stateCounts['unallocated'], 
+            requestID, stageID, stateCounts['allocated'], 
+            requestID, stageID, stateCounts['outputting'],
+            requestID, stageID, stateCounts['processed'],
+            requestID, stageID, stateCounts['notfound'],
+            requestID, stageID, stateCounts['failed']))
 
   output += ("</table>")
 
@@ -1276,22 +1264,22 @@ def showStage(uriPrefix, environ, user, cgiValues):
         '<th>Aborted</th><th>Stalled</th></tr>')
 
   output += ('<tr>'
-        '<td><a href="%s?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=processing">%d</a></td>'
-        '<td><a href="%s?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=outputting">%d</a></td>'
-        '<td><a href="%s?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=finished">%d</a></td>'
-        '<td><a href="%s?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=aborted">%d</a></td>'
-        '<td><a href="%s?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
         '</tr>'
-        % (uriPrefix, requestID, stageID, jobNumberRow['number_processing'],
-           uriPrefix, requestID, stageID, jobNumberRow['number_outputting'],
-           uriPrefix, requestID, stageID, jobNumberRow['number_finished'],
-           uriPrefix, requestID, stageID, jobNumberRow['number_aborted'],
-           uriPrefix, requestID, stageID, jobNumberRow['number_stalled']
+        % (requestID, stageID, jobNumberRow['number_processing'],
+           requestID, stageID, jobNumberRow['number_outputting'],
+           requestID, stageID, jobNumberRow['number_finished'],
+           requestID, stageID, jobNumberRow['number_aborted'],
+           requestID, stageID, jobNumberRow['number_stalled']
           ))
 
   output += ('</table>')
@@ -1489,17 +1477,15 @@ def showStage(uriPrefix, environ, user, cgiValues):
 
   if stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
     output += ('<p><i>Copied from '
-               '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
+               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
                ' when the stage was created.</i></p>'
-               % (uriPrefix, 
-                  stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
+               % (stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
                   stageRow['jobscripts_scope_name'], stageRow['jobscript_name']))
   elif stageRow['user_name'] and stageRow['jobscript_name']:
     output += ('<p><i>Copied from '
-               '<a href="%s?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
+               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
                ' when the stage was created.</i></p>'
-               % (uriPrefix, 
-                  stageRow['user_name'], stageRow['jobscript_name'],
+               % (stageRow['user_name'], stageRow['jobscript_name'],
                   stageRow['user_name'], stageRow['jobscript_name']))
 
   output += ('<pre style="white-space: pre-wrap;">') 
@@ -1513,17 +1499,17 @@ def showStage(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
+def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage(uriPrefix, environ, user, "request_id must be given")
+    return errorPage(environ, user, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(uriPrefix, environ, user, "stage_id must be given")
+    return errorPage(environ, user, "stage_id must be given")
 
   stateFilter = ''
   stateText = ''
@@ -1539,7 +1525,7 @@ def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
     
-  output = header(uriPrefix, environ, user, "justIN: Files for Request %d, Stage %d%s" 
+  output = header(environ, user, "justIN: Files for Request %d, Stage %d%s" 
                   % (requestID, stageID, stateText))
 
   output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
@@ -1564,8 +1550,8 @@ def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   justin.db.cur.execute(query)
   filesRows = justin.db.cur.fetchall()
 
-  output += makePager(uriPrefix, pageNumber, pageLength, len(filesRows),
-             '%s?method=list-files&page_number=%d&page_length=%d'
+  output += makePager(pageNumber, pageLength, len(filesRows),
+             '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&request_id=' + str(requestID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
@@ -1576,10 +1562,9 @@ def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows[:pageLength]:
-    output += ('<tr><td><a href="%s?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%d</td><td>%s</td>' % 
-          (uriPrefix,
-           requestID, 
+          (requestID, 
            stageID, 
            urllib.parse.quote(fileRow["file_did"], safe=''),
            html.escape(fileRow["file_did"], quote=True),
@@ -1589,13 +1574,13 @@ def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
          
     if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
       output += ('<td>%s</td>'
-            '<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
-            '<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
-            '<td><a href="%s?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
+            '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+            '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+            '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
             (str(fileRow["event_time"]),
-             uriPrefix, str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
-             uriPrefix, str(fileRow["site_name"]), str(fileRow["site_name"]),
-             uriPrefix, str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
+             str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
+             str(fileRow["site_name"]), str(fileRow["site_name"]),
+             str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
             )
            )
     else:
@@ -1603,8 +1588,8 @@ def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
       
   output += ("</table>")
   
-  output += makePager(uriPrefix, pageNumber, pageLength, len(filesRows),
-             '%s?method=list-files&page_number=%d&page_length=%d'
+  output += makePager(pageNumber, pageLength, len(filesRows),
+             '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&request_id=' + str(requestID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
@@ -1612,27 +1597,27 @@ def listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def showFile(uriPrefix, environ, user, cgiValues):
+def showFile(environ, user, cgiValues):
 
   try:
     fileDID = cgiValues["file_did"]
   except:
-    return errorPage(uriPrefix, environ, user, "file_did must be given")
+    return errorPage(environ, user, "file_did must be given")
 
   if '"' in fileDID:
-    return errorPage(uriPrefix, environ, user, "Bad format of file_did")
+    return errorPage(environ, user, "Bad format of file_did")
       
   try:
     requestID = int(cgiValues["request_id"])
   except:
-    return errorPage(uriPrefix, environ, user, "request_id must be given")
+    return errorPage(environ, user, "request_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(uriPrefix, environ, user, "stage_id must be given")
+    return errorPage(environ, user, "stage_id must be given")
 
-  output = header(uriPrefix, environ, user, "justIN: File %s" 
+  output = header(environ, user, "justIN: File %s" 
                   % html.escape(fileDID, quote=True))
 
   output += ("<h1>File %s</h1>"
@@ -1649,7 +1634,7 @@ def showFile(uriPrefix, environ, user, cgiValues):
     fileID = int(fileRow["file_id"])
 
   except Exception as e:
-    return errorPage(uriPrefix, environ, user, "invalid file_id (%d,%d,%s): %s\n%s" 
+    return errorPage(environ, user, "invalid file_id (%d,%d,%s): %s\n%s" 
                      % (requestID, stageID, fileDID, str(e), query))
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
@@ -1674,12 +1659,12 @@ def showFile(uriPrefix, environ, user, cgiValues):
   output += ('<p><table>')
   
   output += ('<tr><td>Request ID</td>'
-             '<td><a href="%s?method=show-request&request_id=%d">%d</a></td></tr>'
-             % (uriPrefix, requestID, requestID))
+             '<td><a href="/dashboard/?method=show-request&request_id=%d">%d</a></td></tr>'
+             % (requestID, requestID))
         
   output += ('<tr><td>Stage ID</td>'
-             '<td><a href="%s?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
-             % (uriPrefix, requestID, stageID, stageID))
+             '<td><a href="/dashboard/?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
+             % (requestID, stageID, stageID))
         
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
@@ -1712,10 +1697,9 @@ def showFile(uriPrefix, environ, user, cgiValues):
   
   for jobRow in jobsRows:
   
-    output += ('<a href="%s?method=show-job&jobsub_id=%s">%s</a> '
+    output += ('<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a> '
                '%s (%s &nbsp; %s &nbsp; %s)<br>' 
-               % (uriPrefix,
-                  jobRow["jobsub_id"], jobRow["jobsub_id"], 
+               % (jobRow["jobsub_id"], jobRow["jobsub_id"], 
                   jobRow["event_time"],
                   jobRow["allocation_state"],
                   jobRow["site_name"],
@@ -1732,13 +1716,13 @@ def showFile(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def showJob(uriPrefix, environ, user, cgiValues):
+def showJob(environ, user, cgiValues):
   try:
     jobsubID = cgiValues["jobsub_id"]
   except:
-    return errorPage(uriPrefix, environ, user, "jobsub_id must be given")
+    return errorPage(environ, user, "jobsub_id must be given")
       
-  output = header(uriPrefix, environ, user, "justIN: Jobsub ID %s" % jobsubID)
+  output = header(environ, user, "justIN: Jobsub ID %s" % jobsubID)
 
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
@@ -1766,7 +1750,7 @@ def showJob(uriPrefix, environ, user, cgiValues):
   jobRow = justin.db.select(query, justOne = True)
 
   if not jobRow:
-    return errorPage(uriPrefix, environ, user, "Job not found in database")
+    return errorPage(environ, user, "Job not found in database")
 
   query = ("SELECT file_did FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
@@ -1786,7 +1770,7 @@ def showJob(uriPrefix, environ, user, cgiValues):
   justin.db.cur.execute(query)
   outputFilesRows = justin.db.cur.fetchall()
 
-  output += '<table>'
+  output += '<table class="center">'
 
   output += ('<tr><td>Jobsub ID</td>'
              '<td colspan="2">%s</td></tr>'
@@ -1806,9 +1790,9 @@ def showJob(uriPrefix, environ, user, cgiValues):
       
   if jobRow["site_name"]:
     output += ('<tr><td>Site</td>'
-               '<td colspan="2"><a href="%s?method=show-site&site_name=%s">'
+               '<td colspan="2"><a href="/dashboard/?method=show-site&site_name=%s">'
                '%s</a></td></tr>'
-               % (uriPrefix, jobRow["site_name"], jobRow["site_name"]))
+               % (jobRow["site_name"], jobRow["site_name"]))
   else:
     output += '<tr><td>Site</td><td> </td></tr>'
 
@@ -1867,18 +1851,18 @@ def showJob(uriPrefix, environ, user, cgiValues):
   output += '<tr><td>Request ID</td>'
   
   if jobRow['request_id']:
-    output += ('<td colspan="2"><a href="%s?method=show-request&request_id=%s">'
+    output += ('<td colspan="2"><a href="/dashboard/?method=show-request&request_id=%s">'
                '%s</a></td></tr>'
-               % (uriPrefix, jobRow["request_id"], jobRow["request_id"]))
+               % (jobRow["request_id"], jobRow["request_id"]))
   else:
     output += '<td colspan="2">&nbsp;</td></tr>'
         
   output += '<tr><td>Stage ID</td>'
   
   if jobRow['stage_id']:
-    output += ('<td colspan="2"><a href="%s?method=show-stage&request_id=%s&'
+    output += ('<td colspan="2"><a href="/dashboard/?method=show-stage&request_id=%s&'
                'stage_id=%s">%s</a></td></tr>'
-               % (uriPrefix, jobRow["request_id"], jobRow["stage_id"],
+               % (jobRow["request_id"], jobRow["stage_id"],
                   jobRow["stage_id"]))
   else:
     output += '<td colspan="2">&nbsp;</td></tr>'
@@ -1906,10 +1890,9 @@ def showJob(uriPrefix, environ, user, cgiValues):
   
   for inputFileRow in inputFilesRows:
     try:
-      output += ('<a href="%s?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>' 
-                 % (uriPrefix,
-                    jobRow["request_id"], 
+                 % (jobRow["request_id"], 
                     jobRow["stage_id"],
                     urllib.parse.quote(str(inputFileRow["file_did"]), safe=''),
                     html.escape(inputFileRow["file_did"], quote=True)
@@ -1924,10 +1907,9 @@ def showJob(uriPrefix, environ, user, cgiValues):
   
   for outputFileRow in outputFilesRows:
     try:
-      output += ('<a href="%s?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>'  
-                 % (uriPrefix,
-                    jobRow["request_id"], 
+                 % (jobRow["request_id"], 
                     outputFileRow["stage_id"],
                     urllib.parse.quote(str(outputFileRow["file_did"]), safe=''),
                     html.escape(outputFileRow["file_did"], quote=True)
@@ -1939,12 +1921,12 @@ def showJob(uriPrefix, environ, user, cgiValues):
   output += '</td></tr>'
 
   output += ('<tr><td colspan=3>'
-        '<a href="%s?method=list-events&jobsub_id=%s">'
+        '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
         '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
         'Landscape job page</a> '
         '</td></tr>'
-        % (uriPrefix, jobsubID, jobsubID))
+        % (jobsubID, jobsubID))
 
   output += "</table>"
 
@@ -1957,9 +1939,9 @@ def showJob(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
+def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       
-  urlTemplate   = '%s?method=list-jobs&page_number=%d&page_length=%d'
+  urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
   filters       = []
   titleSuffixes = []
 
@@ -2013,7 +1995,7 @@ def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   else:
     titleSuffix = ''
     
-  output = header(uriPrefix, environ, user, "justIN: Jobs" + titleSuffix)
+  output = header(environ, user, "justIN: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
   
@@ -2056,7 +2038,7 @@ def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   justin.db.cur.execute(query)
   jobRows = justin.db.cur.fetchall()
 
-  output += makePager(uriPrefix, pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table>'
   
@@ -2083,32 +2065,31 @@ def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
       
     else:
       if jobRow['request_id']:
-        requestStageStr = ('<td><a href="%s?method=show-request&'
+        requestStageStr = ('<td><a href="/dashboard/?method=show-request&'
                            'request_id=%s">%s</a></td>' 
-                           % (uriPrefix, 
-                              jobRow["request_id"],
+                           % (jobRow["request_id"],
                               jobRow["request_id"]))
       else:
         requestStageStr = '<td> </td>'
       
       if jobRow['stage_id']:
         requestStageStr += (
-             '<td><a href="%s?method=show-stage&request_id=%s&'
+             '<td><a href="/dashboard/?method=show-stage&request_id=%s&'
              'stage_id=%s">%s</a></td>' 
-             % (uriPrefix, jobRow["request_id"], 
+             % (jobRow["request_id"], 
                 jobRow["stage_id"], jobRow["stage_id"]))
       else:
         requestStageStr += '<td> </td>'
   
     if jobRow['site_name']:
-      siteNameStr = ('<td><a href="%s?method=show-site&site_name=%s">'
+      siteNameStr = ('<td><a href="/dashboard/?method=show-site&site_name=%s">'
                      '%s</a></td>' 
-                     % (uriPrefix, jobRow['site_name'], jobRow['site_name']))
+                     % (jobRow['site_name'], jobRow['site_name']))
     else:
       siteNameStr = '<td> </td>'
 
     output += ('<tr>'
-          '<td><a href="%s?method=show-job&jobsub_id=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
           '<td>%s</td>'
           '%s'
           '<td>%s</td>'
@@ -2117,8 +2098,7 @@ def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>'
-          % (uriPrefix,
-             jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
+          % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
              jobRow['allocation_state'],
              siteNameStr,
              userNameStr,
@@ -2130,13 +2110,13 @@ def listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
          )    
 
   output += ("</table>")
-  output += makePager(uriPrefix, pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
   output += footer()
   return output
 
-def listScopes(uriPrefix, environ, user, cgiValues):
+def listScopes(environ, user, cgiValues):
       
-  output = header(uriPrefix, environ, user, "justIN: Scopes")
+  output = header(environ, user, "justIN: Scopes")
 
   output += ("<h1>Scopes</h1>")
   
@@ -2163,9 +2143,9 @@ def listScopes(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def listSites(uriPrefix, environ, user, cgiValues):
+def listSites(environ, user, cgiValues):
       
-  output = header(uriPrefix, environ, user, "justIN: Sites")
+  output = header(environ, user, "justIN: Sites")
 
   output += ("<h1>Sites</h1>")
   
@@ -2192,7 +2172,7 @@ def listSites(uriPrefix, environ, user, cgiValues):
       lastGetStageStr = str(siteRow['last_get_stage_time'])
   
     output += ('<tr>'
-          '<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
           '<td style="text-align: right">%d / %d = %d</td>'
@@ -2206,8 +2186,7 @@ def listSites(uriPrefix, environ, user, cgiValues):
           '<input type="hidden" name="SearchString" value="%s">'
           '<input type="submit" value="GOCDB"></form></td>'
           '</tr>'
-          % (uriPrefix,
-             siteRow['site_name'], siteRow['site_name'],
+          % (siteRow['site_name'], siteRow['site_name'],
              'bold' if siteRow['enabled'] else 'normal',
              'TRUE' if siteRow['enabled'] else 'False',
              lastGetStageStr,
@@ -2226,9 +2205,9 @@ def listSites(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def listStorages(uriPrefix, environ, user, cgiValues):
+def listStorages(environ, user, cgiValues):
       
-  output = header(uriPrefix, environ, user, "justIN: Storages")
+  output = header(environ, user, "justIN: Storages")
 
   output += ("<h1>Storages</h1>")
   
@@ -2255,7 +2234,7 @@ def listStorages(uriPrefix, environ, user, cgiValues):
   
   for storageRow in storageRows:  
     output += ('<tr>'
-          '<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%.2f</td>'
           '<td>%s</td>'
           '<td>(%s/%s)</td>'
@@ -2264,8 +2243,7 @@ def listStorages(uriPrefix, environ, user, cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
-          % (uriPrefix,
-             storageRow['rse_name'], storageRow['rse_name'],
+          % (storageRow['rse_name'], storageRow['rse_name'],
              storageRow['occupancy'],
              bool(storageRow['has_read']),
              bool(storageRow['rucio_read']),
@@ -2282,17 +2260,17 @@ def listStorages(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def showSite(uriPrefix, environ, user, cgiValues):
+def showSite(environ, user, cgiValues):
       
   try:
     siteName = cgiValues["site_name"]
   except:
-    return errorPage(uriPrefix, environ, user, "site_name must be given")
+    return errorPage(environ, user, "site_name must be given")
     
   if not justin.db.stringIsSite(siteName):
-    return errorPage(uriPrefix, environ, user, "Invalid site name!")
+    return errorPage(environ, user, "Invalid site name!")
         
-  output = header(uriPrefix, environ, user, "justIN: Site " + siteName)
+  output = header(environ, user, "justIN: Site " + siteName)
 
   output += ("<h1>Site %s</h1>" % siteName)
   
@@ -2328,14 +2306,14 @@ def showSite(uriPrefix, environ, user, cgiValues):
   output += ('<tr><td>Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
 
   output += ('<tr><td>Jobs</td><td>'
-             '<a href="%s?method=list-jobs&site_name=%s">All</a> ' 
-             % (uriPrefix, siteName))
+             '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' 
+             % siteName)
 
   for state in ['submitted', 'started', 'processing', 'outputting',
                 'finished', 'notused', 'failed']:
-    output += ('<a href="%s?method=list-jobs&allocation_state=%s&'
+    output += ('<a href="/dashboard/?method=list-jobs&allocation_state=%s&'
                'site_name=%s">%s</a> ' 
-               % (uriPrefix, state, siteName, state.capitalize()))
+               % (state, siteName, state.capitalize()))
 
   output += ('</td></tr>')
   
@@ -2383,13 +2361,12 @@ def showSite(uriPrefix, environ, user, cgiValues):
   
   for storageRow in storageRows:  
     output += ('<tr>'
-          '<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%.2f</td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          % (uriPrefix,
-             storageRow['rse_name'], storageRow['rse_name'],
+          % (storageRow['rse_name'], storageRow['rse_name'],
              int(storageRow['distance']),
              storageRow['occupancy'],
              bool(storageRow['has_read']),
@@ -2400,33 +2377,33 @@ def showSite(uriPrefix, environ, user, cgiValues):
     if int(storageRow['read_result']) == 255:
       output += ('<td> </td>')
     else:
-      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
           '%d</a></td>' % 
-          (uriPrefix, storageRow['jobsub_id'], int(storageRow['read_result'])))
+          (storageRow['jobsub_id'], int(storageRow['read_result'])))
 
     if int(storageRow['write_result']) == 255:
       output += ('<td> </td></tr>')
     else:
-      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
         '%d</a></td>' % 
-        (uriPrefix, storageRow['jobsub_id'], int(storageRow['write_result'])))
+        (storageRow['jobsub_id'], int(storageRow['write_result'])))
 
   output += ("</table>")
 
   output += footer()
   return output
 
-def showUser(uriPrefix, environ, user, cgiValues):
+def showUser(environ, user, cgiValues):
       
   try:
     userName = cgiValues["user_name"]
   except:
-    return errorPage(uriPrefix, environ, user, "user_name must be given")
+    return errorPage(environ, user, "user_name must be given")
     
   if not justin.db.stringIsUsername(userName):
-    return errorPage(uriPrefix, environ, user, "Invalid user name!")
+    return errorPage(environ, user, "Invalid user name!")
         
-  output = header(uriPrefix, environ, user, "justIN: User " + userName)
+  output = header(environ, user, "justIN: User " + userName)
 
   output += ("<h1>User %s</h1>" % userName)
 
@@ -2448,7 +2425,7 @@ def showUser(uriPrefix, environ, user, cgiValues):
     userRow = justin.select(query, justOne = True)
     userID = int(userRow['user_id'])
   except:
-    return errorPage(uriPrefix, environ, user, "Unknown user!")
+    return errorPage(environ, user, "Unknown user!")
 
   if user and user['user_name'] == userName:
     output += ('<h2>Your current session</h2>\n<table>')
@@ -2467,17 +2444,17 @@ def showUser(uriPrefix, environ, user, cgiValues):
   output += footer()
   return output
 
-def showStorage(uriPrefix, environ, user, cgiValues):
+def showStorage(environ, user, cgiValues):
       
   try:
     rseName = cgiValues["rse_name"]
   except:
-    return errorPage(uriPrefix, environ, user, "rse_name must be given")
+    return errorPage(environ, user, "rse_name must be given")
     
   if not justin.db.stringIsSite(rseName):
-    return errorPage(uriPrefix, environ, user, "Invalid RSE name!")
+    return errorPage(environ, user, "Invalid RSE name!")
         
-  output = header(uriPrefix, environ, user, "justIN: Storage " + rseName)
+  output = header(environ, user, "justIN: Storage " + rseName)
 
   output += ("<h1>Storage %s</h1>" % rseName)
   
@@ -2541,11 +2518,10 @@ def showStorage(uriPrefix, environ, user, cgiValues):
   
   for siteRow in siteRows:  
     output += ('<tr>'
-          '<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td>%d</td>'
           '<td>%s</td>'
-          % (uriPrefix,
-             siteRow['site_name'], siteRow['site_name'],
+          % (siteRow['site_name'], siteRow['site_name'],
              int(siteRow['distance']),
              bool(siteRow['enabled'])
             )
@@ -2554,23 +2530,23 @@ def showStorage(uriPrefix, environ, user, cgiValues):
     if int(siteRow['read_result']) == 255:
       output += ('<td> </td>')
     else:
-      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
-            (uriPrefix, siteRow['jobsub_id'], int(siteRow['read_result'])))
+            (siteRow['jobsub_id'], int(siteRow['read_result'])))
 
     if int(siteRow['write_result']) == 255:
       output += ('<td> </td></tr>')
     else:
-      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">'
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
-            (uriPrefix, siteRow['jobsub_id'], int(siteRow['write_result'])))
+            (siteRow['jobsub_id'], int(siteRow['write_result'])))
 
   output += ("</table>")
 
   output += footer()
   return output
 
-def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
+def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   whereList = []
   queryList = ''
@@ -2589,7 +2565,7 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   else:
     whereString = ''
     
-  output = header(uriPrefix, environ, user, "justIN: Events")
+  output = header(environ, user, "justIN: Events")
 
   output += ("<h1>Events</h1>")
   
@@ -2607,8 +2583,8 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
   justin.db.cur.execute(query)
   eventsRows = justin.db.cur.fetchall()
 
-  output += makePager(uriPrefix, pageNumber, pageLength, len(eventsRows),
-             '%s?method=list-events&page_number=%d&page_length=%d'
+  output += makePager(pageNumber, pageLength, len(eventsRows),
+             '/dashboard/?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
   output += (
@@ -2631,29 +2607,26 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
          )
 
     if eventRow['request_id']: 
-      output += ('<td><a href="%s?method=show-request&request_id=%d">'
+      output += ('<td><a href="/dashboard/?method=show-request&request_id=%d">'
             '%d</a></td>' 
-            % (uriPrefix,
-               eventRow['request_id'], 
+            % (eventRow['request_id'], 
                eventRow['request_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['stage_id']: 
-      output += ('<td><a href="%s?method=show-stage&request_id=%d'
+      output += ('<td><a href="/dashboard/?method=show-stage&request_id=%d'
             '&stage_id=%d">%d</a></td>' 
-            % (uriPrefix,
-               eventRow['request_id'], 
+            % (eventRow['request_id'], 
                eventRow['stage_id'], 
                eventRow['stage_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['file_did']:
-      output += ('<td><a href="%s?method=show-file&request_id=%d'
+      output += ('<td><a href="/dashboard/?method=show-file&request_id=%d'
             '&stage_id=%d&file_did=%s">%s</td>' 
-            % (uriPrefix,
-               eventRow['request_id'], 
+            % (eventRow['request_id'], 
                eventRow['stage_id'], 
                eventRow['file_did'], 
                eventRow['file_did']))
@@ -2661,20 +2634,20 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
       output += ('<td>&nbsp;</td>')
          
     if eventRow['jobsub_id']: 
-      output += ('<td><a href="%s?method=show-job&jobsub_id=%s">%s</a></td>'
-            % (uriPrefix, eventRow['jobsub_id'], eventRow['jobsub_id']))
+      output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
+            % (eventRow['jobsub_id'], eventRow['jobsub_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['site_name']: 
-      output += ('<td><a href="%s?method=show-site&site_name=%s">%s</a></td>'
-            % (uriPrefix, eventRow['site_name'], eventRow['site_name']))
+      output += ('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+            % (eventRow['site_name'], eventRow['site_name']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['rse_name']: 
-      output += ('<td><a href="%s?method=show-storage&rse_name=%s">%s</a></td>'
-            % (uriPrefix, eventRow['rse_name'], eventRow['rse_name']))
+      output += ('<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
+            % (eventRow['rse_name'], eventRow['rse_name']))
     else:
       output += ('<td>&nbsp;</td>')
 
@@ -2682,19 +2655,19 @@ def listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength):
                
   output += ("</table>")
   
-  output += makePager(uriPrefix, pageNumber, pageLength, len(eventsRows),
-             '%s?method=list-events&page_number=%d&page_length=%d'
+  output += makePager(pageNumber, pageLength, len(eventsRows),
+             '/dashboard/?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
   output += footer()
   return output
 
-def awtResults(uriPrefix, environ, user, cgiValues):
+def awtResults(environ, user, cgiValues):
 
   # Number of hours before results go grey to indicate stale
   greyHours = 48
               
-  output = header(uriPrefix, environ, user, "justIN: Automated Workflow Tests")
+  output = header(environ, user, "justIN: Automated Workflow Tests")
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
@@ -2775,8 +2748,8 @@ def awtResults(uriPrefix, environ, user, cgiValues):
     else:
       cellType = 'td'
     output += ('<%s><div style="writing-mode: vertical-lr">'
-          '<a href="%s?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>\n' % (cellType, uriPrefix, rseName, rseName, cellType))
+          '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
+          '</div></%s>\n' % (cellType, rseName, rseName, cellType))
 
   output += ('<td> </td></tr>\n')
 
@@ -2788,18 +2761,17 @@ def awtResults(uriPrefix, environ, user, cgiValues):
     else:
       cellType = 'td'
     
-    output += ('<tr><%s><a href="%s?method=show-site&site_name=%s">%s'
+    output += ('<tr><%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
           '</a></%s>\n' % 
-          (cellType, uriPrefix, siteName, siteName, cellType))
+          (cellType, siteName, siteName, cellType))
 
     output += '\n<!-- %d %d -->\n' % (timeNow, lastJobTimes[siteName])
     if lastJobTimes[siteName] == 0:
       output += ('<td> </td>')
     elif siteName in lastJobIDs:
       output += ('<td style="text-align: right">'
-                 '<a href="%s?method=show-job&jobsub_id=%s">%s</a></td>\n'
-                 % (uriPrefix, 
-                    lastJobIDs[siteName],
+                 '<a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>\n'
+                 % (lastJobIDs[siteName],
                     daysHoursMinutes(timeNow - lastJobTimes[siteName])
                    ))
     else:
@@ -2838,13 +2810,13 @@ def awtResults(uriPrefix, environ, user, cgiValues):
           boxColor = 'white'
           
         output += ('<td class="tooltip" style="background-color: %s">'
-                   '<a href="%s?method=show-job&jobsub_id=%s"'
+                   '<a href="/dashboard/?method=show-job&jobsub_id=%s"'
                    'class="tooltiptext">%s</a></td>\n'
-                   % (boxColor, uriPrefix, jobsubID, s))
+                   % (boxColor, jobsubID, s))
 
-    output += ('<%s><a href="%s?method=show-site&site_name=%s">%s'
+    output += ('<%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
           '</a></%s></tr>\n' % 
-          (cellType, uriPrefix, siteName, siteName, cellType))
+          (cellType, siteName, siteName, cellType))
 
   # List of storages
   output += ('<tr><td> </td>\n'
@@ -2857,15 +2829,15 @@ def awtResults(uriPrefix, environ, user, cgiValues):
     else:
       cellType = 'td'
     output += ('<%s><div style="writing-mode: vertical-lr">'
-          '<a href="%s?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>\n' % (cellType, uriPrefix, rseName, rseName, cellType))
+          '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
+          '</div></%s>\n' % (cellType, rseName, rseName, cellType))
 
   output += '<td> </td></tr>'
   output += "</table>"
   output += footer()
   return output
 
-def docsPage(uriPrefix, startResponse, environ, user):
+def docsPage(startResponse, environ, user):
 
   try:
     htmlFileName = environ['REQUEST_URI'].split('/')[2]
@@ -2873,7 +2845,7 @@ def docsPage(uriPrefix, startResponse, environ, user):
     if not justin.stringNoQuotes(htmlFileName):
       raise
   except:
-    output = errorPage(uriPrefix, environ, '', "Page name problem")
+    output = errorPage(environ, '', "Page name problem")
     startResponseOK(startResponse, output)
     return output
 
@@ -2903,11 +2875,11 @@ def docsPage(uriPrefix, startResponse, environ, user):
                 '.'.join(splitFileName) + '.md', 'r', encoding="utf-8").read()
   except Exception as e:
     print('Error opening %s: %s' % (htmlFileName, str(e)))
-    output = errorPage(uriPrefix, environ, '', "Page not found")
+    output = errorPage(environ, '', "Page not found")
     startResponseOK(startResponse, output)
     return output
 
-  output = header(uriPrefix, 
+  output = header(
                   environ, user, 
                   "justIN: Docs - %s" % splitFileName[-1].replace('_', ' '))
 
@@ -2967,28 +2939,19 @@ def application(environ, startResponse):
     output = cilogonCallback(startResponse, environ)
     return [output.encode('UTF-8')]
 
-  try:
-    if environ['REQUEST_URI'].split('/')[1].endswith('-dev'):
-      uriPrefix = '/dashboard-dev/'
-    else:
-      uriPrefix = '/dashboard/'
-  except:
-    # We don't serve "/"
-    return
-
   if environ['REQUEST_URI'].startswith('/authorize/'):
     output = loginPage('/dashboard/', startResponse, environ, authorize=True)
     return [output.encode('UTF-8')]
 
   if environ['REQUEST_URI'].endswith('&login'):
     # loginPage does startResponse() itself so it can create session cookies
-    output = loginPage(uriPrefix, startResponse, environ)
+    output = loginPage(startResponse, environ)
     return [output.encode('UTF-8')]
 
   user = getUser(environ)
 
   if environ['REQUEST_URI'].startswith('/docs'):
-    output = docsPage(uriPrefix, startResponse, environ, user)
+    output = docsPage(startResponse, environ, user)
     return [output.encode('UTF-8')]
 
   cgiValues  = { }
@@ -3029,61 +2992,61 @@ def application(environ, startResponse):
     pageLength = 30
 
   if method is None:
-    output = mainPage(uriPrefix, environ, user)
+    output = mainPage(environ, user)
   
   elif method == "authorized":
-    output = authorizedPage(uriPrefix, environ, user)
+    output = authorizedPage(environ, user)
 
   elif method == "list-jobscripts":
-    output = listJobscripts(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
+    output = listJobscripts(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-jobscript":
-    output = showJobscript(uriPrefix, environ, user, cgiValues)
+    output = showJobscript(environ, user, cgiValues)
 
   elif method == "list-requests":
-    output = listRequests(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
+    output = listRequests(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-request":
-    output = showRequest(uriPrefix, environ, user, cgiValues)
+    output = showRequest(environ, user, cgiValues)
 
   elif method == "show-stage":
-    output = showStage(uriPrefix, environ, user, cgiValues)
+    output = showStage(environ, user, cgiValues)
 
   elif method == "list-files":
-    output = listFiles(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
+    output = listFiles(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-file":
-    output = showFile(uriPrefix, environ, user, cgiValues)
+    output = showFile(environ, user, cgiValues)
 
   elif method == "show-job":
-    output = showJob(uriPrefix, environ, user, cgiValues)
+    output = showJob(environ, user, cgiValues)
 
   elif method == "list-jobs":
-    output = listJobs(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
+    output = listJobs(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-scopes":
-    output = listScopes(uriPrefix, environ, user, cgiValues)
+    output = listScopes(environ, user, cgiValues)
 
   elif method == "list-sites":
-    output = listSites(uriPrefix, environ, user, cgiValues)
+    output = listSites(environ, user, cgiValues)
 
   elif method == "list-storages":
-    output = listStorages(uriPrefix, environ, user, cgiValues)
+    output = listStorages(environ, user, cgiValues)
 
   elif method == "show-user":
-    output = showUser(uriPrefix, environ, user, cgiValues)
+    output = showUser(environ, user, cgiValues)
 
   elif method == "show-site":
-    output = showSite(uriPrefix, environ, user, cgiValues)
+    output = showSite(environ, user, cgiValues)
 
   elif method == "show-storage":
-    output = showStorage(uriPrefix, environ, user, cgiValues)
+    output = showStorage(environ, user, cgiValues)
 
   elif method == "list-events":
-    output = listEvents(uriPrefix, environ, user, cgiValues, pageNumber, pageLength)
+    output = listEvents(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "awt-results":
-    output = awtResults(uriPrefix, environ, user, cgiValues)
+    output = awtResults(environ, user, cgiValues)
   
   else:
     output = 'Method not recognised: %s' % str(method)
