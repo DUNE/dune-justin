@@ -4,9 +4,9 @@ import sys
 sys.path.insert(1, '../modules')
 import events
 
-f = open('event-types.md','w')
+f = open('event_types.md','w')
 
-f.write("""## Event types
+f.write("""# Event types
 
 These event types are used within justIN to record state transitions
 and can be viewed in the [Dashboard](dashboard.md). They are especially useful

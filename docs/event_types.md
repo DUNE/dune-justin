@@ -1,4 +1,4 @@
-## Event types
+# Event types
 
 These event types are used by justIN to record state transitions
 and can be viewed in the [Dashboard](dashboard.md). They are especially useful

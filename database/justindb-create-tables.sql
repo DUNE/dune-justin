@@ -125,6 +125,7 @@ CREATE TABLE `jobs` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `hostname` varchar(255) NOT NULL DEFAULT '',
   `cpuinfo` varchar(255) NOT NULL DEFAULT '',
+  `inner_apptainer` tinyint(1) NOT NULL DEFAULT 0,
   `os_release` varchar(255) NOT NULL DEFAULT '',
   `rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
   `min_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,

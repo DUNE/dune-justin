@@ -106,10 +106,6 @@ def header(uriPrefix, environ, user, title):
                 '%s</a>'
                 % (uriPrefix, user['user_name'], user['user_name']))
 
-#  if width:
-#    widthStr = 'width: %dpx; margin: auto; ' % width
-#  else:
-#    widthStr = ''
   widthStr = ''
 
   return ("""<html><head><title>%s</title>
@@ -169,6 +165,8 @@ a {
 .tooltip:hover .tooltiptext {
   visibility: visible;
 }
+
+pre { background-color: #EEEEEE; padding: 5px; Xdisplay: block; }
 
 table { border-collapse: collapse; border: medium solid #87ADD1; }
 tr { text-align: left }
@@ -277,7 +275,9 @@ def mainPage(uriPrefix, environ, user):
 
   output = header(uriPrefix, environ, user, "justIN: Dashboard")
 
-  output += '<h1 style="text-align: center">justIN Dashboard</h1><table class="center main_page_table">'
+  output += \
+     ('<h1 style="text-align: center">DUNE justIN service dashboard</h1>'
+      '<table class="center main_page_table">')
 
   cells = [
    { 'startRow'  : True,
@@ -314,7 +314,7 @@ def mainPage(uriPrefix, environ, user):
      'text'      : 'Jobscripts' },
    { 'startRow'  : False,
      'endRow'    : True,
-     'uri'       : 'https://dune.github.io/dune-justin/',
+     'uri'       : '/docs/',
      'text'      : 'Documentation' }
   ]
 
@@ -566,7 +566,7 @@ def loginPage(uriPrefix, startResponse, environ, authorize=False):
     output += '<h1 style="text-align: center">Authorize computer</h1>'
   else:
     output = header(uriPrefix, environ, '', "justIN: Login")
-    output += '<h1 style="text-align: center">justIN login</h1>'
+    output += '<h1 style="text-align: center">DUNE justIN service login</h1>'
 
   output += '<table style="border: 0"><tr>'
   output += '<td style="border: 0"><img src="/cilogon-login.png" width="300"></td>'
@@ -592,7 +592,7 @@ on your computer is now authorized for the next 7 days.</p>
        authorizeRow['os_release'])
   else:
     output += \
-'''<td style="border: 0">You can use the button below to login in the 
+'''<td style="border: 0">You can use the button below to login to the 
 justIN dashboard. 
 Your web browser will be directed to the CILogon website (screenshot to
 the left) and you will be asked to select an identity provider. Currently 
@@ -737,7 +737,7 @@ def authorizedPage(uriPrefix, environ, user):
 authorization will expire and the justin command will give you another link
 to visit.</p>
 <p>For more about using the justin command, please see its
-<a href="https://dune.github.io/dune-justin/justin-command.html">documentation</a>.
+<a href="/docs/justin_command.md">documentation</a>.
 </p>
 ''' % (authorizeRow['hostname'],
        authorizeRow['ip'],
@@ -1753,7 +1753,7 @@ def showJob(uriPrefix, environ, user, cgiValues):
            "jobs.for_awt,jobs.site_job_id,"
            "jobs.max_processors,jobs.min_processors,"
            "jobs.max_rss_bytes,jobs.min_rss_bytes,"
-           "jobs.max_wall_seconds,jobscript_log "
+           "jobs.max_wall_seconds,jobscript_log,jobs.inner_apptainer "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
@@ -1788,43 +1788,31 @@ def showJob(uriPrefix, environ, user, cgiValues):
 
   output += '<table>'
 
-  output += ('<tr><td>Allocation state</td>'
-             '<td>%s</td></tr>'
-             % jobRow["allocation_state"])
-      
   output += ('<tr><td>Jobsub ID</td>'
-             '<td>%s</td></tr>'
+             '<td colspan="2">%s</td></tr>'
              % html.escape(jobsubID, quote=True))
 
-  output += ('<tr><td>Site job ID</td>'
-             '<td>%s</td></tr>'
-             % html.escape(jobRow['site_job_id'], quote=True))
+#  output += ('<tr><td>Site job ID</td>'
+#             '<td colspan="2">%s</td></tr>'
+#             % html.escape(jobRow['site_job_id'], quote=True))
 
   if jobRow['for_awt']: 
     output += ('<tr><td>Workflow Testing</td>'
-               '<td>Yes</td></tr>')
+               '<td colspan="2">Yes</td></tr>')
 
   output += ('<tr><td>Submitted time</td>'
-             '<td>%s</td></tr>'
+             '<td colspan="2">%s</td></tr>'
              % jobRow["submitted_time"])
       
-  output += ('<tr><td>Last heartbeat</td>'
-             '<td>%s</td></tr>'
-             % spaceForUnixEpoch(jobRow["heartbeat_time"]))
-      
-  output += ('<tr><td>Allocator name</td>'
-             '<td>%s</td></tr>'
-             % html.escape(jobRow["allocator_name"], quote=True))
-
   if jobRow["site_name"]:
     output += ('<tr><td>Site</td>'
-               '<td><a href="%s?method=show-site&site_name=%s">'
+               '<td colspan="2"><a href="%s?method=show-site&site_name=%s">'
                '%s</a></td></tr>'
                % (uriPrefix, jobRow["site_name"], jobRow["site_name"]))
   else:
     output += '<tr><td>Site</td><td> </td></tr>'
 
-  output += ('<tr><td>Slot</td><td>'
+  output += ('<tr><td>Slot</td><td colspan="2">'
              '%d &lt; processors &le; %d<br>'
              '%d &lt; rss bytes &le; %d<br>'
              'wall seconds &le; %d</td></tr>'
@@ -1834,77 +1822,87 @@ def showJob(uriPrefix, environ, user, cgiValues):
                )
             )
 
-  if jobRow["hostname"]:
-    output += ('<tr><td>Hostname</td>'
+  if jobRow["allocation_state"] != 'submitted':
+    output += ('<tr><td>Last heartbeat</td>'
+               '<td colspan="2">%s</td></tr>'
+               % spaceForUnixEpoch(jobRow["heartbeat_time"]))
+      
+    output += ('<tr><td rowspan="7">From worker node</td><td>Hostname</td>'
                '<td>%s</td></tr>'
                % html.escape(jobRow["hostname"], quote=True))
   
-  if jobRow["cpuinfo"]:
     output += ('<tr><td>cpuinfo</td>'
                '<td>%s</td></tr>'
                % html.escape(jobRow["cpuinfo"], quote=True))
 
-  if jobRow["os_release"]:
     output += ('<tr><td>OS release</td>'
                '<td>%s</td></tr>'
                % html.escape(jobRow["os_release"], quote=True))
 
-  if jobRow["rss_bytes"]:
     output += ('<tr><td>RSS bytes</td>'
                '<td>%s (%d MB)</td></tr>' 
                % (jobRow["rss_bytes"], 
                   int(jobRow["rss_bytes"]) / 1048576))
 
-  if jobRow["processors"]:
     output += ('<tr><td>Processors</td>'
                '<td>%s</td></tr>'
                % jobRow["processors"])
 
-  if jobRow["wall_seconds"]:
     output += ('<tr><td>Wall seconds limit</td>'
                '<td>%s (%d hours)</td></tr>'
                % (jobRow["wall_seconds"],
                   int(jobRow["wall_seconds"]) / 3600))
 
-  output += '<tr><td>Request by</td>'
-  
-  if jobRow['user_name']:
-    output += '<td>%s</td></tr>' % jobRow['user_name']
-  else:
-    output += '<td>&nbsp;</td></tr>'
+    output += ('<tr><td>Inner Singularity?</td>'
+               '<td>%s</td></tr>' % bool(jobRow["inner_apptainer"]))
+
+  output += ('<tr><td>Allocation state</td>'
+             '<td colspan="2">%s</td></tr>'
+             % jobRow["allocation_state"])
+      
+  output += ('<tr><td>Allocator name</td>'
+             '<td colspan="2">%s</td></tr>'
+             % html.escape(jobRow["allocator_name"], quote=True))
 
   output += '<tr><td>Request ID</td>'
   
   if jobRow['request_id']:
-    output += ('<td><a href="%s?method=show-request&request_id=%s">'
+    output += ('<td colspan="2"><a href="%s?method=show-request&request_id=%s">'
                '%s</a></td></tr>'
                % (uriPrefix, jobRow["request_id"], jobRow["request_id"]))
   else:
-    output += '<td>&nbsp;</td></tr>'
+    output += '<td colspan="2">&nbsp;</td></tr>'
         
   output += '<tr><td>Stage ID</td>'
   
   if jobRow['stage_id']:
-    output += ('<td><a href="%s?method=show-stage&request_id=%s&'
+    output += ('<td colspan="2"><a href="%s?method=show-stage&request_id=%s&'
                'stage_id=%s">%s</a></td></tr>'
                % (uriPrefix, jobRow["request_id"], jobRow["stage_id"],
                   jobRow["stage_id"]))
   else:
-    output += '<td>&nbsp;</td></tr>'
+    output += '<td colspan="2">&nbsp;</td></tr>'
         
+  output += '<tr><td>Request by</td>'
+  
+  if jobRow['user_name']:
+    output += '<td colspan="2">%s</td></tr>' % jobRow['user_name']
+  else:
+    output += '<td colspan="2">&nbsp;</td></tr>'
+
   output += ('<tr><td>Started</td>'
-             '<td>%s</td></tr>'
+             '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["allocation_time"]))
 
   output += ('<tr><td>Outputting started</td>'
-             '<td>%s</td></tr>'
+             '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["outputting_time"]))
 
   output += ('<tr><td>Finished</td>'
-             '<td>%s</td></tr>'
+             '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["finished_time"]))
 
-  output += '<tr><td>Input files</td><td>'
+  output += '<tr><td>Input files</td><td colspan="2">'
   
   for inputFileRow in inputFilesRows:
     try:
@@ -1922,7 +1920,7 @@ def showJob(uriPrefix, environ, user, cgiValues):
       
   output += '</td></tr>'
 
-  output += '<tr><td>Output files</td><td>'
+  output += '<tr><td>Output files</td><td colspan="2">'
   
   for outputFileRow in outputFilesRows:
     try:
@@ -1940,7 +1938,7 @@ def showJob(uriPrefix, environ, user, cgiValues):
       
   output += '</td></tr>'
 
-  output += ('<tr><td colspan=2>'
+  output += ('<tr><td colspan=3>'
         '<a href="%s?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
         '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'

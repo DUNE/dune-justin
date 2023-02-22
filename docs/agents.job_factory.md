@@ -1,4 +1,4 @@
-## Generic Job Factory
+# Generic Job Factory
 
 The Generic Job Factory agent creates and submits HTCondor jobs, which are 
 each assigned to a specific execution site. It uses a mixture of matching 

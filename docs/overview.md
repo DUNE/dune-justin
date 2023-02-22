@@ -1,4 +1,4 @@
-## Overview of the justIN workflow system
+# Overview of the justIN workflow system
 
 justIN implements the workflow system design described in chapter 13 of the
 ["DUNE Offline Computing Conceptual Design Report"](https://arxiv.org/abs/2210.15665), 
@@ -21,7 +21,7 @@ computing properties of applications (I/O rate, memory needs, data size)
 and the network connections between Rucio Storage Elements (RSEs) and 
 CPU resources to optimally match processing and data.
 
-### Request Lifecycle
+## Request Lifecycle
 
 The central concept of justIN is the request, which 
 describes how some data processing activity is to be carried out. Requests 

@@ -1,4 +1,4 @@
-## justIN dashboard
+# justIN dashboard
 
 The justIN dashboard gives convenient views of the contents of the 
 [justIN database](database.md).
@@ -11,6 +11,6 @@ The dashboard uses the [justIN database](database.md) section
 of the configuration files, and also the [cilogon] section which has client 
 details for OIDC calls to CILogon:
 
-- client_id - ID string of a registered client (none)
-- secret - secret for the registered client (none)
+- client_id - ID string of a registered client
+- secret - secret for the registered client
 

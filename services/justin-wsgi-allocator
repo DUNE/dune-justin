@@ -487,7 +487,7 @@ def findCachedStage(jobDict):
   return stage
 
 # Try to get the stage with the highest priority files still unallocated
-def getStageMethod(startResponse, jsonDict):
+def getStageMethod(startResponse, jsonDict, environ):
 
   if 'jobsub_id' not in jsonDict or \
      not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
@@ -496,8 +496,8 @@ def getStageMethod(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Missing jobsub_id in JSON')
 
-  # Check jsonDict contains required integer values (eg rss_bytes)
-  for name in ['rss_bytes', 'processors', 'wall_seconds']:  
+  # Check jsonDict contains required integer/bool values (eg rss_bytes)
+  for name in ['rss_bytes', 'processors', 'wall_seconds', 'inner_apptainer']:
     try:
       n = int(jsonDict[name])
     except:
@@ -507,7 +507,8 @@ def getStageMethod(startResponse, jsonDict):
                        'Missing/invalid integer value(s) in JSON')
 
   # Check jsonDict contains required string values
-  for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 'site_job_id']:
+  for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 
+               'site_job_id']:
     if name not in jsonDict or not justin.db.stringNoQuotes(jsonDict[name]) \
        or not jsonDict[name]:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -521,13 +522,28 @@ def getStageMethod(startResponse, jsonDict):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
 
-#  print('Before UPDATE jobs site_name', file=sys.stderr)
+#  print('Before UPDATE jobs site_name etc', file=sys.stderr)
   try:
     justin.db.insertUpdate('UPDATE jobs SET '
                         'site_id=(SELECT site_id FROM sites '
-                        'WHERE site_name="%s") '
+                        'WHERE site_name="%s"),'
+                        'cpuinfo="%s",' 
+                        'os_release="%s",' 
+                        'hostname="%s",' 
+                        'rss_bytes=%d,' 
+                        'processors=%d,' 
+                        'wall_seconds=%d,' 
+                        'inner_apptainer=%s ' 
                         'WHERE jobsub_id="%s"' % 
-                        (jsonDict['site_name'], jsonDict['jobsub_id']))
+                        (jsonDict['site_name'], 
+                         jsonDict['cpuinfo'],
+                         jsonDict['os_release'],
+                         jsonDict['hostname'],
+                         jsonDict['rss_bytes'],
+                         jsonDict['processors'],
+                         jsonDict['wall_seconds'],
+                         jsonDict['inner_apptainer'],
+                         jsonDict['jobsub_id']))
     justin.db.conn.commit()
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -602,7 +618,7 @@ def getStageMethod(startResponse, jsonDict):
 #  print('Before UPDATE jobs SET', file=sys.stderr)
   try:
     # Unique ID string for this instance that may also help in debugging
-    allocatorName = "%s:%d:%f" % (os.uname()[1], os.getpid(), time.time())
+    allocatorName = environ['SERVER_NAME']
 
     justin.db.insertUpdate(
              'UPDATE jobs SET '
@@ -614,12 +630,6 @@ def getStageMethod(startResponse, jsonDict):
              'allocator_name="' + allocatorName + '",' 
              'request_id=' + str(stage['request_id']) + ','
              'stage_id=' + str(stage['stage_id']) + ','
-             'cpuinfo="' + str(jsonDict['cpuinfo']) + '",' 
-             'os_release="' + str(jsonDict['os_release']) + '",' 
-             'hostname="' + str(jsonDict['hostname']) + '",' 
-             'rss_bytes=' + str(jsonDict['rss_bytes']) + ',' 
-             'processors=' + str(jsonDict['processors']) + ',' 
-             'wall_seconds=' + str(jsonDict['wall_seconds']) + ',' 
              'secret="' + secret + '" ' 
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
@@ -1483,7 +1493,7 @@ def application(environ, startResponse):
 
   # Get the stage for the job to work on
   if jsonDict['method'] == 'get_stage':
-    return getStageMethod(startResponse, jsonDict)
+    return getStageMethod(startResponse, jsonDict, environ)
 
   # Record heartbeats from the generic jobs
   if jsonDict['method'] == 'send_heartbeat':

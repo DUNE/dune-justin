@@ -1,4 +1,4 @@
-## Information Collector 
+# Information Collector 
 
 The Information Collector agent runs periodically to obtain a list of 
 eligible sites from the 

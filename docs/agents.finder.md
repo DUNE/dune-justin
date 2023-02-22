@@ -1,4 +1,4 @@
-## Finder agent
+# Finder agent
 
 The Finder agent periodically executes searches in the 
 [justIN database](database.md) to discover updates that are required to

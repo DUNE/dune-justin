@@ -1,9 +1,12 @@
-## DUNE tutorial
+# DUNE justIN tutorial
 
-# Prerequisites
+**THIS TUTORIAL IS STILL IN A DRAFT STATE AND NOT READY FOR NEW USERS**
 
-This tutorial has been tested on the DUNE interactive VMs at Fermilab and on
-lxplus at CERN. It should also work on similar Linux machines elsewhere.
+## Prerequisites
+
+This tutorial has been tested on the DUNE dunegpvm machines at Fermilab and on
+lxplus at CERN. It should also work on similar Linux machines elsewhere but
+if you run into problems please use dunegpvmXX or lxplus instead.
 
 You need to be a member of DUNE and have a Fermilab computer account. You
 can check this by going to the justIN dashboard at 
@@ -22,11 +25,11 @@ environment from cvmfs and set up justin with these commands:
 
 You should see a version number displayed. 
 
-# Logging in from the command line 
+## Logging in from the command line 
 
 Now we can start the tutorial itself.
 
-Setup DUNE UPS and justin if you've not already done that within your
+Set up DUNE UPS and justin if you've not already done that within your
 session:
 
     source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
@@ -35,7 +38,7 @@ session:
 Then run these two commands to clear any existing session and trigger
 a new one:
 
-    rm -f /tmp/justin.session.`id -u`
+    rm -f /var/tmp/justin.session.`id -u`
     justin time
 
 The justin command will display a message like this:
@@ -49,20 +52,21 @@ The justin command will display a message like this:
     Once you've followed the instructions on that web page, you can run the justin
     command without needing to authorize this computer again for 7 days.
 
-    This subcommand should display the UTC time from the justIN service after
-    authenticating to the service and after it checks you are authorized.
-
 Follow those instructions to authorize the justin command to run on your
-account on that computer.
+account on that computer. Then repeat the time subcommand. 
 
-# Run some hello world jobs
+    justin time
+
+It will display the
+UTC time from the justIN service and relies on the authorization you've now
+set up.
+
+## Run some hello world jobs
 
 justIN allows requests to consist of multiple stages, but you can create
 single stage requests with the quick-request subcommand:
 
-```
-justin quick-request --monte-carlo 10 --jobscript-id testpro:hello-world
-```
+    justin quick-request --monte-carlo 10 --jobscript-id testpro:hello-world
 
 If you execute this command now, justIN will take the jobscript
 testpro:hello-world and execute it in 10 jobs which require no input data
@@ -77,21 +81,23 @@ logs, jobs status etc. Please take note of that ID now.
 
 You can use 
 
-```justin show-jobscript --jobscript-id testpro:hello-world```
+    justin show-jobscript --jobscript-id testpro:hello-world
 
 to display the script these 10 jobs are running for you. And 
 
-```justin show jobs --request-id REQUEST_ID```
+    justin show-jobs --request-id REQUEST_ID
 
 will show you any jobs associated with the request. You need to replace 
 REQUEST_ID with the number displayed by quick-request.
 
+## View your request on the justIN web dashboard
+
 The two show subcommands are useful for quick checks, but to look at requests
 and jobs in detail you need to use the 
-[justIn dashboard](https://justin.dune.hep.ac.uk/dashboard/). Go there
+[justIN dashboard](https://justin.dune.hep.ac.uk/dashboard/). Go there
 and look for the Requests link in the blue navigation the strip at the top of
 the page. The request you launched will be listed there, with the REQUEST_ID
-you got from the quick-request subcommand.
+shown by the quick-request subcommand when you ran it.
 
 The page for that request shows interesting things about it, and the table
 near the bottom of the page has information about its single stage. The
@@ -111,6 +117,10 @@ jobscript log which is the merged stdout and stderr of the jobscript that
 ran. In this case, the jobscript just outputs a Hello world message and the 
 number of the Monte Carlo virtual file counter.
 
+## Jobs with inputs and outputs
 
+## Interactive testing of jobscripts 
 
+## Rapid Code Distribution to jobs via cvmfs
 
+Part of this section has to be done on a computer at Fermilab. 

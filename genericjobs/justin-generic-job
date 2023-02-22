@@ -128,6 +128,19 @@ export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_bytes=`expr $rss_mb \* 1048576`
 export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
 
+echo '==== Before: ls -l /proc/$$/ns/ ===='
+ls -l "/proc/$$/ns/"
+echo '==== After: ls -l /proc/$$/ns/ ===='
+echo '==== Before try singularity ===='
+singularity shell --shell /usr/bin/hostname \
+  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
+if [ $? = 0 ] ; then
+  inner_apptainer=true
+else
+  inner_apptainer=false
+fi
+echo '==== After try singularity ===='
+
 openssl req -batch -nodes -newkey rsa:2048 \
  -keyout justin-jobs-no-roles.key.pem -out justin-jobs-no-roles.csr.pem
 
@@ -137,18 +150,19 @@ openssl req -batch -nodes -newkey rsa:2048 \
 # Create the JSON to send to the allocator
 cat <<EOF >justin-get-stage.json
 {
-  "method"         : "get_stage",
-  "jobsub_id"      : "$JOBSUBJOBID",
-  "site_name"      : "${site_name:-XX-UNKNOWN}",
-  "cpuinfo"        : "${JUSTIN_CPUINFO:-Unknown}",
-  "os_release"     : "${JUSTIN_OS_RELEASE:-Unknown}",
-  "hostname"       : "${JUSTIN_HOSTNAME:-unknown}",
-  "rss_bytes"      : ${rss_bytes:-0},
-  "processors"     : ${processors:-0},
-  "wall_seconds"   : ${wall_seconds:-0},
-  "site_job_id"    : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
-  "csr-no-roles"   : "`sed -z 's/\n/\\\\n/g' justin-jobs-no-roles.csr.pem`",
-  "csr-production" : "`sed -z 's/\n/\\\\n/g' justin-jobs-production.csr.pem`"
+  "method"          : "get_stage",
+  "jobsub_id"       : "$JOBSUBJOBID",
+  "site_name"       : "${site_name:-XX-UNKNOWN}",
+  "cpuinfo"         : "${JUSTIN_CPUINFO:-Unknown}",
+  "os_release"      : "${JUSTIN_OS_RELEASE:-Unknown}",
+  "hostname"        : "${JUSTIN_HOSTNAME:-unknown}",
+  "rss_bytes"       : ${rss_bytes:-0},
+  "processors"      : ${processors:-0},
+  "wall_seconds"    : ${wall_seconds:-0},
+  "inner_apptainer" : $inner_apptainer,
+  "site_job_id"     : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
+  "csr-no-roles"    : "`sed -z 's/\n/\\\\n/g' justin-jobs-no-roles.csr.pem`",
+  "csr-production"  : "`sed -z 's/\n/\\\\n/g' justin-jobs-production.csr.pem`"
 }
 EOF
 

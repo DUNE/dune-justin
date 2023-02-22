@@ -11,7 +11,7 @@ fi
 (
 
 cat <<EOF
-## justin command man page
+# justin command man page
 This man page is distributed along with the 
 [justin command](justin_command.md) itself.
 

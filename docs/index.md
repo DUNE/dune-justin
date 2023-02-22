@@ -1,4 +1,4 @@
-## justIN workflow system documentation
+# justIN workflow system documentation
 
 Versioned copies of this documentation are kept in the docs subdirectory
 of the [dune-justin GitHub repo](https://github.com/DUNE/dune-justin/). All the
@@ -10,13 +10,13 @@ current release branch is available on the justIN dashboard
 
 - [System Overview](overview.md)
 
-### User Guides
+## User Guides
 
 - [justin command](justin_command.md)
 - [Monte Carlo requests](monte_carlo.md)
 - [Jobscripts](jobscripts.md)
 
-### System Components
+## System Components
 
 - [Database](database.md)
 - [Agents](agents.md)
@@ -24,8 +24,12 @@ current release branch is available on the justIN dashboard
 - [Dashboard](dashboard.md)
 - [Jobscripts library](jobscripts_library.md)
 
-### Reference 
+## Reference 
 
 - [Event types](event_types.md)
 - [Generic jobs](generic_jobs.md)
 - [Files](files.md)
+
+## Tutorials
+
+- [DUNE Tutorial](tutorials.dune.md)

@@ -1,4 +1,4 @@
-## Allocator Service
+# Allocator Service
 
 Once a generic job arrives at a worker node, it contacts the 
 allocator service which determines which unallocated file from one stage 

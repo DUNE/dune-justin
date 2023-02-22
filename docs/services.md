@@ -1,4 +1,4 @@
-## Services
+# Services
 
 justIN provides services to respond to queries from users and
 jobs. In most cases, queries update the [justIN database](database.md)

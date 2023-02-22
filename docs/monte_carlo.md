@@ -1,4 +1,4 @@
-## Monte Carlo requests
+# Monte Carlo requests
 
 justIN relies on matching unprocessed input files with generic
 jobs which start on worker nodes at sites. To be able to include Monte Carlo

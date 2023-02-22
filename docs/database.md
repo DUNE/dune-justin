@@ -1,4 +1,4 @@
-## justIN database
+# justIN database
 
 The justIN database is the heart of the justIN workflow system. It holds cached
 information about sites, storages, files, and replicas obtained from other
@@ -15,9 +15,8 @@ The database receives periodic updates from [agents](agents.md),
 
 The database is implemented as a MySQL/Mariadb SQL database. 
 
-### Tables
+## Tables
 
-- allocations - one row each time a file is allocated to a job
 - jobscripts - scripts from users to be executed by generic jobs
 - events - a log of fine grained events within the system
 - files - input files associcated with each stage of each request
@@ -35,11 +34,43 @@ The database is implemented as a MySQL/Mariadb SQL database.
 - users - user info obtained from Rucio
 - x509 - X.509 DNs associated with each user
 
+
+| Table name             |
+|------------------------|
+| accounting_groups      |
+| events                 |
+| files                  |
+| find_file_cache        |
+| get_stage_cache        |
+| groups                 |
+| jobs                   |
+| jobs_logs              |
+| jobs_outputs           |
+| jobscripts_library     |
+| jwt_keys               |
+| principal_names        |
+| replicas               |
+| replicas_pins          |
+| requests               |
+| scopes                 |
+| sessions               |
+| sites                  |
+| sites_storages         |
+| stages                 |
+| stages_environment     |
+| stages_jobscripts      |
+| stages_output_storages |
+| stages_outputs         |
+| storages               |
+| users                  |
+| wlcg_groups            |
+
+
 A MySQL script to create a set of empty tables is in
 justindb-create-tables.sql in the databases subdirectory of the GitHub repo,
 and shows the full definition of each table.
 
-### Configuration
+## Configuration
 
 The global justIN configuration can include a [database] section which may
 include some or all of the following options. Default values are shown in
