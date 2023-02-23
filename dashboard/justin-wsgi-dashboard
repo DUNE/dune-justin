@@ -2040,7 +2040,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
 
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
-  output += '<p><table>'
+  output += '<p><table class="center">'
   
   output += ('<tr>'
         '<th>Jobsub ID</th>'
@@ -2153,7 +2153,7 @@ def listSites(environ, user, cgiValues):
   justin.db.cur.execute(query)
   siteRows = justin.db.cur.fetchall()
 
-  output += ('<table>')
+  output += ('<table class="center">')
   
   output += ('<tr>'
         '<th>Site name</th>'
@@ -2588,7 +2588,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
              + queryList)
 
   output += (
-"""<p><table>
+"""<p><table class="center">
 <tr>
 <th>Event</th><th>Type</th><th>Time</th>
 <th>Request</th><th>Stage</th>

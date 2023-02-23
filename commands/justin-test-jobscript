@@ -14,40 +14,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+:<<EOF
 
-# Script to allow interactive testing of justIN jobscripts
-# 1. Make sure you have rucio and metacat setup from cvmfs
-# 2. Run this script with something like
-#    justin-test-jobscript pfns-hello-world.jobscript \
-#     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 1"
-#    where "files from..." is an MQL expression for MetaCat
-# 3. A temporary directory is created in /tmp and the jobscript is
-#    run in the workspace subdirectory of that with outputs left there
+Script to allow interactive testing of justIN jobscripts
+
+1. Make sure you have rucio and metacat setup from cvmfs
+2. Run this script with something like
+
+justin-test-jobscript --jobscript pfns-hello-world.jobscript \
+ --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 1"
+    
+   where "files from..." is an MQL expression for MetaCat
+3. A temporary directory is created in /tmp and the jobscript is
+   run in the workspace subdirectory of that with outputs left there
+    
+EOF
 
 export JUSTIN_WORKDIR=`mktemp -d /tmp/justin-test-jobscript.XXXXXX`
-echo "Files created under $JUSTIN_WORKDIR"
-echo
-
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
-if [ ! -f "$1" ] ; then
- echo "Cannot find jobscript $1"
+ARGS=$(getopt -o 'j:m:e:' --long 'jobscript:,mql:,env:' -- "$@") || exit
+eval "set -- $ARGS"
+
+while true; do
+ case $1 in
+  (--jobscript)
+   JOBSCRIPT=$2; shift 2;;
+  (--mql)
+   MQL=$2; shift 2;;
+  (--env)
+   echo "export $2" >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh; shift 2;;
+  (--) shift; break;;
+ esac
+done
+
+if [ "$JOBSCRIPT" = "" ] ; then
+  echo "You must give --jobscript FILENAME"
+  exit 2
+fi
+if [ ! -f "$JOBSCRIPT" ] ; then
+ echo "Cannot find jobscript $JOBSCRIPT"
  exit 1
 fi
 
-jobscript=$JUSTIN_WORKDIR/home/justin-jobscript.sh
-cp "$1" $jobscript
-chmod +x $jobscript
-
-shift
-mql="$*"
-if [ "$mql" = "" ] ; then
-  echo "You must give an MQL expression!"
+if [ "$MQL" = "" ] ; then
+  echo "You must give --mql MQL"
   exit 2
 fi
 
-echo "Execute metacat query $mql | head -1"
-did=`metacat query "$mql" | head -1`
+echo "Files created under $JUSTIN_WORKDIR"
+echo
+
+cp "$JOBSCRIPT" $JUSTIN_WORKDIR/home/justin-jobscript.sh
+chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
+
+echo "Execute metacat query $MQL | head -1"
+did=`metacat query "$MQL" | head -1`
 if [ $? != 0 ] ; then
   echo "metacat query failed!"
   exit 3
@@ -73,7 +95,7 @@ EOF
 chmod +x $JUSTIN_WORKDIR/home/justin-get-file
 
 # Fake justin-jobscript-env.sh that allocator would normally provide
-cat <<EOF > $JUSTIN_WORKDIR/home/justin-jobscript-env.sh
+cat <<EOF >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh
 export JUSTIN_SITE_NAME=XX_UNKNOWN
 export JUSTIN_REQUEST_ID=1
 export JUSTIN_STAGE_ID=1
