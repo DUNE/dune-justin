@@ -119,6 +119,63 @@ number of the Monte Carlo virtual file counter.
 
 ## Jobs with inputs and outputs
 
+The real power of justIN is in matching files and jobs based on locations.
+To see this in action we need to learn how to specify the input files to
+process and understand how outputs are specified and where they are put.
+
+This section uses a workflow from the 2022 DC4 data challenge and shows you
+how to repeat part of it. We'll run LArSoft to process some data that is
+registered in MetaCat and Rucio, and temporarily store the output files in
+Rucio-managed storage at remote sites.
+
+To start with, run this command to view the dc4-vd-coldbox-top:default
+jobscript:
+
+    justin show-jobscript --jobscript-id dc4-vd-coldbox-top:default
+
+The comments at the top explain how to use the jobscript to process some
+VD coldbox files. For this tutorial though, please use this command:
+
+    justin quick-request 
+    --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+    --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 --rss-mb 4000 \
+    --scope testpro --output-pattern '*_reco_data_*.root:output-test-01' \
+    --env NUM_EVENTS=1
+
+What is this doing?
+
+1. `justin quick-request` as before creates a request with one stage, in one
+go.
+2. `--mql "files from ... limit 10"` tells justIN to send the MQL query in
+quotes to MetaCat and get a list of matching files. In this case, only the
+first 10 matching files are returned.
+3. `--jobscript-id` tells justIN to use the jobscript we've been looking at.
+4. `--max-distance 30` says that only replicas of files within a distance of
+30 from where the job is running will be considered. In practice, 30 means 
+within North America or within Europe, but not from one to the other. 
+5. `--rss-mb 4000` asks for 4000 MiB of memory. Since `--processors` is not
+given, the default of 1 processor is requested.
+6. `--scope testpro` says that output files will be created with the Rucio
+scope testpro, which any DUNE member can write to. Output files will be
+created with Rucio Data Identifiers (DIDs) like testpro:aaaa.root
+7. `--output pattern '*_reco_data_*.root:output-test-01'` tells justIN to
+look for output files matching the shell wildcard expression
+`*_reco_data_*.root` in the working directory of the jobscript, when it
+finishes. `output-test-01` is the name of a Rucio dataset to add the output
+files to, and the full name of that dataset is `testpro:output-test-01`.
+8. `--env NUM_EVENTS=1` sets the environment variable NUM_EVENTS. If you
+look back at the jobscript you will see this variable causes LArSoft to
+process just 1 event from the input file. 
+
+The command doesn't tell justIN where to put the output files. There are
+options to try to steer outputs to particular groups of storages, but with
+the example command above they will be written to the closest accessible
+storage, based on where the job is running. The outputs are all registered
+in Rucio, so it's still easy to find them whereever they are written. 
+
+Go ahead and do the `justin quick-request` command shown above, and then
+watch its progress via the justIN dashboard.
+
 ## Interactive testing of jobscripts 
 
 ## Rapid Code Distribution to jobs via cvmfs
