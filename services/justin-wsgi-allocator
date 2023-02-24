@@ -1034,11 +1034,11 @@ def recordResultsMethod(startResponse, jsonDict):
 
     # Record job as finished due to jobscript_error
     try:
-#### REPLACE "aborted" WITH "jobscript_error" ONCE IN DATABASE DEFINITION
-      justin.db.insertUpdate('UPDATE jobs SET allocation_state="aborted",'
-                          'heartbeat_time=NOW(),'
-                          'finished_time=NOW() '
-                          'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+      justin.db.insertUpdate('UPDATE jobs SET '
+                             'allocation_state="jobscript_error",'
+                             'heartbeat_time=NOW(),'
+                             'finished_time=NOW() '
+                             'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
     except Exception as e:
       return httpError(startResponse,
                        '500 Internal Server Error',

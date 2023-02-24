@@ -19,6 +19,7 @@
 # This WSGI script relies on justin-api-import-script being run by
 # the mod_wsgi directive WSGIImportScript
 
+import re
 import os
 import sys
 import ssl
@@ -977,18 +978,17 @@ def showRequest(environ, user, cgiValues):
   for stateRow in stateRows:
     stateCounts[stateRow['stage_id']][stateRow['state']] = stateRow['count']
 
-  # Output a table with the stages
+  # Output a table with the files for each stage
 
-  output += '<h2>Stages</h2>'
+  output += '<h2>File states per stage</h2>'
   output += '<table>'
-  output += ("<tr><th>Stage ID</th><th>Rank</th><th>Files</th><th>Finding</th>"
+  output += ("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
              "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
              "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
-  for stageRow in stageRows:    
+  for stageRow in stageRows:
     output += ('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
           '%d</a></td>'
-          '<td>%d</td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
@@ -1000,14 +1000,13 @@ def showRequest(environ, user, cgiValues):
           '</tr>' % 
           (
            stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
-           stageRow["stage_rank"],
             stageRow["request_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['finding'] +
-            stateCounts[stageRow['stage_id']]['unallocated'] +
-            stateCounts[stageRow['stage_id']]['allocated'] +
-            stateCounts[stageRow['stage_id']]['outputting'] +
-            stateCounts[stageRow['stage_id']]['processed'] +
-            stateCounts[stageRow['stage_id']]['notfound'] +
+             stateCounts[stageRow['stage_id']]['unallocated'] +
+             stateCounts[stageRow['stage_id']]['allocated'] +
+             stateCounts[stageRow['stage_id']]['outputting'] +
+             stateCounts[stageRow['stage_id']]['processed'] +
+             stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
             stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finding'],
@@ -1025,6 +1024,78 @@ def showRequest(environ, user, cgiValues):
             stateCounts[stageRow['stage_id']]['failed']))
 
   output += "</table>"
+
+  # Get counts of job states for all stages
+  stateCounts = []
+  for i in range(0, len(stageRows) + 1):
+    stateCounts.append({ 'processing'      : 0,
+                         'outputting'      : 0,
+                         'finished'        : 0,
+                         'aborted'         : 0,
+                         'stalled'         : 0,
+                         'jobscript_error' : 0  })
+
+  query = ('SELECT allocation_state,stage_id,COUNT(*) AS count '
+           'FROM jobs '
+           'WHERE request_id=%d '
+           'GROUP BY allocation_state,stage_id' % requestID)
+             
+  stateRows = justin.db.select(query)
+  
+  for stateRow in stateRows:
+    stateCounts[stateRow['stage_id']][stateRow['allocation_state']] \
+                                                       = stateRow['count']
+
+  # Display table of job states for each stage
+
+  output += ('<h2>Job states per stage</h2>')
+  output += ('<table>')
+  output += ('<tr><th>Stage</th><th>Total</th><th>Processing</th>'
+             '<th>Outputting</th><th>Finished</th>'
+             '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th></tr>')
+
+  for stageRow in stageRows:
+    output += ('<tr>'
+        '<td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
+        '%d</td>\n'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=processing">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=outputting">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=finished">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=aborted">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=stalled">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=jobscript_error">%d</a></td>'
+        '</tr>'
+        % (stageRow["request_id"], stageRow["stage_id"], 
+            stageRow["stage_id"],
+           stageRow["request_id"], stageRow["stage_id"], 
+            stateCounts[stageRow['stage_id']]['processing'] +
+             stateCounts[stageRow['stage_id']]['outputting'] +
+             stateCounts[stageRow['stage_id']]['finished'] +
+             stateCounts[stageRow['stage_id']]['aborted'] +
+             stateCounts[stageRow['stage_id']]['stalled'] +
+             stateCounts[stageRow['stage_id']]['jobscript_error'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['processing'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['outputting'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['finished'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['aborted'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['stalled'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['jobscript_error']))
+
+  output += ('</table>')
   output += footer()
   return output
 
@@ -1247,8 +1318,12 @@ def showStage(environ, user, cgiValues):
            ' AS number_aborted,'
            '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
            ' stage_id=%d AND allocation_state="stalled") '
-           ' AS number_stalled'
+           ' AS number_stalled,'
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="jobscript_error") '
+           ' AS number_jobscript_error'
            % (requestID, stageID, 
+              requestID, stageID,
               requestID, stageID,
               requestID, stageID,
               requestID, stageID,
@@ -1261,7 +1336,7 @@ def showStage(environ, user, cgiValues):
   output += ('<h2>Job states</h2>')
   output += ('<table>')
   output += ('<tr><th>Processing</th><th>Outputting</th><th>Finished</th>'
-        '<th>Aborted</th><th>Stalled</th></tr>')
+        '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th></tr>')
 
   output += ('<tr>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
@@ -1274,12 +1349,15 @@ def showStage(environ, user, cgiValues):
         '&stage_id=%d&allocation_state=aborted">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=jobscript_error">%d</a></td>'
         '</tr>'
         % (requestID, stageID, jobNumberRow['number_processing'],
            requestID, stageID, jobNumberRow['number_outputting'],
            requestID, stageID, jobNumberRow['number_finished'],
            requestID, stageID, jobNumberRow['number_aborted'],
-           requestID, stageID, jobNumberRow['number_stalled']
+           requestID, stageID, jobNumberRow['number_stalled'],
+           requestID, stageID, jobNumberRow['number_jobscript_error']
           ))
 
   output += ('</table>')
@@ -2894,7 +2972,13 @@ def docsPage(startResponse, environ, user):
 
   output += ' : %s</p>' % splitFileName[-1].upper().replace('_', ' ')
 
-  output += markdown.markdown(fileText, extensions=['tables'])
+  # Remove HTML style comments
+  matches = re.findall('<!--.*?-->', fileText, re.DOTALL)
+  processedText = fileText
+  for match in matches:
+    processedText = re.sub(match, '', processedText)
+
+  output += markdown.markdown(processedText, extensions=['tables'])
 
   output += '</div>\n'
   output += footer()

@@ -99,11 +99,12 @@ and look for the Requests link in the blue navigation the strip at the top of
 the page. The request you launched will be listed there, with the REQUEST_ID
 shown by the quick-request subcommand when you ran it.
 
-The page for that request shows interesting things about it, and the table
-near the bottom of the page has information about its single stage. The
+The page for that request shows interesting things about it, and the tables
+near the bottom of the page have information about the states of the 
+counter files and the jobs which are being run for them. The
 stage is to process 10 counter files, and they can be in various states from
 Finding to Unallocated through to Processed. Clicking on the numbers takes
-you to pages with lists of files in each state. 
+you to pages with lists of files or jobs in each state. 
 
 For each file, you see where it was processed and which Rucio Storage
 Element it came from. In the case of our Monte Carlo request, our virtual
@@ -136,12 +137,13 @@ jobscript:
 The comments at the top explain how to use the jobscript to process some
 VD coldbox files. For this tutorial though, please use this command:
 
-    justin quick-request 
-    --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+    justin quick-request \
+    --mql \
+    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
     --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 --rss-mb 4000 \
-    --scope testpro --output-pattern '*_reco_data_*.root:output-test-01' \
-    --env NUM_EVENTS=1
-
+    --env NUM_EVENTS=1 --scope testpro \
+    --output-pattern '*_reco_data_*.root:output-test-01'
+    
 What is this doing?
 
 1. `justin quick-request` as before creates a request with one stage, in one
@@ -155,29 +157,53 @@ first 10 matching files are returned.
 within North America or within Europe, but not from one to the other. 
 5. `--rss-mb 4000` asks for 4000 MiB of memory. Since `--processors` is not
 given, the default of 1 processor is requested.
-6. `--scope testpro` says that output files will be created with the Rucio
+6. `--env NUM_EVENTS=1` sets the environment variable NUM_EVENTS. If you
+look back at the jobscript you will see this variable causes LArSoft to
+process just 1 event from the input file it is given.  
+7. `--scope testpro` says that output files will be created with the Rucio
 scope testpro, which any DUNE member can write to. Output files will be
 created with Rucio Data Identifiers (DIDs) like testpro:aaaa.root
-7. `--output pattern '*_reco_data_*.root:output-test-01'` tells justIN to
+8. `--output pattern '*_reco_data_*.root:output-test-01'` tells justIN to
 look for output files matching the shell wildcard expression
 `*_reco_data_*.root` in the working directory of the jobscript, when it
 finishes. `output-test-01` is the name of a Rucio dataset to add the output
 files to, and the full name of that dataset is `testpro:output-test-01`.
-8. `--env NUM_EVENTS=1` sets the environment variable NUM_EVENTS. If you
-look back at the jobscript you will see this variable causes LArSoft to
-process just 1 event from the input file. 
 
 The command doesn't tell justIN where to put the output files. There are
 options to try to steer outputs to particular groups of storages, but with
 the example command above they will be written to the closest accessible
 storage, based on where the job is running. The outputs are all registered
-in Rucio, so it's still easy to find them whereever they are written. 
+in Rucio, so it's still easy to find them wherever they are written. 
 
 Go ahead and do the `justin quick-request` command shown above, and then
-watch its progress via the justIN dashboard.
+watch its progress via the justIN dashboard. Find the request's page and 
+look at the states of the input files and the jobs being created in the 
+tables on that page.
 
+Once all the files get to terminal states (processed, failed etc) then
+justIN sets the state of the request itself to finished and stops allocating
+any more jobs to it.
+
+<!--
 ## Interactive testing of jobscripts 
+
+If you need to created or modify jobscripts yourself, then you need to learn
+how to test them. This is especially important since you do not want to
+create thousands of failing jobs, wasting your time, wasting the site's
+hardware, and wasting electricity.
+
+justIN provides the script `justin-test-jobscript` which allows you to run a
+jobscript interactively on your computer. In jobs at remote sites, justIN runs
+your jobscripts inside a Singularity container. The `justin-test-jobscript`
+command runs your jobscript using the same container format and so provides
+a very realistic test of your script. The command is available to you after 
+using the same `setup justin` command as for `justin` itself.
+
+You do also need to have a valid DUNE VOMS proxy and have MetaCat and Rucio
+set up.
+
 
 ## Rapid Code Distribution to jobs via cvmfs
 
 Part of this section has to be done on a computer at Fermilab. 
+-->
