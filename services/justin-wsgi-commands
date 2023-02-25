@@ -28,6 +28,8 @@ import string
 import socket
 import secrets
 import datetime
+import urllib.request
+import rucio.client
 
 import justin
 
@@ -218,42 +220,131 @@ def showStageOutputsCmd(startResponse, jsonDict):
    
   return httpOK(startResponse, outputString)
 
+def queryMetaCat(mql):
+
+  try:
+    response = urllib.request.urlopen(
+              "https://metacat.fnal.gov:9443/dune_meta_demo/app/data/query?"
+              "with_meta=no&with_provenance=no",
+              data = mql.encode() )
+
+    if response.status != 200:
+      print("Reading files list from MetaCat fails with HTTP code "
+                + str(response.status), file=sys.stderr)
+      return None
+
+    fileLines = response.readlines()
+  except Exception as e:    
+    print("Reading files list from MetaCat fails with: " + str(e), 
+          file=sys.stderr)
+    return None
+
+  fileDIDs = []
+
+  for fileLine in fileLines:
+    if fileLine[0] < 32:
+      fileLine = fileLine[1:]
+
+    try:
+      fileDict = json.loads(fileLine)
+    except Exception as e:
+      print('JSON parse of %s fails: %s' % (str(fileLine), str(e)))
+      return None
+    else:
+      fileDIDs.append({'scope' : fileDict['namespace'], 
+                       'name'  : fileDict['name']       })
+
+  return fileDIDs
+
+def queryRucio(fileDIDs):
+
+  # Check we can talk to Rucio
+  try:
+    repClient = \
+     rucio.client.replicaclient.ReplicaClient(rucio_host = 'https://dune-rucio.fnal.gov',
+                        auth_host = 'https://auth-dune-rucio.fnal.gov',
+                        ca_cert   = '/etc/grid-security/certificates',
+                        auth_type = 'x509', 
+                        account   = 'dunepro',
+                        creds     = {'client_cert': '/var/lib/justin/dunepro.proxy.pem'})
+##### NEEDS CHANGING ONCE justin-jobs-production IS IN RUCIO FOR dunepro
+#                        creds     = {'client_cert': '/var/lib/justin/justin-jobs-production.proxy.pem'})
+  except Exception as e:
+    print("Connect to Rucio fails with: " + str(e), file=sys.stderr)
+    return None
+  
+  # Use the Rucio API to get a big list of replicas for the files
+  try:
+    wanRepsList = repClient.list_replicas(fileDIDs,
+                                          schemes=['root'], 
+                                          domain='wan')
+
+  except Exception as e:
+    print("Reading RSE replicas info fails with: " + str(e), file=sys.stderr)
+    return None
+
+  output = ''
+  for rep in list(wanRepsList):
+    for rse in rep['rses']:
+      output += '%s:%s %s %s\n' % (rep['scope'],
+                                 rep['name'],
+                                 rep['rses'][rse][0],
+                                 rse)
+
+  return output
+
 def showFilesCmd(startResponse, jsonDict):
 
+  try:
+    mql = jsonDict['mql']  
+  except:
+    mql = None
+  
   try:
     requestID = int(jsonDict['request_id'])
   except:
     requestID = None
 
+  if (mql and requestID) or (not mql and not requestID):
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Request ID or MQL must be given (but not both)')
+  
+  if mql:
+    fileDIDs = queryMetaCat(mql)
+    if fileDIDs is None:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'query error')
+
+    outputString = ''
+    for oneDID in fileDIDs:
+      outputString += '%s:%s\n' % (oneDID['scope'], oneDID['name'])
+    return httpOK(startResponse, outputString)
+  
+  filter = ''
+
   try:
-    stageID = int(jsonDict['stage_id'])
-  except:
-    stageID = None
+    filter += 'AND files.stage_id=%d ' % int(jsonDict['stage_id'])
+  except: 
+    pass
 
   try:
     fileDID = jsonDict['file_did']
+
+    if not justin.stringIsDID(fileDID):
+      raise
+
+    filter += 'AND files.file_did="%s" ' % fileDID
   except:
-    fileDID = None
-
-  if fileDID is None and requestID is None:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Either file DID or request ID must be given')
-
-  if fileDID and not requestID:
-    filter = "file_did='%s'" % fileDID
-  elif requestID:
-    filter = "request_id=%d" % requestID
-    
-    if stageID:
-      filter += " AND stage_id=%d" % stageID
-    
-    if fileDID:
-      filter += " AND file_did='%s'" % fileDID
+    pass
 
   try:
-    rows = justin.db.select("SELECT * FROM files WHERE " + filter +
-                         " ORDER BY request_id,stage_id,file_did")
+    rows = justin.db.select("SELECT * FROM files "
+                            "WHERE request_id=%d %s "
+                            "AND files.stage_id > 0 "
+                            "ORDER BY request_id,stage_id,file_did LIMIT 100"
+                            % (requestID, filter))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -274,53 +365,73 @@ def showFilesCmd(startResponse, jsonDict):
 def showReplicasCmd(startResponse, jsonDict):
 
   try:
+    mql = jsonDict['mql']  
+  except:
+    mql = None
+  
+  try:
     requestID = int(jsonDict['request_id'])
   except:
     requestID = None
 
-  try:
-    stageID = int(jsonDict['stage_id'])
-  except:
-    stageID = None
-
-  if 'file_did' in jsonDict and jsonDict['file_did']:
-    fileDID = jsonDict['file_did']
-  else:
-    fileDID = None
-
-  try:
-    rseName = re.sub('[^A-Za-z0-9._-]+', '', str(jsonDict['rse_name'][0]))
-  except:
-    rseName = None
-    
-  if fileDID is None and requestID is None:
+  if (mql and requestID) or (not mql and not requestID):
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Either file DID or request ID must be given')
+                     'Request ID or MQL must be given (but not both)')
 
-  if fileDID and not requestID:
-    filter = "files.file_did='%s'" % fileDID
-  elif requestID:
-    filter = "files.request_id=%d" % requestID
-    
-    if stageID:
-      filter += " AND files.stage_id=%d" % stageID
-    
-    if fileDID:
-      filter += " AND files.file_did='%s'" % fileDID
+  if mql:
+    fileDIDs = queryMetaCat(mql)
+    if fileDIDs is None:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'query error')
 
-  if rseName:
-    filter += " AND storages.rse_name='%s'" % rseName
+    outputString = queryRucio(fileDIDs)
+
+    if outputString is None:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'query error')
+
+    return httpOK(startResponse, outputString)
+
+  filter = ''
+
+  try:
+    filter += 'AND files.stage_id=%d ' % int(jsonDict['stage_id'])
+  except: 
+    pass
+
+  try:
+    fileDID = jsonDict['file_did']
+
+    if not justin.stringIsDID(fileDID):
+      raise
+
+    filter += 'AND files.file_did="%s" ' % fileDID
+  except:
+    pass
+
+  try:
+    rseName = jsonDict['rse_name']
+
+    if not justin.stringIsSite(rseName):
+      raise
+
+    filter += 'AND storages.rse_name="%s" ' % rseName
+  except:
+    pass
 
   try:
     rows = justin.db.select("SELECT replicas.request_id,replicas.stage_id,"
-                         "files.state,"
-                         "storages.rse_name,files.file_did "
+                 "files.state,"
+                 "storages.rse_name,files.file_did,replicas.wan_pfn "
                  "FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
                  "LEFT JOIN files ON replicas.file_id=files.file_id "
-                 "WHERE " + filter + " ORDER BY "
-                 "files.request_id,files.stage_id,files.file_did")
+                 "WHERE request_id=%d %s AND replicas.stage_id > 0 ORDER BY "
+                 "files.request_id,files.stage_id,files.file_did LIMIT 100"
+                 % (requestID, filter))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -328,92 +439,15 @@ def showReplicasCmd(startResponse, jsonDict):
 
   outputString = ''
   for row in rows:
-    outputString += ("%5d %2d %-11s %-15s %s\n" % 
+    outputString += ("%5d %2d %-11s %s %s %s\n" %
                      (row['request_id'],
                       row['stage_id'],
                       row['state'],
-                      row['rse_name'],           
-                      row['file_did']
+                      row['file_did'],
+                      row['rse_name'],
+                      row['wan_pfn']
                      )
                     )
-   
-  return httpOK(startResponse, outputString)
-
-def showStoragesCmd(startResponse, jsonDict):
-
-  try:
-    rseName = re.sub('[^A-Za-z0-9._-]+', '', str(jsonDict['rse_name'][0]))
-    filter  = "WHERE rse_name='%s'" % rseName
-  except:
-    filter = ""
-
-  try:
-    rows = justin.db.select("SELECT rse_name,"
-                         "occupancy,"
-                         "rucio_write,"
-                         "rucio_read,"
-                         "justin_write,"
-                         "justin_read,"
-                         "(rucio_write AND justin_write) AS has_write,"
-                         "(rucio_read AND justin_read) AS has_read "
-                         "FROM storages " + filter + 
-                         " ORDER BY rse_name,occupancy")
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Error reading justIN database ' + str(e))
-
-  outputString = ''
-  for row in rows:
-    outputString += ("%-25s %.2f  %s=%s%s %s=%s%s\n" % 
-                     (row['rse_name'], 
-                      row['occupancy'],
-                      'R' if row['has_read']    else '-',
-                      'R' if row['rucio_read']  else '-',
-                      'R' if row['justin_read']    else '-',
-                      'W' if row['has_write']   else '-',
-                      'W' if row['rucio_write'] else '-',
-                      'W' if row['justin_write']   else '-'))
-
-  return httpOK(startResponse, outputString)
-
-def showSitesStoragesCmd(startResponse, jsonDict):
-
-  if 'site_name' in jsonDict and jsonDict['site_name']:
-    siteName = jsonDict['site_name']
-  else:
-    siteName = None
-
-  try:
-    rseName = re.sub('[^A-Za-z0-9._-]+', '', str(jsonDict['rse_name'][0]))
-  except:
-    rseName = None
-    
-  if siteName and rseName:
-    filter = "WHERE site_name='%s' AND rse_name='%s'" % (siteName, rseName)
-  elif siteName:
-    filter = "WHERE site_name='%s'" % siteName
-  elif rseName:
-    filter = "WHERE rse_name='%s'" % rseName
-  else:
-    filter = ""
-
-  try:
-    rows = justin.db.select("SELECT * FROM sites_storages " 
-                "LEFT JOIN storages ON sites_storages.rse_id=storages.rse_id "
-                "LEFT JOIN sites ON sites_storages.site_id=sites.site_id "
-                + filter +          
-                " ORDER BY site_name,rse_name")
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Error reading justIN database ' + str(e))
-
-  outputString = ''
-  for row in rows:
-    outputString += ("%-20s %-22s %5.1f\n" % 
-                     (row['site_name'], row['rse_name'],
-                      row['distance']))
    
   return httpOK(startResponse, outputString)
 
@@ -1572,12 +1606,6 @@ def application(environ, startResponse):
 
   if jsonDict['command'] == 'show-replicas':
     return showReplicasCmd(startResponse, jsonDict)
-
-  if jsonDict['command'] == 'show-storages':
-    return showStoragesCmd(startResponse, jsonDict)
-
-  if jsonDict['command'] == 'show-sites-storages':
-    return showSitesStoragesCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'create-request':
     return createRequestCmd(startResponse, jsonDict, user)

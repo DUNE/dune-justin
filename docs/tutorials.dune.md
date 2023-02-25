@@ -124,7 +124,7 @@ The real power of justIN is in matching files and jobs based on locations.
 To see this in action we need to learn how to specify the input files to
 process and understand how outputs are specified and where they are put.
 
-This section uses a workflow from the 2022 DC4 data challenge and shows you
+This section uses a workflow from Data Challenge 4 and shows you
 how to repeat part of it. We'll run LArSoft to process some data that is
 registered in MetaCat and Rucio, and temporarily store the output files in
 Rucio-managed storage at remote sites.
@@ -140,8 +140,8 @@ VD coldbox files. For this tutorial though, please use this command:
     justin quick-request \
     --mql \
     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-    --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 --rss-mb 4000 \
-    --env NUM_EVENTS=1 --scope testpro \
+    --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 \
+    --rss-mb 4000 --env NUM_EVENTS=1 --scope testpro \
     --output-pattern '*_reco_data_*.root:output-test-01'
     
 What is this doing?
@@ -184,10 +184,9 @@ Once all the files get to terminal states (processed, failed etc) then
 justIN sets the state of the request itself to finished and stops allocating
 any more jobs to it.
 
-<!--
 ## Interactive testing of jobscripts 
 
-If you need to created or modify jobscripts yourself, then you need to learn
+If you need to create or modify jobscripts yourself then you need to learn
 how to test them. This is especially important since you do not want to
 create thousands of failing jobs, wasting your time, wasting the site's
 hardware, and wasting electricity.
@@ -199,10 +198,66 @@ command runs your jobscript using the same container format and so provides
 a very realistic test of your script. The command is available to you after 
 using the same `setup justin` command as for `justin` itself.
 
-You do also need to have a valid DUNE VOMS proxy and have MetaCat and Rucio
-set up.
+If your jobscript reads from remote storage, you also need to have a valid
+DUNE VOMS proxy created with voms-proxy-init. On a dunegpvm machine
+do something like this:
 
+    rm -f /tmp/x509up_u`id -u`
+    kx509
+    voms-proxy-init -noregen -rfc -voms dune:/dune/Role=Analysis
 
+`justin-test-jobscript` will pass this proxy to
+your jobscript using the environment variable `$X509_USER_PROXY`. Commands like
+`xrdcp` and `lar` use this variable to find the proxy automatically. You
+should not try to write to storage from your jobscript though. In jobs,
+justIN handles that for you using the `--output-pattern` mechanism and the
+proxy your jobscript will have there does not have write privileges itself.
+
+Let's rerun the Data Challenge 4 jobscript we used in the previous section,
+but this time use a local copy and run it interactively. First get a copy
+of the jobscript in your current directory:
+
+    justin show-jobscript --jobscript-id dc4-vd-coldbox-top:default \
+      > my-dc4-vd-coldbox-top.jobscript
+
+Have a look at it with your favourite text editor and maybe add an extra
+line  before the fcl file comment. So it reads:
+
+    echo 'My version of this jobscript!'
+    # fcl file and DUNE software version/qualifier to be used
+
+Now run it with `justin-test-jobscript`. All of the files it creates are
+made under /tmp in the directory name it prints out.
+
+    justin-test-jobscript --mql \
+     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+     --jobscript my-dc4-vd-coldbox-top.jobscript \
+     --env NUM_EVENTS=1
+
+This should only take a couple of minutes to run as we limited it to process
+one event. Even though the MQL still says `limit 10`, only one input file
+is given to the jobscript. You will see the output of the commands inside the 
+jobscript as they happen, and the output ends with a directory listing of the 
+workspace directory where they all ran. 
+This is left in place so you can look through the outputs and any logs 
+you created. If you produced any large files, please 
+delete the directory in /tmp when you're finished.
+
+If you want to test your jobscript running in real jobs, you can repeat the
+quick-request with these options:
+
+    justin quick-request \
+    --mql \
+    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+    --jobscript my-dc4-vd-coldbox-top.jobscript --max-distance 30 \
+    --rss-mb 4000 --env NUM_EVENTS=1 --scope testpro \
+    --output-pattern '*_reco_data_*.root:output-test-01'
+
+As you can see, you just need to change 
+`--jobscript-id dc4-vd-coldbox-top:default'` to the option  
+`--jobscript my-dc4-vd-coldbox-top.jobscript` 
+    
+<!--
 ## Rapid Code Distribution to jobs via cvmfs
 
 Part of this section has to be done on a computer at Fermilab. 

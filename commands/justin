@@ -40,7 +40,7 @@ def body(buf):
 # PROGRAM MAIN !!!
 # 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(prog='justin', usage='justin COMMAND OPTIONS')
 
 commands = [ "create-request", 
              "submit-request", 
@@ -50,21 +50,18 @@ commands = [ "create-request",
              "create-stage", 
              "create-jobscript",
              "quick-request", 
-             "create-storage",
-             "create-site-storage",
              "show-requests", "show-stages", "show-jobscript",
              "show-stage-outputs",
              "show-files",
              "fail-files",
-             "show-replicas", "show-storages",
-             "show-sites-storages", "show-jobs",
+             "show-replicas", 
+             "show-jobs",
              "whoami",
              "time" ]
 
 parser.add_argument("command",
                     type = str,
-                    help = "justin command to execute: " +
-                           ' '.join(commands) )
+                    help = ' '.join(commands) )
 
 parser.add_argument("-v", 
                     "--verbose",
@@ -192,8 +189,13 @@ parser.add_argument("--state",
 parser.add_argument("--url",
                     type = str,
                     help = "justIN service to contact")
+try:
+  args = parser.parse_args()
+except:
+  print('\nSee the justin(1) man page for detailed help and command syntax\n')
+  parser.print_help()
+  sys.exit(0)
 
-args = parser.parse_args()
 jsonDict = vars(args)
 
 if jsonDict['command'] == 'version':
@@ -329,8 +331,8 @@ except urllib.error.URLError as e:
             file=sys.stderr)
       sys.exit(22)
   
-    print(message)
-    sys.exit(0)
+    print(message, file=sys.stderr)
+    sys.exit(1)
 
   print('Connection error: ' + str(e), file=sys.stderr)
   sys.exit(21)

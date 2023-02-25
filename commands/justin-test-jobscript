@@ -18,7 +18,8 @@
 
 Script to allow interactive testing of justIN jobscripts
 
-1. Make sure you have rucio and metacat setup from cvmfs
+1. Make sure you have justin available and you have a current session:
+   Do   justin time   and do the authorize step if necessary
 2. Run this script with something like
 
 justin-test-jobscript --jobscript pfns-hello-world.jobscript \
@@ -29,6 +30,9 @@ justin-test-jobscript --jobscript pfns-hello-world.jobscript \
    run in the workspace subdirectory of that with outputs left there
     
 EOF
+
+# Only we can read, in case users put anything sensitive in the jobscript
+umask 0077
 
 export JUSTIN_WORKDIR=`mktemp -d /tmp/justin-test-jobscript.XXXXXX`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
@@ -68,29 +72,22 @@ echo
 cp "$JOBSCRIPT" $JUSTIN_WORKDIR/home/justin-jobscript.sh
 chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
 
-echo "Execute metacat query $MQL | head -1"
-did=`metacat query "$MQL" | head -1`
+echo "Execute justin show-replicas for $MQL"
+replica=`justin show-replicas --mql "$MQL" | head -1`
 if [ $? != 0 ] ; then
-  echo "metacat query failed!"
+  echo "justin show-replicas failed!"
   exit 3
 fi
 
-if [ "$did" = "" ] ; then
- echo "Need a DID"
+if [ "$replica" = "" ] ; then
+ echo "No replica found"
  exit 4
-fi
-
-echo "Execute rucio list-file-replicas --pfns $did"
-pfn=`rucio list-file-replicas --protocols root --pfns $did | head -1`
-if [ "$pfn" = "" ] ; then
-  echo "No PFN obtained from Rucio!"
-  exit 5
 fi
 
 # Fake justin-get-file command using the values from MetaCat/Rucio
 cat <<EOF > $JUSTIN_WORKDIR/home/justin-get-file
 #!/bin/sh
-echo '$did $pfn XXX'
+echo '$replica'
 EOF
 chmod +x $JUSTIN_WORKDIR/home/justin-get-file
 

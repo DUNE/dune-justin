@@ -1,4 +1,4 @@
-## justin command man page
+# justin command man page
 This man page is distributed along with the 
 [justin command](justin_command.md) itself.
 
@@ -224,24 +224,6 @@ This man page is distributed along with the
                   whether the files are  passed  to  the  next  stage  within  the
                   request,  and  then  the dataset, scope, and files pattern them-
                   selves.
-    
-    
-           show-storages [--rse-name NAME]
-                  Shows information about Rucio Storage  Elements  cached  in  the
-                  justIN  Database,  optionally  limiting  output  to a single RSE
-                  using its name. Each line of the output consists of the RSE name
-                  followed  by  the  occupancy fraction obtained from Rucio in the
-                  range 0.0 to 1.0, and the Read, Write and Delete availability of
-                  the  RSE from Rucio, and whether the RSE will be included in the
-                  default list for output files.
-    
-    
-           show-sites-storages [--site-name NAME] [--rse-name NAME]
-                  Shows information about the distances of Rucio storage  elements
-                  relative  to  sites, optionally limited to the given site and/or
-                  RSE. Each line of the output gives the site name, RSE name,  and
-                  then their relative distance between 0 (same site) and 100 (max-
-                  imally remote).
     
     
            show-files [--request-id ID] [--stage-id ID] [--file-did DID]

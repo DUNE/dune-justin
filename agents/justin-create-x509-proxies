@@ -28,6 +28,9 @@ voms-proxy-init \
  -key  /etc/grid-security/userkey.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
+ 
+cp /tmp/x509up_u0 /var/lib/justin/dunepro.proxy.pem
+chown apache.apache /var/lib/justin/dunepro.proxy.pem
 
 echo
 echo '======= Create justin-jobs-production.proxy.pem'

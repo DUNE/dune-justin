@@ -553,7 +553,7 @@ def loginPage(startResponse, environ, authorize=False):
     return output
 
   if authorize:
-    output = header('/dashboard/', environ, '', "justIN: Authorize computer")
+    output = header(environ, '', "justIN: Authorize computer")
     output += '<h1 style="text-align: center">Authorize computer</h1>'
   else:
     output = header(environ, '', "justIN: Login")
@@ -3024,7 +3024,7 @@ def application(environ, startResponse):
     return [output.encode('UTF-8')]
 
   if environ['REQUEST_URI'].startswith('/authorize/'):
-    output = loginPage('/dashboard/', startResponse, environ, authorize=True)
+    output = loginPage(startResponse, environ, authorize=True)
     return [output.encode('UTF-8')]
 
   if environ['REQUEST_URI'].endswith('&login'):

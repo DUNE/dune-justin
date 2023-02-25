@@ -248,36 +248,6 @@ depending on whether the files are passed to the next stage within the
 request, and then the dataset, scope, and files pattern themselves.
 
 .HP
-.B "show-storages [--rse-name NAME]"
-.br
-Shows information about Rucio Storage Elements cached in the justIN
-Database, optionally limiting output to a single RSE using its name. Each
-line of the output consists of the RSE name followed by the occupancy
-fraction obtained from Rucio in the range 0.0 to 1.0, and the Read, Write
-and Delete availability of the RSE from Rucio, and whether the RSE will be
-included in the default list for output files.
-
-.HP
-.B "show-sites-storages [--site-name NAME] [--rse-name NAME]"
-.br
-Shows information about the distances of Rucio storage elements relative to
-sites, optionally limited to the given site and/or RSE. Each line of the
-output gives the site name, RSE name, and then their relative distance
-between 0 (same site) and 100 (maximally remote).
-
-.HP
-.B "show-files [--request-id ID] [--stage-id ID] [--file-did DID]"
-.br
-Shows files information cached in the justIN Database, either limited by 
-request ID and stage ID or by file DID. For each file, the request ID, stage
-ID, file state, and file DID are shown. The file state is one of "finding",
-"unallocated", "allocated", or "processed". Files wait in the "unallocated"
-state, are then allocated to an instance of the stage's script by justIN's
-allocator service, and then either return to "unallocated" or move to
-"processed" depending on whether the script is able to process them
-correctly.
-
-.HP
 .B "fail-files --request-id ID [--stage-id ID]"
 .br
 Set all the files of the given request, and optionally stage, to the failed
@@ -286,14 +256,25 @@ outputting state. Files in the processed, failed, or notfound states are
 unchanged. This allows requests with a handful of pathological files to
 be terminated, as the Finder agent will see all the files are now in terminal
 states and mark the request as finished.
-
-.HP
-.B "show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]"
+.P
+.B "show-files --request-id ID [--stage-id ID] [--file-did DID]"
 .br
-Shows file and replica information in the justIN Database, either limited by 
-request ID and stage ID or by file DID. For each replica of each file, the 
-request ID, stage ID, file state, RSE name, and file DID are shown. 
-
+.B "show-files --mql QUERY"
+.RS
+Show up to 100 files either cached in the justIN Database 
+and filtered by request ID and optionally by stage ID and/or file DID; or
+found by a query to MetaCat using the given MQL query.
+.RE
+.P
+.B "show-replicas --request-id ID [--stage-id ID] [--file-did DID]"
+.br
+.B "show-replicas --mql QUERY
+.RS
+Show up to 100 replicas either cached in the justIN Database
+and filtered by request ID and optionally by stage ID and/or file DID; or
+found by a query to MetaCat using the given MQL query and looked up using
+Rucio. 
+.RE
 .HP
 .B "show-jobs --jobsub-id ID | --request-id ID [--stage-id ID] [--state STATE]"
 .br
