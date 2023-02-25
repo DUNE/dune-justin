@@ -14,7 +14,7 @@ justin quick-request \
      --monte-carlo 1 \
      --jobscript hello-world.jobscript \
      --description 'Hello World!!!' \
-     --scope testpro \
+     --scope usertests \
      --output-pattern 'hello-world-*.txt:output-test-01'
 
 EOF

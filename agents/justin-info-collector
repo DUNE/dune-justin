@@ -500,8 +500,8 @@ def updateScopes():
         
     if rucioScopeName in duneproScopeNames:
       # A dunepro scope, that generic jobs can write to
-      if rucioScopeName == 'testpro':
-        # Any /dune member can write to testpro via justIN
+      if rucioScopeName == 'usertests':
+        # Any /dune member can write to usertests via justIN
         wlcgGroupID = duneWLCGGroupID
       else:
         # Everything else requires /dune/production group membership

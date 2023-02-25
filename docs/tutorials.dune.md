@@ -141,7 +141,7 @@ VD coldbox files. For this tutorial though, please use this command:
     --mql \
     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
     --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 \
-    --rss-mb 4000 --env NUM_EVENTS=1 --scope testpro \
+    --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
     
 What is this doing?
@@ -160,14 +160,14 @@ given, the default of 1 processor is requested.
 6. `--env NUM_EVENTS=1` sets the environment variable NUM_EVENTS. If you
 look back at the jobscript you will see this variable causes LArSoft to
 process just 1 event from the input file it is given.  
-7. `--scope testpro` says that output files will be created with the Rucio
-scope testpro, which any DUNE member can write to. Output files will be
-created with Rucio Data Identifiers (DIDs) like testpro:aaaa.root
+7. `--scope usertests` says that output files will be created with the Rucio
+scope usertests, which any DUNE member can write to. Output files will be
+created with Rucio Data Identifiers (DIDs) like usertests:aaaa.root
 8. `--output pattern '*_reco_data_*.root:output-test-01'` tells justIN to
 look for output files matching the shell wildcard expression
 `*_reco_data_*.root` in the working directory of the jobscript, when it
 finishes. `output-test-01` is the name of a Rucio dataset to add the output
-files to, and the full name of that dataset is `testpro:output-test-01`.
+files to, and the full name of that dataset is `usertests:output-test-01`.
 
 The command doesn't tell justIN where to put the output files. There are
 options to try to steer outputs to particular groups of storages, but with
@@ -250,7 +250,7 @@ quick-request with these options:
     --mql \
     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
     --jobscript my-dc4-vd-coldbox-top.jobscript --max-distance 30 \
-    --rss-mb 4000 --env NUM_EVENTS=1 --scope testpro \
+    --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
 
 As you can see, you just need to change 

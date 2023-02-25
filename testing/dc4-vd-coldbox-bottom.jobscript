@@ -2,14 +2,14 @@
 :<<EOF
 
 To use this jobscript to process 10 files from the dc4-vd-coldbox-bottom
-data and put the output in the dc4-vd-coldbox-bottom namespace (MetaCat) and 
-scope (Rucio), and in the dc4-vd-coldbox-bottom:test-01 dataset in MetaCat and
+data and put the output in the usertests namespace (MetaCat) and 
+scope (Rucio), and in the usertests:output-test-01 dataset in MetaCat and
 Rucio, use this command to create the request:
 
 justin quick-request \
 --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
 --jobscript dc4-vd-coldbox-bottom.jobscript --max-distance 30 --rss-mb 4000 \
---scope testpro --output-pattern '*_reco_data_*.root:output-test-01' 
+--scope usertests --output-pattern '*_reco_data_*.root:output-test-01' 
 
 The following optional environment variables can be set when creating the
 request/stage: FCL_FILE, NUM_EVENTS, DUNE_VERSION, DUNE_QUALIFIER 
