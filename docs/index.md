@@ -1,12 +1,8 @@
 # justIN workflow system documentation
 
-Versioned copies of this documentation are kept in the docs subdirectory
-of the [dune-justin GitHub repo](https://github.com/DUNE/dune-justin/). All the
-files are in written in Markdown and so they can be read directly from the 
-repository
-if necessary. For convenience, the version of the documentation from the 
-current release branch is available on the justIN dashboard
-[https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)
+justIN manages DUNE workflows on the grid. It allows you to process datasets 
+registered in MetaCat and Rucio and to run simulations, and implements the
+design described in the DUNE Offline Computing Conceptual Design Report.
 
 - [System Overview](overview.md)
 
@@ -15,6 +11,10 @@ current release branch is available on the justIN dashboard
 - [justin command](justin_command.md)
 - [Monte Carlo requests](monte_carlo.md)
 - [Jobscripts](jobscripts.md)
+
+## Tutorials
+
+- [DUNE Tutorial](tutorials.dune.md)
 
 ## System Components
 
@@ -30,6 +30,10 @@ current release branch is available on the justIN dashboard
 - [Generic jobs](generic_jobs.md)
 - [Files](files.md)
 
-## Tutorials
-
-- [DUNE Tutorial](tutorials.dune.md)
+Versioned copies of this documentation are kept in the docs subdirectory
+of the [dune-justin GitHub repo](https://github.com/DUNE/dune-justin/). All the
+files are in written in Markdown and so they can be read directly from the 
+repository
+if necessary. For convenience, the version of the documentation from the 
+current release branch is available on the justIN dashboard
+[https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)

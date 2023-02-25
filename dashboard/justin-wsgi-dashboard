@@ -267,7 +267,7 @@ def mainPage(environ, user):
   output = header(environ, user, "justIN: Dashboard")
 
   output += \
-     ('<h1 style="text-align: center">DUNE justIN service dashboard</h1>'
+     ('<h1 style="text-align: center">DUNE justIN service</h1>'
       '<table class="center main_page_table">')
 
   cells = [
