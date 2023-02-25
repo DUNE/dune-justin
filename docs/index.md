@@ -6,15 +6,15 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 
 - [System Overview](overview.md)
 
+## Tutorials
+
+- [DUNE Tutorial](tutorials.dune.md)
+
 ## User Guides
 
 - [justin command](justin_command.md)
 - [Monte Carlo requests](monte_carlo.md)
 - [Jobscripts](jobscripts.md)
-
-## Tutorials
-
-- [DUNE Tutorial](tutorials.dune.md)
 
 ## System Components
 
