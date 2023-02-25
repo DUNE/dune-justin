@@ -255,7 +255,8 @@ quick-request with these options:
 
 As you can see, you just need to change 
 `--jobscript-id dc4-vd-coldbox-top:default` to the option  
-`--jobscript my-dc4-vd-coldbox-top.jobscript` 
+`--jobscript my-dc4-vd-coldbox-top.jobscript` to use the local file as the
+jobscript.
     
 ## Rapid Code Distribution to jobs via cvmfs
 
