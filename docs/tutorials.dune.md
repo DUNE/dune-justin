@@ -76,8 +76,8 @@ where we want to run a certain number of jobs without inputs from storage,
 justIN creates virtual counter files for you, and allocates these to jobs
 one by one until they are "used up" when sufficient jobs have run. 
 
-justin quick-request will show you the request ID which is needed to find
-logs, jobs status etc. Please take note of that ID now.
+`justin quick-request` will have shown you the request ID which is needed to 
+find logs, jobs status etc. Please take note of that ID now.
 
 You can use 
 
@@ -214,7 +214,7 @@ justIN handles that for you using the `--output-pattern` mechanism and the
 proxy your jobscript will have there does not have write privileges itself.
 
 Let's rerun the Data Challenge 4 jobscript we used in the previous section,
-but this time use a local copy and run it interactively. First get a copy
+but this time use a local file and run it interactively. First get a copy
 of the jobscript in your current directory:
 
     justin show-jobscript --jobscript-id dc4-vd-coldbox-top:default \
