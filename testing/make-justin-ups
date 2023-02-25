@@ -59,7 +59,6 @@ echo "Prepend $MJU_PRODUCTS to \$PRODUCTS"
 export PRODUCTS="$MJU_PRODUCTS:$PRODUCTS"
 
 cp $MJU_GIT_DIR/dune-justin/commands/justin \
-   $MJU_GIT_DIR/dune-justin/modules/justin_version.py \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
