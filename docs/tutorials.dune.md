@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-This tutorial has been tested on the DUNE dunegpvm machines at Fermilab and on
+This tutorial has been tested on the DUNE dunegpvm computers at Fermilab and on
 lxplus at CERN. It should also work on similar Linux machines elsewhere but
 if you run into problems please use dunegpvmXX or lxplus instead.
 
@@ -25,7 +25,7 @@ environment from cvmfs and set up justin with these commands:
 
 You should see a version number displayed. 
 
-## Logging in from the command line 
+## Log in from the command line 
 
 Now we can start the tutorial itself.
 
@@ -199,7 +199,7 @@ a very realistic test of your script. The command is available to you after
 using the same `setup justin` command as for `justin` itself.
 
 If your jobscript reads from remote storage, you also need to have a valid
-DUNE VOMS proxy created with voms-proxy-init. On a dunegpvm machine
+DUNE VOMS proxy created with voms-proxy-init. On a dunegpvm computer
 do something like this:
 
     rm -f /tmp/x509up_u`id -u`
@@ -254,11 +254,114 @@ quick-request with these options:
     --output-pattern '*_reco_data_*.root:output-test-01'
 
 As you can see, you just need to change 
-`--jobscript-id dc4-vd-coldbox-top:default'` to the option  
+`--jobscript-id dc4-vd-coldbox-top:default` to the option  
 `--jobscript my-dc4-vd-coldbox-top.jobscript` 
     
-<!--
 ## Rapid Code Distribution to jobs via cvmfs
 
-Part of this section has to be done on a computer at Fermilab. 
--->
+Part of this section has to be done on a computer inside the Fermilab 
+firewall. Once this is done, you can do the rest on lxplus or other
+computers where you have set up the `justin` command.
+
+One of the best features of Jobsub is that it can create temporary
+directories in cvmfs with collections of files your jobs need. This uses
+Fermilab's Rapid Code Distribution Service (RCDS) and makes your files 
+available to your jobs at all conventional OSG and WLCG sites.
+
+This section shows you how to do this for justIN jobs too, using the 
+`justin-cvmfs-upload` command, which is available to you after 
+using the same `setup justin` command as for `justin` itself.
+
+First, you need to make a tar file containing the files you want to include.
+You don't need to be on a Fermilab computer for this step.
+
+    mkdir somedir
+    cd somedir
+    date > hello_world.txt
+    tar cvf hello_world.tar *
+
+Notice that you're not tarring up a
+directory. You are adding the individual files to make the tar file
+`hello_world.tar`. In this case the * wildcard character gets everything but
+you could list them individually if you want.
+
+Next, **on a Fermilab dunegpvm computer** which has the justin commands set up 
+and a copy of `hello_world.tar` in the current directory, do this:
+
+    rm -f /tmp/x509up_u`id -u`
+    kx509
+    INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`
+    echo $INPUT_TAR_DIR_LOCAL
+
+The first two lines make sure you have a valid X.509 proxy in place. If you
+need a VOMS proxy later on you'll need to rerun that too, but it's not
+needed for the rest of the tutorial.
+
+The third line runs `justin-cvmfs-upload` to send your tar file to the RCDS
+server. It waits until RCDS has unpacked the tar file and then puts the cvmfs
+directory in which it was unpacked in the environment variable 
+`$INPUT_TAR_DIR_LOCAL` You can use any name you like for that but I've
+picked that name to match the name used by Jobsub. If necessary, you can
+also upload more than one tar file and use them in the same jobscript, but 
+then you need to keep track of
+their directory names with different environment variables.
+
+Waiting for RDCS to return should only have taken about a minute, but it
+will take a few more minutes for the files to be visible on cvmfs. 
+
+The rest of this section does not have to be done at Fermilab, and so you 
+can switch back to lxplus if you were using it before. You need
+to make sure INPUT_TAR_DIR_LOCAL is set if you do change computers though.
+
+You can check the file's state in cvmfs using the environment variable. At 
+first you'll get `No such file or directory errors` but once it's there, 
+you can see the file in place with:
+
+    ls -l $INPUT_TAR_DIR_LOCAL
+
+It may take a bit longer for the cvmfs files to propogate to remove sites,
+and you should bear that in mind if you see errors in the jobs. 
+These files are likely to last about a month in cvmfs before they
+expire, but you should rerun the commands shown above to upload the tar file
+each day you submit requests that rely on it. Keep the same tar file and 
+reupload that, as RCDS records a hash of it and does not unpack a tar file
+it already has. 
+
+Since you know the directory contained in `$INPUT_TAR_DIR_LOCAL`, you could
+just hard code it in your jobscripts. But it's simpler to pass the
+environment variable itself to jobscripts. 
+
+Look at this example jobscript:
+
+    justin show-jobscript --jobscript-id testpro:cvmfs-hello-world
+
+The important lines are right at the end:
+
+    # Look at the file in cvmfs
+    echo "Contents of $INPUT_TAR_DIR_LOCAL/hello_world.txt"
+    cat $INPUT_TAR_DIR_LOCAL/hello_world.txt
+
+You can see it will use a local copy of the environment variable 
+`$INPUT_TAR_DIR_LOCAL` to find the
+`hello_world.txt` file in cvmfs and print it out. 
+
+This command creates a request to run it:
+
+    justin quick-request --monte-carlo 1 \
+     --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
+     --jobscript-id testpro:cvmfs-hello-world
+
+The `--env` line takes the `$INPUT_TAR_DIR_LOCAL` value from your computer
+and then tells justIN to set an environment variable with the same name
+when it runs the jobscript. 
+
+Try this now and look at the output through the dashboard.
+
+## More information
+
+There is a lot more about justIN in the docs area at
+[https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)
+
+When you `setup justin`, you also get the justin man page and 
+[that's on the website](https://justin.dune.hep.ac.uk/docs/justin_command.man_page.md)
+too.
