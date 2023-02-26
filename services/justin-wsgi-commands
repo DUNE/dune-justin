@@ -1205,7 +1205,7 @@ def createJobscriptCmd(startResponse, jsonDict, user):
   # Add a named jobscript to the jobscripts library NOT to a stage
 
   if 'jobscript' in jsonDict and jsonDict['jobscript']:
-    jobscript = jsonDict['jobscript']
+    jobscript = jsonDict['jobscript'] + '\n'
   else:
     return httpError(startResponse, 
                      '400 Bad Request', 

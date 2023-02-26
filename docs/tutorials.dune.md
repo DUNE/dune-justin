@@ -16,6 +16,10 @@ top right and follow the instructions. If you get back to the justIN
 dashboard with your NAME@fnal.gov shown in place of the Login button, you
 have the right registrations.
 
+For one section of the tutorial you will need to be able to create a VOMS
+proxy with the command `voms-proxy-init`, which anyone in DUNE should be
+able to do.
+
 Before following this tutorial, make sure you can initialise the DUNE UPS 
 environment from cvmfs and set up justin with these commands:
 
@@ -69,7 +73,8 @@ single stage requests with the quick-request subcommand:
     justin quick-request --monte-carlo 10 --jobscript-id testpro:hello-world
 
 If you execute this command now, justIN will take the jobscript
-testpro:hello-world and execute it in 10 jobs which require no input data
+testpro:hello-world from justIN's Jobscripts Library
+and execute it in 10 jobs which require no input data
 files (as if they were Monte Carlo jobs that start from scratch.) Normally 
 stages have a list of real input files on storages to process, but for cases
 where we want to run a certain number of jobs without inputs from storage,
@@ -79,7 +84,7 @@ one by one until they are "used up" when sufficient jobs have run.
 `justin quick-request` will have shown you the request ID which is needed to 
 find logs, jobs status etc. Please take note of that ID now.
 
-You can use 
+You can use
 
     justin show-jobscript --jobscript-id testpro:hello-world
 
@@ -206,6 +211,9 @@ do something like this:
     kx509
     voms-proxy-init -noregen -rfc -voms dune:/dune/Role=Analysis
 
+If you normally do something else to run `voms-proxy-init` and get a VOMS
+proxy with the Analysis role, then do that.
+
 `justin-test-jobscript` will pass this proxy to
 your jobscript using the environment variable `$X509_USER_PROXY`. Commands like
 `xrdcp` and `lar` use this variable to find the proxy automatically. You
@@ -286,7 +294,12 @@ directory. You are adding the individual files to make the tar file
 `hello_world.tar`. In this case the * wildcard character gets everything but
 you could list them individually if you want.
 
-Next, **on a Fermilab dunegpvm computer** which has the justin commands set up 
+Next, **on a Fermilab dunegpvm computer** which has the justin commands set 
+up like this if not already done so:
+
+    source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+    setup justin
+
 and a copy of `hello_world.tar` in the current directory, do this:
 
     rm -f /tmp/x509up_u`id -u`

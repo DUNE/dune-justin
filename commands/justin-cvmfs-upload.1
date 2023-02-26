@@ -1,0 +1,50 @@
+.TH JUSTIN  "2023" "justin-cvmfs-upload" "justIN Manual"
+.SH NAME
+.B justin-cvmfs-upload
+\- upload files to cvmfs via RCDS for justIN
+.SH SYNOPSIS
+.B justin-cvmfs-upload [--help] [--verbose] TAR_FILE
+.SH DESCRIPTION
+.B justin-cvmfs-upload
+is a command-line utility for upload one or more files contained in a tar
+archive file to cvmfs using the Fermilab Rapid Code Distribution Service 
+(RCDS). The full cvmfs path is then output by the command.
+
+.SH OPTIONS AND ARGUMENTS
+
+.HP 
+.B "-h, --help"
+.br
+Show help message and exit.
+
+.HP 
+.B "-v, --verbose"
+.br
+Turn on verbose logging.
+
+.HP 
+.B "TAR_FILE"
+.br
+A .tar archive file (not a tar.tgz compressed archive!) containing files to
+be uploaded to cvmfs via RCDS.
+
+.SH EXAMPLE
+
+.B justin-cvmfs-upload
+must be run on a computer inside the Fermilab firewall. You also need a 
+valid X.509 proxy, which you can readily create with the kx509 commnad. A
+VOMS proxy is not needed.
+ 
+.Dl "mkdir somedir"
+.Dl "cd somedir"
+.Dl "date > hello_world.txt"
+.Dl "tar cvf hello_world.tar *"
+.Dl "INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`"
+.Dl "echo $INPUT_TAR_DIR_LOCAL"
+.Pp
+
+.SH AUTHOR
+Andrew McNab <Andrew.McNab@cern.ch>
+
+.SH "SEE ALSO"
+justin(1)

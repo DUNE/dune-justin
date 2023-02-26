@@ -154,9 +154,14 @@ if args.verbose:
 
 try:
   tarFileContents = open(args.tar_file, 'rb').read()
+except:
+  print('Failed to read tar file from %s' % args.tar_file, file=sys.stderr)
+  sys.exit(2)
+
+try:
   hashString = hashlib.sha1(tarFileContents).hexdigest()
 except:
-  print('Failed to calculate sha1 hash of %s' % args.tar_file)
+  print('Failed to calculate sha1 hash of %s' % args.tar_file, file=sys.stderr)
   sys.exit(2)
 
 if args.verbose:

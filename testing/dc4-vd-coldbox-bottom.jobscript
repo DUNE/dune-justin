@@ -1,5 +1,5 @@
 #!/bin/bash
-:<<EOF
+:<<'EOF'
 
 To use this jobscript to process 10 files from the dc4-vd-coldbox-bottom
 data and put the output in the usertests namespace (MetaCat) and 

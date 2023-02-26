@@ -1,5 +1,5 @@
 #!/bin/sh
-:<<EOF
+:<<'EOF'
 Test of RCDS/cvmfs tar files access from JUSTIN jobs. You need to 
 set up the justin commands 
 
