@@ -40,6 +40,6 @@ COPY agents/wfs.logrotate /etc/logrotate.d/justin
 COPY  genericjobs/run-jobsub-submit /var/lib/justin/
 COPY  genericjobs/wfs-generic-job   /var/lib/justin/
 
-RUN ls -l /usr/lib/python3.6/
+RUN ls -la /usr/lib/python3.6/site-packages/
 
 ENTRYPOINT ["/usr/sbin/workflowEntrypoint.sh"]
