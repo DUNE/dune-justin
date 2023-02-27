@@ -3,7 +3,7 @@ FROM centos:7
 USER root
 
 RUN yum update -y
-RUN yum -y install httpd httpd-tools mod_ssl openssl expect
+RUN yum -y install httpd httpd-tools mod_ssl mod_wsgi openssl expect
 RUN yum install -y epel-release
 RUN yum install -y certbot python2-certbot-apache
 
