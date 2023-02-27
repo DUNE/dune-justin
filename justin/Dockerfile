@@ -23,4 +23,23 @@ RUN python3 -m pip install rucio
 # RUN ln -s dune-wfs/modules wfs
 # RUN cd dune-wfs/agents; ln -s ../modules/modules wfs
 
+COPY agents/wfs-info-collector /usr/sbin/justin-info-collector
+COPY agents/wfs-finder         /usr/sbin/justin-finder
+COPY agents/wfs-finder-fnal    /usr/sbin/justin-finder-fnal
+COPY agents/wfs-job-factory    /usr/sbin/justin-job-factory
+COPY agents/wfs-stage-cache    /usr/sbin/justin-stage-cache
+
+COPY agents/wfs-info-collector.service /usr/lib/systemd/system/justin-info-collector.service
+COPY agents/wfs-finder.service         /usr/lib/systemd/system/justin-finder.service
+COPY agents/wfs-finder-fnal.service    /usr/lib/systemd/system/justin-finder-fnal.service
+COPY agents/wfs-job-factory.service    /usr/lib/systemd/system/justin-job-factory.service
+COPY agents/wfs-stage-cache.service    /usr/lib/systemd/system/justin-stage-cache.service
+
+COPY agents/wfs.logrotate /etc/logrotate.d/justin
+
+COPY  genericjobs/run-jobsub-submit /var/lib/justin/
+COPY  genericjobs/wfs-generic-job   /var/lib/justin/
+
+RUN ls -l /usr/lib/python3.6/
+
 ENTRYPOINT ["/usr/sbin/workflowEntrypoint.sh"]
