@@ -48,8 +48,6 @@ COPY modules/db.py        /usr/lib/python3.6/site-packages/justin/
 COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
 COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
 
-RUN ls -l /usr/sbin/justin*
-RUN ls -l /etc/logrotate.d/
-RUN ls -l /var/lib/justin/
+COPY justin/justinEntrypoint.sh /usr/sbin/
 
 ENTRYPOINT ["/usr/sbin/justinEntrypoint.sh"]
