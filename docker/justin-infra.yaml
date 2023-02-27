@@ -11,7 +11,7 @@ services:
     # image: centos/httpd-24-centos7
     build:
       context: ..
-      dockerfile: httpd/Dockerfile
+      dockerfile: docker/httpd/Dockerfile
     expose:
       - 80
     ports:
