@@ -29,6 +29,8 @@ COPY agents/wfs-finder-fnal    /usr/sbin/justin-finder-fnal
 COPY agents/wfs-job-factory    /usr/sbin/justin-job-factory
 COPY agents/wfs-stage-cache    /usr/sbin/justin-stage-cache
 
+RUN ls -l /usr/sbin/justin*
+
 COPY agents/wfs-info-collector.service /usr/lib/systemd/system/justin-info-collector.service
 COPY agents/wfs-finder.service         /usr/lib/systemd/system/justin-finder.service
 COPY agents/wfs-finder-fnal.service    /usr/lib/systemd/system/justin-finder-fnal.service
@@ -47,5 +49,8 @@ COPY modules/conf.py      /usr/lib/python3.6/site-packages/justin/
 COPY modules/db.py        /usr/lib/python3.6/site-packages/justin/
 COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
 COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
+
+RUN ls -l /usr/sbin/justin*
+RUN ls -l /etc/logrotate.d/justin/
 
 ENTRYPOINT ["/usr/sbin/justinEntrypoint.sh"]
