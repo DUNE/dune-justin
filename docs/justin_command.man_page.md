@@ -226,18 +226,6 @@ This man page is distributed along with the
                   selves.
     
     
-           show-files [--request-id ID] [--stage-id ID] [--file-did DID]
-                  Shows files information cached in the  justIN  Database,  either
-                  limited  by  request  ID  and  stage ID or by file DID. For each
-                  file, the request ID, stage ID, file state,  and  file  DID  are
-                  shown. The file state is one of "finding", "unallocated", "allo-
-                  cated", or "processed". Files wait in the  "unallocated"  state,
-                  are  then  allocated  to  an  instance  of the stage's script by
-                  justIN's allocator service, and then either return  to  "unallo-
-                  cated" or move to "processed" depending on whether the script is
-                  able to process them correctly.
-    
-    
            fail-files --request-id ID [--stage-id ID]
                   Set all the files of the given request, and optionally stage, to
                   the  failed  state when they are already in the finding, unallo-
@@ -247,13 +235,18 @@ This man page is distributed along with the
                   Finder  agent  will see all the files are now in terminal states
                   and mark the request as finished.
     
+           show-files --request-id ID [--stage-id ID] [--file-did DID]
+           show-files --mql QUERY
+                  Show up to 100 files either cached in the  justIN  Database  and
+                  filtered  by  request  ID and optionally by stage ID and/or file
+                  DID; or found by a query to MetaCat using the given MQL query.
     
-           show-replicas [--request-id ID] [--stage-id ID] [--file-did DID]
-                  Shows file and  replica  information  in  the  justIN  Database,
-                  either  limited  by  request ID and stage ID or by file DID. For
-                  each replica of each file, the request ID, stage ID, file state,
-                  RSE name, and file DID are shown.
-    
+           show-replicas --request-id ID [--stage-id ID] [--file-did DID]
+           show-replicas --mql QUERY
+                  Show up to 100 replicas either cached in the justIN Database and
+                  filtered  by  request  ID and optionally by stage ID and/or file
+                  DID; or found by a query to MetaCat using the  given  MQL  query
+                  and looked up using Rucio.
     
            show-jobs  --jobsub-id  ID  |  --request-id ID [--stage-id ID] [--state
                   STATE]

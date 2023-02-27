@@ -376,6 +376,5 @@ Try this now and look at the output through the dashboard.
 There is a lot more about justIN in the docs area at
 [https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)
 
-When you `setup justin`, you also get the justin man page and 
-[that's on the website](https://justin.dune.hep.ac.uk/docs/justin_command.man_page.md)
-too.
+When you `setup justin`, you also get the justin, justin-test-jobscript,
+and justin-cvmfs-upload  man pages.

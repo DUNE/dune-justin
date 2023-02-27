@@ -15,6 +15,8 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [justin command](justin_command.md)
 - [Monte Carlo requests](monte_carlo.md)
 - [Jobscripts](jobscripts.md)
+    - [Interactive testing](jobscripts.interactive_tests.md)
+    - [Rapid Code Distribution Service](jobscripts.rcds.md)
 
 ## System Components
 

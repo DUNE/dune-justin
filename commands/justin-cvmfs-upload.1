@@ -34,14 +34,15 @@ be uploaded to cvmfs via RCDS.
 must be run on a computer inside the Fermilab firewall. You also need a 
 valid X.509 proxy, which you can readily create with the kx509 commnad. A
 VOMS proxy is not needed.
- 
-.Dl "mkdir somedir"
-.Dl "cd somedir"
-.Dl "date > hello_world.txt"
-.Dl "tar cvf hello_world.tar *"
-.Dl "INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`"
-.Dl "echo $INPUT_TAR_DIR_LOCAL"
-.Pp
+
+.nf 
+mkdir somedir
+cd somedir
+date > hello_world.txt
+tar cvf hello_world.tar *
+INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`
+echo $INPUT_TAR_DIR_LOCAL
+.fi
 
 .SH AUTHOR
 Andrew McNab <Andrew.McNab@cern.ch>
