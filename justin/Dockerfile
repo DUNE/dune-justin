@@ -47,6 +47,5 @@ COPY modules/conf.py      /usr/lib/python3.6/site-packages/justin/
 COPY modules/db.py        /usr/lib/python3.6/site-packages/justin/
 COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
 COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
-  justin.dune.
 
 ENTRYPOINT ["/usr/sbin/workflowEntrypoint.sh"]
