@@ -8,10 +8,10 @@ volumes:
 services:
   apache:
     # image: "httpd:2.4"
-    image: centos/httpd-24-centos7
-    # build:
-    #   context: .
-    #   dockerfile: httpd/Dockerfile
+    # image: centos/httpd-24-centos7
+    build:
+      context: .
+      dockerfile: httpd/Dockerfile
     expose:
       - 80
     ports:
