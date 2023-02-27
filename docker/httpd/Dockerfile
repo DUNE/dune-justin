@@ -7,14 +7,16 @@ RUN yum -y install httpd httpd-tools mod_ssl openssl expect
 RUN yum install -y epel-release
 RUN yum install -y certbot python2-certbot-apache
 
-COPY dashboard/wfs-wsgi-dashboard /var/www/wsgi/justin-wsgi-dashboard-dev
-COPY services/wfs-wsgi-import-script /var/www/wsgi/justin-wsgi-import-script
-COPY services/wfs-wsgi-commands /var/www/wsgi/justin-wsgi-commands
-COPY services/wfs-wsgi-allocator /var/www/wsgi/justin-wsgi-allocator
+COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
+COPY services/justin-wsgi-import-script /var/www/wsgi/
+COPY services/justin-wsgi-commands      /var/www/wsgi/
+COPY services/justin-wsgi-allocator     /var/www/wsgi/
 
-COPY services/wfs.conf /etc/httpd/conf.d/
+COPY services/justin.conf /etc/httpd/conf.d/
 
 COPY docs/*.md /var/www/html/docs/
+
+COPY docker/httpd/httpdEntrypoint.sh /usr/local/apache2/
 
 USER 1001
 

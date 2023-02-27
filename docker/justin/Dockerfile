@@ -19,26 +19,22 @@ RUN python3 -m pip install rust
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install rucio
 
-# RUN git clone https://github.com/DUNE/dune-wfs.git
-# RUN ln -s dune-wfs/modules wfs
-# RUN cd dune-wfs/agents; ln -s ../modules/modules wfs
+COPY agents/justin-info-collector /usr/sbin/
+COPY agents/justin-finder         /usr/sbin/
+COPY agents/justin-finder-fnal    /usr/sbin/
+COPY agents/justin-job-factory    /usr/sbin/
+COPY agents/justin-stage-cache    /usr/sbin/
 
-COPY agents/wfs-info-collector /usr/sbin/justin-info-collector
-COPY agents/wfs-finder         /usr/sbin/justin-finder
-COPY agents/wfs-finder-fnal    /usr/sbin/justin-finder-fnal
-COPY agents/wfs-job-factory    /usr/sbin/justin-job-factory
-COPY agents/wfs-stage-cache    /usr/sbin/justin-stage-cache
-
-COPY agents/wfs-info-collector.service /usr/lib/systemd/system/justin-info-collector.service
-COPY agents/wfs-finder.service         /usr/lib/systemd/system/justin-finder.service
-COPY agents/wfs-finder-fnal.service    /usr/lib/systemd/system/justin-finder-fnal.service
-COPY agents/wfs-job-factory.service    /usr/lib/systemd/system/justin-job-factory.service
-COPY agents/wfs-stage-cache.service    /usr/lib/systemd/system/justin-stage-cache.service
+COPY agents/justin-info-collector.service /usr/lib/systemd/system/
+COPY agents/justin-finder.service         /usr/lib/systemd/system/
+COPY agents/justin-finder-fnal.service    /usr/lib/systemd/system/
+COPY agents/justin-job-factory.service    /usr/lib/systemd/system/
+COPY agents/justin-stage-cache.service    /usr/lib/systemd/system/
 
 COPY agents/wfs.logrotate /etc/logrotate.d/justin.logrotate
 
-COPY  genericjobs/run-jobsub-submit /var/lib/justin/
-COPY  genericjobs/wfs-generic-job   /var/lib/justin/
+COPY  genericjobs/run-jobsub-submit  /var/lib/justin/
+COPY  genericjobs/justin-generic-job /var/lib/justin/
 
 RUN mkdir /usr/lib/python3.6/site-packages/justin
 COPY modules/allocator.py /usr/lib/python3.6/site-packages/justin/

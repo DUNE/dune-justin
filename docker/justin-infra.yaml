@@ -10,18 +10,13 @@ services:
     # image: "httpd:2.4"
     # image: centos/httpd-24-centos7
     build:
-      context: .
+      context: ..
       dockerfile: httpd/Dockerfile
     expose:
       - 80
     ports:
       - 80:80
     volumes:
-      # - ./httpd/conf/httpd.conf:/etc/httpd/conf/httpd.conf
-      - ./httpd/conf.d/wfs.conf:/etc/httpd/conf.d/wfs.conf
-      - ./dashboard/dashboard-cgi:/var/www/cgi-bin/dashboard-cgi
-      - ./services/wfa-cgi:/var/www/cgi-bin/wfa-cgi
-      - ./services/wfdb-cgi:/var/www/cgi-bin/wfdb-cgi
 
   # letsencrypt:
   #   <<: *apache

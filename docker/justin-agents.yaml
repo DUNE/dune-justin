@@ -8,7 +8,7 @@ volumes:
 services:
   workflow:
     build:
-      context: .
+      context: ..
       dockerfile: justin/Dockerfile    
     # depends_on:
     volumes:
