@@ -11,7 +11,10 @@ COPY dashboard/wfs-wsgi-dashboard /var/www/wsgi/justin-wsgi-dashboard-dev
 COPY services/wfs-wsgi-import-script /var/www/wsgi/justin-wsgi-import-script
 COPY services/wfs-wsgi-commands /var/www/wsgi/justin-wsgi-commands
 COPY services/wfs-wsgi-allocator /var/www/wsgi/justin-wsgi-allocator
+
 COPY services/wfs.conf /etc/httpd/conf.d/
+
+COPY docs/*.md /var/www/html/docs/
 
 USER 1001
 
