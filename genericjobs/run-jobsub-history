@@ -1,8 +1,0 @@
-#!/bin/sh
-
-source /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
-source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
-setup jobsub_client
-setup cigetcert
-
-jobsub_history --user dunepro

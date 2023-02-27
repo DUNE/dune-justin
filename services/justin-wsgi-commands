@@ -1,0 +1,1631 @@
+#
+# justin-wsgi-commands - justIN commands API service
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This WSGI script relies on justin-api-import-script being run by
+# the mod_wsgi directive WSGIImportScript
+
+import os
+import re
+import sys
+import time
+import json
+import string
+import socket
+import secrets
+import datetime
+import urllib.request
+import rucio.client
+
+import justin
+
+def httpError(startResponse, code, message):
+
+  justin.db.conn.rollback()
+
+  print('justin-wsgi-commands fails with %s (%s)' % 
+        (code, str(message)), file=sys.stderr)
+
+  startResponse(code,
+                [('Content-type',   'text/plain'),
+                 ('Content-length', str(len(message)))
+                ])
+
+  return [(message + '\n').encode('UTF-8')]
+  
+def httpOK(startResponse, outputString):
+
+  justin.db.conn.commit()
+  startResponse('200 OK',
+                [('Content-type',   'text/plain'),
+                 ('Content-length', str(len(outputString)))
+                ])
+
+  return [outputString.encode('UTF-8')]
+  
+def timeCmd(startResponse):
+
+  return httpOK(startResponse, 
+                datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S UTC\n'))
+
+def whoamiCmd(startResponse, user):
+
+  outputString = \
+'''      User name : %s
+Session expires : %s UTC
+         Groups : %s
+''' % (user['user_name'], user['expires_time'], '  '.join(user['wlcg_groups']))
+
+  return httpOK(startResponse, outputString)
+
+def showRequestsCmd(startResponse, jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID    = None
+    requestFilter = ""
+  else:
+    requestFilter = "WHERE request_id=" + str(requestID)
+
+  try:
+    rows = justin.db.select("SELECT * FROM requests %s ORDER BY created" 
+                         % requestFilter)
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error reading justIN database ' + str(e))
+
+  outputString = ''
+  for row in rows:
+    outputString += ("%5d %-9s %s %s %s\n" % 
+                     (row['request_id'], row['state'],
+                      row['created'], row['description'], row['mql']))
+
+  return httpOK(startResponse, outputString)
+
+def showStagesCmd(startResponse, jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    return httpError(startResponse, '400 Bad Request', 'Request ID not given')
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    stageID    = None
+    stageFilter = ""
+  else:
+    stageFilter = "AND stage_id=" + str(stageID)
+
+  try:
+    rows = justin.db.select("SELECT * FROM stages WHERE request_id=%d %s "
+                         "ORDER BY request_id,stage_id" 
+                         % (requestID, stageFilter))
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error reading justIN database ' + str(e))
+
+  outputString = ''
+  for row in rows:
+    outputString += ("%5d %2d %d %d %d %.1f\n" % 
+                     (row['request_id'], 
+                      row['stage_id'], 
+                      row['processors'],
+                      row['wall_seconds'],
+                      row['rss_bytes'],
+                      row['max_distance'],
+                    ))
+
+  return httpOK(startResponse, outputString)
+
+def showJobscriptCmd(startResponse, jsonDict):
+
+  try:
+    jsid = jsonDict['jobscript_id'].lower()
+  except:
+    jsid = None
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID = 0
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    stageID = 0
+
+  if (jsid and (requestID or stageID)) or \
+     (not jsid and (not requestID or not stageID)):
+    return httpError(startResponse,
+                     '400 Bad Request', 
+          '--jobscript-id OR --request-id/--stage-id must be given')
+
+  if jsid:
+    # From Jobscripts Library with JSID
+    response = justin.lookupJobscript(jsid)
+    
+    if response['error']:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       response['error'])
+      
+    jobscript = response['jobscript']
+
+  else:
+    # From stage with requestID and stageID
+    query = ('SELECT jobscript FROM stages_jobscripts '
+             'WHERE request_id=%d AND stage_id=%d'
+             % (requestID, stageID))
+  
+    try:
+      row = justin.db.select(query, justOne = True)
+      jobscript = row['jobscript']
+    except Exception as e:
+      return httpError(startResponse, 
+                      '500 Internal Server Error', 
+                      'Error reading justIN database ' + str(e))
+
+  if not jobscript.endswith('\n'):
+    jobscript += '\n'
+
+  return httpOK(startResponse, jobscript)
+
+def showStageOutputsCmd(startResponse, jsonDict):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    return httpError(startResponse, '400 Bad Request', 'Request ID not given')
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
+
+  try:
+    rows = justin.db.select("SELECT * FROM stages_outputs "
+                         "WHERE request_id=%d AND stage_id=%d "
+                         "ORDER BY dataset,file_scope,file_pattern" 
+                         % (requestID, stageID))
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error reading justIN database ' + str(e))
+
+  outputString = ''
+  for row in rows:
+    nextStage = '(next)' if row['for_next_stage'] else '(    )'
+    outputString += ("%s %s %s %s\n" % (nextStage,
+                                        row['dataset'],
+                                        row['file_scope'],
+                                        row['file_pattern']))
+   
+  return httpOK(startResponse, outputString)
+
+def queryMetaCat(mql):
+
+  try:
+    response = urllib.request.urlopen(
+              "https://metacat.fnal.gov:9443/dune_meta_demo/app/data/query?"
+              "with_meta=no&with_provenance=no",
+              data = mql.encode() )
+
+    if response.status != 200:
+      print("Reading files list from MetaCat fails with HTTP code "
+                + str(response.status), file=sys.stderr)
+      return None
+
+    fileLines = response.readlines()
+  except Exception as e:    
+    print("Reading files list from MetaCat fails with: " + str(e), 
+          file=sys.stderr)
+    return None
+
+  fileDIDs = []
+
+  for fileLine in fileLines:
+    if fileLine[0] < 32:
+      fileLine = fileLine[1:]
+
+    try:
+      fileDict = json.loads(fileLine)
+    except Exception as e:
+      print('JSON parse of %s fails: %s' % (str(fileLine), str(e)))
+      return None
+    else:
+      fileDIDs.append({'scope' : fileDict['namespace'], 
+                       'name'  : fileDict['name']       })
+
+  return fileDIDs
+
+def queryRucio(fileDIDs):
+
+  # Check we can talk to Rucio
+  try:
+    repClient = \
+     rucio.client.replicaclient.ReplicaClient(rucio_host = 'https://dune-rucio.fnal.gov',
+                        auth_host = 'https://auth-dune-rucio.fnal.gov',
+                        ca_cert   = '/etc/grid-security/certificates',
+                        auth_type = 'x509', 
+                        account   = 'dunepro',
+                        creds     = {'client_cert': '/var/lib/justin/dunepro.proxy.pem'})
+##### NEEDS CHANGING ONCE justin-jobs-production IS IN RUCIO FOR dunepro
+#                        creds     = {'client_cert': '/var/lib/justin/justin-jobs-production.proxy.pem'})
+  except Exception as e:
+    print("Connect to Rucio fails with: " + str(e), file=sys.stderr)
+    return None
+  
+  # Use the Rucio API to get a big list of replicas for the files
+  try:
+    wanRepsList = repClient.list_replicas(fileDIDs,
+                                          schemes=['root'], 
+                                          domain='wan')
+
+  except Exception as e:
+    print("Reading RSE replicas info fails with: " + str(e), file=sys.stderr)
+    return None
+
+  output = ''
+  for rep in list(wanRepsList):
+    for rse in rep['rses']:
+      output += '%s:%s %s %s\n' % (rep['scope'],
+                                 rep['name'],
+                                 rep['rses'][rse][0],
+                                 rse)
+
+  return output
+
+def showFilesCmd(startResponse, jsonDict):
+
+  try:
+    mql = jsonDict['mql']  
+  except:
+    mql = None
+  
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID = None
+
+  if (mql and requestID) or (not mql and not requestID):
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Request ID or MQL must be given (but not both)')
+  
+  if mql:
+    fileDIDs = queryMetaCat(mql)
+    if fileDIDs is None:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'query error')
+
+    outputString = ''
+    for oneDID in fileDIDs:
+      outputString += '%s:%s\n' % (oneDID['scope'], oneDID['name'])
+    return httpOK(startResponse, outputString)
+  
+  filter = ''
+
+  try:
+    filter += 'AND files.stage_id=%d ' % int(jsonDict['stage_id'])
+  except: 
+    pass
+
+  try:
+    fileDID = jsonDict['file_did']
+
+    if not justin.stringIsDID(fileDID):
+      raise
+
+    filter += 'AND files.file_did="%s" ' % fileDID
+  except:
+    pass
+
+  try:
+    rows = justin.db.select("SELECT * FROM files "
+                            "WHERE request_id=%d %s "
+                            "AND files.stage_id > 0 "
+                            "ORDER BY request_id,stage_id,file_did LIMIT 100"
+                            % (requestID, filter))
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error reading justIN database ' + str(e))
+
+  outputString = ''
+  for row in rows:
+    outputString += ("%5d %2d %-11s %s\n" % 
+                     (row['request_id'],
+                      row['stage_id'],
+                      row['state'],
+                      row['file_did'],
+                     )
+                    )
+   
+  return httpOK(startResponse, outputString)
+
+def showReplicasCmd(startResponse, jsonDict):
+
+  try:
+    mql = jsonDict['mql']  
+  except:
+    mql = None
+  
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID = None
+
+  if (mql and requestID) or (not mql and not requestID):
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Request ID or MQL must be given (but not both)')
+
+  if mql:
+    fileDIDs = queryMetaCat(mql)
+    if fileDIDs is None:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'query error')
+
+    outputString = queryRucio(fileDIDs)
+
+    if outputString is None:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'query error')
+
+    return httpOK(startResponse, outputString)
+
+  filter = ''
+
+  try:
+    filter += 'AND files.stage_id=%d ' % int(jsonDict['stage_id'])
+  except: 
+    pass
+
+  try:
+    fileDID = jsonDict['file_did']
+
+    if not justin.stringIsDID(fileDID):
+      raise
+
+    filter += 'AND files.file_did="%s" ' % fileDID
+  except:
+    pass
+
+  try:
+    rseName = jsonDict['rse_name']
+
+    if not justin.stringIsSite(rseName):
+      raise
+
+    filter += 'AND storages.rse_name="%s" ' % rseName
+  except:
+    pass
+
+  try:
+    rows = justin.db.select("SELECT replicas.request_id,replicas.stage_id,"
+                 "files.state,"
+                 "storages.rse_name,files.file_did,replicas.wan_pfn "
+                 "FROM replicas "
+                 "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+                 "LEFT JOIN files ON replicas.file_id=files.file_id "
+                 "WHERE request_id=%d %s AND replicas.stage_id > 0 ORDER BY "
+                 "files.request_id,files.stage_id,files.file_did LIMIT 100"
+                 % (requestID, filter))
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error reading justIN database ' + str(e))
+
+  outputString = ''
+  for row in rows:
+    outputString += ("%5d %2d %-11s %s %s %s\n" %
+                     (row['request_id'],
+                      row['stage_id'],
+                      row['state'],
+                      row['file_did'],
+                      row['rse_name'],
+                      row['wan_pfn']
+                     )
+                    )
+   
+  return httpOK(startResponse, outputString)
+
+def createRequestCmd(startResponse, jsonDict, user):
+
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
+  else:
+    description = ''
+
+  if 'mql' in jsonDict and jsonDict['mql']:
+    mql = jsonDict['mql']
+  else:
+    mql = ''
+
+  if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
+    try:
+      mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'Monte Carlo option requires an integer count')
+
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so check the scope is known
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
+                          'FROM scopes '
+                          'LEFT JOIN wlcg_groups '
+                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                          'WHERE scope_name="%s"' % scopeName, 
+                          justOne=True)
+
+      wlcgGroupName = scopeRow['wlcg_group_name']
+      scopeID       = int(scopeRow['scope_id'])
+      if not scopeID:
+        raise
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scope)
+ 
+    if not wlcgGroupName:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'Scope %s has no group defined and cannot yet be '
+                       'used via justIN' % scopeName)
+
+    if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'You need to be in group %s to use scope %s' 
+                       % (wlcgGroupName, scopeName))
+  else:
+    scopeName = None
+    scopeID   = 0
+
+  if 'refind_interval_hours' in jsonDict and jsonDict['refind_interval_hours']:
+    try:
+      refindIntervalSeconds = int(jsonDict['refind_interval_hours'] * 3600)
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--refind-interval-hours requires an integer argument')
+  else:
+    refindIntervalSeconds = 0
+
+  if 'refind_start_date' in jsonDict and jsonDict['refind_start_date']:
+    try:
+      yyyymmdd = str(int(jsonDict['refind_start_date']))
+      refindStartDate = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                               yyyymmdd[4:6], 
+                                               yyyymmdd[6:8])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--refind-start-date requires a YYYYMMDD date')
+  else:
+    refindStartDate = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
+
+  if 'refind_duration_days' in jsonDict and jsonDict['refind_duration_days']:
+    try:
+      refindDurationDays = int(jsonDict['refind_duration_days'])
+      refindFinishDate = (
+                          datetime.datetime.today() +
+                          datetime.timedelta(refindDurationDays)
+                         ).strftime('%Y-%m-%d 23:59:59')
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       '--refind-duration-days requires an integeer')
+  else:
+    refindDurationDays = 1
+
+  try:
+    requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
+          'description="%s",'
+          'mql="%s",'
+          'scope_id=%d,'
+          'user_id=%d,'
+          'refind_seconds=%d,'
+          'refind_start_time="%s",'
+          'refind_end_time="%s"' %
+          (description,
+           mql,
+           scopeID,
+           user['user_id'],
+           refindIntervalSeconds,
+           refindStartDate,
+           refindFinishDate))
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error updating justIN database ' + str(e))
+
+  return httpOK(startResponse, str(requestID) + '\n')
+
+def quickRequestCmd(startResponse, jsonDict, user):
+
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
+  else:
+    description = ''
+
+  if 'mql' in jsonDict and jsonDict['mql']:
+    mql = jsonDict['mql']
+  else:
+    mql = ''
+
+  if 'max_distance' in jsonDict and jsonDict['max_distance']:
+    try:
+      maxDistance = float(jsonDict['max_distance'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request',
+                       '--max-distance option requires a numeric distance')
+  else:
+    maxDistance = 0.0
+
+  if 'max_files_per_job' in jsonDict and jsonDict['max_files_per_job']:
+    try:
+      maxFilesPerJob = int(jsonDict['max_files_per_job'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--max-files-per-job option requires an integer')
+  else:
+    maxFilesPerJob = 1
+
+  if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
+    try:
+      mql = 'monte-carlo %d' % int(jsonDict['monte_carlo'])
+      maxDistance = 100.0
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       'Monte Carlo option requires an integer count')
+      
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so check the scope is known
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
+                          'FROM scopes '
+                          'LEFT JOIN wlcg_groups '
+                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                          'WHERE scope_name="%s"' % scopeName, 
+                          justOne=True)
+
+      wlcgGroupName = scopeRow['wlcg_group_name']
+      scopeID       = int(scopeRow['scope_id'])
+      if not scopeID:
+        raise
+    except:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scopeName)
+ 
+    if not wlcgGroupName:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'Scope %s has no group defined and cannot yet be '
+                       'used via justIN' % scopeName)
+
+    if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'You need to be in group %s to use scope %s' 
+                       % (wlcgGroupName, scopeName))
+  else:
+    scopeName = None
+    scopeID   = 0
+
+  if 'refind_hours' in jsonDict and jsonDict['refind_hours']:
+    try:
+      refindSeconds = int(jsonDict['refind_hours'] * 3600)
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--refind-hours requires an integer argument')
+  else:
+    refindSeconds = 0
+
+  if 'refind_start' in jsonDict and jsonDict['refind_start']:
+    try:
+      yyyymmdd = str(int(jsonDict['refind_start']))
+      refindStart = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                           yyyymmdd[4:6], 
+                                           yyyymmdd[6:8])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--refind-start requires a YYYYMMDD date')
+  else:
+    refindStart = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
+
+  if 'refind_end' in jsonDict and jsonDict['refind_end']:
+    try:
+      yyyymmdd = str(int(jsonDict['refind_end']))
+      refindEnd = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+                                         yyyymmdd[4:6], 
+                                         yyyymmdd[6:8])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--refind-end requires a YYYYMMDD date')
+  else:
+    refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
+
+  try:
+    requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
+          'submitted=NOW(),'
+          'state="submitted",'
+          'description="%s",'
+          'mql="%s",'
+          'scope_id=%d,'
+          'user_id=%d,'
+          'refind_seconds=%d,'
+          'refind_start_time="%s",'
+          'refind_end_time="%s"' %
+          (description,
+           mql,
+           scopeID,
+           user['user_id'],
+           refindSeconds,
+           refindStart,
+           refindEnd))
+  except Exception as e:
+    return httpError(startResponse, '500 Internal Server Error',
+                     'Error updating justIN database ' + str(e))
+
+  try:
+    processors = int(jsonDict['processors'])
+  except:
+    processors = 1
+
+  try:
+    wallSeconds = int(jsonDict['wall_seconds'])
+  except:
+    wallSeconds = 80000
+
+  try:
+    rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
+  except:
+    rssBytes = 2000 * 1024 * 1024
+
+  jobscriptID = 0
+
+  try:
+    jobscript = jsonDict['jobscript']
+  except:
+    jobscript = None
+
+  if not jobscript:
+    try:
+      jsid = jsonDict['jobscript_id']
+    except:
+      jsid = None
+
+    if not jsid:
+      return httpError(startResponse, '400 Bad Request',
+                       '--jobscript or --jobscript-id must by given')
+
+    response = justin.lookupJobscript(jsid)
+    if response['error']:
+      return httpError(startResponse, '400 Bad Request', response['error'])
+
+    jobscript   = response['jobscript']
+    jobscriptID = response['jobscript_id']
+
+  try:
+    justin.db.insertUpdate("INSERT INTO stages SET "
+          "stage_rank=0,"
+          "request_id=%d,"
+          "stage_id=1,"
+          "jobscript_id=%d,"
+          "processors=%d,"
+          "wall_seconds=%d,"
+          "rss_bytes=%d,"
+          "max_distance=%f,"
+          "max_files_per_job=%d" 
+          % (requestID, jobscriptID, processors,
+             wallSeconds, rssBytes, maxDistance, maxFilesPerJob))
+          
+    justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
+          'request_id=%d,'
+          'stage_id=1,'
+          'jobscript="%s"' % 
+          (requestID, 
+           jobscript.replace('\\','\\\\').replace('"','\\"')))
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error updating justIN database ' + str(e))
+
+  try:
+    lifetimeDays = int(jsonDict['lifetime_days'])
+  except:
+    lifetimeDays = 1
+
+  if jsonDict['output_pattern'] and not scopeName:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     '--scope must by given too for --output-pattern')
+
+  if jsonDict['output_pattern']:
+    for i in jsonDict['output_pattern']:
+      splitList = i.split(':')
+       
+      if len(splitList) < 2:
+        continue
+    
+      pattern      = splitList[0]
+      datasetName  = splitList[1]
+
+      try:
+        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
+              'request_id=%d,'
+              'stage_id=1,'
+              'dataset="%s:%s",'
+              'file_pattern="%s",'
+              'lifetime_seconds=%d,'
+              'for_next_stage=FALSE' % 
+              (requestID,
+               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
+               pattern.replace('\\','\\\\').replace('"','\\"'),
+               lifetimeDays * 86400
+              )
+             )
+      except Exception as e:
+        return httpError(startResponse, 
+                        '500 Internal Server Error', 
+                        'Error updating justIN database ' + str(e))
+
+  if jsonDict['output_rse']:
+    for rseName in jsonDict['output_rse']:
+    
+      if not justin.db.stringIsSite(rseName):
+        return httpError(startResponse, '400 Bad Request', 'Invalid RSE name')
+
+      try:
+        justin.db.insertUpdate('INSERT INTO stages_output_storages SET '
+              'request_id=%d,'
+              'stage_id=1,'
+              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
+              (requestID, rseName))
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                          'Error updating justIN database ' + str(e))
+
+  if jsonDict['env']:
+    for envNameValue in jsonDict['env']:    
+      try:        
+        (envName,envValue) = envNameValue.split('=',1)
+      except:
+        return httpError(startResponse,
+                         '400 Bad Request',
+                         'Failed to parse --env option')
+
+      if not justin.db.stringIsEnvName(envName):
+        return httpError(startResponse, 
+                         '400 Bad Request', 
+                         'Invalid environment variable name')
+
+      try:
+        justin.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+              'request_id=%d,'
+              'stage_id=1,'
+              'env_name="%s",'
+              'env_value="%s"' % 
+              (requestID, 
+               envName, 
+               envValue.replace('\\','\\\\').replace('"','\\"')
+              ))
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating justIN database ' + str(e))
+
+  return httpOK(startResponse, str(requestID) + '\n')
+
+def modifyRequestCmds(startResponse, jsonDict, user):
+  # Generic handler for restart-request, submit-request, pause-request and
+  # finish-request
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Request ID must be given')
+
+  try:
+    row = justin.select('SELECT requests.user_id,requests.state,'
+                        'wlcg_group_name FROM requests '
+                        'LEFT JOIN scopes '
+                        'ON scopes.scope_id=requests.scope_id '
+                        'LEFT JOIN wlcg_groups '
+                        'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                        'WHERE requests.request_id=%d' % requestID,
+                        justOne = True)
+
+    requestUserID = int(row['user_id'])
+    requestState  = row['state']
+    wlcgGroupName = row['wlcg_group_name']
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Database error: ' + str(e))
+  
+  if requestUserID != user['user_id'] and \
+     wlcgGroupName not in user['wlcg_groups']:
+    return httpError(startResponse,
+                     '403 Forbidden',
+                     'You do not have permission to update that request')
+  
+  if jsonDict['command'] == 'submit-request':
+    if requestState != 'draft':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot submit a request that was already submitted')
+
+    query = ("UPDATE requests SET "
+             "state='submitted',submitted=NOW() "
+             "WHERE request_id=%d AND state='draft'" % requestID)
+
+  elif jsonDict['command'] == 'restart-request':
+    if requestState != 'paused':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot restart a request that is not paused')
+
+    query = ("UPDATE requests SET state='running' "
+             "WHERE request_id=%d AND state='paused'"
+             % requestID)
+
+  elif jsonDict['command'] == 'pause-request':
+    if requestState != 'running':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot pause a request that is not running')
+
+    query = ("UPDATE requests SET state='paused' "
+             "WHERE request_id=%d "
+             "AND state='running'" % requestID)
+
+  elif jsonDict['command'] == 'finish-request':
+    if requestState != 'running':
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'You cannot finish a request that is not running')
+
+    query = ("UPDATE requests SET state='finished' "
+             "WHERE request_id=%d "
+             "AND state='running'" % requestID)
+
+  try:
+    justin.insertUpdate(query)
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error updating justIN database ' + str(e))
+
+  return httpOK(startResponse, '')
+
+def createStageCmd(startResponse, jsonDict, user):
+
+  try:
+    requestID  = int(jsonDict['request_id'])
+    requestRow = justin.select('SELECT requests.scope_id,scope_name,'
+                           'wlcg_group_name,requests.user_id FROM requests '
+                           'LEFT JOIN scopes '
+                           'ON scopes.scope_id=requests.scope_id '
+                           'LEFT JOIN wlcg_groups '
+                           'ON wlcg_group.wlcg_group_id=scopes.wlcg_group_id '
+                           'WHERE request_id=%d' % requestID, 
+                           justOne = True)
+    requestUserID = int(requestRow['user_id'])
+    scopeID       = int(requestRow['scope_id'])
+    scopeName     = requestRow['scope_name']
+    wlcgGroupName = requestRow['wlcg_group_name']
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Valid request ID must be given')
+
+  if requestUserID != user['user_id'] and \
+     wlcgGroupName not in user['wlcg_groups']:
+    return httpError(startResponse, 
+                 '403 Forbidden', 
+                 'You do not have permission to add a stage to that request')
+
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Stage ID must be given')
+
+  try:
+    processors = int(jsonDict['processors'])
+  except:
+    processors = 1
+
+  try:
+    wallSeconds = int(jsonDict['wall_seconds'])
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Wall seconds must be given')
+
+  try:
+    rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'RSS MB must be given')
+
+  if 'max_distance' in jsonDict and jsonDict['max_distance']:
+    try:
+      maxDistance = float(jsonDict['max_distance'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--max-distance option requires a numeric distance')
+  else:
+    maxDistance = 0.0
+
+  if 'max_files_per_job' in jsonDict and jsonDict['max_files_per_job']:
+    try:
+      maxFilesPerJob = int(jsonDict['max_files_per_job'])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--max-files-per-job option requires an integer')
+  else:
+    maxFilesPerJob = 1
+
+  jobscriptID = 0
+
+  try:
+    jobscript = jsonDict['jobscript']
+  except:
+    jobscript = None
+
+  if not jobscript:
+    try:
+      jsid = jsonDict['jobscript_id']
+    except:
+      jsid = None
+
+    if not jsid:
+      return httpError(startResponse, '400 Bad Request',
+                       '--jobscript or --jobscript-id must by given')
+    
+    response = justin.lookupJobscript(jsid)
+    if response['error']:
+      return httpError(startResponse, '400 Bad Request', response['error'])
+
+    jobscript   = response['jobscript']
+    jobscriptID = response['jobscript_id']
+
+  try:
+    justin.db.insertUpdate("INSERT INTO stages SET "
+                        "stage_rank=0,"
+                        "request_id=%d,"
+                        "stage_id=%d,"
+                        "jobscript_id=%d,"
+                        "processors=%d,"
+                        "wall_seconds=%d,"
+                        "rss_bytes=%d,"
+                        "max_distance=%f," 
+                        "max_files_per_job=%d"
+                        % (requestID, stageID, 
+                           jobscriptID, processors,
+                           wallSeconds, rssBytes, maxDistance,
+                           maxFilesPerJob))
+          
+    justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
+                           'request_id=%d,'
+                           'stage_id=%d,'
+                           'jobscript="%s"' 
+                           % (requestID, stageID, 
+                         jobscript.replace('\\','\\\\').replace('"','\\"')))
+
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error updating justIN database ' + str(e))
+
+  try:
+    lifetimeDays = int(jsonDict['lifetime_days'])
+  except:
+    lifetimeDays = 1
+
+  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage']) \
+     and not scopeName:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Scope must be specified when creating the request if '
+                     '--output_pattern or '
+                     '--output_pattern_next_stage given for this stage')
+
+  if jsonDict['output_pattern']:
+    for i in jsonDict['output_pattern']:
+
+      splitList = i.split(':')
+
+      if len(splitList) < 2:
+        continue
+
+      pattern     = splitList[0]
+      datasetName = splitList[1]
+
+      try:
+        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'dataset="%s:%s",'
+              'file_pattern="%s",'
+              'lifetime_seconds=%d,'
+              'for_next_stage=FALSE' % 
+              (requestID, stageID,
+               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
+               pattern.replace('\\','\\\\').replace('"','\\"'),
+               lifetimeDays * 86400
+              )
+             )
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating justIN database ' + str(e))
+
+  if jsonDict['output_pattern_next_stage']:
+    for i in jsonDict['output_pattern_next_stage']:
+    
+      splitList = i.split(':')
+       
+      if len(splitList) < 2:
+        continue
+    
+      pattern      = splitList[0]
+      datasetName  = splitList[1]
+
+      try:        
+        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'dataset="%s:%s",'
+              'file_pattern="%s',
+              'lifetime_seconds=%d,'
+              'for_next_stage=TRUE' % 
+              (requestID, stageID,
+               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
+               pattern.replace('\\','\\\\').replace('"','\\"'),
+               lifetimeDays * 86400
+              )
+             )
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating justIN database ' + str(e))
+          
+  if jsonDict['output_rse']:
+    for rseName in jsonDict['output_rse']:
+    
+      if not justin.db.stringIsSite(rseName):
+        return httpError(startResponse, 
+                         '400 Bad Request', 
+                         'Invalid RSE name')
+
+      try:        
+        justin.db.insertUpdate('INSERT INTO stages_output_storages SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
+              (requestID, stageID, rseName))
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating justIN database ' + str(e))
+
+  if jsonDict['env']:
+    for envNameValue in jsonDict['env']:    
+      try:        
+        (envName,envValue) = envNameValue.split('=',1)
+      except:
+        return httpError(startResponse,
+                         '400 Bad Request',
+                         'Failed to parse --env option')
+
+      if not justin.db.stringIsEnvName(envName):
+        return httpError(startResponse, 
+                         '400 Bad Request', 
+                         'Invalid environment variable name')
+
+      try:
+        justin.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+              'request_id=%d,'
+              'stage_id=%d,'
+              'env_name="%s",'
+              'env_value="%s"' % 
+              (requestID, 
+               stageID, 
+               envName, 
+               envValue.replace('\\','\\\\').replace('"','\\"')
+              ))
+
+      except Exception as e:
+        return httpError(startResponse, 
+                         '500 Internal Server Error', 
+                         'Error updating justIN database ' + str(e))
+
+  return httpOK(startResponse, '')
+
+def createJobscriptCmd(startResponse, jsonDict, user):
+  # Add a named jobscript to the jobscripts library NOT to a stage
+
+  if 'jobscript' in jsonDict and jsonDict['jobscript']:
+    jobscript = jsonDict['jobscript'] + '\n'
+  else:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Uploaded jobscript is required')
+
+  if 'name' in jsonDict and jsonDict['name']:
+    name = jsonDict['name'].lower()
+  else:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'You must give a name for the jobscript')
+
+  if not justin.db.stringIsDomain(name):
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     'Jobscript name can only be characters a-z 0-9 - _ .')
+
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
+  else:
+    description = ''
+
+  if 'scope' in jsonDict and jsonDict['scope']:
+    # --scope option given, so find the scope
+    scopeName = jsonDict['scope'].lower()
+
+    if not justin.db.stringIsDomain(scopeName):
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Scope name can only be characters a-z 0-9 - _ .')
+
+    try:
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
+                           'FROM scopes '
+                           'LEFT JOIN wlcg_groups '
+                           'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                           'WHERE scope_name="%s"' % scopeName,
+                           justOne=True)
+      scopeID       = int(scopeRow['scope_id'])
+      wlcgGroupName = scopeRow['wlcg_group_name']
+    except Exception as e:
+      print('Finding scope fails: ' + str(e), file=sys.stderr)
+      return httpError(startResponse,
+                       '400 Bad Request', 
+                       'Failed to find scope %s in justIN database' % scopeName) 
+
+    if not wlcgGroupName:
+      return httpError(startResponse,
+                       '403 Forbidden',
+                       'Scope %s has no group defined and cannot yet be '
+                       'used via justIN' % scopeName)
+
+    if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse,
+                       '403 Forbidden', 
+                       'You need to be in group %s to use scope %s' 
+                       % (wlcgGroupName, scopeName))
+
+    jobscriptIdentifier = scopeName + ':' + name
+    jobscriptUserID = 0
+  else:
+    # No scope, so set user_id instead
+    scopeID = 0
+    jobscriptUserID = user['user_id']
+    jobscriptIdentifier = user['user_name'] + ':' + name
+
+  try:
+    # Check if jobscript with this user/scope and name exists already
+    row = justin.db.select('SELECT jobscript_id FROM jobscripts_library '
+                           'WHERE user_id=%d AND scope_id=%d AND '
+                           'jobscript_name="%s"'
+                           % (jobscriptUserID, scopeID, name), justOne = True)
+
+    jobscriptID = int(row['jobscript_id'])
+
+  except Exception as e:
+    print(str(e), file=sys.stderr)
+    # If not present, create one from scratch
+    try:
+      justin.db.insertUpdate('INSERT INTO jobscripts_library SET '
+                             'scope_id=%d,'
+                             'user_id=%d,'
+                             'author_id=%d,'
+                             'jobscript_name="%s",'
+                             'jobscript="%s",'
+                             'description="%s",'
+                             'created_time=NOW()'
+                       % (scopeID,
+                          jobscriptUserID,
+                          user['user_id'],
+                          name,
+                          jobscript.replace('\\','\\\\').replace('"','\\"'),
+                          description.replace('\\','\\\\').replace('"','\\"')
+                         ))
+
+    except Exception as e:
+      return httpError(startResponse, 
+                       '500 Internal Server Error', 
+                       'Error adding jobscript to library: ' + str(e))   
+  else:
+    # Already there, so update it with the new values
+    try:
+      justin.db.insertUpdate('UPDATE jobscripts_library SET '
+                             'jobscript="%s",'
+                             'author_id=%d,'
+                             'description="%s",'
+                             'created_time=NOW() '
+                             'WHERE jobscript_id=%d '
+                       % (jobscript.replace('\\','\\\\').replace('"','\\"'),
+                          user['user_id'],
+                          description.replace('\\','\\\\').replace('"','\\"'),
+                          jobscriptID))
+
+    except Exception as e:
+      return httpError(startResponse, 
+                       '500 Internal Server Error', 
+                       'Error updating jobscript in library: ' + str(e))
+
+  return httpOK(startResponse, jobscriptIdentifier + '\n')
+
+def failFilesCmd(startResponse, jsonDict, user):
+
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Request ID must be given')
+
+  try:
+    row = justin.select('SELECT requests.user_id,wlcg_group_name '
+                        'FROM requests '
+                        'LEFT JOIN scopes '
+                        'ON scopes.scope_id=requests.scope_id '
+                        'LEFT JOIN wlcg_groups '
+                        'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                        'WHERE requests.request_id=%d' % requestID)
+
+    requestUserID = row['user_id']
+    wlcgGroupName = row['wlcg_group_name']
+  except:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Database error')
+  
+  if requestUserID != user['user_id'] and \
+     wlcgGroupName not in user['wlcg_groups']:
+    return httpError(startResponse,
+                     '403 Forbidden',
+                     'You do not have permission to update that request')
+
+  try:
+    stageID  = int(jsonDict['stage_id'])
+    stageStr = 'AND stage_id=%d' % stageID
+  except:
+    stageStr = ''
+
+  try:
+    justin.db.insertUpdate('UPDATE files SET state="failed" '
+          'WHERE request_id=%d %s '
+          'AND state IN ("finding", "unallocated", "allocated", "outputting")'
+          % (requestID, stageStr))
+
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error updating justIN database ' + str(e))
+
+  return httpOK(startResponse, '')
+
+def showJobsCmd(startResponse, jsonDict):
+
+  try:
+    jobsubID = jsonDict['jobsub_id']
+  except:
+    jobsubID = None
+  
+  try:
+    requestID = int(jsonDict['request_id'])
+  except:
+    requestID = None
+  
+  try:
+    stageID = int(jsonDict['stage_id'])
+  except:
+    stageID = 1
+  
+  if jobsubID:
+    filter = "WHERE jobsub_id='%s'" % jobsubID 
+  elif requestID:
+    filter = "WHERE request_id=%d AND stage_id=%d" % (requestID, stageID)
+  else:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Either Jobsub ID or Request ID must be given')
+
+  if jsonDict['state']:
+    try:  
+      filter += (' AND allocation_state="' +
+                 re.sub('[^a-z]+', '', str(jsonDict['state'])) +
+                 '"'
+                )
+    except:
+      pass
+
+  try:
+    rows = justin.db.select("SELECT jobsub_id,request_id,stage_id,"
+                         "allocation_state,allocation_time "
+                         "FROM jobs "
+                         + filter +
+                         " ORDER BY justin_job_id")
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Error reading justIN database ' + str(e))
+
+  outputString = ''
+  for row in rows:
+    outputString += ("%30s %5s %2s %10s  %s\n" % 
+                     (row['jobsub_id'], row['request_id'], row['stage_id'], 
+                      row['allocation_state'], row['allocation_time']))
+   
+  return httpOK(startResponse, outputString)
+
+#
+# Start of utility functions
+#
+def getUser(jsonDict):
+
+  try:
+    session = jsonDict['session']
+    secret  = jsonDict['secret']
+
+    if not session or not secret or \
+       not justin.stringIsSite(session) or not justin.stringIsSite(secret):
+      raise
+  except:
+    return None
+
+  try:
+    row = justin.select(
+           'SELECT principal_name,sessions.user_id,'
+           'sessions.wlcg_groups,expires_time '
+           'FROM sessions '
+           'LEFT JOIN users ON users.user_id=sessions.user_id '
+           'LEFT JOIN principal_names '
+           'ON principal_names.pn_id=users.main_pn_id '
+           'WHERE justin_session="%s" AND justin_secret="%s" AND '
+           'sessions.user_id<>0 AND sessions.expires_time > NOW() '
+           'AND session_type="command"' % (session, secret),
+           justOne = True)
+  
+    userID         = int(row['user_id'])
+    userName       = row['principal_name']
+    wlcgGroups     = row['wlcg_groups'].split()
+    expiresTime    = row['expires_time']
+  except Exception as e:
+    print('Finding session fails with: ' + str(e), file=sys.stderr)
+    return None
+
+  return { 'user_id'         : userID,
+           'user_name'       : userName,
+           'expires_time'    : expiresTime,
+           'wlcg_groups'     : wlcgGroups }
+
+def newSession(startResponse, environ, jsonDict):
+  
+  justinSession = secrets.token_urlsafe(64)
+  justinSecret  = secrets.token_urlsafe(64)
+  justinCode    = secrets.token_urlsafe(28)
+  savedURI      = '/dashboard/'
+  userAgent     = environ.get('HTTP_USER_AGENT', '')
+  ip            = environ.get('REMOTE_ADDR', '')
+  hostname      = ''
+
+  if ip:
+    try:
+      hostname = socket.gethostbyaddr(ip)[0]
+    except:
+      pass
+
+  try:
+    justin.insertUpdate('INSERT INTO sessions SET '
+                        'session_type="command",'
+                        'created_time=NOW(),'
+                        'expires_time=DATE_ADD(NOW(),INTERVAL 10 MINUTE),'
+                        'justin_session="%s",'
+                        'justin_secret="%s",'
+                        'justin_code="%s",'
+                        'user_agent="%s",'
+                        'saved_uri="%s",'
+                        'ip="%s",'
+                        'hostname="%s",'
+                        'os_release="%s"'
+                        % (justinSession, justinSecret, justinCode,
+                           userAgent.replace('\\','\\\\').replace('"','\\"'),
+                           savedURI,
+                           ip, hostname,
+              jsonDict['os_release'].replace('\\','\\\\').replace('"','\\"') ))
+    justin.db.conn.commit()
+  except:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed creating session')
+
+  outputDict = { 'session' : justinSession, 'secret' : justinSecret }
+
+  outputDict['message'] = \
+'''
+To authorize this computer to run the justin command, visit this page with your
+usual web browser and follow the instructions within the next 10 minutes:
+https://justin.dune.hep.ac.uk/authorize/%s
+
+Check that the Session ID displayed on that page is %s
+
+Once you've followed the instructions on that web page, you can run the justin
+command without needing to authorize this computer again for 7 days.
+''' % (justinCode, justinSession[:7])
+   
+  return httpError(startResponse, 
+                   '401 Authorization Required',
+                   json.dumps(outputDict))
+
+#
+# Entry point from mod_wsgi
+#
+def application(environ, startResponse):
+
+  justin.db.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
+        file=sys.stderr)
+
+  # Quickly reject random GETs etc (if not hanlded by Apache already)
+  if environ['REQUEST_METHOD'] != 'POST':
+    return httpError(startResponse, 
+                     '405 Method not allowed', 
+                     'We only support POST')
+
+  try:
+    # True should provoke a reconnection attempt.
+    # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
+    # (Not sure if there is a more authoritative source for this API.)
+    justin.db.conn.ping(True)
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'DB connection lost and cannot reconnect: ' + str(e))
+
+  # Avoid leftovers from partial, failed transactions in this instance
+  justin.db.conn.rollback()
+
+  try:
+    # Client always uses POST
+    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+    inputString = environ['wsgi.input'].read(inputLength)
+    jsonDict = json.loads(inputString)
+  except Exception as e:
+    return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Failed to read and parse JSON')
+
+  # This returns an error if an authorized DN is not found
+  user = getUser(jsonDict)
+
+  if not user:
+    # No valid session found
+    return newSession(startResponse, environ, jsonDict)
+
+  # Check jsonDict specifies a method
+  if 'command' not in jsonDict:
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     'Missing command in JSON')
+
+  if jsonDict['command'] == 'time':
+    return timeCmd(startResponse)
+
+  if jsonDict['command'] == 'whoami':
+    return whoamiCmd(startResponse, user)
+
+  if jsonDict['command'] == 'show-requests':
+    return showRequestsCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'show-stages':
+    return showStagesCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'show-jobscript':
+    return showJobscriptCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'show-stage-outputs':
+    return showStageOutputsCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'show-files':
+    return showFilesCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'fail-files':
+    return failFilesCmd(startResponse, jsonDict, user)
+
+  if jsonDict['command'] == 'show-replicas':
+    return showReplicasCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'create-request':
+    return createRequestCmd(startResponse, jsonDict, user)
+
+  if jsonDict['command'] == 'quick-request':
+    return quickRequestCmd(startResponse, jsonDict, user)
+
+  if jsonDict['command'] in ['submit-request', 'restart-request',
+                             'pause-request', 'finish-request']:
+    return modifyRequestCmds(startResponse, jsonDict, user)
+
+  if jsonDict['command'] == 'create-stage':
+    return createStageCmd(startResponse, jsonDict, user)
+
+  if jsonDict['command'] == 'create-jobscript':
+    return createJobscriptCmd(startResponse, jsonDict, user)
+
+  if jsonDict['command'] == 'show-jobs':
+    return showJobsCmd(startResponse, jsonDict)
+
+  return httpError(startResponse,
+                   '400 Bad Request', 
+                   'command in JSON not recognised')

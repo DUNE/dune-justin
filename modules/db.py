@@ -1,5 +1,5 @@
 #
-# WFS Database globals and functions
+# justIN database globals and functions
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -37,7 +37,7 @@ rseAvailabilityRead   = 4
 unixEpoch = '1970-01-01 00:00:00'
 
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
-                      'bootstrap_error' ]
+                      'jobscript_error' ]
 
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
@@ -138,7 +138,7 @@ eventTypes = {
  event_JOB_STALLED      : ['JOB_STALLED',
                            'Job identified as stalled by Finder'],
  event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
-                           'Error raised by the bootstrap script'],
+                           'Error raised by the jobscript'],
 
  # File events
  event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',
@@ -154,6 +154,12 @@ eventTypes = {
 
 def stringIsJobsubID(s):
   return re.search('[^A-Za-z0-9_.@-]', s) is None
+
+def stringIsUsername(s):
+  return re.search('[^a-z0-9_.@-]', s) is None
+
+def stringIsDID(s):
+  return re.search('[^a-z0-9_.:-]', s) is None
 
 def stringIsDomain(s):
   return re.search('[^A-Za-z0-9.-]', s) is None
@@ -174,7 +180,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              requestID = 0,
              stageID = 0,
              fileID = 0,
-             wfsJobID = 0,
+             justinJobID = 0,
              siteID = 0,
              siteName = None,
              rseID = 0,
@@ -198,7 +204,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'request_id=%d,'
              'stage_id=%d,'
              'file_id=%d,'
-             'wfs_job_id=%d,'
+             'justin_job_id=%d,'
              'site_id=%s,'
              'rse_id=%s,'
              'event_time=NOW()' %
@@ -206,7 +212,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
               requestID,
               stageID,
               fileID,
-              wfsJobID,
+              justinJobID,
               siteExpr,
               rseExpr))
 

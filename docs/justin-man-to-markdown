@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# Convert the justin.1 man page to a Markdown formatted file
+#
+
+if [ ! -r ../commands/justin.1 ] ; then
+ echo 'Run this command in ../docs so man page is at ../commands/justin.1 !'
+ exit 1
+fi
+
+(
+
+cat <<EOF
+# justin command man page
+This man page is distributed along with the 
+[justin command](justin_command.md) itself.
+
+EOF
+groff -mandoc -Tascii -P -b ../commands/justin.1 | sed 's/.*/    &/'
+
+) > justin_command.man_page.md

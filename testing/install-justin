@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# Script to install justin components. Do something like:
+#
+# git clone https://github.com/DUNE/dune-justin.git
+# dune-justin/testing/install-justin dune-justin
+#
+
+if [ "$1" = "" ] ; then
+  echo "install-justin PATH.TO.TOP.DIRECTORY.OF.dune-justin.REPO"
+  exit 1
+fi
+
+JUSTIN_DIR="$1"
+
+mkdir -p /var/www/wsgi
+cp -f $JUSTIN_DIR/services/justin-wsgi-import-script \
+      $JUSTIN_DIR/services/justin-wsgi-commands \
+      $JUSTIN_DIR/services/justin-wsgi-allocator \
+      $JUSTIN_DIR/dashboard/justin-wsgi-dashboard \
+      /var/www/wsgi/
+
+cp -f $JUSTIN_DIR/services/justin.conf \
+      /etc/httpd/conf.d/
+
+cp -f $JUSTIN_DIR/agents/justin-info-collector \
+      $JUSTIN_DIR/agents/justin-finder \
+      $JUSTIN_DIR/agents/justin-finder-fnal \
+      $JUSTIN_DIR/agents/justin-job-factory \
+      $JUSTIN_DIR/agents/justin-stage-cache \
+      /usr/sbin/
+
+cp -f $JUSTIN_DIR/agents/justin.logrotate \
+      /etc/logrotate.d/justin
+
+mkdir -p /usr/lib/python3.6/site-packages/justin
+cp -f $JUSTIN_DIR/modules/__init__.py \
+      $JUSTIN_DIR/modules/allocator.py \
+      $JUSTIN_DIR/modules/conf.py \
+      $JUSTIN_DIR/modules/db.py \
+      $JUSTIN_DIR/modules/events.py \
+      /usr/lib/python3.6/site-packages/justin/
+
+mkdir -p /var/lib/justin
+cp -f $JUSTIN_DIR/genericjobs/run-jobsub-submit \
+      $JUSTIN_DIR/genericjobs/justin-generic-job \
+      /var/lib/justin/
+

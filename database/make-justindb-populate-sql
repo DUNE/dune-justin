@@ -1,0 +1,168 @@
+#!/bin/sh
+#
+# Temporary script to initialise the justIN Database with some values
+# which justin-info-collector cannot discover itself
+#
+# Creates justindb-populate.sql which can be fed straight into the mysql 
+# command AFTER justin-info-collector HAS RUN ONCE since collector agent creates
+# a distance of 100 between each known site and disk storage
+#
+
+(
+
+# Site specifics
+echo 'UPDATE storages SET needs_pin=TRUE WHERE rse_name="FNAL_DCACHE";'
+
+FNAL_STORAGES="FNAL_DCACHE FNAL_DCACHE_PERSISTENT FNAL_DCACHE_STAGING"
+FNAL_STORAGES="$FNAL_STORAGES SCRATCH_DCACHE FNAL_DCACHE_TEST"
+FNAL_STORAGES="$FNAL_STORAGES DUNE_US_FNAL_DISK_STAGE"
+
+CERN_STORAGES="CERN_PDUNE_EOS DUNE_CERN_EOS"
+HOST_STORAGES="$FNAL_STORAGES $CERN_STORAGES"
+
+UK_STORAGES="EDINBURGH IMPERIAL LANCASTER LIVERPOOL MANCHESTER QMUL"
+UK_STORAGES="$UK_STORAGES RAL_ECHO RAL-PP"
+
+EURO_STORAGES="$UK_STORAGES $CERN_STORAGES DUNE_ES_PIC"
+EURO_STORAGES="$EURO_STORAGES DUNE_FR_CCIN2P3 DUNE_FR_CCIN2P3_DISK"
+EURO_STORAGES="$EURO_STORAGES DUNE_FR_CCIN2P3_XROOTD NIKHEF PRAGUE"
+EURO_STORAGES="$EURO_STORAGES SURFSARA"
+
+US_STORAGES="$FNAL_STORAGES DUNE_US_BNL_SDCC T3_US_NERSC"
+
+ALL_STORAGES="$EURO_STORAGES $US_STORAGES"
+
+echo 
+echo '# FNAL and CERN catch all for all known sites, at distance 90.0'
+RSE_NAME_TEST="FALSE"
+for i in $HOST_STORAGES
+do
+  RSE_NAME_TEST="$RSE_NAME_TEST OR rse_name='$i'"
+done
+
+echo "UPDATE sites_storages SET distance=90.0 WHERE "
+echo " sites_storages.rse_id IN "
+echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
+
+echo 
+echo '# European sites sites and storages are at distance 30.0'
+RSE_NAME_TEST="FALSE"
+for i in $EURO_STORAGES
+do
+  RSE_NAME_TEST="$RSE_NAME_TEST OR rse_name='$i'"
+done
+
+echo "UPDATE sites_storages SET distance=30.0 WHERE "
+echo " (SELECT site_name FROM sites "
+echo "  WHERE sites.site_id=sites_storages.site_id) "
+echo "  RLIKE '^CERN|^CH_|^CZ_|^ES_|^FR_|^NL|^UK_'"
+echo " AND sites_storages.rse_id IN "
+echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
+
+echo
+echo '# UK_**** sites and UK storages are at distance 20.0'
+echo '# This will overwrite some of the 30.0 distances set above'
+RSE_NAME_TEST="FALSE"
+for i in $UK_STORAGES
+do
+  RSE_NAME_TEST="$RSE_NAME_TEST OR rse_name='$i'"
+done
+
+echo "UPDATE sites_storages SET distance=20.0 WHERE "
+echo " (SELECT site_name FROM sites "
+echo "  WHERE sites.site_id=sites_storages.site_id) RLIKE '^UK_'"
+echo " AND sites_storages.rse_id IN "
+echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
+
+echo
+echo '# US_**** and CA_**** sites and US storages are at distance 20.0'
+RSE_NAME_TEST="FALSE"
+for i in $US_STORAGES
+do
+  RSE_NAME_TEST="$RSE_NAME_TEST OR rse_name='$i'"
+done
+
+echo "UPDATE sites_storages SET distance=20.0 WHERE "
+echo " (SELECT site_name FROM sites "
+echo "  WHERE sites.site_id=sites_storages.site_id) RLIKE '^US_|^CA_'"
+echo " AND sites_storages.rse_id IN "
+echo "  (SELECT rse_id FROM storages WHERE $RSE_NAME_TEST);"
+
+echo
+echo '# Sites which have storages nearby get distance 10.0'
+(
+cat <<EOF
+UK_RAL-PPD RAL_ECHO
+UK_RAL-Tier1 RAL-PP
+EOF
+) | (
+while read site rse
+do
+  echo "REPLACE INTO sites_storages SET "
+  echo " site_id=(SELECT site_id FROM sites WHERE site_name='$site'),"
+  echo " rse_id=(SELECT rse_id FROM storages WHERE rse_name='$rse'),"
+  echo " distance=10.0;"
+done
+)
+
+echo
+echo '# Sites which have storages on site get distance 00.0'
+(
+cat <<EOF
+CERN CERN_PDUNE_EOS
+CERN DUNE_CERN_EOS
+CZ_FZU PRAGUE
+ES_PIC DUNE_ES_PIC
+FR_CCIN2P3 DUNE_FR_CCIN2P3
+FR_CCIN2P3 DUNE_FR_CCIN2P3_DISK
+FR_CCIN2P3 DUNE_FR_CCIN2P3_XROOTD
+IN_TIFR DUNE_IN_TIFR
+NL_NIKHEF NIKHEF
+NL_NIKHEF SURFSARA
+NL_SURFsara NIKHEF
+NL_SURFsara SURFSARA
+UK_Edinburgh EDINBURGH
+UK_Imperial IMPERIAL
+UK_Liverpool LIVERPOOL
+UK_Lancaster LANCASTER
+UK_Manchester MANCHESTER
+UK_QMUL QMUL
+UK_RAL-Tier1 RAL_ECHO
+UK_RAL-PPD RAL-PP
+US_BNL DUNE_US_BNL_SDCC
+US_FNAL-FermiGrid DUNE_US_FNAL_DISK_STAGE
+US_FNAL-FermiGrid FNAL_DCACHE
+US_FNAL-FermiGrid FNAL_DCACHE_PERSISTENT
+US_FNAL-FermiGrid FNAL_DCACHE_STAGING
+US_FNAL-FermiGrid FNAL_DCACHE_TEST
+US_FNAL-FermiGrid SCRATCH_DCACHE
+US_FNAL-T1 DUNE_US_FNAL_DISK_STAGE
+US_FNAL-T1 FNAL_DCACHE
+US_FNAL-T1 FNAL_DCACHE_PERSISTENT
+US_FNAL-T1 FNAL_DCACHE_STAGING
+US_FNAL-T1 FNAL_DCACHE_TEST
+US_FNAL-T1 SCRATCH_DCACHE
+EOF
+) | (
+while read site rse
+do
+  echo "REPLACE INTO sites_storages SET "
+  echo " site_id=(SELECT site_id FROM sites WHERE site_name='$site'),"
+  echo " rse_id=(SELECT rse_id FROM storages WHERE rse_name='$rse'),"
+  echo " distance=0.0;"
+done
+)
+
+echo 'insert into wlcg_groups set wlcg_group_name="/dune";'
+echo 'insert into wlcg_groups set wlcg_group_name="/dune/production";'
+
+for i in \
+prod_keepup \
+prod_mcsim \
+test 
+do
+  echo "insert into accounting_groups set accounting_group_name=\"group_dune.$i\";"
+done
+
+) > justindb-populate.sql
+

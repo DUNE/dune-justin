@@ -1,0 +1,676 @@
+#!/usr/bin/env python3
+#
+# justin-info-collector - justIN info collector agent
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import stat
+import time
+import ssl
+import json
+import urllib
+import urllib.request
+import pathlib
+import tempfile
+import warnings
+import xml.dom.minidom
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+# Installed by pip install of Rucio
+import rucio.client
+
+import justin
+
+updateSitesInterval    = 3600
+updateStoragesInterval = 3600
+updateJwksInterval     = 86400
+
+sleepSeconds = 60
+
+class justinError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+def getJsonURL(url):
+  httpRequest = urllib.request.Request(url)
+  sslContext  = ssl.SSLContext()
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except Exception as e:
+    logLine('Get JSON URL request fails: ' + str(e))
+    return None
+  else:
+    if response.status != 200:
+      logLine('Get JSON URL response not 200, code=%d' 
+              % response.status)
+      return None
+
+  try:
+    responseData = response.read().decode('utf-8')
+    responseDict = json.loads(responseData)
+  except Exception as e:
+    logLine('Failed loading json: ' + str(e))
+    return None
+
+  return responseDict
+
+def updateJwks():
+  logLine('Start update of JWT keys')
+
+  # Upate the database with current JWT keys for DUNE from CILogon 
+  openidConfiguration = getJsonURL(
+              'https://cilogon.org/dune/.well-known/openid-configuration')
+              
+  if openidConfiguration and 'jwks_uri' in openidConfiguration:
+    cilogonJwks = getJsonURL(openidConfiguration['jwks_uri'])
+    if cilogonJwks and 'keys' in cilogonJwks:
+      for jwtKey in cilogonJwks['keys']:
+        if (not justin.stringIsSite(jwtKey['n']) or 
+            not justin.stringIsSite(jwtKey['e']) or 
+            not justin.stringIsSite(jwtKey['alg']) or 
+            not justin.stringIsSite(jwtKey['kid']) or 
+            not justin.stringIsSite(jwtKey['use']) or 
+            not justin.stringIsSite(jwtKey['kty'])):
+          logLine('Problem with key format')
+          continue
+      
+        try:
+          justin.insertUpdate('REPLACE INTO jwt_keys SET '
+                              'jwks_n="%s",'
+                              'jwks_e="%s",'
+                              'jwks_alg="%s",'
+                              'jwks_kid="%s",'
+                              'jwks_use="%s",'
+                              'jwks_kty="%s"'
+                              % (jwtKey['n'], jwtKey['e'], jwtKey['alg'],
+                                 jwtKey['kid'], jwtKey['use'], jwtKey['kty']))
+        except Exception as e:                         
+          logLine('Failed updating JWKS: ' + str(e))
+        else:
+          logLine('Updating JWT key kid=%s' % jwtKey['kid'])
+ 
+      justin.db.conn.commit()
+      return
+      
+  logLine('Failed updating CILogon JWT keys')
+
+def cleanupNodeXML(node):
+  if node.nodeType == xml.dom.Node.TEXT_NODE \
+     and node.nodeValue.strip() == "":
+    node.nodeValue = ""
+  
+  for childNode in node.childNodes:
+    cleanupNodeXML(childNode)
+
+def processOneFileXML(sitesDict, fileName):
+
+  try:
+#    xmlStr = open(fileName).read()
+# NASTY HACKY FIX FOR BAD XML FROM OSG!!!
+    xmlStr = open(fileName).read().replace('comment"','comment="')
+    xmlDocument = xml.dom.minidom.parseString(xmlStr)
+  except Exception as e:
+    logLine('Parsing XML file %s fails with: %s' % (fileName, str(e)))
+    return
+
+  cleanupNodeXML(xmlDocument)
+  xmlDocument.normalize()
+
+  xmlEntries = xmlDocument.firstChild.firstChild
+
+  for xmlEntry in xmlEntries.childNodes:
+
+    if xmlEntry.nodeType == xml.dom.Node.ELEMENT_NODE and \
+       xmlEntry.tagName == 'entry':
+
+      try:
+        entryName = xmlEntry.getAttribute('name')
+      except:
+        continue
+
+      try:
+        entryEnabled = xmlEntry.getAttribute('enabled')
+      except:
+        entryEnabled = 'True'
+
+      if entryEnabled == 'False':
+        continue
+
+      siteName        = None
+      jobsubSiteName  = None
+      wlcgSiteName    = ''
+      voList          = []
+      processors      = 1
+      rssBytes        = 2147483648
+      wallSeconds     = 86400            
+
+      for xmlEntryChild in xmlEntry.childNodes:
+        if xmlEntryChild.nodeType == xml.dom.Node.ELEMENT_NODE and \
+           xmlEntryChild.tagName == 'attrs':
+
+          for xmlAttr in xmlEntryChild.childNodes:
+            
+            if xmlAttr.nodeType == xml.dom.Node.ELEMENT_NODE and \
+               xmlAttr.tagName == 'attr':
+               
+              name  = xmlAttr.getAttribute('name')
+              value = xmlAttr.getAttribute('value')
+               
+              if name == 'GLIDEIN_DUNESite':
+                siteName = xmlAttr.getAttribute('value')
+
+              elif name == 'GLIDEIN_Site':
+                jobsubSiteName = xmlAttr.getAttribute('value')
+
+              elif name == 'GLIDEIN_ResourceName':
+                wlcgSiteName = xmlAttr.getAttribute('value')
+
+              elif name == 'GLIDEIN_CPUS':
+                try:
+                  processors = int(xmlAttr.getAttribute('value'))
+                except:
+                  pass
+                
+              elif name == 'GLIDEIN_MaxMemMBs':
+                try:
+                  rssBytes = int(xmlAttr.getAttribute('value')) * 1048576
+                except:
+                  pass
+                
+              elif name == 'GLIDEIN_Max_Walltime':
+                try:
+                  wallSeconds = int(xmlAttr.getAttribute('value'))
+                except:
+                  pass
+                
+              elif name == 'GLIDEIN_Supported_VOs':
+                voList = xmlAttr.getAttribute('value').split(',')
+
+      if (siteName and jobsubSiteName and processors and rssBytes and
+          wallSeconds and ('DUNE' in voList)):
+
+        if siteName not in sitesDict:
+          logLine("Create maxima for %s:%s to %d bytes, %d processors" %
+                  (siteName, entryName, rssBytes, processors))
+
+          sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
+                                  'wlcg_site_name'        : wlcgSiteName,
+                                  'largest_rss_bytes'     : rssBytes,
+                                  'largest_processors'    : processors,
+                                  'smallest_wall_seconds' : wallSeconds
+                                }
+
+        if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
+          logLine("Update maxima for %s:%s to %d bytes, %d processors from %s"
+                  % (siteName, entryName, rssBytes, processors, fileName))
+          sitesDict[siteName]['largest_rss_bytes']    = rssBytes
+          sitesDict[siteName]['largest_processors']   = processors
+          
+        if wallSeconds < sitesDict[siteName]['smallest_wall_seconds']:
+          sitesDict[siteName]['smallest_wall_seconds'] = wallSeconds
+
+def buildSites(sitesDict):
+
+  tmpDir = tempfile.TemporaryDirectory()
+  os.system('git clone https://github.com/opensciencegrid/osg-gfactory.git '
+             + tmpDir.name)
+
+  for fileName in os.listdir(tmpDir.name):
+    if fileName[-4:] == '.xml':
+      logLine('Process XML file: %s' % fileName)
+      processOneFileXML(sitesDict, tmpDir.name + '/' + fileName)
+
+def updateSites():
+  # Get info about sites the pilot factories know about
+  logLine('---- Start updateSites ----')
+
+  sitesDict = {}
+  buildSites(sitesDict)
+
+  justinSiteNames = []
+  try:
+    justinSiteRows = justin.db.select('SELECT site_name FROM sites')
+  except Exception as e:
+    logLine('Failed to get list of existing sites from justIN: ' + str(e))
+    return
+    
+  for justinSiteRow in justinSiteRows:
+    justinSiteNames.append(justinSiteRow['site_name'])
+
+  for siteName in sitesDict:
+    maxProcessors  = sitesDict[siteName]['largest_processors']
+    maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
+    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
+
+    # Ensure the sites exist
+    if siteName not in justinSiteNames:
+      query = ('INSERT INTO sites SET site_name="%s",'
+               'jobsub_site_name="%s",'
+               'wlcg_site_name="%s",'
+               'max_processors=%d,'
+               'max_rss_bytes=%d,'
+               'max_wall_seconds=%d,'
+               'last_seen_time=NOW() '
+               % (siteName, 
+                  sitesDict[siteName]['jobsub_site_name'], 
+                  sitesDict[siteName]['wlcg_site_name'],
+                  maxProcessors,
+                  maxRssBytes,
+                  maxWallSeconds)
+              )
+    else:
+      query = ('UPDATE sites SET '
+               'jobsub_site_name="%s",'
+               'wlcg_site_name="%s",'
+               'max_processors=%d,'
+               'max_rss_bytes=%d,'
+               'max_wall_seconds=%d,'
+               'last_seen_time=NOW() '
+               'WHERE site_name="%s"'
+               % (sitesDict[siteName]['jobsub_site_name'],
+                  sitesDict[siteName]['wlcg_site_name'],
+                  maxProcessors,
+                  maxRssBytes,
+                  maxWallSeconds,
+                  siteName
+                 )
+              )
+    try:
+      justin.db.insertUpdate(query)
+    except Exception as e:
+      logLine('Failed inserting/updating %s: %s' % (siteName, str(e)))
+    
+    logLine('Site: %s, %d processors, %d bytes, %s seconds' %
+            (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
+
+  justin.db.conn.commit()
+
+def updateSitesStorages(): 
+  # Update the matrix of sites to storage mappings
+  # Ensure there is an entry for each combination
+  logLine('---- Start updateSitesStorages ----')
+
+  justin.db.cur.execute('SELECT site_id FROM sites')
+  siteRows = justin.db.cur.fetchall()
+  
+  justin.db.cur.execute('SELECT rse_id FROM storages')
+  storageRows = justin.db.cur.fetchall()
+  
+  for siteRow in siteRows:
+    for storageRow in storageRows:
+      query = ('INSERT IGNORE INTO sites_storages SET '
+               'distance=100.0,site_id=%d,rse_id=%d'
+               % (siteRow['site_id'], storageRow['rse_id']))
+              
+      justin.db.cur.execute(query)
+
+  justin.db.conn.commit()
+
+def updateStorages():
+  # Get info about storages Rucio knows about
+  logLine('---- Start updateStorages ----')
+  
+  # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
+  justin.db.cur.execute('INSERT IGNORE INTO storages SET rse_id=%d,'
+    'rse_name="MONTECARLO",occupancy=1,rucio_write=FALSE,'
+    'rucio_read=TRUE,justin_write=FALSE,justin_read=TRUE'
+    % justin.conf.MonteCarloRseID)
+
+  justinStorageNames = []
+  try:
+    justinStorageRows = justin.db.select('SELECT rse_name FROM storages')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN storages')
+    return
+    
+  for justinStorageRow in justinStorageRows:
+    justinStorageNames.append(justinStorageRow['rse_name'])
+
+  try:
+    rseClient = rucio.client.rseclient.RSEClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+  
+  try:
+    accountClient = rucio.client.accountclient.AccountClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+  
+  try:
+    rseList = rseClient.list_rses()  
+  except Exception as e:
+    logLine("Reading RSE list from Rucio fails with: " + str(e))
+    return
+
+  for rse in rseList:
+  
+    logLine(str(rse))
+  
+    if rse['rse_type'] != 'DISK' and rse['rse'] != 'FNAL_DCACHE':
+      # We ignore tape RSEs apart from tape-backed dCache at FNAL
+      continue
+      
+    try:
+      availability = rse['availability']
+    except:
+      availability = 0  
+
+    try:
+      usageList = rseClient.get_rse_usage(rse['rse'],
+                                          filters = {"source": "rucio"})
+    except Exception as e:
+      logLine("Reading %s usage fails with: %s" % 
+              (rse['rse'], str(e)))
+ 
+      occupancy = 0.0
+
+    else:
+
+      try:
+        accLimits = accountClient.get_account_limits('dunepro', 
+                                                     rse['rse'], 
+                                                     'local')
+      except Exception as e:
+        logLine("Reading %s account limits fails with: %s" % 
+                (rse['rse'], str(e)))
+      
+       
+      try:
+        usage     = next(usageList)        
+        occupancy = float(usage['used']) / float(accLimits[rse['rse']])
+      except:
+        occupancy = 0.0
+
+    try:
+      # We should sanitise the RSE name just in case...
+      
+      if rse['rse'] not in justinStorageNames:
+        query = ('INSERT INTO storages SET rse_name="%s",'
+                 'occupancy=%f,rucio_write=%d,rucio_read=%d,'
+                 'justin_write=FALSE,deterministic_rse=%d'
+                 % (rse['rse'], 
+                    occupancy,
+                    ((availability & justin.db.rseAvailabilityWrite)  != 0),
+                    ((availability & justin.db.rseAvailabilityRead)   != 0),
+                    int(rse['deterministic'])
+                   )
+                )
+      else:
+        query = ('UPDATE storages SET '
+                 'occupancy=%f,rucio_write=%d,'
+                 'rucio_read=%d,deterministic_rse=%d '
+                 'WHERE rse_name="%s"'
+                 % (occupancy,
+                    ((availability & justin.db.rseAvailabilityWrite)  != 0),
+                    ((availability & justin.db.rseAvailabilityRead)   != 0),
+                    int(rse['deterministic']),
+                    rse['rse']
+                   )
+                )
+      print(query)
+      justin.db.cur.execute(query)
+    except Exception as e:
+      # Log the error and hope it was transitory
+      logLine('Failed inserting RSE %s into database: %s' % 
+              (rse['rse'], str(e)))
+
+  justin.db.conn.commit()
+
+def updateScopes():
+  # Get info about scopes Rucio knows about
+  logLine('---- Start updateScopes ----')
+
+  try:
+    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
+                        'WHERE wlcg_group_name="/dune"', justOne = True)
+    duneWLCGGroupID = int(row['wlcg_group_id'])
+
+    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
+                        'WHERE wlcg_group_name="/dune/production"', 
+                        justOne = True)
+    productionWLCGGroupID = int(row['wlcg_group_id'])
+  except Exception as e:
+    logLine('Failed getting /dune and /dune/production group IDs: ' + str(e))
+    return
+    
+  justinScopeNames = []
+  try:
+    justinScopeRows = justin.select('SELECT scope_name FROM scopes')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN scopes')
+    return
+    
+  for justinScopeRow in justinScopeRows:
+    justinScopeNames.append(justinScopeRow['scope_name'])
+
+  try:
+    scopeClient = rucio.client.scopeclient.ScopeClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+    
+  try:
+    rucioScopeNames = scopeClient.list_scopes()
+  except Exception as e:
+    logLine("Reading scope list from Rucio fails with: " + str(e))
+    return
+
+  try:
+    duneproScopeNames = scopeClient.list_scopes_for_account('dunepro')
+  except Exception as e:
+    logLine("Reading dunepro scopes list from Rucio fails with: " + str(e))
+    return
+
+  for rucioScopeName in rucioScopeNames:
+    if rucioScopeName not in justinScopeNames:
+      # A new scope we need to add
+      logLine('Adding new scope %s from Rucio' % rucioScopeName)
+
+      try:
+        justin.insertUpdate('INSERT INTO scopes SET scope_name="%s"'
+                            % rucioScopeName)
+      except Exception as e:
+        logLine('Failed to insert new scope %s into justIN database: %s'
+                % (rucioScopeName, str(e)))
+        continue
+        
+    if rucioScopeName in duneproScopeNames:
+      # A dunepro scope, that generic jobs can write to
+      if rucioScopeName == 'usertests':
+        # Any /dune member can write to usertests via justIN
+        wlcgGroupID = duneWLCGGroupID
+      else:
+        # Everything else requires /dune/production group membership
+        wlcgGroupID = productionWLCGGroupID
+    else:
+      # If not writeable via generic jobs as dunepro, then no groups
+      wlcgGroupID = 0
+
+    logLine('Update scope %s with wlcg_group_id=%d' 
+            % (rucioScopeName, wlcgGroupID))
+    try:
+      justin.insertUpdate('UPDATE scopes SET wlcg_group_id=%d '
+                          'WHERE scope_name="%s"' 
+                          % (wlcgGroupID, rucioScopeName))
+    except Exception as e:
+      logLine('Failed upding wlcg_group_id=%d for %s: %s'
+              % (wlcgGroupID, rucioScopeName, str(e)))
+      continue
+
+  justin.db.conn.commit()
+
+def oneCycle():
+
+  # Is it time to update storages from Rucio?
+  try:
+    lastUpdateJwks = os.stat('/var/run/justin/last-update-jwks').st_mtime
+  except:
+    lastUpdateJwks = 0
+
+  if lastUpdateJwks + updateJwksInterval < time.time():
+    pathlib.Path('/var/run/justin/last-update-jwks').touch(exist_ok=True)
+    updateJwks()
+
+  # Is it time to update storages from Rucio?
+  try:
+    lastUpdateStorages = os.stat('/var/run/justin/last-update-storages').st_mtime
+  except:
+    lastUpdateStorages = 0
+
+  if lastUpdateStorages + updateStoragesInterval < time.time():
+    pathlib.Path('/var/run/justin/last-update-storages').touch(exist_ok=True)
+    updateStorages()
+    updateScopes()
+
+  # It is time to update sites from the OSG pilot factory config?
+  try:
+    lastUpdateSites = os.stat('/var/run/justin/last-update-sites').st_mtime
+  except:
+    lastUpdateSites = 0
+
+  if lastUpdateSites + updateSitesInterval < time.time():
+    pathlib.Path('/var/run/justin/last-update-sites').touch(exist_ok=True)
+    updateSites()
+    updateSitesStorages()
+
+  justin.db.conn.commit()
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs('/var/run/justin',         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open('/var/run/justin/info-collector.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create /var/run/justin/info-collector.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/justin directory exists
+        try:
+          os.makedirs('/var/log/justin', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/justin/info-collector', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+
+        se = open('/var/log/justin/info-collector', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open('/var/run/justin/info-collector.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new /var/run/justin/info-collector.pid - exiting')
+            break
+
+        except:
+          print('no /var/run/justin/info-collector.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          justin.conf.readConf()
+          
+          try:
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            
+            # Do not bother us with such trifles!
+            warnings.filterwarnings('ignore', category=MySQLdb.Warning)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+

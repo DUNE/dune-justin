@@ -1,0 +1,128 @@
+#!/bin/sh
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+:<<EOF
+
+Script to allow interactive testing of justIN jobscripts
+
+1. Make sure you have justin available and you have a current session:
+   Do   justin time   and do the authorize step if necessary
+2. Run this script with something like
+
+justin-test-jobscript --jobscript pfns-hello-world.jobscript \
+ --mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 1"
+    
+   where "files from..." is an MQL expression for MetaCat
+3. A temporary directory is created in /tmp and the jobscript is
+   run in the workspace subdirectory of that with outputs left there
+    
+EOF
+
+# Only we can read, in case users put anything sensitive in the jobscript
+umask 0077
+
+export JUSTIN_WORKDIR=`mktemp -d /tmp/justin-test-jobscript.XXXXXX`
+mkdir -p $JUSTIN_WORKDIR/home/workspace
+
+ARGS=$(getopt -o 'j:m:e:' --long 'jobscript:,mql:,env:' -- "$@") || exit
+eval "set -- $ARGS"
+
+while true; do
+ case $1 in
+  (--jobscript)
+   JOBSCRIPT=$2; shift 2;;
+  (--mql)
+   MQL=$2; shift 2;;
+  (--env)
+   echo "export $2" >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh; shift 2;;
+  (--) shift; break;;
+ esac
+done
+
+if [ "$JOBSCRIPT" = "" ] ; then
+  echo "You must give --jobscript FILENAME"
+  exit 2
+fi
+if [ ! -f "$JOBSCRIPT" ] ; then
+ echo "Cannot find jobscript $JOBSCRIPT"
+ exit 1
+fi
+
+if [ "$MQL" = "" ] ; then
+  echo "You must give --mql MQL"
+  exit 2
+fi
+
+echo "Files created under $JUSTIN_WORKDIR"
+echo
+
+cp "$JOBSCRIPT" $JUSTIN_WORKDIR/home/justin-jobscript.sh
+chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
+
+echo "Execute justin show-replicas for $MQL"
+replica=`justin show-replicas --mql "$MQL" | head -1`
+if [ $? != 0 ] ; then
+  echo "justin show-replicas failed!"
+  exit 3
+fi
+
+if [ "$replica" = "" ] ; then
+ echo "No replica found"
+ exit 4
+fi
+
+# Fake justin-get-file command using the values from MetaCat/Rucio
+cat <<EOF > $JUSTIN_WORKDIR/home/justin-get-file
+#!/bin/sh
+echo '$replica'
+EOF
+chmod +x $JUSTIN_WORKDIR/home/justin-get-file
+
+# Fake justin-jobscript-env.sh that allocator would normally provide
+cat <<EOF >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh
+export JUSTIN_SITE_NAME=XX_UNKNOWN
+export JUSTIN_REQUEST_ID=1
+export JUSTIN_STAGE_ID=1
+export JUSTIN_JOBSUB_ID='0.0@x'
+EOF
+
+# Wrapper to be run inside the Apptainer/Singularity container
+cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
+#!/bin/sh
+cd workspace
+export JUSTIN_PATH="\$HOME"
+export X509_USER_PROXY="\$HOME/jobscript-proxy.pem"
+. ../justin-jobscript-env.sh
+exec ../justin-jobscript.sh
+EOF
+chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
+
+# Copy your proxy into the container's home directory
+export X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u`id -u`}
+cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/jobscript-proxy.pem
+chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
+
+echo "====Start of jobscript execution===="
+stdbuf -oL -eL singularity shell \
+  --shell /home/jobscript-wrapper.sh \
+  --containall \
+  --workdir $JUSTIN_WORKDIR \
+  --home $JUSTIN_WORKDIR/home:/home \
+  --bind /cvmfs \
+  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
+echo "====End of jobscript execution===="
+
+ls -lR "$JUSTIN_WORKDIR/home/workspace"

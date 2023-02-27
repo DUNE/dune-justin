@@ -1,0 +1,12 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN Finder for FNAL daemon
+Documentation=man:justin-finder-fnal(8)
+
+[Service]
+Type=forking
+PIDFile=/var/run/justin/finder-fnal.pid
+ExecStart=/usr/sbin/justin-finder-fnal
+
+[Install]
+#WantedBy=multi-user.target

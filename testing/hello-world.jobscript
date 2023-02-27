@@ -1,0 +1,35 @@
+#!/bin/sh
+: <<'EOF'
+
+Hello World jobscript for justIN
+
+Submit a request like this to run 10 jobs:
+
+justin quick-request --monte-carlo 10 --jobscript hello-world.jobscript
+
+
+Or like this to run jobs and put the output file into Rucio-managed storage:
+
+justin quick-request \
+     --monte-carlo 1 \
+     --jobscript hello-world.jobscript \
+     --description 'Hello World!!!' \
+     --scope usertests \
+     --output-pattern 'hello-world-*.txt:output-test-01'
+
+EOF
+
+# Get an unprocessed file from this stage
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+did=`echo $did_pfn_rse | cut -f1 -d' '`
+pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+rse=`echo $did_pfn_rse | cut -f3 -d' '`
+
+# We say we processed whatever we were given
+echo "$pfn" > justin-processed-pfns.txt
+
+# Hello world
+echo "Hello world $pfn" 
+echo "Hello world $pfn" >hello-world-`date +%s.%N.txt`
+
+exit 0

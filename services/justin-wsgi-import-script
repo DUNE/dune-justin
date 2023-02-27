@@ -1,0 +1,64 @@
+#
+# justin-wsgi-import-script - WSGI Import Script for justIN services
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+# To be run by the mod_wsgi WSGIImportScript directive in the Apache
+# configuration.
+
+import sys
+import MySQLdb
+import justin
+
+justin.conf.readConf()
+
+try:
+  justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname,
+                                user=justin.conf.mysqlUsername,
+                                passwd=justin.conf.mysqlPassword,
+                                db=justin.conf.mysqlDbName)
+  justin.db.conn.autocommit(False)
+  justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+
+except Exception as e:
+  print('Connect to database fails: ' + str(e), file=sys.stderr)
+  # Does this work? Does it kill this Apache worker process?
+  sys.exit(1)
+
+else:
+  print('Connected to %s database' % justin.conf.mysqlDbName, file=sys.stderr)
+
+
+#
+# Load X.509 proxy files into global strings
+#
+
+try:
+  with open(justin.allocator.jobsNoRolesProxyFile, 'rb') as f:
+    justin.allocator.jobsNoRolesProxyString = f.read()
+except:
+  print('Failed loading X.509 proxy from %s : %s'
+        % (justin.allocator.jobsNoRolesProxyFile, str(e)), file=sys.stderr)
+
+try:
+  with open(justin.allocator.jobsProductionProxyFile, 'rb') as f:
+    justin.allocator.jobsProductionProxyString = f.read()
+except:
+  print('Failed loading X.509 proxy from %s : %s'
+        % (justin.allocator.jobsProductionProxyFile, str(e)), file=sys.stderr)
+  
+

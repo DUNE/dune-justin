@@ -1,0 +1,123 @@
+#!/bin/sh
+#
+# make-justin-ups - package justIN commands for UPS in cvmfs
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# You can use this script to make a tar file which can be unpacked into
+# the DUNE products directory in cvmfs
+#
+# So on the correct machine, you can do something like
+#
+# cd /cvmfs/dune.opensciencegrid.org/products/dune
+# cvmfs_server transaction dune.opensciencegrid.org
+# tar zxvf /tmp/justin.ups.XX.XX.XX.tgz 
+# cd
+# cvmfs_server publish dune.opensciencegrid.org
+#
+
+export JUSTIN_VERSION=00.05.00
+
+export MJU_GIT_DIR=`mktemp -d /tmp/mju_git_XXXXXX`
+( cd $MJU_GIT_DIR
+  git clone -b $JUSTIN_VERSION https://github.com/DUNE/dune-justin.git )
+
+# Get the UPS setup command, which is implemented as a bash function (!)
+source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+
+export MJU_PRODUCTS=`mktemp -d /tmp/mju_products_XXXXXX`
+
+# This is needed by ups declare and the setup test at the end
+mkdir -p $MJU_PRODUCTS/.upsfiles
+cat <<EOF >$MJU_PRODUCTS/.upsfiles/dbconfig
+FILE = DBCONFIG
+AUTHORIZED_NODES = *
+VERSION_SUBDIR = 1
+PROD_DIR_PREFIX = \${UPS_THIS_DB}
+EOF
+
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/man/man1
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
+mkdir -p $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/ups
+
+echo "Prepend $MJU_PRODUCTS to \$PRODUCTS"
+export PRODUCTS="$MJU_PRODUCTS:$PRODUCTS"
+
+cp $MJU_GIT_DIR/dune-justin/commands/justin \
+   $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
+   $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript \
+ $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
+
+cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
+ $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/man/man1
+
+cp $MJU_GIT_DIR/dune-justin/jobutils/justin-allocated-files \
+   $MJU_GIT_DIR/dune-justin/jobutils/justin-get-file \
+   $MJU_GIT_DIR/dune-justin/jobutils/justin-metadata \
+   $MJU_GIT_DIR/dune-justin/jobutils/pdjson2metadata \
+ $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
+
+cat <<EOF > $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/ups/justin.table
+FILE=TABLE
+PRODUCT=justin
+VERSION=$JUSTIN_VERSION
+Group:
+    Flavor=ANY
+    Qualifiers=""
+Common:
+    Action = Setup
+        setupEnv()
+        prodDir()
+        pathPrepend(PATH, \${UPS_PROD_DIR}/bin)
+        pathPrepend(MANPATH, \${UPS_PROD_DIR}/man)
+EOF
+
+echo
+echo 'Run ups declare'
+ups declare justin $JUSTIN_VERSION -c \
+ -r justin/$JUSTIN_VERSION/NULL \
+ -f NULL -z $MJU_PRODUCTS -m justin.table -U ups
+
+echo
+find $MJU_PRODUCTS
+
+echo
+echo "---Start $MJU_PRODUCTS/justin/current.chain/NULL_---"
+cat $MJU_PRODUCTS/justin/current.chain/NULL_
+
+echo
+echo "---Start $MJU_PRODUCTS/justin/$JUSTIN_VERSION.version/NULL_---"
+cat $MJU_PRODUCTS/justin/$JUSTIN_VERSION.version/NULL_
+echo "---End---"
+echo
+
+setup justin
+echo "PATH=$PATH"
+echo
+echo "MANPATH=$MANPATH"
+echo
+echo "Run justin version"
+justin version
+echo
+
+export JUSTIN_TGZ_FILE=/tmp/justin.ups.$JUSTIN_VERSION.tgz
+
+( cd $MJU_PRODUCTS
+  tar zcvf $JUSTIN_TGZ_FILE --exclude=__pycache__ justin )
+
+echo "$JUSTIN_TGZ_FILE"

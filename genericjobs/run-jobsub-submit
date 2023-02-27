@@ -2,8 +2,9 @@
 
 source /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
-setup jobsub_client
+setup jobsub_client v1_3_5
 setup cigetcert
+#export X509_USER_PROXY=/var/lib/justin/justin-jobs-production.proxy.pem
 
 if [ "$2" = "FNAL_GPGrid" ] ; then
  jobsub_submit \
@@ -16,7 +17,7 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --subgroup prod_keepup \
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
-  file:///var/lib/wfs/wfs-generic-job 2>/dev/null
+  file:///var/lib/justin/justin-generic-job 2>/dev/null
 elif [ "$2" = "ANY" ] ; then
  if [ "$6" != "" ] ; then
    blacklist_option="--blacklist $6"
@@ -33,7 +34,7 @@ elif [ "$2" = "ANY" ] ; then
   --resource-provides=usage_model=OFFSITE,DEDICATED,OPPORTUNISTIC \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   "$blacklist_option" \
-  file:///var/lib/wfs/wfs-generic-job 2>/dev/null
+  file:///var/lib/justin/justin-generic-job 2>/dev/null
 else
  jobsub_submit \
   --debug \
@@ -46,5 +47,5 @@ else
   --subgroup prod_keepup \
   --resource-provides=usage_model=OFFSITE \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
-  file:///var/lib/wfs/wfs-generic-job 2>/dev/null
+  file:///var/lib/justin/justin-generic-job 2>/dev/null
 fi

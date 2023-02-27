@@ -1,8 +1,16 @@
-## Workflow Dashboard
+# justIN dashboard
 
-The Workflow Dashboard gives convenient views of the contents of the 
-[Workflow Database](database.md).
+The justIN dashboard gives convenient views of the contents of the 
+[justIN database](database.md).
 
-It is currently implemented as an Apache CGI script written in
+It is currently implemented as an Apache WSGI application written in
 Python 3 and accessible at 
-[https://wfs.dune.hep.ac.uk/dashboard/](https://wfs.dune.hep.ac.uk/dashboard/).
+[https://justin.dune.hep.ac.uk/dashboard/](https://justin.dune.hep.ac.uk/dashboard/).
+
+The dashboard uses the [justIN database](database.md) section
+of the configuration files, and also the [cilogon] section which has client 
+details for OIDC calls to CILogon:
+
+- client_id - ID string of a registered client
+- secret - secret for the registered client
+

@@ -1,0 +1,39 @@
+#!/bin/sh
+:<<'EOF'
+Test of RCDS/cvmfs tar files access from JUSTIN jobs. You need to 
+set up the justin commands 
+
+source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+setup justin
+
+Then
+
+1) Create a tar file 
+   mkdir somedir
+   cd somedir
+   date > hello_world.txt
+   tar cvf hello_world.tar *
+2) Create an X.509 proxy (no need for VOMS)
+   kx509
+3) Upload to cvmfs
+   INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`
+4) Wait until  ls $INPUT_TAR_DIR_LOCAL  works (minutes?)
+5) Create and run a request
+   justin quick-request --monte-carlo 1 \
+   --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
+   --jobscript-id testpro:cvmfs-hello-world
+
+Check the output through the dashboard: the date in hello_world.txt 
+should be printed.
+
+EOF
+
+# Get an unprocessed file from this stage and say we processed it
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+did=`echo $did_pfn_rse | cut -f1 -d' '`
+echo "$did" > justin-processed-dids.txt
+
+# Look at the file in cvmfs
+echo "Contents of $INPUT_TAR_DIR_LOCAL/hello_world.txt"
+cat $INPUT_TAR_DIR_LOCAL/hello_world.txt
+exit 0

@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# Script for use within jobscript to get the DID, PFN, and RSE
+# of a file to process within the stage assigned to the job.
+#
+# Jobscripts can execute this script as: $JUSTIN_PATH/justin-get-file
+#
+# Error messages to stderr
+# DID PFN RSE to stdout on one line if a file is available
+
+if [ ! -r "$JUSTIN_PATH/justin-get-file.json" ] ; then
+  echo "$JUSTIN_PATH/justin-get-file.json not found!" >&2
+  exit 2
+fi
+
+GET_FILE_TMP=`mktemp /tmp/justin_get_file_XXXXXX`
+
+http_code=`curl \
+--user-agent 'justin-get-file' \
+--silent \
+--header "X-Jobid: $JOBSUBJOBID" \
+--header "Accept: text/plain" \
+--capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
+--data @$JUSTIN_PATH/justin-get-file.json \
+--output $GET_FILE_TMP \
+--write-out "%{http_code}\n" \
+https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_file 2>/dev/null`
+
+if [ "$http_code" = 200 ] ; then
+ cat $GET_FILE_TMP
+ retcode=0
+elif [ "$http_code" = 404 ] ; then 
+ echo "No files available from this stage" >&2
+ retcode=1
+else
+ echo "get_file receives:" >&2
+ cat $GET_FILE_TMP >&2
+ echo "get-file fails with HTTP code $http_code from allocator!" >&2
+ retcode=3
+fi
+
+rm -f $GET_FILE_TMP
+exit $retcode

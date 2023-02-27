@@ -1,0 +1,102 @@
+#!/bin/bash
+:<<'EOF'
+
+To use this jobscript to process 10 files from the dc4-hd-protodune
+data and put the output in the usertests namespace (MetaCat) and 
+scope (Rucio), and in the usertests:output-test-01 dataset in MetaCat and
+Rucio, use this command to create the request:
+
+justin quick-request \
+--mql "files from dc4:dc4 where core.run_type='dc4-hd-protodune' limit 10" \
+--jobscript dc4-hd-protodune.jobscript --max-distance 30 --rss-mb 4000 \
+--scope usertests --output-pattern '*_reco_data_*.root:output-test-01' 
+
+The following optional environment variables can be set when creating the
+request/stage: FCL_FILE, NUM_EVENTS, DUNE_VERSION, DUNE_QUALIFIER 
+
+EOF
+
+# fcl file and DUNE software version/qualifier to be used
+FCL_FILE=${FCL_FILE:-protoDUNEHD_refactored_reco.fcl}
+DUNE_VERSION=${DUNE_VERSION:-v09_56_00d00}
+DUNE_QUALIFIER=${DUNE_QUALIFIER:-e20:prof}
+
+# number of events to process from the input file
+if [ "$NUM_EVENTS" != "" ] ; then
+ events_option="-n $NUM_EVENTS"
+fi
+
+# First get an unprocessed file from this stage
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+
+if [ "$did_pfn_rse" = "" ] ; then
+  echo "Nothing to process - exit jobscript"
+  exit 0
+fi
+
+# Keep a record of all input DIDs, for pdjson2meta file -> DID mapping
+echo "$did_pfn_rse" | cut -f1 -d' ' >>all-input-dids.txt
+
+# pfn is also needed when creating justin-processed-pfns.txt
+pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+echo "Input PFN = $pfn"
+
+# Setup DUNE environment
+source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+
+# the xroot lib for streaming non-root files is in testproducts, 
+# so add it to the start of the path
+export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRODUCTS}
+setup dunesw "$DUNE_VERSION" -q "$DUNE_QUALIFIER"
+
+# Construct outFile from input $pfn 
+now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
+Ffname=`echo $pfn | awk -F/ '{print $NF}'`
+fname=`echo $Ffname | awk -F. '{print $1}'`
+outFile=${fname}_reco_data_${now}.root
+
+campaign="justIN.r${JUSTIN_REQUEST_ID}s${JUSTIN_STAGE_ID}"
+
+(
+# Do the scary preload stuff in a subshell!
+export LD_PRELOAD=${XROOTD_LIB}/libXrdPosixPreload.so
+echo "$LD_PRELOAD"
+
+lar -c $FCL_FILE "$pfn" $events_option -o $outFile > ${fname}_reco_${now}.log 2>&1
+)
+
+# Subshell exits with exit code of last command
+larExit=$?
+echo "lar exit code $larExit"
+jobscriptExit=1
+
+if [ $larExit -eq 0 ] ; then
+  # write metadata file if lar succeeded
+  extractor_prod.py --infile "$outFile" --no_crc --appname reco \
+    --appversion ${DUNE_VERSION} --appfamily art \
+    --campaign ${campaign} > $outFile.ext.json  
+  extractorExit=$?
+  echo "extractor_prod.py exit code $extractorExit"
+
+  # Run pdjson2meta. THIS SHOULD MOVE TO SOMEWHERE LIKE duneutil ?
+  /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/pdjson2metadata \
+     $outFile.ext.json all-input-dids.txt > $outFile.json
+  p2mExit=$?
+  echo "pdjson2metadata exit code $p2mExit"
+
+  if [ $extractorExit -eq 0 -a $p2mExit -eq 0 ] ; then
+    echo "Metadata extraction succeeds"
+    echo "$pfn" > justin-processed-pfns.txt
+    echo "===Metadata JSON==="
+    cat $outFile.json
+    echo
+    echo "==================="
+    jobscriptExit=0
+  fi
+fi
+
+ls -lRS
+
+# Create compressed tar file with all log files including the jobscript.log
+tar zcf `echo "$JUSTIN_JOBSUB_ID.logs.tgz" | sed 's/@/_/g'` *.log
+exit $jobscriptExit

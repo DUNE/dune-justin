@@ -1,0 +1,380 @@
+#!/usr/bin/env python3
+#
+# justin-stage-cache - justIN Stage Cache
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import stat
+import time
+import tempfile
+import subprocess
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+# justin/conf.py must define these variables in a way that is both
+# valid Python and valid Bash!
+#
+# mysqlUser='username'
+# mysqlPassword='PAsSWoRd'
+#
+import justin
+
+sleepSeconds      = 60
+
+class justinError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
+  # Cache best replicas info for the best stage for a site, relative
+  # to that site
+
+  try:
+    replicaRows = justin.db.select('SELECT files.file_id,'
+                   'replicas.replica_id,'
+                   'replicas.rse_id,'
+                   'distance '
+                   'FROM files '
+                   'LEFT JOIN replicas ON files.file_id=replicas.file_id '
+                   'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
+                   'LEFT JOIN sites_storages ON '
+                   'replicas.rse_id=sites_storages.rse_id AND '
+                   'sites_storages.site_id=%d '
+                   'WHERE files.request_id=%d AND files.stage_id=%d AND '
+                   'files.state="unallocated" AND '
+                   'distance<=%f AND '
+                   'accessible_until > NOW() AND '
+                   'storages.rucio_read AND storages.justin_read '
+                   'ORDER by distance,replicas.file_id LIMIT 1000' % 
+                   (siteID, requestID, stageID, maxDistance))
+  except Exception as e:
+    logLine('Failed getting replica info to cache: %s' % str(e))
+    return
+
+  filesSeen = set()
+
+  for replicaRow in replicaRows:
+    # Go through the replicas, caching them.
+    # Do not add more distant replicas of files already seen.
+    # This deduplication in the Python agent reduces the big scans of
+    # the database which block other services.
+    if len(filesSeen) >= 500:
+      break
+     
+    if replicaRow['file_id'] in filesSeen:
+      continue
+      
+    filesSeen.add(replicaRow['file_id'])
+  
+    try:
+      justin.db.insertUpdate('INSERT INTO find_file_cache SET '
+                          'site_id=%d,'
+                          'request_id=%d,'
+                          'stage_id=%d,'
+                          'distance=%f,'
+                          'file_id=%d,'
+                          'rse_id=%d,'
+                          'replica_id=%d,'
+                          'cache_time=NOW()' %
+                          (siteID,
+                           requestID,
+                           stageID,
+                           replicaRow['distance'],
+                           replicaRow['file_id'],
+                           replicaRow['rse_id'],
+                           replicaRow['replica_id']
+                          )
+                         )
+    except Exception as e:
+      logLine('Failed caching replica info: %s' % str(e))
+      continue
+
+# Just in time decision making: identify the best request+stage combination
+# based on the immediate situation rather than trying to plan ahead
+def findStage(jobDict):
+
+  query = (
+ "SELECT stages.request_id,stages.stage_id,stages.max_distance "
+ "FROM files "
+ "LEFT JOIN stages ON files.request_id=stages.request_id AND "
+ "files.stage_id=stages.stage_id "
+ "LEFT JOIN requests ON requests.request_id=files.request_id "
+ "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+ "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+ "LEFT JOIN sites_storages ON replicas.rse_id=sites_storages.rse_id AND "
+ "sites_storages.site_id=%d "
+ "WHERE files.state='unallocated' AND " 
+ "replicas.accessible_until > NOW() AND "
+ "requests.state='running' AND "
+ "((%d < stages.processors AND stages.processors <= %d AND "
+ "  stages.rss_bytes <= %d) OR "
+ " (%d < stages.rss_bytes AND stages.rss_bytes <= %d AND "
+ "  stages.processors <= %d)) AND "
+ "stages.wall_seconds <= %d "
+ "AND sites_storages.distance IS NOT NULL "
+ "AND sites_storages.distance <= stages.max_distance "
+ "AND storages.rucio_read "
+ "AND storages.justin_read "
+ "ORDER BY stage_rank DESC,sites_storages.distance,rand() "
+ "LIMIT 1" %
+ (
+  jobDict["site_id"],
+  jobDict["min_processors"], jobDict["max_processors"], 
+  jobDict["max_rss_bytes"],
+  jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
+  jobDict["max_processors"],
+  jobDict["max_wall_seconds"]
+ ))
+    
+  fileRows = justin.db.select(query)
+  
+  if not fileRows:
+    return None
+
+  # The dictionary to return, with the highest priority result
+  stage = { 'request_id'  : fileRows[0]['request_id'],
+            'stage_id'    : fileRows[0]['stage_id'],
+            'max_distance': fileRows[0]['max_distance'],
+            'matches'     : len(fileRows) }
+
+  return stage
+
+def cacheFindStageResults():
+  # Go through the job geometries and sites, caching matching results with
+  # the best stage for each site and geometry combination
+
+  # We use this time to remove previous cache entries
+  cutoffTime = int(time.time())
+
+  try:
+    siteRows = justin.db.select('SELECT site_id,site_name,'
+                             'enabled,jobsub_site_name '
+                             'FROM sites ORDER by site_name')
+  except Exception as e:
+    logLine('Failed getting list of sites for get_stage_cache: ' + str(e))
+    return
+
+  for (processors,bytesPerProcessor,numberUnallocated) \
+   in justin.getUnallocatedCounts():
+    
+    for siteRow in siteRows:
+
+      if siteRow['enabled']:
+        jobDict = { "error_message"   : None,
+                    "site_id"         : siteRow['site_id'],
+                    "site_name"       : siteRow['site_name'],
+                    "min_processors"  : processors - 1,
+                    "max_processors"  : processors,
+                    "min_rss_bytes"   : bytesPerProcessor * (processors - 1),
+                    "max_rss_bytes"   : bytesPerProcessor * processors,
+                    "max_wall_seconds": 86400
+                  }
+
+        try:
+          print('jobDict',jobDict)
+          stage = findStage(jobDict)
+          print('stage',stage)
+        except Exception as e:
+          logLine('findStage() fails with: ' + str(e))
+          stage = None
+      else:
+        stage = None
+   
+      if not stage:
+        requestID = 0
+        stageID   = 0
+      else:
+        requestID   = stage['request_id']
+        stageID     = stage['stage_id']
+        maxDistance = stage['max_distance']
+        logLine('Match(es) found (%d,%d) for site %s - caching' % 
+                (requestID, stageID, siteRow['site_name']))
+
+        try:
+          justin.db.insertUpdate('INSERT INTO get_stage_cache SET '
+                              'site_id=%d,'
+                              'min_processors=%d,'
+                              'max_processors=%d,'
+                              'min_rss_bytes=%d,'
+                              'max_rss_bytes=%d,'
+                              'max_wall_seconds=%d,'
+                              'request_id=%d,'
+                              'stage_id=%d,'
+                              'cache_time=NOW() '
+                              'ON DUPLICATE KEY UPDATE ' 
+                              'request_id=%d,'
+                              'stage_id=%d,'
+                              'cache_time=NOW() ' % 
+                              (jobDict['site_id'],
+                               jobDict['min_processors'],
+                               jobDict['max_processors'],
+                               jobDict['min_rss_bytes'],
+                               jobDict['max_rss_bytes'],
+                               jobDict['max_wall_seconds'],
+                               requestID,
+                               stageID,
+                               requestID,
+                               stageID
+                              )
+                             )
+
+        except Exception as e:
+          logLine('Record  fails with: ' + str(e))
+
+        cacheFindFileResults(jobDict['site_id'], 
+                             requestID, 
+                             stageID, 
+                             maxDistance)
+   
+  try:
+    justin.db.insertUpdate('DELETE FROM get_stage_cache '
+                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
+  except Exception as e:
+    logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
+
+  try:
+    justin.db.insertUpdate('DELETE FROM find_file_cache '
+                        'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
+  except Exception as e:
+    logLine('Delete previous find_file_cache entries fails with: ' + str(e))
+
+  # Commit what we did    
+  justin.db.conn.commit()
+
+def oneCycle():
+  # Update the database with the states of submitted jobsub jobs
+
+  logLine("cacheFindStageResults()")
+  cacheFindStageResults()
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs('/var/run/justin',         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open('/var/run/justin/stage-cache.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create /var/run/justin/stage-cache.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/justin directory exists
+        try:
+          os.makedirs('/var/log/justin', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/justin/stage-cache', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+          
+        se = open('/var/log/justin/stage-cache', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open('/var/run/justin/stage-cache.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new /var/run/justin/stage-cache.pid - exiting')
+            break
+
+        except:
+          print('no /var/run/justin/stage-cache.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          justin.conf.readConf()
+          
+          try:
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+

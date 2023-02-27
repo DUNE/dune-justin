@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Example jobscript that makes sha1sum checksums of all the files
+# referred to by the MQL expression give on the justin command line.
+#
+# Submit with something like this:
+#
+# ./justin quick-request \
+#  --mql "rucio-dataset protodune-sp:np04_raw_run_number_5769" \
+#  --scope test --output-pattern 'sha1sum-*.txt:test-01' \
+#  --jobscript simple.jobscript 
+#
+# Then monitor with dashboard or ./justin show-jobs --request-id ID
+# where ID is the value printed by the first command
+#
+
+# Get an unprocessed file from this stage
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+did=`echo $did_pfn_rse | cut -f1 -d' '`
+pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+rse=`echo $did_pfn_rse | cut -f3 -d' '`
+
+# These files are found by the generic job using the --output-pattern
+# form given on the justin command line (see above).
+xrdcp --nopbar --debug 1 $pfn tmp
+sha1sum tmp >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
+
+# We say we processed whatever we were given
+echo "$did" > justin-processed-dids.txt
+
+# Log what we did
+echo "Processed $did at $pfn for Request $JUSTIN_REQUEST_ID, Stage $JUSTIN_STAGE_ID"
+
+exit 0
