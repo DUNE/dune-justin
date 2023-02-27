@@ -40,6 +40,13 @@ COPY agents/wfs.logrotate /etc/logrotate.d/justin
 COPY  genericjobs/run-jobsub-submit /var/lib/justin/
 COPY  genericjobs/wfs-generic-job   /var/lib/justin/
 
-RUN ls -la /usr/lib/python3.6/site-packages/
+RUN mkdir /usr/lib/python3.6/site-packages/justin
+COPY modules/allocator.py /usr/lib/python3.6/site-packages/justin/
+COPY modules/conf.py      /usr/lib/python3.6/site-packages/justin/
+# COPY modules/justin_version.py /usr/lib/python3.6/site-packages/justin/
+COPY modules/db.py        /usr/lib/python3.6/site-packages/justin/
+COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
+COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
+  justin.dune.
 
 ENTRYPOINT ["/usr/sbin/workflowEntrypoint.sh"]
