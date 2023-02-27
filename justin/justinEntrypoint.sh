@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-./justin/agents/justin-finder
-./justin/agents/justin-stage-cache
-./justin/agents/justin-info-collector
-./justin/agents/justin-job-factory
+/usr/sbin/justin-finder
+/usr/sbin/justin-stage-cache
+/usr/sbin/justin-info-collector
+/usr/sbin/justin-job-factory
+
+ls -l /var/log/
 
 tail -f /var/log/wfs/*
