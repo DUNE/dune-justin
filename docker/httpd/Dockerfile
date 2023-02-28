@@ -17,6 +17,7 @@ COPY services/justin.conf /etc/httpd/conf.d/
 COPY docs/*.md /var/www/html/docs/
 
 COPY docker/httpd/httpdEntrypoint.sh /usr/local/apache2/
+COPY docker/certificates/* /etc/grid-security/
 
 USER 1001
 
