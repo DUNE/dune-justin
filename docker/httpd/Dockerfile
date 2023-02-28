@@ -4,11 +4,7 @@ USER root
 
 RUN yum update -y
 RUN yum -y install httpd httpd-tools mod_ssl mod_wsgi openssl expect
-RUN yum install -y epel-release lcg-CA
-
-RUN cd /etc/yum.repos.d
-RUN wget http://linuxsoft.cern.ch/wlcg/wlcg-centos7.repo
-RUN yum update -y
+RUN yum install -y epel-release lcg-CA wlcg-repo
 
 RUN yum install -y certbot python2-certbot-apache
 
