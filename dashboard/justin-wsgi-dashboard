@@ -368,11 +368,15 @@ def oidcTokensRequest(cilogonCode, environ):
 
   try:
     tokensDict = {} 
-    tokensDict['access']  = json.loads(base64.urlsafe_b64decode(
+    tokensDict['access_token'] = responseDict['access_token']
+    tokensDict['access_dict']  = json.loads(base64.urlsafe_b64decode(
                      responseDict['access_token'].split('.')[1] + '=='))
-    tokensDict['id']      = json.loads(base64.urlsafe_b64decode(
+
+    tokensDict['id_token'] = responseDict['id_token']
+    tokensDict['id_dict']      = json.loads(base64.urlsafe_b64decode(
                      responseDict['id_token'].split('.')[1] + '=='))
-    tokensDict['refresh'] = responseDict['refresh_token']
+
+    tokensDict['refresh_token'] = responseDict['refresh_token']
   except Exception as e:
     print('OIDC tokens parsing fails: '+str(e), file=sys.stderr)
     return None
@@ -422,7 +426,7 @@ def cilogonCallback(startResponse, environ):
   pprint.pprint(tokensDict, stream = sys.stderr)
 
   try:
-    wlcgGroups = tokensDict['access']['wlcg.groups']
+    wlcgGroups = tokensDict['access_dict']['wlcg.groups']
     if '/dune' not in wlcgGroups:
       raise
   except:
@@ -432,7 +436,7 @@ def cilogonCallback(startResponse, environ):
     return output
 
   try:
-    eppn = tokensDict['id']['eppn']
+    eppn = tokensDict['id_dict']['eppn']
     if not justin.stringIsUsername(eppn):
       raise
   except:
@@ -456,9 +460,34 @@ def cilogonCallback(startResponse, environ):
     # The user is ok but not in justIN's database yet - so try to add them
     userID = createUser(eppn)
 
-  if userID:
-    if authorizeSessionID:
-      try:
+    if not userID:
+      output = errorPage('/dashboard/', environ,
+                       'Failed to create new user record for you!')
+      startResponseOK(startResponse, output)
+      return output
+  
+  try:
+    query = ('UPDATE users SET access_token="%s",refresh_token="%s",'
+             'access_token_created=FROM_UNIXTIME(%d),'
+             'access_token_expires=FROM_UNIXTIME(%d) '
+             'WHERE user_id=%d' 
+             % (tokensDict['access_token'],
+                tokensDict['refresh_token'],
+                tokensDict['access_dict']['iat'],
+                tokensDict['access_dict']['exp'],
+                userID))
+
+    justin.insertUpdate(query)
+
+  except Exception as e:
+    print('Failed to update users with tokens: ' + str(e), file=sys.stderr)
+    output = errorPage('/dashboard/', environ, 'Failed to store your tokens')
+    startResponseOK(startResponse, output)
+    return output
+        
+  if authorizeSessionID:
+     # If authorizing a computer, we create an extra session for that
+     try:
         query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s",'
                  'expires_time=DATE_ADD(NOW(),INTERVAL 7 DAY) '
                  'WHERE session_id = %d AND NOW() < expires_time AND '
@@ -466,20 +495,21 @@ def cilogonCallback(startResponse, environ):
                  % (userID, ' '.join(wlcgGroups), authorizeSessionID))
         
         justin.insertUpdate(query)
-      except Exception as e:
+     except Exception as e:
         print('UPDATE command sessions fails: ' + str(e), file=sys.stderr)
 ### NEED A PROPER RESPONSE HERE eg FOR EXPIRED command SESSION
         return ''
 
-    try:
+  # We always create a web session, since we are here anyway
+  try:
       query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s" '
                'WHERE justin_session="%s" AND justin_secret="%s" AND '
                'user_id=0 AND session_type="web"'
                % (userID, ' '.join(wlcgGroups), justinSession, justinSecret))
       justin.insertUpdate(query)
-    except Exception as e:
+  except Exception as e:
       print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
-    else:
+  else:
       # This is where the created user gets committed too
       justin.db.conn.commit()
 
@@ -1815,7 +1845,9 @@ def showJob(environ, user, cgiValues):
            "jobs.for_awt,jobs.site_job_id,"
            "jobs.max_processors,jobs.min_processors,"
            "jobs.max_rss_bytes,jobs.min_rss_bytes,"
-           "jobs.max_wall_seconds,jobscript_log,jobs.inner_apptainer "
+           "jobs.max_wall_seconds,jobscript_log,jobs.inner_apptainer,"
+           "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
+           "jobs.jobscript_max_rss_bytes "
            "FROM jobs "
            "LEFT JOIN requests ON requests.request_id=jobs.request_id "
            "LEFT JOIN users ON requests.user_id=users.user_id "
@@ -1872,7 +1904,7 @@ def showJob(environ, user, cgiValues):
                '%s</a></td></tr>'
                % (jobRow["site_name"], jobRow["site_name"]))
   else:
-    output += '<tr><td>Site</td><td> </td></tr>'
+    output += '<tr><td>Site</td><td colspan="2"> </td></tr>'
 
   output += ('<tr><td>Slot</td><td colspan="2">'
              '%d &lt; processors &le; %d<br>'
@@ -1964,6 +1996,19 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["finished_time"]))
 
+  if jobRow["allocation_state"] in ['outputting', 'finished']:
+    output += ('<tr><td rowspan="2">Jobscript</td>'
+               '<td>Real time</td>'
+               '<td>%s (%ds)</td></tr>'
+               % (daysHoursMinutes(jobRow["jobscript_real_seconds"]),
+                  jobRow["jobscript_real_seconds"]))
+      
+    output += ('<tr>'
+               '<td>CPU time</td>'
+               '<td>%s (%ds)</td></tr>'
+               % (daysHoursMinutes(jobRow["jobscript_cpu_seconds"]),
+                  jobRow["jobscript_cpu_seconds"]))
+      
   output += '<tr><td>Input files</td><td colspan="2">'
   
   for inputFileRow in inputFilesRows:

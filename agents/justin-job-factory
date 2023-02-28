@@ -243,15 +243,16 @@ def anySiteJobs():
       
       logLine('Submit jobs with blacklist: ' + ignoreStr)
       submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
-                     siteID         = 0,
-                     jobsubSiteName = 'ANY',
-                     minProcessors  = processors - 1,
-                     maxProcessors  = processors,
-                     minRssBytes    = bytesPerProcessor * (processors - 1),
-                     maxRssBytes    = bytesPerProcessor * processors,
-                     maxWallSeconds = 86400,
-                     ignoreStr      = ignoreStr,
-                     forAwt         = False)
+              siteID         = 0,
+              jobsubSiteName = ('NOT_FNAL_GPGrid' 
+                                if ('FNAL_GPGrid' in ignoreSites) else 'ANY'),
+              minProcessors  = processors - 1,
+              maxProcessors  = processors,
+              minRssBytes    = bytesPerProcessor * (processors - 1),
+              maxRssBytes    = bytesPerProcessor * processors,
+              maxWallSeconds = 86400,
+              ignoreStr      = ignoreStr,
+              forAwt         = False)
 
 def awtJobsToSites():
   # Go through the sites deciding where to submit AWT jobs

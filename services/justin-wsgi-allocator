@@ -1131,10 +1131,28 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Failed recording outputs: ' + str(e))
 
   try:
+    jobscriptRealSeconds = int(float(jsonDict['jobscript_real_seconds']))
+    jobscriptCpuSeconds  = int(float(jsonDict['jobscript_user_seconds']) +
+                               float(jsonDict['jobscript_sys_seconds']))
+    jobscriptMaxRssBytes = int(jsonDict['jobscript_max_rss_kb']) * 1024
+  except:
+    # We can produce an error if this fails in future...
+    jobscriptRealSeconds = 0
+    jobscriptCpuSeconds  = 0
+    jobscriptMaxRssBytes = 0
+
+  try:
     justin.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
-                        'heartbeat_time=NOW(),'
-                        'outputting_time=NOW() '
-                        'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+                           'heartbeat_time=NOW(),'
+                           'outputting_time=NOW(),'
+                           'jobscript_real_seconds=%d,'
+                           'jobscript_cpu_seconds=%d,'
+                           'jobscript_max_rss_bytes=%d '
+                           'WHERE jobsub_id="%s"'
+                           % (jobscriptRealSeconds,
+                              jobscriptCpuSeconds,
+                              jobscriptMaxRssBytes,
+                              jsonDict['jobsub_id']))
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',

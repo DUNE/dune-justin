@@ -132,8 +132,8 @@ echo '==== Before: ls -l /proc/$$/ns/ ===='
 ls -l "/proc/$$/ns/"
 echo '==== After: ls -l /proc/$$/ns/ ===='
 echo '==== Before try singularity ===='
-singularity shell --shell /usr/bin/hostname \
-  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
+  singularity shell --shell /usr/bin/hostname \
+   /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
 if [ $? = 0 ] ; then
   inner_apptainer=true
 else
@@ -270,16 +270,21 @@ chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 
 echo "====Start of jobscript execution===="
 export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
-singularity shell \
-  --shell /home/jobscript-wrapper.sh \
-  --containall \
-  --bind /cvmfs \
-  --workdir $JUSTIN_WORKDIR \
-  --home $JUSTIN_WORKDIR/home:/home \
-  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 \
-  > $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log 
-export JOBSCRIPT_EXIT=$?
+/usr/bin/time -o $JUSTIN_WORKDIR/time.txt -f '%e %U %S %M' \
+    singularity shell \
+    --shell /home/jobscript-wrapper.sh \
+    --containall \
+    --bind /cvmfs \
+    --workdir $JUSTIN_WORKDIR \
+    --home $JUSTIN_WORKDIR/home:/home \
+    /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 \
+    > $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log 
+export JUSTIN_JOBSCRIPT_EXIT=$?
 export JUSTIN_JOBSCRIPT_FINISH=`date --iso-8601=seconds --utc`
+export JUSTIN_JOBSCRIPT_REAL_SECONDS=`cut -d' ' -f1 $JUSTIN_WORKDIR/time.txt`
+export JUSTIN_JOBSCRIPT_USER_SECONDS=`cut -d' ' -f2 $JUSTIN_WORKDIR/time.txt`
+export JUSTIN_JOBSCRIPT_SYS_SECONDS=`cut -d' ' -f3 $JUSTIN_WORKDIR/time.txt`
+export JUSTIN_JOBSCRIPT_MAX_RSS_KB=`cut -d' ' -f4 $JUSTIN_WORKDIR/time.txt`
 echo "====End of jobscript execution===="
 
 echo '#### justin-jobscript.log'
@@ -360,7 +365,13 @@ cat <<EOF >justin-record-results.json
   "output_dids": [$output_dids],
   "next_stage_dids": [$next_stage_dids],
   "jobscript_log": "`cat justin-jobscript.log.b64`",
-  "jobscript_exit": $JOBSCRIPT_EXIT
+  "jobscript_exit": $JUSTIN_JOBSCRIPT_EXIT,
+  "jobscript_start": "$JUSTIN_JOBSCRIPT_START",
+  "jobscript_finish": "$JUSTIN_JOBSCRIPT_FINISH",
+  "jobscript_real_seconds": $JUSTIN_JOBSCRIPT_REAL_SECONDS,
+  "jobscript_user_seconds": $JUSTIN_JOBSCRIPT_USER_SECONDS,
+  "jobscript_sys_seconds": $JUSTIN_JOBSCRIPT_SYS_SECONDS,
+  "jobscript_max_rss_kb": $JUSTIN_JOBSCRIPT_MAX_RSS_KB
 }
 EOF
 
@@ -394,8 +405,8 @@ if [ "$http_code" != 200 ] ; then
   job_aborted 0 $http_code record_results
 fi
 
-if [ "$JOBSCRIPT_EXIT" != 0 ] ; then
-  job_aborted 0 900 jobscript exit $JOBSCRIPT_EXIT
+if [ "$JUSTIN_JOBSCRIPT_EXIT" != 0 ] ; then
+  job_aborted 0 900 jobscript exit $JUSTIN_JOBSCRIPT_EXIT
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors

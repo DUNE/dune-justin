@@ -18,9 +18,15 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   file:///var/lib/justin/justin-generic-job 2>/dev/null
-elif [ "$2" = "ANY" ] ; then
+elif [ "$2" = "ANY" -o "$2" = "NOT_FNAL_GPGrid" ] ; then
  if [ "$6" != "" ] ; then
    blacklist_option="--blacklist $6"
+ fi
+
+ if [ "$2" = "NOT_FNAL_GPGrid" ] ; then
+   USAGE_MODEL='OFFSITE'
+ else
+   USAGE_MODEL='OFFSITE,DEDICATED,OPPORTUNISTIC'
  fi
 
  jobsub_submit \
@@ -31,7 +37,7 @@ elif [ "$2" = "ANY" ] ; then
   --expected-lifetime=${5}s \
   --group dune \
   --subgroup prod_keepup \
-  --resource-provides=usage_model=OFFSITE,DEDICATED,OPPORTUNISTIC \
+  --resource-provides=usage_model="$USAGE_MODEL" \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   "$blacklist_option" \
   file:///var/lib/justin/justin-generic-job 2>/dev/null

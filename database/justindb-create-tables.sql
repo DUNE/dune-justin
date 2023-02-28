@@ -138,6 +138,9 @@ CREATE TABLE `jobs` (
   `secret` varchar(255) NOT NULL DEFAULT '',
   `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
   `for_awt` tinyint(1) NOT NULL DEFAULT '0',
+   `jobscript_real_seconds` mediumint unsigned NOT NULL DEFAULT 0,
+   `jobscript_cpu_seconds` mediumint unsigned NOT NULL DEFAULT 0,
+   `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
@@ -505,7 +508,12 @@ CREATE TABLE `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `main_pn_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (`user_id`)
+  `access_token` text NOT NULL DEFAULT '',
+  `access_token_created` datetime NOT NULL DEFAULT '1970-01-01',
+  `access_token_expires` datetime NOT NULL DEFAULT '1970-01-01',
+  `refresh_token` text NOT NULL DEFAULT '',
+  PRIMARY KEY (`user_id`),
+  INDEX `access_token_expires_created` (`access_token_expires`,`access_token_created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
