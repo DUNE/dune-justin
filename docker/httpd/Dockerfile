@@ -3,8 +3,12 @@ FROM centos:7
 USER root
 
 RUN yum update -y
-RUN yum -y install httpd httpd-tools mod_ssl mod_wsgi openssl expect
+RUN yum -y install wget httpd httpd-tools mod_ssl mod_wsgi openssl expect
 RUN yum install -y epel-release lcg-CA wlcg-repo
+
+RUN yum install -y http://repository.egi.eu/sw/production/umd/4/centos7/x86_64/updates/umd-release-4.1.3-1.el7.centos.noarch.rpm
+RUN yum install http://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-repo-1.0.0-1.el7.noarch.rpm
+RUN yum install -y wlcg-vobox
 
 RUN yum install -y certbot python2-certbot-apache
 RUN yum update -y
