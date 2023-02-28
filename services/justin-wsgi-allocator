@@ -718,6 +718,15 @@ def jobAbortedMethod(startResponse, jsonDict):
   if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
     state = 'notused'
     eventTypeID = justin.db.event_JOB_NOTUSED
+  elif jsonDict['aborted_method'] == 'jobscript_error':
+    state = 'jobscript_error'
+##### NEEDS CHANGING TO A jobscript error EVENT!!!
+    eventTypeID = justin.db.event_JOB_ABORTED
+  elif jsonDict['aborted_method'] in [ 'rucio_attach', 'rucio_upload',
+                                       'metacat_declare' ]:
+    state = 'outputting_failed'
+##### NEEDS CHANGING TO AN outputting error EVENT!!!
+    eventTypeID = justin.db.event_JOB_ABORTED
   else:
     state = 'aborted'
     eventTypeID = justin.db.event_JOB_ABORTED

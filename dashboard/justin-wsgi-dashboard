@@ -1058,12 +1058,13 @@ def showRequest(environ, user, cgiValues):
   # Get counts of job states for all stages
   stateCounts = []
   for i in range(0, len(stageRows) + 1):
-    stateCounts.append({ 'processing'      : 0,
-                         'outputting'      : 0,
-                         'finished'        : 0,
-                         'aborted'         : 0,
-                         'stalled'         : 0,
-                         'jobscript_error' : 0  })
+    stateCounts.append({ 'processing'        : 0,
+                         'outputting'        : 0,
+                         'finished'          : 0,
+                         'aborted'           : 0,
+                         'stalled'           : 0,
+                         'jobscript_error'   : 0,
+                         'outputting_failed' : 0  })
 
   query = ('SELECT allocation_state,stage_id,COUNT(*) AS count '
            'FROM jobs '
@@ -1082,7 +1083,8 @@ def showRequest(environ, user, cgiValues):
   output += ('<table>')
   output += ('<tr><th>Stage</th><th>Total</th><th>Processing</th>'
              '<th>Outputting</th><th>Finished</th>'
-             '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th></tr>')
+             '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
+             '<th>Outputting failed</th></tr>')
 
   for stageRow in stageRows:
     output += ('<tr>'
@@ -1102,6 +1104,8 @@ def showRequest(environ, user, cgiValues):
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=jobscript_error">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=outputting_failed">%d</a></td>'
         '</tr>'
         % (stageRow["request_id"], stageRow["stage_id"], 
             stageRow["stage_id"],
@@ -1111,7 +1115,8 @@ def showRequest(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['finished'] +
              stateCounts[stageRow['stage_id']]['aborted'] +
              stateCounts[stageRow['stage_id']]['stalled'] +
-             stateCounts[stageRow['stage_id']]['jobscript_error'],
+             stateCounts[stageRow['stage_id']]['jobscript_error'] +
+             stateCounts[stageRow['stage_id']]['outputting_failed'],
            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['processing'],
            stageRow["request_id"], stageRow["stage_id"],
@@ -1123,7 +1128,9 @@ def showRequest(environ, user, cgiValues):
            stageRow["request_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['stalled'],
            stageRow["request_id"], stageRow["stage_id"],
-            stateCounts[stageRow['stage_id']]['jobscript_error']))
+            stateCounts[stageRow['stage_id']]['jobscript_error'],
+           stageRow["request_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['outputting_failed']))
 
   output += ('</table>')
   output += footer()
@@ -1351,8 +1358,12 @@ def showStage(environ, user, cgiValues):
            ' AS number_stalled,'
            '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
            ' stage_id=%d AND allocation_state="jobscript_error") '
-           ' AS number_jobscript_error'
+           ' AS number_jobscript_error,'
+           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           ' stage_id=%d AND allocation_state="outputting_failed") '
+           ' AS number_outputting_failed'
            % (requestID, stageID, 
+              requestID, stageID,
               requestID, stageID,
               requestID, stageID,
               requestID, stageID,
@@ -1366,7 +1377,8 @@ def showStage(environ, user, cgiValues):
   output += ('<h2>Job states</h2>')
   output += ('<table>')
   output += ('<tr><th>Processing</th><th>Outputting</th><th>Finished</th>'
-        '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th></tr>')
+        '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
+        '<th>Outputting failed</th></tr>')
 
   output += ('<tr>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
@@ -1381,13 +1393,16 @@ def showStage(environ, user, cgiValues):
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
         '&stage_id=%d&allocation_state=jobscript_error">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '&stage_id=%d&allocation_state=outputting_failed">%d</a></td>'
         '</tr>'
         % (requestID, stageID, jobNumberRow['number_processing'],
            requestID, stageID, jobNumberRow['number_outputting'],
            requestID, stageID, jobNumberRow['number_finished'],
            requestID, stageID, jobNumberRow['number_aborted'],
            requestID, stageID, jobNumberRow['number_stalled'],
-           requestID, stageID, jobNumberRow['number_jobscript_error']
+           requestID, stageID, jobNumberRow['number_jobscript_error'],
+           requestID, stageID, jobNumberRow['number_outputting_failed']
           ))
 
   output += ('</table>')
@@ -1988,27 +2003,6 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["allocation_time"]))
 
-  output += ('<tr><td>Outputting started</td>'
-             '<td colspan="2">%s</td></tr>'
-             % spaceForUnixEpoch(jobRow["outputting_time"]))
-
-  output += ('<tr><td>Finished</td>'
-             '<td colspan="2">%s</td></tr>'
-             % spaceForUnixEpoch(jobRow["finished_time"]))
-
-  if jobRow["allocation_state"] in ['outputting', 'finished']:
-    output += ('<tr><td rowspan="2">Jobscript</td>'
-               '<td>Real time</td>'
-               '<td>%s (%ds)</td></tr>'
-               % (daysHoursMinutes(jobRow["jobscript_real_seconds"]),
-                  jobRow["jobscript_real_seconds"]))
-      
-    output += ('<tr>'
-               '<td>CPU time</td>'
-               '<td>%s (%ds)</td></tr>'
-               % (daysHoursMinutes(jobRow["jobscript_cpu_seconds"]),
-                  jobRow["jobscript_cpu_seconds"]))
-      
   output += '<tr><td>Input files</td><td colspan="2">'
   
   for inputFileRow in inputFilesRows:
@@ -2026,6 +2020,28 @@ def showJob(environ, user, cgiValues):
       
   output += '</td></tr>'
 
+  if jobRow["allocation_state"] in ['outputting', 'finished']:
+    output += ('<tr><td rowspan="2">Jobscript</td>'
+               '<td>Real time</td>'
+               '<td>%s (%ds)</td></tr>'
+               % (daysHoursMinutes(jobRow["jobscript_real_seconds"]),
+                  jobRow["jobscript_real_seconds"]))
+      
+    output += ('<tr>'
+               '<td>CPU time</td>'
+               '<td>%s (%ds = %d%%)</td></tr>'
+               % (daysHoursMinutes(jobRow["jobscript_cpu_seconds"]),
+                  jobRow["jobscript_cpu_seconds"],
+                  int( (jobRow["jobscript_cpu_seconds"] * 100)
+                         / (jobRow["jobscript_real_seconds"] + 0.000001)
+                     ) 
+                 )
+              )
+      
+  output += ('<tr><td>Outputting started</td>'
+             '<td colspan="2">%s</td></tr>'
+             % spaceForUnixEpoch(jobRow["outputting_time"]))
+
   output += '<tr><td>Output files</td><td colspan="2">'
   
   for outputFileRow in outputFilesRows:
@@ -2042,6 +2058,10 @@ def showJob(environ, user, cgiValues):
       output += '<!-- %s -->' % str(e)
       
   output += '</td></tr>'
+
+  output += ('<tr><td>Finished</td>'
+             '<td colspan="2">%s</td></tr>'
+             % spaceForUnixEpoch(jobRow["finished_time"]))
 
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
@@ -2091,7 +2111,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   else:
     if allocationState in ['submitted','started','processing','outputting',
                            'finished', 'notused','failed','aborted',
-                           'stalled']:
+                           'stalled', 'jobscript_error', 'outputting_failed']:
       filters.append('jobs.allocation_state="%s"' % allocationState)
       urlTemplate += '&allocation_state=' + allocationState
       titleSuffixes.append('Allocation State %s' % allocationState)

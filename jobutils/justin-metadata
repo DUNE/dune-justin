@@ -46,8 +46,6 @@ metadata['metadata']['DUNE.workflow']['jobscript_real_seconds'] \
 metadata['metadata']['DUNE.workflow']['jobscript_cpu_seconds'] \
  = int(float(os.environ['JUSTIN_JOBSCRIPT_USER_SECONDS']) +
        float(os.environ['JUSTIN_JOBSCRIPT_SYS_SECONDS']))
-metadata['metadata']['DUNE.workflow']['jobscript_max_rss_bytes'] \
- = int(os.environ['JUSTIN_JOBSCRIPT_MAX_RSS_KB']) * 1024
 
 metadata['metadata']['DUNE.workflow']['cpuinfo'] \
  = os.environ['JUSTIN_CPUINFO']

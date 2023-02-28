@@ -112,11 +112,6 @@ mkdir -p $JUSTIN_WORKDIR/home/workspace
 cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
  $JUSTIN_WORKDIR/home/
 
-## TEMPORARILY OVERWRITE justin-metadata WITH VERSION FROM GITHUB
-#curl --output $JUSTIN_WORKDIR/home/justin-metadata \
-# https://raw.githubusercontent.com/DUNE/dune-justin/main/jobutils/justin-metadata
-#chmod +x $JUSTIN_WORKDIR/home/justin-metadata 
-
 # Assemble values to record
 export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
@@ -406,7 +401,7 @@ if [ "$http_code" != 200 ] ; then
 fi
 
 if [ "$JUSTIN_JOBSCRIPT_EXIT" != 0 ] ; then
-  job_aborted 0 900 jobscript exit $JUSTIN_JOBSCRIPT_EXIT
+  job_aborted 0 900 jobscript_error
 fi
 
 # Just try the first RSE for now; eventually will do failovers on errors
@@ -438,20 +433,22 @@ export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
 
 rucio --config $JUSTIN_WORKDIR/rucio.cfg --version
 if [ $? != 0 ] ; then
-  job_aborted 1 900 'Rucio test fails'
+  job_aborted 1 900 rucio_test
 fi
 
 metacat auth login -m x509 dunepro
 metacat auth whoami
 if [ $? != 0 ] ; then
-  job_aborted 1 900 'MetaCat whoami fails'
+  job_aborted 1 900 metacat_test
 fi
 
 touch justin-output-dids-rses.txt
 
 while read lifetime dataset scope fn
 do
-  $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
+  /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
+    "$scope" "$fn" > tmp.json
+#  $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
   echo "==== Start MetaCat JSON for $fn ===="
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="
@@ -493,16 +490,16 @@ do
             --verbose attach "$dataset" "$scope:$fn"
       if [ $? != 0 ] ; then
         log_line "rucio attach fails"
-        job_aborted 1 900 "rucio attach error"
+        job_aborted 1 900 rucio_attach
       fi
       echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> justin-output-dids-rses.txt
     else
       log_line "rucio upload fails"
-      job_aborted 1 900 "rucio upload error" "$OUTPUT_RSE"
+      job_aborted 1 900 rucio_upload "$OUTPUT_RSE"
     fi
   else
     log_line "metacat file declaration fails"
-    job_aborted 1 900 "metacat file declare error"
+    job_aborted 1 900 metacat_declare
   fi 
 done
 
