@@ -1180,8 +1180,12 @@ def showStage(environ, user, cgiValues):
            "WHERE stages.request_id=%d AND stages.stage_id=%d" %
            (requestID, stageID))
 
-  justin.db.cur.execute(query)
-  stageRow = justin.db.cur.fetchone()
+  stageRow = justin.select(query, justOne = True)
+
+  if stageRow['requests_scope_name']:
+    scopeName = stageRow['requests_scope_name']
+  else:
+    scopeName = ''
   
   output += ("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
   
@@ -1250,11 +1254,11 @@ def showStage(environ, user, cgiValues):
 
   if patternRows:
     output += ("<h2>Output patterns</h2>")
-    output += ('<table><tr><th>Dataset</th><th>Pattern</th>'
+    output += ('<table><tr><th>Destination</th><th>Pattern</th>'
                '<th>Lifetime</th><th>For next stage</th></tr>') 
 
     for patternRow in patternRows:
-      output += ("<tr><td>%s</td><td>%s</td>"
+      output += ("<tr><td>Rucio %s</td><td>%s</td>"
                  "<td>%d</td><td>%s</td></tr>" 
                  % (patternRow["dataset"],
                     html.escape(patternRow["file_pattern"], quote=True),
@@ -1901,10 +1905,6 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % html.escape(jobsubID, quote=True))
 
-#  output += ('<tr><td>Site job ID</td>'
-#             '<td colspan="2">%s</td></tr>'
-#             % html.escape(jobRow['site_job_id'], quote=True))
-
   if jobRow['for_awt']: 
     output += ('<tr><td>Workflow Testing</td>'
                '<td colspan="2">Yes</td></tr>')
@@ -2020,7 +2020,8 @@ def showJob(environ, user, cgiValues):
       
   output += '</td></tr>'
 
-  if jobRow["allocation_state"] in ['outputting', 'finished']:
+  if jobRow["allocation_state"] in ['outputting', 'outputting_failed', 
+                                                  'finished',]:
     output += ('<tr><td rowspan="2">Jobscript</td>'
                '<td>Real time</td>'
                '<td>%s (%ds)</td></tr>'

@@ -573,6 +573,8 @@ def findStalledAbortedJobs():
              'allocation_state="outputting") AND '
              '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) '
              'OR allocation_state="aborted" '
+             'OR allocation_state="jobscript_error" '
+             'OR allocation_state="outputting_failed" '
              'ORDER BY justin_job_id' % justin.db.jobStallSeconds)
 
     justin.db.cur.execute(query)
@@ -588,8 +590,9 @@ def findStalledAbortedJobs():
 
   for jobRow in jobRows:
 
-    if jobRow['allocation_state'] != 'aborted':
-      # If not here due to 'aborted', we mark the job as stalled
+    if jobRow['allocation_state'] not in ['aborted', 'jobscript_error', 
+                                                     'outputting_failed']:
+      # If not here due to an abort, we mark the job as stalled
       try:
         query = ('UPDATE jobs SET allocation_state="stalled",finished_time=NOW() '
                  'WHERE justin_job_id=%d' % jobRow['justin_job_id'])

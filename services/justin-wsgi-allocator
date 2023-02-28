@@ -275,15 +275,13 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
   # Create a file containing the output file patterns
   try:
     query = ("SELECT lifetime_seconds,dataset,file_pattern,"
-             "for_next_stage,scope_name "
+             "for_next_stage "
              "FROM stages_outputs "
              "LEFT JOIN stages "
              "ON stages.request_id=stages_outputs.request_id "
              "AND stages.stage_id=stages_outputs.stage_id "
              "LEFT JOIN requests "
              "ON requests.request_id=stages_outputs.request_id "
-             "LEFT JOIN scopes "
-             "ON scopes.scope_id=requests.scope_id "
              "WHERE stages_outputs.request_id=%d "
              "AND stages_outputs.stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
@@ -298,7 +296,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
     patternsFile += (str(row['lifetime_seconds']) + ' ' +
                      str(row['for_next_stage']) + ' ' + 
                      row['dataset'] + ' ' +
-                     str(row['scope_name']) + ' ' +
+                     scopeName + ' ' +
                      row['file_pattern'] + '\n')
     
   addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)

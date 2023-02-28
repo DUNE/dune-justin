@@ -201,10 +201,19 @@ def showStageOutputsCmd(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
 
   try:
-    rows = justin.db.select("SELECT * FROM stages_outputs "
-                         "WHERE request_id=%d AND stage_id=%d "
-                         "ORDER BY dataset,file_scope,file_pattern" 
-                         % (requestID, stageID))
+    rows = justin.db.select("SELECT for_next_stage,"
+                            "scopes.scope_name,"
+                            "file_pattern,"
+                            "dataset "
+                            "FROM stages_outputs "
+                            "LEFT JOIN requests "
+                            "ON requests.request_id=stages_outputs.request_id "
+                            "LEFT JOIN scopes "
+                            "ON requests.scope_id=scopes.scope_id "
+                            "WHERE stages_outputs.request_id=%d "
+                            "AND stages_outputs.stage_id=%d "
+                            "ORDER BY dataset,file_scope,file_pattern" 
+                            % (requestID, stageID))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -213,10 +222,11 @@ def showStageOutputsCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     nextStage = '(next)' if row['for_next_stage'] else '(    )'
+
     outputString += ("%s %s %s %s\n" % (nextStage,
-                                        row['dataset'],
-                                        row['file_scope'],
-                                        row['file_pattern']))
+                                        row['scope_name'],
+                                        row['file_pattern'],
+                                        row['dataset']))
    
   return httpOK(startResponse, outputString)
 
@@ -788,7 +798,7 @@ def quickRequestCmd(startResponse, jsonDict, user):
 
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
-      splitList = i.split(':')
+      splitList = i.split(':',1)
        
       if len(splitList) < 2:
         continue
@@ -1089,7 +1099,7 @@ def createStageCmd(startResponse, jsonDict, user):
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
 
-      splitList = i.split(':')
+      splitList = i.split(':',1)
 
       if len(splitList) < 2:
         continue
@@ -1120,7 +1130,7 @@ def createStageCmd(startResponse, jsonDict, user):
   if jsonDict['output_pattern_next_stage']:
     for i in jsonDict['output_pattern_next_stage']:
     
-      splitList = i.split(':')
+      splitList = i.split(':',1)
        
       if len(splitList) < 2:
         continue
