@@ -4,7 +4,7 @@ USER root
 
 RUN yum update -y
 RUN yum install -y python3 python3-devel python-devel gcc
-RUN yum install -y wget httpd httpd-devel httpd-tools mod_ssl openssl expect
+RUN yum install -y wget httpd httpd-devel httpd-tools mod_ssl openssl expect python3-mod_wsgi
 RUN yum install -y epel-release lcg-CA wlcg-repo
 
 RUN yum install -y http://repository.egi.eu/sw/production/umd/4/centos7/x86_64/updates/umd-release-4.1.3-1.el7.centos.noarch.rpm
