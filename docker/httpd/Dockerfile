@@ -7,6 +7,7 @@ RUN yum -y install httpd httpd-tools mod_ssl mod_wsgi openssl expect
 RUN yum install -y epel-release lcg-CA wlcg-repo
 
 RUN yum install -y certbot python2-certbot-apache
+RUN yum update -y
 
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY services/justin-wsgi-import-script /var/www/wsgi/
