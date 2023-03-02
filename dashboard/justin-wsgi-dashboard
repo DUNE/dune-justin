@@ -2355,7 +2355,7 @@ def listStorages(environ, user, cgiValues):
 
   output += ("<h1>Storages</h1>")
   
-  query = ("SELECT rse_name,occupancy,"
+  query = ("SELECT rse_name,occupancy,decommissioned,"
            "rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,"
            "rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,"
            "write_protocol,deterministic_rse "
@@ -2378,8 +2378,14 @@ def listStorages(environ, user, cgiValues):
   
   for storageRow in storageRows:  
     output += ('<tr>'
-          '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
-          '<td>%.2f</td>'
+               '<td><a href="/dashboard/?method=show-storage&rse_name=%s">'
+               '%s</a></td>'
+               % (storageRow['rse_name'], storageRow['rse_name']))
+
+    if storageRow['decommissioned']:
+      output += '<td colspan="7">Decommissioned</td></tr>'
+    else:
+      output += ('<td>%.2f</td>'
           '<td>%s</td>'
           '<td>(%s/%s)</td>'
           '<td>%s</td>'
@@ -2387,8 +2393,7 @@ def listStorages(environ, user, cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
-          % (storageRow['rse_name'], storageRow['rse_name'],
-             storageRow['occupancy'],
+          % (storageRow['occupancy'],
              bool(storageRow['has_read']),
              bool(storageRow['rucio_read']),
              bool(storageRow['justin_read']),
@@ -2481,7 +2486,7 @@ def showSite(environ, user, cgiValues):
            'FROM storages '
            'LEFT JOIN sites_storages ON sites_storages.rse_id=storages.rse_id '
            'LEFT JOIN jobs ON sites_storages.justin_job_id=jobs.justin_job_id '
-           'WHERE sites_storages.site_id=%d '
+           'WHERE sites_storages.site_id=%d AND NOT storages.decommissioned '
            'ORDER BY distance,rse_name' % siteRow['site_id'])
 
   justin.db.cur.execute(query)
@@ -2600,9 +2605,7 @@ def showStorage(environ, user, cgiValues):
         
   output = header(environ, user, "justIN: Storage " + rseName)
 
-  output += ("<h1>Storage %s</h1>" % rseName)
-  
-  query = ('SELECT occupancy,rse_id,'
+  query = ('SELECT occupancy,rse_id,decommissioned,'
            'rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,'
            'rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,'
            'deterministic_rse,write_protocol '
@@ -2611,8 +2614,12 @@ def showStorage(environ, user, cgiValues):
   justin.db.cur.execute(query)
   storageRow = justin.db.cur.fetchone()
 
-  output += ('<table>')
+  output += ("<h1>Storage %s%s</h1>" 
+             % (rseName, 
+                ' (DECOMMISSIONED)' if storageRow['decommissioned'] else ''))
   
+  output += ('<table>')
+
   output += ('<tr><td>RSE name</td><td>%s</td></tr>' % rseName)
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
@@ -2847,6 +2854,7 @@ def awtResults(environ, user, cgiValues):
                                '(rucio_write AND justin_write) AS has_write '
                                'FROM storages '
                                'WHERE rse_name <> "MONTECARLO" '
+                               'AND NOT decommissioned '
                                'ORDER by rse_name')
   rseNames       = []
   outputRseNames = []

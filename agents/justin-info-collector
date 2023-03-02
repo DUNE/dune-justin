@@ -54,6 +54,7 @@ def logLine(text):
 def getJsonURL(url):
   httpRequest = urllib.request.Request(url)
   sslContext  = ssl.SSLContext()
+  sslContext.verify_mode = ssl.CERT_REQUIRED
   sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
   try:
@@ -368,16 +369,36 @@ def updateStorages():
 
   for rse in rseList:
   
-    logLine(str(rse))
+    if not justin.stringIsSite(rse['rse']):
+      logLine('Skip RSE with bad name %s' % rse['rse'])
+      continue
   
     if rse['rse_type'] != 'DISK' and rse['rse'] != 'FNAL_DCACHE':
-      # We ignore tape RSEs apart from tape-backed dCache at FNAL
+      logLine('Skip non-disk RSE %s' % rse['rse'])
       continue
       
+    logLine('Processing %s : %s' % (rse['rse'], str(rse)))
+  
     try:
       availability = rse['availability']
     except:
-      availability = 0  
+      availability = 0
+
+    availabilityRead  = rse['availability_read']
+    availabilityWrite = rse['availability_write']
+
+    try:
+      attributes = rseClient.list_rse_attributes(rse['rse'])
+    except Exception as e:
+      logLine('Failed getting attributes for RSE %s: %s' 
+              % (rse['rse'], str(e)))
+      continue
+      
+    if 'decommissioned' in attributes and \
+       attributes['decommissioned'] == True:
+      decommissioned = True
+    else:
+      decommissioned = False
 
     try:
       usageList = rseClient.get_rse_usage(rse['rse'],
@@ -406,32 +427,25 @@ def updateStorages():
         occupancy = 0.0
 
     try:
-      # We should sanitise the RSE name just in case...
-      
       if rse['rse'] not in justinStorageNames:
-        query = ('INSERT INTO storages SET rse_name="%s",'
-                 'occupancy=%f,rucio_write=%d,rucio_read=%d,'
-                 'justin_write=FALSE,deterministic_rse=%d'
-                 % (rse['rse'], 
-                    occupancy,
-                    ((availability & justin.db.rseAvailabilityWrite)  != 0),
-                    ((availability & justin.db.rseAvailabilityRead)   != 0),
-                    int(rse['deterministic'])
-                   )
-                )
-      else:
-        query = ('UPDATE storages SET '
-                 'occupancy=%f,rucio_write=%d,'
-                 'rucio_read=%d,deterministic_rse=%d '
-                 'WHERE rse_name="%s"'
-                 % (occupancy,
-                    ((availability & justin.db.rseAvailabilityWrite)  != 0),
-                    ((availability & justin.db.rseAvailabilityRead)   != 0),
-                    int(rse['deterministic']),
-                    rse['rse']
-                   )
-                )
-      print(query)
+        query = ('INSERT INTO storages SET rse_name="%s",justin_write=FALSE'
+                 % rse['rse']) 
+        justin.db.cur.execute(query)
+
+      query = ('UPDATE storages SET '
+               'occupancy=%f,'
+               'rucio_write=%s,rucio_read=%s,'
+               'deterministic_rse=%s,decommissioned=%s '
+               'WHERE rse_name="%s"'
+               % (occupancy,
+                  availabilityWrite,
+                  availabilityRead,
+                  rse['deterministic'],
+                  decommissioned,
+                  rse['rse']
+                 )
+              )
+
       justin.db.cur.execute(query)
     except Exception as e:
       # Log the error and hope it was transitory

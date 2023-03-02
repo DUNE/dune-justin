@@ -311,7 +311,8 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
                'AND sites_storages.site_id=%d '
                'LEFT JOIN replicas '
                'ON replicas.request_id=%d AND replicas.rse_id=storages.rse_id '
-               'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL' % 
+               'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL '
+               'AND NOT storages.decommissioned' % 
                (jobDict['site_id'], justin.db.awtRequestID) )
 
       rseRows = justin.db.select(query)
@@ -353,7 +354,8 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
              'sites_storages.distance IS NOT NULL AND '
              'storages.rucio_write AND '
              'storages.justin_write AND '
-             'storages.occupancy < 1.0 '
+             'storages.occupancy < 1.0 AND '
+             'NOT storages.decommissioned '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
              % (stage['request_id'], 

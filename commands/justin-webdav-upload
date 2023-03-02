@@ -24,36 +24,178 @@ import json
 import time
 import ssl
 import urllib.request
+import argparse
 
 # curl -v -v -L --cert /tmp/justin-jobs-analysis.proxy.pem --capath /etc/grid-security/certificates --request MKCOL  'https://fndcadoor.fnal.gov:2880/dune/scratch/justin/amcnab@fnal.gov'
 # curl -v -v -L --cert /tmp/justin-jobs-analysis.proxy.pem --capath /etc/grid-security/certificates --upload /tmp/123.txt https://fndcadoor.fnal.gov:2880/dune/scratch/justin/amcnab@fnal.gov/1/2/444.txt
 # curl -v -v -L --header "Authorization: Bearer $AT" --capath /etc/grid-security/certificates --upload /tmp/123.txt https://fndcadoor.fnal.gov:2880/dune/scratch/users/amcnab/501.txt
 
-import os
-import os.path
-import sys
-import json
-import time
-import ssl
-import urllib.request
-import argparse
-import platform
+verbose = False
 
-# The make-justin-tag script looks for this and updates it - so format matters
-versionNumber = '00.06.00'
-sessionFile   = '/var/tmp/justin.session.' + str(os.getuid())
+def checkRemoteDirectories(sslContext, token, dirSplit):
 
-def body(buf): 
+  # Go down through the directories looking for the highest one that exists
+  for highest in range(len(dirSplit) - 1, 1, -1): 
+  
+    # Don't do the check once we get down to the bare hostname 
+    # But otherwise do stop if the directory exists already
+    if highest > 2 and \
+       remoteExists(sslContext, token, '/'.join(dirSplit[:highest + 1])):
+      break
+      
+  for i in range(highest+1, len(dirSplit)):
+    remoteDirCreate(sslContext, token, '/'.join(dirSplit[:i+1]))
 
-  sys.stdout.write(buf.decode('UTF-8'))
+def remoteExists(sslContext, token, url):
+
+  httpRequest = urllib.request.Request(url,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token
+#                              ,
+#                              'Expect'         : '100-continue'
+                            },
+                  method = 'HEAD')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    httpCode = response.status 
+
+  except urllib.error.URLError as e:
+    httpCode = e.code
+
+  except Exception as e:
+    print('Unknown error checking if %s exists: %s' % (url, str(e)), 
+          file=sys.stderr)
+    sys.exit(2)
+
+  if httpCode == 404:
+    if verbose:
+      print('%s does not exist' % url, file=sys.stderr)
+    return False
+    
+  if httpCode == 200:
+    if verbose:
+      print('%s exists' % url, file=sys.stderr)
+    return True
+
+  print('Unexpected HTTP code %d when checking for %s' % (httpCode, url),
+        file=sys.stderr)
+  sys.exit(2)
+  
+def remoteDirCreate(sslContext, token, url):
+
+  httpRequest = urllib.request.Request(url,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token
+#                              ,
+#                              'Expect'         : '100-continue'
+                            },
+                  method = 'MKCOL')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)    
+    httpCode = response.status 
+
+  except urllib.error.URLError as e:
+    print('HTTP error: ' + str(e), file=sys.stderr)
+    sys.exit(2)
+    
+  except Exception as e:
+    print('Unknown error: ' + str(e), file=sys.stderr)
+    sys.exit(2)
+  
+  if httpCode == 201:
+    if verbose:
+      print('%s created, HTTP code %d' % (url, httpCode), file=sys.stderr)
+    return
+
+  print('Unexpected HTTP code %d when creating %s' % (httpCode, url),
+        file=sys.stderr)
+  sys.exit(2)
+  
+def putFile(sslContext, token, source, destinationDir):
+
+  sourceFile = source.split('/')[-1]
+  destinationURL = destinationDir + '/' + sourceFile
+    
+  if remoteExists(sslContext, token, destinationURL):
+    print('File already exists at %s' % destinationURL, file=sys.stderr)
+    sys.exit(2)
+  
+  #
+  # Do a PUT to the desired destination, but expect a redirect
+  # 
+  httpRequest = urllib.request.Request(destinationURL,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token,
+                              'Expect'         : '100-continue'
+                            },
+                  method = 'PUT')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    # Success is failure as we want a 307 redirect
+    sys.exit(2)
+
+  except urllib.error.HTTPError as e:
+
+    if e.code == 307:
+      # And failure is success
+      location = e.headers['Location']
+    else:
+      print('Unexpected HTTP code %d when creating %s' 
+            % (e.code, destinationURL), file=sys.stderr)
+      sys.exit(2)
+    
+  except Exception as e:
+    print('Unexpected error when creating %s: %s' 
+          % (str(e), destinationURL), file=sys.stderr)
+    message = e.read().decode('utf-8')
+    print(message, file=sys.stderr)
+    sys.exit(2)
+
+  if verbose:
+    print('Redirected to %s' % location, file=sys.stderr)
+
+  #
+  # Now use the URL we got from the redirection
+  # 
+  httpRequest = urllib.request.Request(location,
+                  data = open(source, 'r'),
+                  headers = { 'User-Agent' : 'justin-webdav-upload' },
+                  method = 'PUT')
+
+  # Replace .has_header to prevent the default Content-Type 
+  # IMO dCache should ignore Content-Type rather than reject the request
+  httpRequest.has_header \
+   = lambda header_name: (header_name == 'Content-type' or
+                urllib.request.Request.has_header(httpRequest, header_name))
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except Exception as e:
+    print('Error when creating %s: %s'
+          % (destinationURL, str(e)), file=sys.stderr)
+    sys.exit(2)
+
+  if response.status == 201:
+    print(destinationURL)
+    sys.exit(0)
+
+  print('Unexpected HTTP code %d when creating %s' 
+        % (httpCode, destinationURL), file=sys.stderr)
+  sys.exit(2)
 
 #
 # PROGRAM MAIN !!!
 # 
 
-parser = argparse.ArgumentParser(prog='justin-webdav-upload', 
-                                 usage='justin-webdav-upload OPTIONS')
-
+parser = argparse.ArgumentParser(prog='justin-webdav-upload',
+  usage='justin-webdav-upload [--help] [--verbose] --token-file '
+        'TOKENFILE --source-file SOURCEFILE --destination-directory URL \n\n'
+        'See the justin-webdav-upload(1) man page for detailed help '
+        'and command syntax\n')
+                                 
 parser.add_argument("-v", 
                     "--verbose",
                     action = "store_true",
@@ -63,171 +205,68 @@ parser.add_argument("--token-file",
                     type = str,
                     help = "Token file")
 
-parser.add_argument("--source",
+parser.add_argument("--source-file",
                     type = str,
-                    help = "Source")
+                    help = "Source file")
 
-parser.add_argument("--destination",
+parser.add_argument("--destination-directory",
                     type = str,
-                    help = "Destination URL")
+                    help = "Destination directory URL")
 
 try:
-  args = parser.parse_args()
+  args = vars(parser.parse_args())
 except:
-  print('\nSee the justin-webdav-upload(1) man page for detailed help '
-        'and command syntax\n')
-  parser.print_help()
-  sys.exit(0)
-
-jsonDict = vars(args)
-
-if jsonDict['command'] == 'version':
-  print(versionNumber)
-  sys.exit(0)
-
-
-
-
-jsonDict['version'] = versionNumber
-
-if jsonDict['jobscript']:
-  with open(jsonDict['jobscript']) as f:
-    contents = f.read()
-    jsonDict['jobscript'] = contents
-
-if args.command not in commands:
-  print("%s not recognised as a justin command" % args.command)
   sys.exit(1)
 
-if jsonDict['verbose']:
-  print(jsonDict)
+if args['verbose']:
+  verbose = True
 
-# Set up request contexts to send the command to justIN 
-
-if jsonDict['url']:
-  url = jsonDict['url']
-else:
-  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
+if not args['token_file']:
+  print('--token-file missing', file=sys.stderr)
+  sys.exit(1)
 
 try:
-  (session, secret) = open(sessionFile, 'r').read().split()
+  token = open(args['token_file'], 'r').read().strip()
 except:
-  session = None
-  secret  = None
-        
-jsonDict['session']    = session
-jsonDict['secret']     = secret
+  print('Failed to read token from %s' % args['token_file'], 
+        file=sys.stderr)
+  sys.exit(1)
 
-try:
-  jsonDict['os_release'] = open('/etc/system-release','r').read().strip()
-except:
-  try:
-    macPlatform = platform.mac_ver()[0]
-    if macPlatform:
-      jsonDict['os_release'] = 'macOS ' + macPlatform
-  except:
-    jsonDict['os_release'] = ''
+if not args['source_file']:
+  print('--source-file missing', file=sys.stderr)
+  sys.exit(1)
 
-httpRequest = urllib.request.Request(url + '/' + args.command,
-                                     data = json.dumps(jsonDict).encode(),
-                                     headers = { 'User-Agent': 
-                                                 'justin ' + versionNumber },
-                                     method = 'POST')
+if not os.path.exists(args['source_file']):
+  print('source file %s does not exist' % args['source_file'], file=sys.stderr)
+  sys.exit(1)
+
+if not args['destination_directory']:
+  print('--destination-directory missing', file=sys.stderr)
+  sys.exit(1)
+
+if not args['destination_directory'].startswith('https://'):
+  print('Only https:// destination directory URLs are supported', 
+        file=sys.stderr)
+  sys.exit(1)
+
+if not args['destination_directory'].startswith( \
+                  'https://fndcadoor.fnal.gov:2880/dune/scratch/users/'):
+  print('Unsupported destination directory URL - just FNAL scratch for now',
+        file=sys.stderr)
+  sys.exit(1)
+
+destDir      = args['destination_directory']
+destDirSplit = destDir.split('/')
+
+# Remove any final "/" and "//" after the one in "https://"
+for i in range(2, len(destDirSplit)):
+  if destDirSplit[i] == '':
+    destDirSplit.pop(i)
 
 sslContext = ssl.SSLContext()
 sslContext.verify_mode = ssl.CERT_REQUIRED
+sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
-# Use embedded UK e-Science CA and Root certificates, expiring in 2027
-sslContext.load_verify_locations(cadata = '''
------BEGIN CERTIFICATE-----
-MIIDwzCCAqugAwIBAgICASMwDQYJKoZIhvcNAQELBQAwVDELMAkGA1UEBhMCVUsx
-FTATBgNVBAoTDGVTY2llbmNlUm9vdDESMBAGA1UECxMJQXV0aG9yaXR5MRowGAYD
-VQQDExFVSyBlLVNjaWVuY2UgUm9vdDAeFw0xMTA2MTgxMzAwMDBaFw0yNzEwMzAw
-OTAwMDBaMFMxCzAJBgNVBAYTAlVLMRMwEQYDVQQKEwplU2NpZW5jZUNBMRIwEAYD
-VQQLEwlBdXRob3JpdHkxGzAZBgNVBAMTElVLIGUtU2NpZW5jZSBDQSAyQjCCASIw
-DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKkLgb2eIcly4LZfj0Rf5F7s+HE/
-6Tvpf4jsKkm7qs33y3EEudCbcPwQKjS2MgytPv+8xpEPHqy/hqTseNlZ6oJgc+V8
-xlJ+0iws882Ca8a9ZJ/iGQH9UzXU4q35ArN3cbwoWAAvMvzZ6hUV86fAAQ1AueQN
-6h7/tnfYfaUMiB4PNxucmouMHDJGmYzl47FtlLeHUr2c4m/oWSG5pADIvGFpWFHj
-NIw8/x4n97w5/ks0tc/8/5Q6xzUfCX/VfqciQCvKcui2J5MBhUlBDLenzwqvUytB
-4XAwX/pRcKmnFEYwoc9OKGExNx9tn9RjQYJAC/KLb44Jqno9l0eRxu3uw4sCAwEA
-AaOBnzCBnDAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4E
-FgQUEqW/kZ9/4q9qXAny4vpZ4Dbh81UwHwYDVR0jBBgwFoAUXvgbSKZ3ayk8LgBT
-Mytjont+k8AwOQYDVR0fBDIwMDAuoCygKoYoaHR0cDovL2NybC5jYS5uZ3MuYWMu
-dWsvY3JsL3Jvb3QtY3JsLmRlcjANBgkqhkiG9w0BAQsFAAOCAQEArd5TFOo9SzGW
-0+KrAdzzf60zh4Wy//vZz4tgt7NeDbNpz2TZROBAClSu7oLPiruzgnhNP/Vxeu0s
-pI41wRQsh0DVxhM+9ZFOskH+OdmHzKagoejvHh6Jt8WNN0eBLzN8Bvsue7ImJPaY
-cf/Qj1ZTBhaRHcMsLNnqak3un/P+uLPxqSuxVKMtC8es/jqosS4czJ3dgs1hgFy9
-nPQiwuIyf3OJ9eifAOGXk9Nlpha9C54zhc+hAkSLnpx/FhPjwLgpwDRgDJud6otH
-15x3qZqXNx7xbYfeHaM1R1HMEjfVdzKCTY4zsqNEGPEF/0nUQSFk6KQVz0/ugNmI
-9qoDx3FeEg==
------END CERTIFICATE-----
------BEGIN CERTIFICATE-----
-MIIDhjCCAm6gAwIBAgIBADANBgkqhkiG9w0BAQUFADBUMQswCQYDVQQGEwJVSzEV
-MBMGA1UEChMMZVNjaWVuY2VSb290MRIwEAYDVQQLEwlBdXRob3JpdHkxGjAYBgNV
-BAMTEVVLIGUtU2NpZW5jZSBSb290MB4XDTA3MTAzMDA5MDAwMFoXDTI3MTAzMDA5
-MDAwMFowVDELMAkGA1UEBhMCVUsxFTATBgNVBAoTDGVTY2llbmNlUm9vdDESMBAG
-A1UECxMJQXV0aG9yaXR5MRowGAYDVQQDExFVSyBlLVNjaWVuY2UgUm9vdDCCASIw
-DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM3ORtmmUHotwDTfAH5/eIlo3+BK
-oElDeaeN5Sg2lhPu0laPch7pHKSzlqyHmZGsk3fZb8hBmO0lD49+dKnA31zLU6ko
-Bje1THqdrGZPcjTm0lhc/SjzsBtWm4oC/bpYBACliB9wa3eSuU4Rqq71n7+4J+WO
-KvaDHvaTdRYE3pyie2Xe5QTI8CXedCMh18+EdFvwlV79dlmNRNY93ZWUu6POL6d+
-LapQkUmasXLjyjNzcoPXgDyGauHOqmyqxuPx4tDTsC25nKr+7K5k3T+lplJ/jMkQ
-l/QHgqnABBXQILzzrt0a8nQdM8ONA+bht+8sy4eN/0zMulNj8kAzrutkhJsCAwEA
-AaNjMGEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE
-FF74G0imd2spPC4AUzMrY6J7fpPAMB8GA1UdIwQYMBaAFF74G0imd2spPC4AUzMr
-Y6J7fpPAMA0GCSqGSIb3DQEBBQUAA4IBAQCT0a0kcE8oVYzjTGrd5ayvOI+vbdiY
-MG7/2V2cILKIts7DNdIrEIonlV0Cw96pQShjRRIizSHG5eH1kLJcbK/DpgX6QuPR
-WhWR5wDJ4vaz0qTmUpwEpsT9mmyehhHbio/EsYM7LesScJrO2piD2Bf6pFUMR1LC
-scAqN7fTXJSg6Mj6tOhpWpPwM9WSwQn8sDTgL0KkrjVOVaeJwlyNyEfUpJuFIgTl
-rEnkXqhWQ6ozArDonB4VHlew6eqIGaxWB/yWMNvY5K+b1j5fdcMelzA45bFucOf1
-Ag+odBgsGZahpFgOqKvBuvSrk/8+ie8I2CVYwT486pPnb5JFgHgUfZo8
------END CERTIFICATE-----
-''')
+checkRemoteDirectories(sslContext, token, destDirSplit)
 
-try:
-  response = urllib.request.urlopen(httpRequest, context = sslContext)
-
-except urllib.error.URLError as e:
-  try:
-    httpCode = e.code
-  except:
-    httpCode = 0
-
-  if httpCode == 401:
-    try:
-      responseDict = json.loads(e.read().decode('utf-8'))
-      session = responseDict['session']
-      secret  = responseDict['secret']
-      message = responseDict['message']
-    except:
-      print('Failed to parse JSON response from justIN!', file=sys.stderr)
-      sys.exit(21)
-
-    try:
-      os.umask(0)
-      fd = os.open(path  = sessionFile,
-                 flags = (os.O_WRONLY | os.O_CREAT | os.O_TRUNC),
-                 mode  = 0o600)
-
-      with open(fd, 'w') as f:
-        f.write(session + ' ' + secret)
-    except:
-      print('Failed to create new session file %s' % sessionFile, 
-            file=sys.stderr)
-      sys.exit(22)
-  
-    print(message, file=sys.stderr)
-    sys.exit(1)
-
-  print('Connection error: ' + str(e), file=sys.stderr)
-  sys.exit(21)
-  
-#if response.status != 200:
-#  if jsonDict['verbose']:
-#    print(response.read().decode('utf-8'), file=sys.stderr)
-#  sys.exit(20)
-  
-print(response.read().decode('utf-8'), end='')
-sys.exit(0)
- 
+putFile(sslContext, token, args['source_file'], '/'.join(destDirSplit))

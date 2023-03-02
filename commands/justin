@@ -318,18 +318,18 @@ except urllib.error.URLError as e:
       print('Failed to parse JSON response from justIN!', file=sys.stderr)
       sys.exit(21)
 
-      try:
-        os.umask(0)
-        fd = os.open(path  = sessionFile,
-                 flags = (os.O_WRONLY | os.O_CREAT | os.O_TRUNC),
-                 mode  = 0o600)
+    try:
+      os.umask(0)
+      fd = os.open(path  = sessionFile,
+                   flags = (os.O_WRONLY | os.O_CREAT | os.O_TRUNC),
+                   mode  = 0o600)
 
-        with open(fd, 'w') as f:
-          f.write(session + ' ' + secret)
-      except:
-        print('Failed to create new session file %s' % sessionFile, 
-              file=sys.stderr)
-        sys.exit(22)
+      with open(fd, 'w') as f:
+        f.write(session + ' ' + secret)
+    except:
+      print('Failed to create new session file %s' % sessionFile, 
+            file=sys.stderr)
+      sys.exit(22)
   
     print(message, file=sys.stderr)
     sys.exit(1)

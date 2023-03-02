@@ -118,6 +118,7 @@ def sendPinRequest(pfnsPath):
 
   sslContext = ssl.SSLContext()
   sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+  sslContext.verify_mode = ssl.CERT_REQUIRED
   sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
   try:
@@ -270,6 +271,7 @@ def checkPinRequest(pinURL):
 
   sslContext = ssl.SSLContext()
   sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+  sslContext.verify_mode = ssl.CERT_REQUIRED
   sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
   try:
@@ -395,6 +397,7 @@ def deletePin(pinURL):
 
   sslContext = ssl.SSLContext()
   sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+  sslContext.verify_mode = ssl.CERT_REQUIRED
   sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
   try:

@@ -465,6 +465,7 @@ DROP TABLE IF EXISTS `storages`;
 CREATE TABLE `storages` (
   `rse_name` varchar(255) NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `decommissioned` tinyint(1) NOT NULL DEFAULT FALSE,
   `occupancy` float NOT NULL DEFAULT 0,
   `rucio_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `rucio_read` tinyint(1) NOT NULL DEFAULT TRUE,

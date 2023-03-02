@@ -338,9 +338,10 @@ def findReplicas():
     return
 
   # Cache rse_id of every known RSE into a local dictionary
+  # unless it is decommissioned
   storagesDict = {}
-  justin.db.cur.execute('SELECT rse_name,rse_id,needs_pin FROM storages')
-  allStorages = justin.db.cur.fetchall()
+  allStorages = justin.select('SELECT rse_name,rse_id,needs_pin '
+                              'FROM storages WHERE NOT decommissioned')
   
   for storageRow in allStorages:
     storagesDict[storageRow['rse_name']] = { 
@@ -409,8 +410,14 @@ def findReplicas():
         else:
             rses[pfnDict['rse']]['wan_pfn'] = justin.db.fixPfn(pfnDict['pfn'])
 
+    replicasInserted = 0
     # Now go through the replicas for this file, RSE by RSE
     for rse in rses:
+
+        # Skip if RSE not listed (possibly because decommissioned=True)
+        if rse not in storagesDict:
+          continue
+    
         try:
           lanPFN = rses[rse]['lan_pfn'] 
         except:
@@ -445,6 +452,7 @@ def findReplicas():
                     accessibleUntil))
 
           justin.db.cur.execute(query)
+          replicasInserted += 1
         except Exception as e:
           logLine('Failed inserting replica: ' + str(e))
           # We give up if this happens, without the commit
@@ -453,7 +461,7 @@ def findReplicas():
         # Add request/stage to the list to have updated stats at the end
         requestsStages.add((fileRow['request_id'], fileRow['stage_id']))
 
-    if rses:
+    if replicasInserted:
       # If we got this far, then we found all the replicas for this 
       # file so we update its state to unallocated (not finding any more)
       try:

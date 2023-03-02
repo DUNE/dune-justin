@@ -1,0 +1,74 @@
+.TH JUSTIN  "2023" "justin-webdav-upload" "justIN Manual"
+.SH NAME
+.B justin-webdav-upload
+\- justIN utility to upload files via WebDAV
+.SH SYNOPSIS
+.B justin-webdav-upload [--help] [--verbose] --token-file TOKENFILE
+.B --source-file SOURCEFILE --destination-directory URL
+.SH DESCRIPTION
+.B justin-webdav-upload
+is a command-line utility to upload a file using WebDAV and a token. It is
+used by justIN generic jobs to upload job outputs to scratch
+disk rather than to Rucio-managed storage. Currently it is limited to Fermilab
+scratch, managed by dCache. You may find it useful for some debugging but 
+it is not supported for end-users: you should probably use IFDH commands
+instead.
+
+.SH OPTIONS
+
+.HP 
+.B "-h, --help"
+.br
+Show help message and exit.
+
+.HP 
+.B "-v, --verbose"
+.br
+Turn on verbose logging.
+
+.HP 
+.B "--token-file TOKENFILE"
+.br
+A SciToken or WLCG profile token in a local file which can be reached with
+the absolute or relative path and name TOKENFILE.
+
+.HP 
+.B "--source-file SOURCEFILE"
+.br
+A local file to be uploaded which can be reached with the absolute or relative 
+path and name SOURCEFILE. The filename part of SOURCEFILE after any final
+slash is used as the filename on the remote WebDAV server when uploaded.
+
+.HP 
+.B "--destination-directory URL"
+.br
+The URL of a remote WebDAV directory in which to create the uploaded file.
+A trailing slash can be included or omitted. Parent directories of URL
+will be created if they do not already exist. The command will fail with
+an error if a file with the name to be created already exists in URL.
+
+.SH EXAMPLE
+
+On a dunegpvm machine at Fermilab, the following creates a token and an
+example file, uploads it to scratch, and then checks it is there via pnfs.
+
+.nf 
+htgettoken --debug --vaultserver=htvaultprod.fnal.gov -i dune
+date >/tmp/$USER-date.txt
+justin-webdav-upload \\
+  --token-file  /run/user/`id -u`/bt_u`id -u` \\
+  --source-file /tmp/$USER-date.txt \\
+  --destination-directory \\
+  https://fndcadoor.fnal.gov:2880/dune/scratch/users/$USER/
+ls -l /pnfs/dune/scratch/users/$USER/$USER-date.txt
+.fi
+
+If you have the token on a remote machine and set --token-file accordingly,
+you should be able to test uploads to Fermilab scratch with the command
+from there.
+
+.SH AUTHOR
+Andrew McNab <Andrew.McNab@cern.ch>
+
+.SH "SEE ALSO"
+justin(1)

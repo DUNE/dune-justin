@@ -63,7 +63,8 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
                    'files.state="unallocated" AND '
                    'distance<=%f AND '
                    'accessible_until > NOW() AND '
-                   'storages.rucio_read AND storages.justin_read '
+                   'storages.rucio_read AND storages.justin_read AND '
+                   'NOT storages.decommissioned '
                    'ORDER by distance,replicas.file_id LIMIT 1000' % 
                    (siteID, requestID, stageID, maxDistance))
   except Exception as e:
@@ -134,6 +135,7 @@ def findStage(jobDict):
  "AND sites_storages.distance <= stages.max_distance "
  "AND storages.rucio_read "
  "AND storages.justin_read "
+ "AND NOT storages.decommissioned "
  "ORDER BY stage_rank DESC,sites_storages.distance,rand() "
  "LIMIT 1" %
  (
