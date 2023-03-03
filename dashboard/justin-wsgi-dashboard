@@ -2355,10 +2355,10 @@ def listStorages(environ, user, cgiValues):
 
   output += ("<h1>Storages</h1>")
   
-  query = ("SELECT rse_name,occupancy,decommissioned,"
+  query = ("SELECT rse_id,rse_name,occupancy,decommissioned,"
            "rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,"
            "rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,"
-           "write_protocol,deterministic_rse "
+           "lan_write_scheme,wan_write_scheme "
            "FROM storages ORDER BY rse_name")
   justin.db.cur.execute(query)
   storageRows = justin.db.cur.fetchall()
@@ -2372,8 +2372,8 @@ def listStorages(environ, user, cgiValues):
         '<th>(Rucio/justIN)</th>'
         '<th>Write</th>'
         '<th>(Rucio/justIN)</th>'
-        '<th>Write protcol</th>'
-        '<th>Deterministic</th>'
+        '<th>LAN write</th>'
+        '<th>WAN write</th>'
         '</tr>')
   
   for storageRow in storageRows:  
@@ -2384,24 +2384,24 @@ def listStorages(environ, user, cgiValues):
 
     if storageRow['decommissioned']:
       output += '<td colspan="7">Decommissioned</td></tr>'
+    elif storageRow['rse_id'] == justin.MonteCarloRseID:
+      output += '<td colspan="7"> </td></tr>'
     else:
       output += ('<td>%.2f</td>'
-          '<td>%s</td>'
-          '<td>(%s/%s)</td>'
-          '<td>%s</td>'
-          '<td>(%s/%s)</td>'
+          '<td>%s</td><td>(%s/%s)</td>'
+          '<td>%s</td><td>(%s/%s)</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
           % (storageRow['occupancy'],
              bool(storageRow['has_read']),
-             bool(storageRow['rucio_read']),
-             bool(storageRow['justin_read']),
+              bool(storageRow['rucio_read']),
+              bool(storageRow['justin_read']),
              bool(storageRow['has_write']),
-             bool(storageRow['rucio_write']),
-             bool(storageRow['justin_write']),
-             storageRow['write_protocol'],
-             bool(storageRow['deterministic_rse'])
+              bool(storageRow['rucio_write']),
+              bool(storageRow['justin_write']),
+             storageRow['lan_write_scheme'],
+             storageRow['wan_write_scheme']
             )
          )    
 
@@ -2608,7 +2608,7 @@ def showStorage(environ, user, cgiValues):
   query = ('SELECT occupancy,rse_id,decommissioned,'
            'rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,'
            'rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,'
-           'deterministic_rse,write_protocol '
+           'lan_write_scheme,wan_write_scheme '
            'FROM storages WHERE rse_name="%s"' % rseName)
 
   justin.db.cur.execute(query)
@@ -2634,10 +2634,8 @@ def showStorage(environ, user, cgiValues):
            bool(storageRow['rucio_write']), 
            bool(storageRow['justin_write'])))
 
-  output += ('<tr><td>Deterministic</td><td>%s</td></tr>' 
-        % bool(storageRow['deterministic_rse']))
-  output += ('<tr><td>Write protocol</td><td>%s</td></tr>' 
-        % storageRow['write_protocol'])
+  output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
+        % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
 
   output += ('</table>')
 

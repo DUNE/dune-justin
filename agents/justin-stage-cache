@@ -126,6 +126,7 @@ def findStage(jobDict):
  "WHERE files.state='unallocated' AND " 
  "replicas.accessible_until > NOW() AND "
  "requests.state='running' AND "
+ "requests.request_id<>%d AND "
  "((%d < stages.processors AND stages.processors <= %d AND "
  "  stages.rss_bytes <= %d) OR "
  " (%d < stages.rss_bytes AND stages.rss_bytes <= %d AND "
@@ -140,6 +141,7 @@ def findStage(jobDict):
  "LIMIT 1" %
  (
   jobDict["site_id"],
+  justin.awtRequestID,
   jobDict["min_processors"], jobDict["max_processors"], 
   jobDict["max_rss_bytes"],
   jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],

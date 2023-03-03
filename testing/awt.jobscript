@@ -25,8 +25,12 @@ do
   echo $JUSTIN_SITE_NAME $rse_name $write_protocol $read_pfn
 
   # Test download of file prepositioned on RSEs
-  xrdcp --force --nopbar --verbose "$read_pfn" "$AWT_DOWNLOAD_FILE"
+  (
+    export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
+    xrdcp --force --nopbar --verbose "$read_pfn" "$AWT_DOWNLOAD_FILE"
+  )
   download_retval=$?
+
   echo "'xrdcp --force --nopbar --verbose $read_pfn $AWT_DOWNLOAD_FILE' returns $download_retval"
 
   # Test upload of random file

@@ -471,10 +471,9 @@ CREATE TABLE `storages` (
   `rucio_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_read` tinyint(1) NOT NULL DEFAULT TRUE,
-  `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
-  `deterministic_rse` tinyint(1) NOT NULL DEFAULT TRUE,
-  `write_protocol` varchar(255) NOT NULL DEFAULT 'root',
+  `lan_write_scheme` varchar(255) NOT NULL DEFAULT 'root',
+  `wan_write_scheme` varchar(255) NOT NULL DEFAULT 'root',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

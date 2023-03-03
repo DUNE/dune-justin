@@ -377,15 +377,57 @@ def updateStorages():
       logLine('Skip non-disk RSE %s' % rse['rse'])
       continue
       
-    logLine('Processing %s : %s' % (rse['rse'], str(rse)))
+    logLine('Processing %s' % rse['rse'])
   
-    try:
-      availability = rse['availability']
-    except:
-      availability = 0
+    availabilityRead = rse['availability_read']
 
-    availabilityRead  = rse['availability_read']
-    availabilityWrite = rse['availability_write']
+    if rse['deterministic']:
+      availabilityWrite = rse['availability_write']
+    else:
+      # Force non-deterministic RSEs to read only
+      availabilityWrite = False
+
+    bestLanWriteScheme   = 'root'
+    bestLanWritePriority = None
+
+    bestWanWriteScheme   = 'root'
+    bestWanWritePriority = None
+
+    try:
+      protocols = rseClient.get_protocols(rse['rse'])
+    except Exception as e:
+      logLine('Failed getting protocols for RSE %s: %s' 
+              % (rse['rse'], str(e)))
+      protocols = []
+
+    for protocolDict in protocols:
+      try:
+        scheme = protocolDict['scheme']
+      except:
+        continue
+      
+      if scheme not in ['root', 'roots', 'https', 'davs']:
+        continue
+      
+      try: 
+        priority = protocolDict['domains']['lan']['write']
+      except:
+        pass
+      else:
+        if (priority > 0) and \
+           (bestLanWritePriority is None or priority < bestLanWritePriority):
+          bestLanWriteScheme   = scheme
+          bestLanWritePriority = priority
+        
+      try: 
+        priority = protocolDict['domains']['wan']['write']
+      except:
+        pass
+      else:
+        if (priority > 0) and \
+           (bestWanWritePriority is None or priority < bestWanWritePriority):
+          bestWanWriteScheme   = scheme
+          bestWanWritePriority = priority
 
     try:
       attributes = rseClient.list_rse_attributes(rse['rse'])
@@ -410,7 +452,6 @@ def updateStorages():
       occupancy = 0.0
 
     else:
-
       try:
         accLimits = accountClient.get_account_limits('dunepro', 
                                                      rse['rse'], 
@@ -418,8 +459,7 @@ def updateStorages():
       except Exception as e:
         logLine("Reading %s account limits fails with: %s" % 
                 (rse['rse'], str(e)))
-      
-       
+             
       try:
         usage     = next(usageList)        
         occupancy = float(usage['used']) / float(accLimits[rse['rse']])
@@ -430,23 +470,24 @@ def updateStorages():
       if rse['rse'] not in justinStorageNames:
         query = ('INSERT INTO storages SET rse_name="%s",justin_write=FALSE'
                  % rse['rse']) 
-        justin.db.cur.execute(query)
+        justin.select(query)
 
       query = ('UPDATE storages SET '
                'occupancy=%f,'
                'rucio_write=%s,rucio_read=%s,'
-               'deterministic_rse=%s,decommissioned=%s '
+               'decommissioned=%s,'
+               'lan_write_scheme="%s",wan_write_scheme="%s" '
                'WHERE rse_name="%s"'
                % (occupancy,
                   availabilityWrite,
                   availabilityRead,
-                  rse['deterministic'],
                   decommissioned,
+                  bestLanWriteScheme, bestWanWriteScheme,
                   rse['rse']
                  )
               )
 
-      justin.db.cur.execute(query)
+      justin.select(query)
     except Exception as e:
       # Log the error and hope it was transitory
       logLine('Failed inserting RSE %s into database: %s' % 

@@ -304,16 +304,22 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
   # Create a list of RSEs for Workflow Test jobs
   if forAwt:
     try:
-      query = ('SELECT rse_name,write_protocol,distance,wan_pfn,lan_pfn '
+      query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance,'
+               '(SELECT wan_pfn FROM replicas WHERE request_id=%d AND '
+               ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
+               ' AS wan_pfn,'
+               '(SELECT lan_pfn FROM replicas WHERE request_id=%d AND '
+               ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
+               ' AS lan_pfn '
                'FROM storages '
                'LEFT JOIN sites_storages '
                'ON sites_storages.rse_id=storages.rse_id '
                'AND sites_storages.site_id=%d '
-               'LEFT JOIN replicas '
-               'ON replicas.request_id=%d AND replicas.rse_id=storages.rse_id '
-               'WHERE rse_name<>"MONTECARLO" AND wan_pfn IS NOT NULL '
-               'AND NOT storages.decommissioned' % 
-               (jobDict['site_id'], justin.db.awtRequestID) )
+               'WHERE rse_name<>"MONTECARLO" '
+               'AND NOT storages.decommissioned GROUP BY rse_name' % 
+               (justin.db.awtRequestID,
+                justin.db.awtRequestID,
+                jobDict['site_id']) )
 
       rseRows = justin.db.select(query)
     except Exception as e:
@@ -324,11 +330,15 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
     for rseRow in rseRows:
       if rseRow['lan_pfn'] and rseRow['distance'] == 0:
         pfn = rseRow['lan_pfn']
-      else:
+      elif rseRow['wan_pfn']:
         pfn = rseRow['wan_pfn']
-             
-      awtRseFile += '%s %s %s\n' % (rseRow['rse_name'], 
-                                    rseRow['write_protocol'],
+      else:
+        continue
+
+      awtRseFile += '%s %s %s\n' % (rseRow['rse_name'],
+                                    rseRow['lan_write_scheme']
+                                    if rseRow['distance'] == 0
+                                    else rseRow['wan_write_scheme'],
                                     pfn)
       
     addFileToTarFile(tar, 'justin-awt-rse-list.txt', awtRseFile)
@@ -339,8 +349,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
   #  'storages.occupancy < 1.0 AND ' added to WHERE and 
   #  storages.occupancy added to ORDER BY
   try:
-    query = ('SELECT rse_name,'
-             'deterministic_rse,write_protocol '
+    query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
              'FROM storages '
              'LEFT JOIN stages_output_storages '
              'ON (storages.rse_id=stages_output_storages.rse_id '
@@ -349,8 +358,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
              'LEFT JOIN sites_storages '
              'ON (storages.rse_id=sites_storages.rse_id '
              'AND sites_storages.site_id=%d) '
-             'WHERE (use_for_output OR '
-             'stages_output_storages.rse_id IS NOT NULL) AND '
+             'WHERE '
              'sites_storages.distance IS NOT NULL AND '
              'storages.rucio_write AND '
              'storages.justin_write AND '
@@ -370,8 +378,10 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
 
   outputRseFile = ''
   for rseRow in rseRows:
-    outputRseFile += '%s %s \n' % (rseRow['rse_name'], 
-                                   rseRow['write_protocol'])
+    outputRseFile += '%s %s \n' % (rseRow['rse_name'],
+                                   rseRow['lan_write_scheme'] 
+                                   if rseRow['distance'] == 0 
+                                   else rseRow['wan_write_scheme'])
       
   addFileToTarFile(tar, 'justin-output-rse-list.txt', outputRseFile)
 
