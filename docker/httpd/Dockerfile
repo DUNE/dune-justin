@@ -1,9 +1,10 @@
 FROM centos:7
 
 USER root
+EXPOSE 80/tcp
 
 RUN yum update -y
-RUN yum install -y python3 python3-devel python-devel gcc
+RUN yum install -y python3 python3-devel python-devel gcc sudo
 RUN yum install -y wget httpd httpd-devel httpd-tools mod_ssl openssl expect python3-mod_wsgi
 RUN yum install -y epel-release lcg-CA wlcg-repo
 
@@ -31,6 +32,13 @@ COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
 # RUN mkdir /etc/grid-security/
 COPY docker/certificates/* /etc/grid-security/
 
-USER 1001
+RUN \
+    sed -i /etc/sudoers -re 's/^%sudo.*/%sudo ALL=(ALL:ALL) NOPASSWD: ALL/g' && \
+    sed -i /etc/sudoers -re 's/^root.*/root ALL=(ALL:ALL) NOPASSWD: ALL/g' && \
+    sed -i /etc/sudoers -re 's/^#includedir.*/## **Removed the include directive** ##"/g' && \
+    echo "nonroot ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+
+# USER 1001
 
 ENTRYPOINT ["/usr/local/apache2/httpdEntrypoint.sh"]
