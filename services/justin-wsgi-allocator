@@ -274,7 +274,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
 
   # Create a file containing the output file patterns
   try:
-    query = ("SELECT lifetime_seconds,dataset,file_pattern,"
+    query = ("SELECT lifetime_seconds,destination,file_pattern,"
              "for_next_stage "
              "FROM stages_outputs "
              "LEFT JOIN stages "
@@ -295,7 +295,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
   for row in rows:
     patternsFile += (str(row['lifetime_seconds']) + ' ' +
                      str(row['for_next_stage']) + ' ' + 
-                     row['dataset'] + ' ' +
+                     row['destination'] + ' ' +
                      scopeName + ' ' +
                      row['file_pattern'] + '\n')
     
@@ -587,7 +587,8 @@ def getStageMethod(startResponse, jsonDict, environ):
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
     return httpError(startResponse, 
                      '404 Not Found',
-                     'No stage allocated as site not enabled')
+                     'No stage allocated as site %s not enabled' 
+                     % jobDict['site_name'])
 
 #  print('Before UPDATE sites last_get_stage_time', file=sys.stderr)
   try:
