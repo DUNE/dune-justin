@@ -1105,8 +1105,26 @@ def createStageCmd(startResponse, jsonDict, user):
         continue
 
       pattern     = splitList[0]
-      datasetName = splitList[1]
+      destination = splitList[1]
 
+      if not justin.stringIsFilePattern(pattern):
+        return httpError(startResponse, 
+                         '400 Bad Request', 
+                         'Invalid file pattern')
+
+      if destination.startswith('https://'):
+        # HTTPS upload URL
+        if not justin.stringIsURL(destination):
+          return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Invalid destination URL')
+
+      else:
+        # Rucio dataset name
+        if not justin.stringIsDID(destination) or ':' in destination:
+          return httpError(startResponse, 
+                     '400 Bad Request', 
+                     'Invalid Rucio dataset name')
       try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'request_id=%d,'
@@ -1116,8 +1134,9 @@ def createStageCmd(startResponse, jsonDict, user):
               'lifetime_seconds=%d,'
               'for_next_stage=FALSE' % 
               (requestID, stageID,
-               scopeName, datasetName.replace('\\','\\\\').replace('"','\\"'),
-               pattern.replace('\\','\\\\').replace('"','\\"'),
+               scopeName, 
+               destination,
+               pattern,
                lifetimeDays * 86400
               )
              )

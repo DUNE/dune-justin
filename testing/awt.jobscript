@@ -6,6 +6,7 @@ openssl x509 -in $JUSTIN_PATH/awt-proxy.pem -text
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
+unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
 which rucio
 rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'

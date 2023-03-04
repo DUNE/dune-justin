@@ -158,6 +158,12 @@ def stringIsJobsubID(s):
 def stringIsUsername(s):
   return re.search('[^a-z0-9_.@-]', s) is None
 
+def stringIsFilePattern(s):
+  return re.search('[^*A-Za-z0-9_.-]', s) is None
+
+def stringIsURL(s):
+  return re.search('[^/A-Za-z0-9_.:-]', s) is None
+
 def stringIsDID(s):
   return re.search('[^a-z0-9_.:-]', s) is None
 

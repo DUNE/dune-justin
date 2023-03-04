@@ -112,6 +112,10 @@ mkdir -p $JUSTIN_WORKDIR/home/workspace
 cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
  $JUSTIN_WORKDIR/home/
 
+# Use dev version of justin-metadata
+cp -f /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
+ $JUSTIN_WORKDIR/home/
+
 # Assemble values to record
 export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
@@ -426,6 +430,7 @@ echo '====End rucio.cfg===='
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
+unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
 setup metacat
 
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
@@ -446,9 +451,7 @@ touch justin-output-dids-rses.txt
 
 while read lifetime dataset scope fn
 do
-  /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
-    "$scope" "$fn" > tmp.json
-#  $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
+  $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
   echo "==== Start MetaCat JSON for $fn ===="
   cat tmp.json
   echo "==== End MetaCat JSON for $fn ===="
@@ -482,7 +485,9 @@ do
           --rse "$OUTPUT_RSE" \
           --transfer-timeout 1200 \
           --protocol "$OUTPUT_PROTOCOL" \
-          --scope "$scope" --name "$fn" "$JUSTIN_WORKDIR/home/workspace/$fn"
+          --scope "$scope" \
+          --name "$fn" \
+          "$JUSTIN_WORKDIR/home/workspace/$fn"
 
     if [ $? = 0 ] ; then
       log_line "Add $scope:$fn to $dataset"

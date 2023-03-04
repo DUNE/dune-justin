@@ -415,7 +415,9 @@ def updateStorages():
         pass
       else:
         if (priority > 0) and \
-           (bestLanWritePriority is None or priority < bestLanWritePriority):
+           (bestLanWritePriority is None or 
+            priority < bestLanWritePriority or
+            (priority == bestLanWritePriority and scheme < bestLanWriteScheme)):
           bestLanWriteScheme   = scheme
           bestLanWritePriority = priority
         
@@ -425,7 +427,9 @@ def updateStorages():
         pass
       else:
         if (priority > 0) and \
-           (bestWanWritePriority is None or priority < bestWanWritePriority):
+           (bestWanWritePriority is None or 
+            priority < bestWanWritePriority or           
+            (priority == bestWanWritePriority and scheme < bestWanWriteScheme)):
           bestWanWriteScheme   = scheme
           bestWanWritePriority = priority
 
