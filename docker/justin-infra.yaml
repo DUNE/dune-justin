@@ -16,7 +16,8 @@ services:
       - 80
     ports:
       - 80:80
-    # volumes:
+    volumes:
+      - ./database/wfdb-create-tables.sql:/docker-entrypoint-initdb.d/wfdb-create-tables.sql
 
   # letsencrypt:
   #   <<: *apache
