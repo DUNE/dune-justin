@@ -23,6 +23,7 @@ import ssl
 import stat
 import json
 import time
+import base64
 import urllib.request
 import pathlib
 import tempfile
@@ -294,13 +295,16 @@ def findReplicas():
 
   try:
     stageRow = justin.db.select(query, justOne = True)
-    requestID = stageRow['request_id']
-    stageID   = stageRow['stage_id']
-
   except Exception as e:
     logLine('Finding request/stage to find replicas for fails: %s' % str(e))
     return
 
+  if not stageRow:
+    logLine('No files with replicas to be found')
+    return
+
+  requestID = stageRow['request_id']
+  stageID   = stageRow['stage_id']
   logLine('Looking for replicas in finding state for request=%d stage=%d'
           % (requestID, stageID))
 
@@ -697,8 +701,126 @@ def findStalledAbortedJobs():
   # Everything went ok so commit
   justin.db.conn.commit()
 
+def oidcRefreshRequest(refreshToken):
+  # Send an OIDC request to CILogon to refresh tokens for a user
+
+  postData = urllib.parse.urlencode(
+       { 'grant_type'    : 'refresh_token',
+         'client_id'     : justin.conf.cilogonClientID,
+         'client_secret' : justin.conf.cilogonSecret,
+         'refresh_token' : refreshToken
+#         ,
+#         'scope'         : 'scope=openid profile org.cilogon.userinfo '
+#                           'wlcg.capabilityset:/duneana wlcg.groups:/dune '
+#                           'wlcg.groups:/dune/production'
+       })
+
+  httpRequest = urllib.request.Request('https://cilogon.org/oauth2/token',
+                                       data = postData.encode(),
+                                       method = 'POST')
+
+  sslContext = ssl.SSLContext()
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except Exception as e:
+    logLine('OIDC tokens HTTP refresh request fails: ' + str(e))
+    return None
+  else:
+    if response.status != 200:
+      logLine('OIDC tokens HTTP response not 200, code=%d' % response.status)
+      return None
+
+  try:
+    responseData = response.read().decode('utf-8')
+    responseDict = json.loads(responseData)
+  except Exception as e:
+    logLine('OIDC tokens refresh request failed loading json: '+str(e))
+    return None
+
+  logLine('responseDict=' + str(responseDict))
+
+  try:
+    tokensDict = {} 
+    tokensDict['access_token'] = responseDict['access_token']
+    tokensDict['access_dict']  = json.loads(base64.urlsafe_b64decode(
+                     responseDict['access_token'].split('.')[1] + '=='))
+
+    tokensDict['id_token'] = responseDict['id_token']
+    tokensDict['id_dict']  = json.loads(base64.urlsafe_b64decode(
+                     responseDict['id_token'].split('.')[1] + '=='))
+
+    tokensDict['refresh_token'] = responseDict['refresh_token']
+  except Exception as e:
+    logLine('OIDC tokens parsing fails: '+str(e))
+    return None
+  else:
+    return tokensDict
+
+def findTokensToRefresh():
+
+  try:
+    query = ('SELECT users.user_id,principal_name,refresh_token '
+             'FROM users '
+             'LEFT JOIN principal_names '
+             'ON principal_names.pn_id=users.main_pn_id '
+             'WHERE '
+             'DATE_ADD(NOW(), INTERVAL 60 MINUTE) > access_token_expires AND '
+             'access_token_expires > "%s" AND '
+             '(SELECT expires_time FROM sessions '
+             ' WHERE sessions.user_id=users.user_id '
+             ' ORDER BY expires_time DESC LIMIT 1) > NOW() AND '
+             'refresh_token <> ""'
+             % (justin.unixEpoch))
+             
+    rows = justin.select(query)
+
+  except Exception as e:
+    logLine('Failed to find tokens: ' + str(e))
+    return
+
+  for row in rows:
+    logLine(str(row))
+    tokensDict = oidcRefreshRequest(row['refresh_token'])
+    logLine(str(tokensDict))
+    
+    try:
+      accessToken        = tokensDict['access_token']
+      accessTokenCreated = tokensDict['access_dict']['iat']
+      accessTokenExpires = tokensDict['access_dict']['exp']
+      refreshToken       = tokensDict['refresh_token']
+    except:
+      accessToken        = ''
+      accessTokenCreated = 0
+      accessTokenExpires = 0
+      refreshToken       = ''
+
+    try:
+      query = ('UPDATE users SET '
+               'access_token="%s",'
+               'access_token_created=FROM_UNIXTIME(%d),'
+               'access_token_expires=FROM_UNIXTIME(%d),'
+               'refresh_token="%s" '
+               'WHERE user_id=%d' 
+               % (accessToken,
+                  accessTokenCreated,
+                  accessTokenExpires,
+                  refreshToken,
+                  row['user_id']))
+                  
+      justin.insertUpdate(query)
+    
+    except Exception as e:
+      logLine('Failed storing refreshed tokens for %s: %s' 
+              % (row['principal_name'], str(e)))
+      
+    else:
+      logLine('Tokens refreshed for %s' % row['principal_name'])
+      
 def oneCycle():
 
+  findTokensToRefresh()
   findSubmittedRequests()
   findFiles()
   findReplicas()

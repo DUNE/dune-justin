@@ -110,11 +110,15 @@ mkdir -p $JUSTIN_WORKDIR/home/workspace
 
 # Copy all of the justin-* scripts in jobutils to $HOME
 cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
- $JUSTIN_WORKDIR/home/
+ $JUSTIN_WORKDIR/home
 
 # Use dev version of justin-metadata
 cp -f /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
- $JUSTIN_WORKDIR/home/
+ $JUSTIN_WORKDIR/home
+
+# Use dev version of justin-webdav-upload
+cp -f /cvmfs/fifeuser4.opensciencegrid.org/sw/dune/dfab8a258a1816ed47506f7c1ce254b22257dbcd/justin-webdav-upload \
+ $JUSTIN_WORKDIR
 
 # Assemble values to record
 export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
@@ -292,6 +296,7 @@ echo '####'
 
 # Make the lists of output files and files for the next stage
 echo -n > justin-outputs.txt
+echo -n > justin-output-urls.txt
 echo -n > justin-output-dids.txt
 echo -n > justin-next-stage-dids.txt
 
@@ -301,7 +306,7 @@ echo '###'
 
 cat justin-output-patterns.txt | (
 while read lifetime for_next_stage destination scope pattern
-do  
+do
   (
     cd $JUSTIN_WORKDIR/home/workspace
     # $pattern is wildcard-expanded here - so a list of files
@@ -309,15 +314,19 @@ do
     do
       if [ -r "$fn" ] ; then
         # justin-outputs.txt gets DATASET SCOPE FILENAME on each line
-        echo "$lifetime $scope:$destination $scope $fn" \
+        echo "$lifetime $destination $scope $fn" \
           >> $JUSTIN_WORKDIR/justin-outputs.txt
 
-        if [ "$for_next_stage" = "True" ] ; then
-          # justin-next-stage-dids gets a list of DIDs
-          echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-next-stage-dids.txt
+        if [ "$scope" = '::URL::' ] ; then
+          echo "$destination/$fn" >> $JUSTIN_WORKDIR/justin-output-urls.txt
         else
-          # justin-output-dids.txt gets DID = SCOPE:FILENAME
-          echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-output-dids.txt
+          if [ "$for_next_stage" = "True" ] ; then
+            # justin-next-stage-dids gets a list of DIDs
+            echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-next-stage-dids.txt
+          else
+            # justin-output-dids.txt gets DID = SCOPE:FILENAME
+            echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-output-dids.txt
+          fi
         fi
       fi
     done
@@ -327,6 +336,10 @@ done
 
 echo '#### justin-outputs.txt'
 cat $JUSTIN_WORKDIR/justin-outputs.txt
+echo '####'
+echo
+echo '#### justin-output-urls.txt'
+cat $JUSTIN_WORKDIR/justin-output-urls.txt
 echo '####'
 echo
 echo '#### justin-output-dids.txt'
@@ -340,6 +353,8 @@ echo
 echo '#### justin-output-rse-list.txt'
 cat $JUSTIN_WORKDIR/justin-output-rse-list.txt
 echo '####'
+
+output_urls=`echo \`sed 's/.*/"&"/' justin-output-urls.txt\`|sed 's/ /,/g'`
 
 output_dids=`echo \`sed 's/.*/"&"/' justin-output-dids.txt\`|sed 's/ /,/g'`
 
@@ -362,6 +377,7 @@ cat <<EOF >justin-record-results.json
   "jobsub_id": "$JOBSUBJOBID",
   "processed_dids": [$processed_dids],
   "processed_pfns": [$processed_pfns],
+  "output_urls": [$output_urls],
   "output_dids": [$output_dids],
   "next_stage_dids": [$next_stage_dids],
   "jobscript_log": "`cat justin-jobscript.log.b64`",
@@ -391,15 +407,11 @@ http_code=`curl \
 --header "Expect:" \
 --capath $X509_CERTIFICATES \
 --data @justin-record-results.json \
---output record-results.log \
+--output $JUSTIN_WORKDIR/user-upload-token \
 --write-out "%{http_code}\n" \
 https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/record_results`
 
 log_line "record_results returns HTTP code $http_code"
-echo "=====Start record-results.log=="
-touch record-results.log
-cat record-results.log
-echo "=====End record-results.log=="
 
 if [ "$http_code" != 200 ] ; then
   job_aborted 0 $http_code record_results
@@ -448,39 +460,55 @@ if [ $? != 0 ] ; then
   job_aborted 1 900 metacat_test
 fi
 
+touch justin-output-urls-uploaded.txt
 touch justin-output-dids-rses.txt
 
 while read lifetime destination scope fn
 do
-  $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
-  echo "==== Start MetaCat JSON for $fn ===="
-  cat tmp.json
-  echo "==== End MetaCat JSON for $fn ===="
+  if [ "$scope" == '::URL::' ] ; then
+    $JUSTIN_WORKDIR/justin-webdav-upload \
+       --verbose \
+       --token-file $JUSTIN_WORKDIR/user-upload-token \
+       --source-file "$JUSTIN_WORKDIR/home/workspace/$fn" \
+       --destination-directory $destination
+       
+    if [ $? != 0 ] ; then
+      log_line "WebDAV upload fails"
+      job_aborted 1 900 webdav_upload
+    fi
+       
+    echo "\"$destination/$fn\"" >> justin-output-urls-uploaded.txt
+  else
+    # Output to Rucio managed storage, within a Rucio dataset
+    $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
+    echo "==== Start MetaCat JSON for $fn ===="
+    cat tmp.json
+    echo "==== End MetaCat JSON for $fn ===="
 
-  log_line "Try to declare file in MetaCat (1/3)"
-  echo "metacat file declare --json -f tmp.json "$scope:$destination""
-  metacat file declare --json -f tmp.json "$scope:$destination"
-  metacat_return_code=$?
-  echo "metacat returns $metacat_return_code"
-  if [ $metacat_return_code != 0 ] ; then
-    sleep 1
-    log_line "Retry declare file in MetaCat (2/3)"
+    log_line "Try to declare file in MetaCat (1/3)"
+    echo "metacat file declare --json -f tmp.json "$scope:$destination""
     metacat file declare --json -f tmp.json "$scope:$destination"
     metacat_return_code=$?
+    echo "metacat returns $metacat_return_code"
     if [ $metacat_return_code != 0 ] ; then
       sleep 1
-      log_line "Last chance to declare file in MetaCat (3/3)"
+      log_line "Retry declare file in MetaCat (2/3)"
       metacat file declare --json -f tmp.json "$scope:$destination"
       metacat_return_code=$?
+      if [ $metacat_return_code != 0 ] ; then
+        sleep 1
+        log_line "Last chance to declare file in MetaCat (3/3)"
+        metacat file declare --json -f tmp.json "$scope:$destination"
+        metacat_return_code=$?
+      fi
     fi
-  fi
 
-  if [ $metacat_return_code = 0 ] ; then
-    if [ "$lifetime" -gt 0 ] ; then
-      lifetime_option="--lifetime $lifetime"
-    fi
-    log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
-    rucio --config $JUSTIN_WORKDIR/rucio.cfg --verbose \
+    if [ $metacat_return_code = 0 ] ; then
+      if [ "$lifetime" -gt 0 ] ; then
+        lifetime_option="--lifetime $lifetime"
+      fi
+      log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
+      rucio --config $JUSTIN_WORKDIR/rucio.cfg --verbose \
           upload \
           $lifetime_option \
           --rse "$OUTPUT_RSE" \
@@ -490,23 +518,24 @@ do
           --name "$fn" \
           "$JUSTIN_WORKDIR/home/workspace/$fn"
 
-    if [ $? = 0 ] ; then
-      log_line "Add $scope:$fn to $scope:$destination"
-      rucio --config $JUSTIN_WORKDIR/rucio.cfg \
-            --verbose attach "$scope:$destination" "$scope:$fn"
-      if [ $? != 0 ] ; then
-        log_line "rucio attach fails"
-        job_aborted 1 900 rucio_attach
+      if [ $? = 0 ] ; then
+        log_line "Add $scope:$fn to $scope:$destination"
+        rucio --config $JUSTIN_WORKDIR/rucio.cfg \
+             --verbose attach "$scope:$destination" "$scope:$fn"
+        if [ $? != 0 ] ; then
+          log_line "rucio attach fails"
+          job_aborted 1 900 rucio_attach
+        fi
+        echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> justin-output-dids-rses.txt
+      else
+        log_line "rucio upload fails"
+        job_aborted 1 900 rucio_upload "$OUTPUT_RSE"
       fi
-      echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> justin-output-dids-rses.txt
     else
-      log_line "rucio upload fails"
-      job_aborted 1 900 rucio_upload "$OUTPUT_RSE"
+      log_line "metacat file declaration fails"
+      job_aborted 1 900 metacat_declare
     fi
-  else
-    log_line "metacat file declaration fails"
-    job_aborted 1 900 metacat_declare
-  fi 
+  fi
 done
 
 )
@@ -525,9 +554,15 @@ cat <<EOF >justin-confirm-results.json
   "output_dids": {
 EOF
 
-echo `cat justin-output-dids-rses.txt` | sed 's/ /,/g' >>justin-confirm-results.json
+echo `cat justin-output-dids-rses.txt` \
+  | sed 's/ /,/g' >>justin-confirm-results.json
 
-echo '} }' >>justin-confirm-results.json
+echo '}, "output_urls": [' >> justin-confirm-results.json
+
+echo `cat justin-output-urls-uploaded.txt` \
+  | sed 's/ /,/g' >>justin-confirm-results.json
+
+echo '] }' >>justin-confirm-results.json
 
 echo "=====Start justin-confirm-results.json=="
 cat justin-confirm-results.json

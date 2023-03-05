@@ -86,6 +86,7 @@ event_FILE_ALLOCATED_RESET      = 402
 event_FILE_SET_TO_FAILED        = 403
 event_FILE_CREATED              = 404
 event_FILE_OUTPUTTING_RESET     = 405
+event_FILE_UPLOADED             = 406
 
 eventTypes = { 
  
@@ -148,7 +149,9 @@ eventTypes = {
  event_FILE_CREATED          : ['FILE_CREATED',
                                 'Output file created in job'],
  event_FILE_OUTPUTTING_RESET : ['FILE_OUTPUTTING_RESET',
-                                'File set back to unallocated from outputting']
+                                'File set back to unallocated from outputting'],
+ event_FILE_UPLOADED          : ['FILE_UPLOADED',
+                                'Output file uploaded in job']
              }
 ### EVENT DEFINITIONS ABOVE ARE NOW IN events.py !!!!!
 

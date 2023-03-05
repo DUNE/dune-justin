@@ -19,17 +19,19 @@ justin quick-request \
 
 EOF
 
-# Get an unprocessed file from this stage
+# Try to get an unprocessed file from this stage
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
-did=`echo $did_pfn_rse | cut -f1 -d' '`
-pfn=`echo $did_pfn_rse | cut -f2 -d' '`
-rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-# We say we processed whatever we were given
-echo "$pfn" > justin-processed-pfns.txt
+if [ "$did_pfn_rse" != "" ] ; then
+  did=`echo $did_pfn_rse | cut -f1 -d' '`
+  pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+  rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-# Hello world
-echo "Hello world $pfn" 
-echo "Hello world $pfn" >hello-world-`date +%s.%N.txt`
+  # We say we processed whatever we were given
+  echo "$pfn" > justin-processed-pfns.txt
 
+  # Hello world
+  echo "Hello world $pfn" 
+  echo "Hello world $pfn" >hello-world-`date +%s.%N.txt`
+fi
 exit 0

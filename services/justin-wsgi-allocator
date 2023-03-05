@@ -296,7 +296,8 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
     patternsFile += (str(row['lifetime_seconds']) + ' ' +
                      str(row['for_next_stage']) + ' ' + 
                      row['destination'] + ' ' +
-                     scopeName + ' ' +
+                     ('::URL::' if row['destination'].startswith('https://')
+                     else scopeName) + ' ' +
                      row['file_pattern'] + '\n')
     
   addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)
@@ -1005,7 +1006,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
   # Check jsonDict contains required lists (can be empty)
   for name in ['processed_dids', 'processed_pfns', 
-               'output_dids', 'next_stage_dids']:
+               'output_dids', 'output_urls', 'next_stage_dids']:
     if name not in jsonDict:
       return httpError(startResponse,
                        '400 Bad Request',
@@ -1018,16 +1019,21 @@ def recordResultsMethod(startResponse, jsonDict):
                          'Invalid DID or PFN in ' + name)
       
   try:
-    query = ('SELECT justin_job_id, request_id, stage_id, for_awt, site_id '
-             'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+    query = ('SELECT jobs.justin_job_id, jobs.request_id, jobs.stage_id,'
+             'for_awt, jobs.site_id, users.access_token '
+             'FROM jobs '
+             'LEFT JOIN requests ON requests.request_id=jobs.request_id '
+             'LEFT JOIN users ON users.user_id=requests.user_id '
+             'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.db.select(query, justOne = True)
 
-    justinJobID  = int(row['justin_job_id'])
-    requestID = int(row['request_id'])
-    stageID   = int(row['stage_id'])
-    siteID    = int(row['site_id'])
-    forAwt    = row['for_awt']
+    justinJobID     = int(row['justin_job_id'])
+    requestID       = int(row['request_id'])
+    stageID         = int(row['stage_id'])
+    siteID          = int(row['site_id'])
+    forAwt          = row['for_awt']
+    userAccessToken = row['access_token']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -1178,7 +1184,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed updating jobs: ' + str(e))
 
-  return httpOK(startResponse, '')
+  return httpOK(startResponse, userAccessToken)
 
 # Return a list of file DIDs allocated to this job.
 # This can be used by jobscripts which don't have a keep of input
@@ -1369,9 +1375,39 @@ def confirmResultsMethod(startResponse, jsonDict):
                      )
     except Exception as e:
       return httpError(startResponse,
-                       '500 Internal Server Error', 
+                       '500 Internal Server Error',
                        'Updating recorded output file: ' + str(e))
-  
+
+  # Record output files uploaded directly to scratch etc
+  for url in jsonDict['output_urls']:
+    if not justin.stringNoQuotes(url):
+      return httpError(startResponse, '400 Bad Request', 'Bad URL for upload')
+
+    try:
+      file_id = justin.insertUpdate('INSERT INTO files SET '
+                                    'state="output",'
+                                    'request_id=%d,'
+                                    'stage_id=0,'
+                                    'file_did="%s",'
+                                    'creator_justin_job_id=%d'
+                                    % (requestID, 
+                                       url,
+                                       justinJobID))
+
+      justin.db.logEvent(eventTypeID = justin.db.event_FILE_UPLOADED,
+                         requestID = requestID,
+                         stageID = stageID,
+                         fileID = file_id,
+                         justinJobID = justinJobID,
+                         siteID = siteID
+                        )
+
+    except Exception as e:
+      return httpError(startResponse,
+                       '500 Internal Server Error', 
+                       'Recording output file uploaded by url: ' + str(e))
+
+  # Finish up and update job status
   try:
     justin.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
                         'heartbeat_time=NOW(),'

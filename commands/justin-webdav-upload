@@ -26,10 +26,6 @@ import ssl
 import urllib.request
 import argparse
 
-# curl -v -v -L --cert /tmp/justin-jobs-analysis.proxy.pem --capath /etc/grid-security/certificates --request MKCOL  'https://fndcadoor.fnal.gov:2880/dune/scratch/justin/amcnab@fnal.gov'
-# curl -v -v -L --cert /tmp/justin-jobs-analysis.proxy.pem --capath /etc/grid-security/certificates --upload /tmp/123.txt https://fndcadoor.fnal.gov:2880/dune/scratch/justin/amcnab@fnal.gov/1/2/444.txt
-# curl -v -v -L --header "Authorization: Bearer $AT" --capath /etc/grid-security/certificates --upload /tmp/123.txt https://fndcadoor.fnal.gov:2880/dune/scratch/users/amcnab/501.txt
-
 verbose = False
 
 def checkRemoteDirectories(sslContext, token, dirSplit):

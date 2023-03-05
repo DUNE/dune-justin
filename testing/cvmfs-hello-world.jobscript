@@ -30,10 +30,13 @@ EOF
 
 # Get an unprocessed file from this stage and say we processed it
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
-did=`echo $did_pfn_rse | cut -f1 -d' '`
-echo "$did" > justin-processed-dids.txt
 
-# Look at the file in cvmfs
-echo "Contents of $INPUT_TAR_DIR_LOCAL/hello_world.txt"
-cat $INPUT_TAR_DIR_LOCAL/hello_world.txt
+if [ "$did_pfn_rse" != "" ] ; then
+  did=`echo $did_pfn_rse | cut -f1 -d' '`
+  echo "$did" > justin-processed-dids.txt
+
+  # Look at the file in cvmfs
+  echo "Contents of $INPUT_TAR_DIR_LOCAL/hello_world.txt"
+  cat $INPUT_TAR_DIR_LOCAL/hello_world.txt
+fi
 exit 0

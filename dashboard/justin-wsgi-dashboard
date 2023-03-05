@@ -1258,13 +1258,19 @@ def showStage(environ, user, cgiValues):
                '<th>Lifetime</th><th>For next stage</th></tr>') 
 
     for patternRow in patternRows:
-      output += ("<tr><td>Rucio %s:%s</td><td>%s</td>"
-                 "<td>%d</td><td>%s</td></tr>" 
-                 % (stageRow["requests_scope_name"],
-                    patternRow["destination"],
-                    html.escape(patternRow["file_pattern"], quote=True),
-                    patternRow["lifetime_seconds"],
-                    bool(patternRow["for_next_stage"])))
+      if patternRow['destination'].startswith('https://'):
+        output += ("<tr><td>%s</td><td>%s</td>"
+                   "<td> </td><td> </td></tr>" 
+                   % (patternRow["destination"],
+                      html.escape(patternRow["file_pattern"], quote=True)))
+      else:
+        output += ("<tr><td>Rucio %s:%s</td><td>%s</td>"
+                   "<td>%d</td><td>%s</td></tr>" 
+                   % (stageRow["requests_scope_name"],
+                      patternRow["destination"],
+                      html.escape(patternRow["file_pattern"], quote=True),
+                      patternRow["lifetime_seconds"],
+                      bool(patternRow["for_next_stage"])))
 
     output += ('</table>')
 
@@ -1888,17 +1894,18 @@ def showJob(environ, user, cgiValues):
            "ORDER BY event_id" % 
            (jobRow['justin_job_id'], justin.db.event_FILE_ALLOCATED))
 
-  justin.db.cur.execute(query)
-  inputFilesRows = justin.db.cur.fetchall()
+  inputFilesRows = justin.select(query)
 
   query = ("SELECT file_did,files.stage_id FROM events "
            "LEFT JOIN files ON events.file_id=files.file_id "
-           "WHERE events.justin_job_id=%d AND event_type_id=%d "
+           "WHERE events.justin_job_id=%d AND "
+           "(event_type_id=%d OR event_type_id=%d) "
            "ORDER BY event_id" % 
-           (jobRow['justin_job_id'], justin.db.event_FILE_CREATED))
+           (jobRow['justin_job_id'],
+            justin.db.event_FILE_CREATED,
+            justin.db.event_FILE_UPLOADED))
 
-  justin.db.cur.execute(query)
-  outputFilesRows = justin.db.cur.fetchall()
+  outputFilesRows = justin.select(query)
 
   output += '<table class="center">'
 
@@ -2048,7 +2055,12 @@ def showJob(environ, user, cgiValues):
   
   for outputFileRow in outputFilesRows:
     try:
-      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+      if outputFileRow["file_did"].startswith('https://'):
+        output += ('<span style="font-size: 0.9em">%s</span><br>' 
+                   % outputFileRow["file_did"])
+
+      else:
+        output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>'  
                  % (jobRow["request_id"], 
                     outputFileRow["stage_id"],
@@ -2562,7 +2574,10 @@ def showUser(environ, user, cgiValues):
   except:
     justinSession = ' '
   
-  query = ('SELECT users.user_id,principal_name,created_time,expires_time '
+  query = ('SELECT users.user_id,principal_name,created_time,expires_time,'
+           'access_token_created,access_token_expires,'
+           'LENGTH(access_token) AS access_token_len,'
+           'LENGTH(refresh_token) AS refresh_token_len '
            'FROM principal_names '
            'LEFT JOIN users '
            'ON principal_names.pn_id=users.main_pn_id '
@@ -2590,7 +2605,21 @@ def showUser(environ, user, cgiValues):
                % (userRow['created_time'], userRow['expires_time']))
 
     output += ("</table>")
+
+    if userRow['access_token_len'] > 0:
+      output += ('<h2>Your access token</h2>\n<table>')
   
+      output += ('<tr><td>Created</td><td>%s UTC</td></tr>' 
+               % userRow['access_token_created'])
+
+      output += ('<tr><td>Expires</td><td>%s UTC</td></tr>' 
+               % userRow['access_token_expires'])
+
+      if userRow['refresh_token_len'] == 0:
+        output += '<tr><td colspan="2">No refresh token!</td></tr>'
+
+      output += ("</table>")
+
   output += footer()
   return output
 
@@ -2773,7 +2802,9 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     else:
       output += ('<td>&nbsp;</td>')
          
-    if eventRow['file_did']:
+    if eventRow['file_did'] and eventRow['file_did'].startswith('https://'):
+      output += '<td style="font-size: 0.8em">%s</td>' % eventRow['file_did']
+    elif eventRow['file_did']:
       output += ('<td><a href="/dashboard/?method=show-file&request_id=%d'
             '&stage_id=%d&file_did=%s">%s</td>' 
             % (eventRow['request_id'], 
