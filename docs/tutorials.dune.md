@@ -189,6 +189,52 @@ Once all the files get to terminal states (processed, failed etc) then
 justIN sets the state of the request itself to finished and stops allocating
 any more jobs to it.
 
+## Jobs writing to scratch ##
+
+Instead of uploading outputs to Rucio-managed storage, it's also possible to
+make jobs upload outputs to scratch space. Currently this only works to
+/pnfs/dune/scratch/users/USERNAME at Fermilab but we plan to add uploads to
+EOS scratch space at CERN in the future.
+
+To follow this section of the tutorial you do not strictly need to be logged
+in to a dunegpvm machine at Fermilab, as you can access files on scratch 
+remotely using GFAL tools. However, it is easier to check from a dunegpvm
+machine as you can use /pfns/dune/scratch/users/$USER where $USER is your
+Fermilab username. 
+
+We can adapt the DC4 example from the previous section to use scratch for
+outputs like this. If you are not on a dunegpvm, replace `$USER` with your
+Fermilab username.
+
+    USERF=$USER
+    FNALURL='https://fndcadoor.fnal.gov:2880/dune/scratch/users'
+
+    justin quick-request \
+    --mql \
+    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+    --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 \
+    --rss-mb 4000 --env NUM_EVENTS=1 \
+    --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
+
+If you are on a dunegpvm machine, you can view the output directory
+by just using ls, after replacing 00000 with the ID number of your request
+including leading zeros:
+
+    ls /pfns/dune/scratch/users/$USER/000000/1/
+
+From anywhere you have GFAL commands and an X.509 proxy, this should work,
+again after replacing 00000 with the ID number of your request
+including leading zeros:
+
+    gfal-ls https://fndcadoor.fnal.gov:2880/dune/scratch/users/$USERF/00000/1
+
+The usual caveats about Fermilab dCache scratch apply: it's not backed up,
+and files will eventually be deleted automatically as other users create new
+files and fill the space up. So you want to copy anything important to 
+persistent storage of some form. You should also not flood the scratch
+space unnecessarily, as it will prematurely evict other people's temporary
+files.
+
 ## Interactive testing of jobscripts 
 
 If you need to create or modify jobscripts yourself then you need to learn

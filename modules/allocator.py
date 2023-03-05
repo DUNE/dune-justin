@@ -52,12 +52,14 @@ def getUnallocatedCounts():
                                 'LEFT JOIN stages '
                                 'ON stages.request_id = files.request_id AND '
                                 'stages.stage_id = files.stage_id '
-                                'WHERE files.state = "unallocated" AND '
+                                'WHERE files.request_id <> %d AND '
+                                'files.state = "unallocated" AND '
                                 'requests.state="running" AND '
                                 'stages.processors = %d AND '
                                 'stages.rss_bytes > %d AND '
                                 'stages.rss_bytes <= %d' %
-                                (processors,
+                                (justin.awtRequestID,
+                                 processors,
                                  bytesPerProcessor * (processors - 1),
                                  bytesPerProcessor * processors
                                 ), justOne = True

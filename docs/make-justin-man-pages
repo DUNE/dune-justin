@@ -44,3 +44,15 @@ groff -mandoc -Tascii -P -b ../commands/justin-cvmfs-upload.1 | sed 's/.*/    &/
 
 ) > jobscripts.rcds.man_page.md
 
+(
+
+cat <<EOF
+# justin-webdav-upload command man page
+This man page is distributed along with the 
+justin-webdav-upload command itself.
+
+EOF
+groff -mandoc -Tascii -P -b ../commands/justin-webdav-upload.1 | sed 's/.*/    &/'
+
+) > jobscripts.webdav-upload.man_page.md
+
