@@ -116,7 +116,6 @@ CREATE TABLE `jobs` (
                   NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
-  `allocation_count` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `submitted_time` datetime NOT NULL,
   `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
   `outputting_time` datetime NOT NULL DEFAULT '1970-01-01',
@@ -360,7 +359,6 @@ CREATE TABLE `stages` (
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `max_distance` float NOT NULL DEFAULT 0.0,
-  `max_files_per_job` tinyint(3) unsigned NOT NULL DEFAULT 1,
   UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

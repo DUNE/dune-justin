@@ -88,7 +88,6 @@ def makeJobDict(jobsubID, secret = None):
              'jobs.allocation_state,'
              'jobs.secret,'
              'stages.max_distance,'
-             'stages.max_files_per_job,'
              'jobs.request_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
@@ -99,7 +98,6 @@ def makeJobDict(jobsubID, secret = None):
              'jobs.min_rss_bytes,'
              'jobs.max_rss_bytes,'
              'jobs.max_wall_seconds,'
-             'jobs.allocation_count,'
              'sites.site_name,'
              'sites.max_jobs,'
              'sites.running_jobs,'
@@ -132,10 +130,8 @@ def makeJobDict(jobsubID, secret = None):
            "site_enabled"     : job['enabled'],
            "justin_job_id"    : job['justin_job_id'],
            "allocation_state" : job['allocation_state'],
-           "allocation_count" : job['allocation_count'],
            "for_awt"          : job['for_awt'],
            "max_distance"     : job['max_distance'],
-           "max_files_per_job": job['max_files_per_job'],
            "min_processors"   : job['min_processors'],
            "max_processors"   : job['max_processors'],
            "min_rss_bytes"    : job['min_rss_bytes'],
@@ -866,14 +862,6 @@ def getFileMethod(startResponse, jsonDict):
                      'Job in wrong state to find file (%s)' % 
                      jobDict['allocation_state'])
 
-  if jobDict['allocation_count'] >= jobDict['max_files_per_job']:
-    # Reached files limit for this job so refuse to allocated another one 
-    # We return 404 in case clients only understand that
-    return httpError(startResponse, 
-                     '404 Not Found', 
-                     'No suitable file because max_files_per_job=%d reached'
-                     % jobDict['max_files_per_job'])
-
   # Create a stage dictionary with the next file in this stage  
   oneFile = findCachedFile(jobDict)
 
@@ -886,7 +874,7 @@ def getFileMethod(startResponse, jsonDict):
     try:
       justin.db.insertUpdate(
                    'UPDATE jobs SET allocation_state="processing",'
-                   'heartbeat_time=NOW(),allocation_count=allocation_count+1 '
+                   'heartbeat_time=NOW() '
                    'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                          )
     except Exception as e:

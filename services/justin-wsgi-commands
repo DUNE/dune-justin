@@ -751,14 +751,6 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
   else:
     maxDistance = 0.0
 
-  if 'max_files_per_job' in jsonDict and jsonDict['max_files_per_job']:
-    try:
-      maxFilesPerJob = int(jsonDict['max_files_per_job'])
-    except:
-      return ('400 Bad Request', '--max-files-per-job option requires an integer')
-  else:
-    maxFilesPerJob = 1
-
   jobscriptID = 0
 
   try:
@@ -792,12 +784,10 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
                         "processors=%d,"
                         "wall_seconds=%d,"
                         "rss_bytes=%d,"
-                        "max_distance=%f," 
-                        "max_files_per_job=%d"
+                        "max_distance=%f" 
                         % (requestID, stageID, 
                            jobscriptID, processors,
-                           wallSeconds, rssBytes, maxDistance,
-                           maxFilesPerJob))
+                           wallSeconds, rssBytes, maxDistance))
           
     justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
                            'request_id=%d,'

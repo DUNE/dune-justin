@@ -105,7 +105,6 @@ excludes a request from the workflow allocation process.
 .B "create-stage --request-id ID --stage-id ID 
 .B --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
-.B [--max-files-per-job N]
 .B [--output-pattern PATTERN:DESTINATION]
 .B [--output-pattern-next-stage PATTERN:DATASET] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]
@@ -145,11 +144,6 @@ storages at the same site (distance=0). This can be changed by setting
 .B --max-distance DIST
 to allow input files to be allocated on storages at greater distances, up to
 a value of 100 which represents maximally remote storages.
-
-.B --max-files-per-job N
-limits the number of files which will be allocated to a job. This can be
-used to ensure that jobscripts which request files to work on, one after 
-another, do not run for too long. Default 1.
 
 If one or more options 
 .B --output-pattern PATTERN:DESTINATION
@@ -198,7 +192,6 @@ jobscript is executed.
 .B [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] 
 .B [--refind-interval-hours HOURS] --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N]
-.B [--max-files-per-job N] 
 .B [--rss-mb N] [--processors N] [--max-distance DIST]
 .B [--output-pattern PATTERN:DESTINATION] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE]

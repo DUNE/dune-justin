@@ -2479,6 +2479,13 @@ def showSite(environ, user, cgiValues):
 
   output += ('</td></tr>')
   
+  output += ('<tr><td>Events</td>'
+             '<td><a href="/dashboard/?method=list-events&site_name=%s'
+             '">All</a> &nbsp; ' % siteName)
+
+  output += ('<a href="/dashboard/?method=list-events&site_name=%s&'
+             'awt_events=True">AWT</a></td></tr>' % siteName)
+
   output += ('<tr><td>External info</td><td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a> '
@@ -2675,6 +2682,13 @@ def showStorage(environ, user, cgiValues):
 
   output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
         % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
+
+  output += ('<tr><td>Events</td>'
+             '<td><a href="/dashboard/?method=list-events&rse_name=%s'
+             '">All</a> &nbsp; ' % rseName)
+
+  output += ('<a href="/dashboard/?method=list-events&rse_name=%s&'
+             'awt_events=True">AWT</a></td></tr>' % rseName)
 
   output += ('</table>')
 

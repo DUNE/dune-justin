@@ -145,10 +145,6 @@ parser.add_argument("--max-distance",
                     type = float,
                     help = "Max distance for reading from storage")
 
-parser.add_argument("--max-files-per-job",
-                    type = int,
-                    help = "Max files per job")
-
 parser.add_argument("--output-pattern",
                     type   = str,
                     action = "append",
