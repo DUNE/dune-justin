@@ -968,8 +968,8 @@ def showRequest(environ, user, cgiValues):
   output += ('<tr><td>Started</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(requestRow['started']))
 
-  output += ('<tr><td>Checking</td><td>%s</td></tr>' 
-             % spaceForUnixEpoch(requestRow['checking']))
+#  output += ('<tr><td>Checking</td><td>%s</td></tr>' 
+#             % spaceForUnixEpoch(requestRow['checking']))
 
   output += ('<tr><td>Finished</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(requestRow['finished']))
@@ -2505,9 +2505,9 @@ def showSite(environ, user, cgiValues):
   justin.db.cur.execute(query)
   storageRows = justin.db.cur.fetchall()
 
-  output += ("<p>Values are xrdcp read and rucio write exit codes for jobs at "
-        "each site contacting each RSE. 0 = success. Enabled sites and "
-        "storages allowed for output are in bold.</p>")
+  output += ("<p>Values are xrdcp read and rucio upload exit codes for jobs "
+        "contacting each RSE. 0 = success. Decommissioned storages "
+        "are not listed.</p>")
 
   output += ('<table>')
   
@@ -2519,6 +2519,7 @@ def showSite(environ, user, cgiValues):
         '<th>Write</th>'
         '<th>Read test</th>'
         '<th>Write test</th>'
+        '<th>Events</th>'
         '</tr>')
   
   for storageRow in storageRows:  
@@ -2544,11 +2545,19 @@ def showSite(environ, user, cgiValues):
           (storageRow['jobsub_id'], int(storageRow['read_result'])))
 
     if int(storageRow['write_result']) == 255:
-      output += ('<td> </td></tr>')
+      output += ('<td> </td>')
     else:
       output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
         '%d</a></td>' % 
         (storageRow['jobsub_id'], int(storageRow['write_result'])))
+
+    output += ('<td><a href="/dashboard/?method=list-events&rse_name=%s&'
+               'site_name=%s">All</a> &nbsp; ' % 
+               (storageRow['rse_name'], siteName))
+
+    output += ('<a href="/dashboard/?method=list-events&rse_name=%s&'
+               'site_name=%s&awt_events=True">AWT</a></td></tr>' % 
+               (storageRow['rse_name'], siteName))
 
   output += ("</table>")
 
@@ -2682,8 +2691,8 @@ def showStorage(environ, user, cgiValues):
   justin.db.cur.execute(query)
   siteRows = justin.db.cur.fetchall()
 
-  output += ("<p>Test values are xrdcp read and rucio write exit codes for jobs "
-        "at each site contacting each RSE. 0 = success.</p>")
+  output += ("<p>Test values are xrdcp read and rucio upload exit codes for "
+             "jobs at each site contacting this RSE. 0 = success.</p>")
 
   output += ('<table>')
   
@@ -2693,6 +2702,7 @@ def showStorage(environ, user, cgiValues):
         '<th>Enabled</th>'
         '<th>Read test</th>'
         '<th>Write test</th>'
+        '<th>Events</th>'
         '</tr>')
   
   for siteRow in siteRows:  
@@ -2714,11 +2724,19 @@ def showStorage(environ, user, cgiValues):
             (siteRow['jobsub_id'], int(siteRow['read_result'])))
 
     if int(siteRow['write_result']) == 255:
-      output += ('<td> </td></tr>')
+      output += ('<td> </td>')
     else:
       output += ('<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
             '%d</a></td>' % 
             (siteRow['jobsub_id'], int(siteRow['write_result'])))
+
+    output += ('<td><a href="/dashboard/?method=list-events&rse_name=%s&'
+               'site_name=%s">All</a> &nbsp; ' % 
+               (rseName, siteRow['site_name']))
+
+    output += ('<a href="/dashboard/?method=list-events&rse_name=%s&'
+               'site_name=%s&awt_events=True">AWT</a></td></tr>' % 
+               (rseName, siteRow['site_name']))
 
   output += ("</table>")
 
@@ -2739,8 +2757,39 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
       whereList.append('jobsub_id="%s"' % jobsubID)
       queryList += '&jobsub_id=' + jobsubID
 
+  try:
+    rseName = cgiValues["rse_name"]
+  except:
+    pass
+  else:
+    if rseName:
+      whereList.append('rse_name="%s"' % rseName)
+      queryList += '&rse_name=' + rseName
+
+  try:
+    siteName = cgiValues["site_name"]
+  except:
+    pass
+  else:
+    if siteName:
+      whereList.append('site_name="%s"' % siteName)
+      queryList += '&site_name=' + siteName
+
+  try:
+    awtEvents = bool(cgiValues["awt_events"])
+  except:
+    pass
+  else:
+    if awtEvents:
+      whereList.append('event_type_id IN (%d,%d,%d,%d)' 
+                       % (justin.event_AWT_READ_OK,
+                          justin.event_AWT_READ_FAIL,
+                          justin.event_AWT_WRITE_OK,
+                          justin.event_AWT_WRITE_FAIL))
+      queryList += '&awt_events=' + str(awtEvents)
+
   if whereList:
-    whereString = ' WHERE ' + 'AND'.join(whereList)
+    whereString = ' WHERE ' + ' AND '.join(whereList)
   else:
     whereString = ''
     
@@ -2992,9 +3041,10 @@ def awtResults(environ, user, cgiValues):
           boxColor = 'white'
           
         output += ('<td class="tooltip" style="background-color: %s">'
-                   '<a href="/dashboard/?method=show-job&jobsub_id=%s"'
+                   '<a href="/dashboard/?method=list-events&rse_name=%s'
+                   '&site_name=%s&awt_events=True"'
                    'class="tooltiptext">%s</a></td>\n'
-                   % (boxColor, jobsubID, s))
+                   % (boxColor, rseName, siteName, s))
 
     output += ('<%s><a href="/dashboard/?method=show-site&site_name=%s">%s'
           '</a></%s></tr>\n' % 

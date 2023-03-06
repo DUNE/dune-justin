@@ -88,6 +88,12 @@ event_FILE_CREATED              = 404
 event_FILE_OUTPUTTING_RESET     = 405
 event_FILE_UPLOADED             = 406
 
+# AWT events 
+event_AWT_READ_OK               = 501
+event_AWT_READ_FAIL             = 502
+event_AWT_WRITE_OK              = 503
+event_AWT_WRITE_FAIL            = 504
+
 eventTypes = { 
  
  # Catch all events
@@ -151,9 +157,18 @@ eventTypes = {
  event_FILE_OUTPUTTING_RESET : ['FILE_OUTPUTTING_RESET',
                                 'File set back to unallocated from outputting'],
  event_FILE_UPLOADED          : ['FILE_UPLOADED',
-                                'Output file uploaded in job']
+                                'Output file uploaded in job'],
+
+ # AWT events
+ event_AWT_READ_OK     : ['AWT_READ_OK',
+                          'AWT read test succeeds'],
+ event_AWT_READ_FAIL   : ['AWT_READ_FAIL',
+                          'AWT read test fails'],
+ event_AWT_WRITE_OK    : ['AWT_WRITE_OK',
+                          'AWT write test succeeds'],
+ event_AWT_WRITE_FAIL  : ['AWT_WRITE_FAIL',
+                          'AWT write test fails']
              }
-### EVENT DEFINITIONS ABOVE ARE NOW IN events.py !!!!!
 
 def stringIsJobsubID(s):
   return re.search('[^A-Za-z0-9_.@-]', s) is None

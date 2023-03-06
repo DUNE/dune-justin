@@ -970,7 +970,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog):
       lineSplitted = line.split()
       
       try:
-        justin.db.insertUpdate('UPDATE sites_storages SET '
+        justin.insertUpdate('UPDATE sites_storages SET '
                             'justin_job_id=%d,read_result=%d,write_result=%d '
                             'WHERE site_id=%d AND '
                             'rse_id=(SELECT rse_id FROM storages '
@@ -981,6 +981,29 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog):
                                siteID,
                                lineSplitted[2])
                            )
+
+        # non-zero shell error code is True in Python...
+        justin.logEvent(eventTypeID = 
+                          justin.event_AWT_READ_FAIL if int(lineSplitted[3]) 
+                          else justin.event_AWT_READ_OK,
+                        requestID = justin.awtRequestID,
+                        stageID = 1,
+                        justinJobID = justinJobID,
+                        siteID = siteID,
+                        rseName = lineSplitted[2]
+                       )
+
+        # non-zero shell error code is True in Python...
+        justin.logEvent(eventTypeID = 
+                          justin.event_AWT_WRITE_FAIL if int(lineSplitted[4]) 
+                          else justin.event_AWT_WRITE_OK,
+                        requestID = justin.awtRequestID,
+                        stageID = 1,
+                        justinJobID = justinJobID,
+                        siteID = siteID,
+                        rseName = lineSplitted[2]
+                       )
+
       except Exception as e:
         print('Update awt results fails with %s' % str(e), 
               file=sys.stderr)

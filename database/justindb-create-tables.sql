@@ -187,6 +187,7 @@ CREATE TABLE `events` (
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `milliseconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`event_id`),
+  INDEX `awt` (`event_type_id`,`rse_id`,`site_id`,`event_time`),
   INDEX `request_id` (`request_id`,`stage_id`,`event_type_id`,`rse_id`),
   INDEX `file_id` (`file_id`,`event_id`),
   INDEX `justin_job_id` (`justin_job_id`,`event_id`),
