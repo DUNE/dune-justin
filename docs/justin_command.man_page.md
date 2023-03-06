@@ -102,45 +102,39 @@ This man page is distributed along with the
     
            create-stage  --request-id ID --stage-id ID --jobscript FILENAME|--job-
                   script-id JSID [--wall-seconds N] [--rss-mb N] [--processors  N]
-                  [--max-distance  DIST] [--max-files-per-job N] [--output-pattern
-                  PATTERN:DESTINATION]      [--output-pattern-next-stage      PAT-
-                  TERN:DATASET]  [--output-rse NAME] [--lifetime-days DAYS] [--env
-                  NAME=VALUE]
-                  Creates a new stage for the given  request  ID  with  the  given
+                  [--max-distance   DIST]  [--output-pattern  PATTERN:DESTINATION]
+                  [--output-pattern-next-stage   PATTERN:DATASET]    [--output-rse
+                  NAME] [--lifetime-days DAYS] [--env NAME=VALUE]
+                  Creates  a  new  stage  for  the given request ID with the given
                   stage ID. Stages must be numbered consecutively from 1, and each
                   request must have at least one stage.
     
-                  Each stage must have a jobscript shell  script  associated  with
-                  it,  given by the --jobscript or --jobscript-id options.  Either
+                  Each  stage  must  have a jobscript shell script associated with
+                  it, given by the --jobscript or --jobscript-id options.   Either
                   the full, local path to the jobscript file is given, or the job-
-                  script  is  taken  from justIN's Jobscripts Library using a JSID
-                  jobscript identifier.  The JSID is in  the  form  SCOPE:NAME  or
+                  script is taken from justIN's Jobscripts Library  using  a  JSID
+                  jobscript  identifier.   The  JSID  is in the form SCOPE:NAME or
                   USER:NAME, where USER includes an '@' character. In either case,
-                  a copy of the current text of the jobscript  is  cached  in  the
-                  stage  definition  and  executed  on worker nodes to process the
+                  a  copy  of  the  current text of the jobscript is cached in the
+                  stage definition and executed on worker  nodes  to  process  the
                   stage's files.
     
                   If the maximum wallclock time needed is not given by --wall-sec-
-                  onds  then  the default of 80000 seconds is used. If the maximum
-                  amount of resident memory needed is not given by  --rss-mb  then
-                  the  default of 2000MiB is used. The resident memory corresponds
-                  to the physical memory  managed  by  HTCondor's  ResidentSetSize
+                  onds then the default of 80000 seconds is used. If  the  maximum
+                  amount  of  resident memory needed is not given by --rss-mb then
+                  the default of 2000MiB is used. The resident memory  corresponds
+                  to  the  physical  memory  managed by HTCondor's ResidentSetSize
                   value.
     
                   If the script can make use of multiple processors then --proces-
-                  sors can be used to give the number needed, with a default of  1
+                  sors  can be used to give the number needed, with a default of 1
                   if not given.
     
                   By default, input files will only be allocated to a script which
-                  are on storages at the  same  site  (distance=0).  This  can  be
-                  changed  by  setting --max-distance DIST to allow input files to
-                  be allocated on storages at greater distances, up to a value  of
+                  are  on  storages  at  the  same  site (distance=0). This can be
+                  changed by setting --max-distance DIST to allow input  files  to
+                  be  allocated on storages at greater distances, up to a value of
                   100 which represents maximally remote storages.
-    
-                  --max-files-per-job  N  limits the number of files which will be
-                  allocated to a job. This can be used to ensure  that  jobscripts
-                  which  request  files  to work on, one after another, do not run
-                  for too long. Default 1.
     
                   If one or more options --output-pattern  PATTERN:DESTINATION  is
                   given  then  the  generic job will look for files created by the
@@ -186,10 +180,10 @@ This man page is distributed along with the
            quick-request [--description DESC]  [--mql  QUERY|--monte-carlo  COUNT]
                   [--scope  SCOPE]  [--refind-start-date YYYYMMDD] [--refind-dura-
                   tion-days  DAYS]  [--refind-interval-hours  HOURS]   --jobscript
-                  FILENAME|--jobscript-id  JSID  [--wall-seconds  N] [--max-files-
-                  per-job N] [--rss-mb N] [--processors N]  [--max-distance  DIST]
-                  [--output-pattern   PATTERN:DESTINATION]   [--output-rse   NAME]
-                  [--lifetime-days DAYS] [--env NAME=VALUE]
+                  FILENAME|--jobscript-id  JSID  [--wall-seconds  N]  [--rss-mb N]
+                  [--processors N] [--max-distance  DIST]  [--output-pattern  PAT-
+                  TERN:DESTINATION]  [--output-rse  NAME]  [--lifetime-days  DAYS]
+                  [--env NAME=VALUE]
                   Combines the  create-request,  create-stage  and  submit-request
                   subcommands  into  a single operation, for use with single-stage
                   requests. The options are repeated from the  first  two  subcom-
