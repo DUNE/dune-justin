@@ -17,7 +17,16 @@ services:
     ports:
       - 80:80
     volumes:
-      - ./database/wfdb-create-tables.sql:/docker-entrypoint-initdb.d/wfdb-create-tables.sql
+#      - ./database/wfdb-create-tables.sql:/docker-entrypoint-initdb.d/wfdb-create-tables.sql
+      - ./dashboard/justin-wsgi-dashboard:/var/www/wsgi/justin-wsgi-dashboard
+      - ./services/justin-wsgi-import-script:/var/www/wsgi/justin-wsgi-import-script
+      - ./services/justin-wsgi-commands:/var/www/wsgi/justin-wsgi-commands
+      - ./services/justin-wsgi-allocator:/var/www/wsgi/justin-wsgi-allocator
+      - ./services/justin.conf:/etc/httpd/conf.d/justin.conf
+      - ./docs/:/var/www/html/docs/
+      # - ./docker/httpd/httpdEntrypoint.sh:/usr/local/apache2/httpdEntrypoint.sh
+      - ./docker/httpd/conf.modules.d/:/etc/httpd/conf.modules.d/
+      - ./docker/certificates/* /etc/grid-security/
 
   # letsencrypt:
   #   <<: *apache
