@@ -28,7 +28,7 @@ COPY docs/*.md /var/www/html/docs/
 
 COPY docker/httpd/httpdEntrypoint.sh /usr/local/apache2/
 
-ls -l /usr/local/apache2/
+RUN ls -l /usr/local/apache2/
 
 COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
 
