@@ -49,8 +49,11 @@ visible at the foot of
 
 The production VOMS proxy normally used by the generic job for file uploads
 is made available to the AWT jobscript at `$JUSTIN_PATH/awt-proxy.pem` and
-this is currently used for both read and write tests. `voms-proxy-info -all`
-is run by the jobscript so the proxy's details can be checked.
+this is currently used for both read and write tests. 
+
+    voms-proxy-info --all --file $JUSTIN_PATH/awt-proxy.pem
+
+is run by jobscript to show exactly what proxy is being used.
 
 The jobscript loops through `$JUSTIN_PATH/justin-awt-rse-list.txt` doing
 

@@ -1,7 +1,5 @@
 #!/bin/sh
 
-openssl x509 -in $JUSTIN_PATH/awt-proxy.pem -text
-
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
@@ -58,6 +56,8 @@ do
 done
 
 )
+
+voms-proxy-info --all --file $JUSTIN_PATH/awt-proxy.pem
 
 echo
 echo '===== Results ====='

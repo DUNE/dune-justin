@@ -2841,12 +2841,18 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 </tr>""")
 
   for eventRow in eventsRows[:pageLength]:
-    output += ('<tr><td>%d</td><td>%s</td><td>%s</td>' %
-           (eventRow['event_id'], 
-            justin.db.eventTypes[eventRow['event_type_id']][0],
-            eventRow['event_time']
-          )          
-         )
+    eventType = justin.db.eventTypes[eventRow['event_type_id']][0]
+    cellColor = '#FFDDDD' if ('FAIL' in eventType) else \
+                ('#DDFFDD' if 'OK' in eventType else 'white')
+
+    output += ('<tr><td>%d</td><td style="background-color: %s">%s</td>'
+               '<td>%s</td>' %
+               (eventRow['event_id'], 
+                cellColor,
+                eventType,
+                eventRow['event_time']
+               )          
+              )
 
     if eventRow['request_id']: 
       output += ('<td><a href="/dashboard/?method=show-request&request_id=%d">'
@@ -2915,12 +2921,14 @@ def awtResults(environ, user, cgiValues):
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
-  output += ("<p>Hover over each coloured box to see the most recent test "
-      "values for xrdcp read and rucio write, run in jobs at each site, "
-      "contacting each RSE.</p>"
-      "<p>Exit code 0 = success. Other codes are failure modes.</p>"
-      "<p>Green if read and write ok; orange if only read ok; red if "
-      "read fails; grey if no result for %d hours.</p>" % greyHours)
+  output += ('<p>Hover over each coloured box to see the most recent test '
+      'values for xrdcp read and rucio write, run in jobs at each site, '
+      'contacting each RSE.</p>'
+      '<p>Exit code 0 = success. Other codes are failure modes.</p>'
+      '<p>Green if read and write ok; orange if only read ok; red if '
+      'read fails; grey if no result for %d hours. '
+      'There is a <a href="/docs/awt.md">full explanation of AWT</a> in the '
+      'justIN documentation.</p>' % greyHours)
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
@@ -3042,16 +3050,16 @@ def awtResults(environ, user, cgiValues):
           s += ' Write=%d' % writeResult
 
         if finishedTime < timeNow - 3600 * greyHours:
-          boxColor = 'grey'
+          boxColor = '#BBBBBB'
         elif readResult == 255:
           boxColor = 'white'
         elif readResult == 0 and writeResult == 0:
-          boxColor = 'green'
+          boxColor = '#80FF80'
         elif readResult:
-          boxColor = 'red'
+          boxColor = '#FF8080'
         elif readResult == 0 and \
              (writeResult and writeResult != 255):
-          boxColor = 'orange'
+          boxColor = '#FFAA00'
         else:
           boxColor = 'black'
           
