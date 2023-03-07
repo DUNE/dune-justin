@@ -25,6 +25,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [Services](services.md)
 - [Dashboard](dashboard.md)
 - [Jobscripts library](jobscripts_library.md)
+- [Automated Workflow Tests](awt.md)
 
 ## Reference 
 
