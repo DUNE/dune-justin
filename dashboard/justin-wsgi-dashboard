@@ -2919,8 +2919,8 @@ def awtResults(environ, user, cgiValues):
       "values for xrdcp read and rucio write, run in jobs at each site, "
       "contacting each RSE.</p>"
       "<p>Exit code 0 = success. Other codes are failure modes.</p>"
-      "<p>Green if read and write ok; orange if only read ok; red if neither; "
-      "grey if no result for %d hours.</p>" % greyHours)
+      "<p>Green if read and write ok; orange if only read ok; red if "
+      "read fails; grey if no result for %d hours.</p>" % greyHours)
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
@@ -3043,16 +3043,17 @@ def awtResults(environ, user, cgiValues):
 
         if finishedTime < timeNow - 3600 * greyHours:
           boxColor = 'grey'
+        elif readResult == 255:
+          boxColor = 'white'
+        elif readResult == 0 and writeResult == 0:
+          boxColor = 'green'
+        elif readResult:
+          boxColor = 'red'
         elif readResult == 0 and \
              (writeResult and writeResult != 255):
           boxColor = 'orange'
-        elif (readResult and readResult != 255) or \
-             (writeResult and writeResult != 255):
-          boxColor = 'red'
-        elif readResult == 0 and writeResult == 0:
-          boxColor = 'green'
         else:
-          boxColor = 'white'
+          boxColor = 'black'
           
         output += ('<td class="tooltip" style="background-color: %s">'
                    '<a href="/dashboard/?method=list-events&rse_name=%s'

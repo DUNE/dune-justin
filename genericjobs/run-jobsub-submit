@@ -6,6 +6,12 @@ setup jobsub_client v1_3_5
 setup cigetcert
 #export X509_USER_PROXY=/var/lib/justin/justin-jobs-production.proxy.pem
 
+jobsub_rm \
+  --debug \
+  --user dunepro \
+  --constraint \
+  '(regexp("justin-generic-job$",TransferInput) && JobStatus=?=1 && EnteredCurrentStatus < (CurrentTime - 7*86400))'
+
 if [ "$2" = "FNAL_GPGrid" ] ; then
  jobsub_submit \
   --debug \

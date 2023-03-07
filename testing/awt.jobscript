@@ -1,6 +1,4 @@
-
-# File name of test file in Rucio, in scope testpro
-export AWT_DOWNLOAD_FILE=awt-download-2023-01-13-01.txt
+#!/bin/sh
 
 openssl x509 -in $JUSTIN_PATH/awt-proxy.pem -text
 
@@ -28,11 +26,11 @@ do
   # Test download of file prepositioned on RSEs
   (
     export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
-    xrdcp --force --nopbar --verbose "$read_pfn" "$AWT_DOWNLOAD_FILE"
+    xrdcp --force --nopbar --verbose "$read_pfn" "downloaded.txt"
   )
   download_retval=$?
 
-  echo "'xrdcp --force --nopbar --verbose $read_pfn $AWT_DOWNLOAD_FILE' returns $download_retval"
+  echo "'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt' returns $download_retval"
 
   # Test upload of random file
   fn=`mktemp awt-$now-XXXXXXXXXX`
@@ -65,7 +63,7 @@ echo
 echo '===== Results ====='
 echo
 echo 'Download/upload commands:'
-echo 'xrdcp --force --nopbar --verbose $read_pfn $AWT_DOWNLOAD_FILE'
+echo 'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt'
 echo 'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name FILENAME FILENAME'
 echo 'Use the Landscape link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
 echo
