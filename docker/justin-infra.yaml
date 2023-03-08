@@ -23,9 +23,9 @@ services:
       - ./services/justin-wsgi-commands:/var/www/wsgi/justin-wsgi-commands
       - ./services/justin-wsgi-allocator:/var/www/wsgi/justin-wsgi-allocator
       - ./services/justin.conf:/etc/httpd/conf.d/justin.conf
-      - ./docs/:/var/www/html/docs/
+      - ./docs:/var/www/html/docs
       - ./docker/httpd/httpdEntrypoint.sh:/usr/local/apache2/httpdEntrypoint.sh
-      - ./docker/httpd/conf.modules.d/:/etc/httpd/conf.modules.d/
+      - ./docker/httpd/conf.modules.d:/etc/httpd/conf.modules.d
       - ./docker/certificates:/etc/grid-security/certificates
 
   # letsencrypt:
