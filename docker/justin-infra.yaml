@@ -26,7 +26,7 @@ services:
       - ./docs/:/var/www/html/docs/
       - ./docker/httpd/httpdEntrypoint.sh:/usr/local/apache2/httpdEntrypoint.sh
       - ./docker/httpd/conf.modules.d/:/etc/httpd/conf.modules.d/
-      - ./docker/certificates/ /etc/grid-security/certificates
+      - ./docker/certificates:/etc/grid-security/certificates
 
   # letsencrypt:
   #   <<: *apache
