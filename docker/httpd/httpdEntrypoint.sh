@@ -8,8 +8,6 @@ which httpd
 
 pwd
 
-ls -l /usr/local/apache2/
-
-/usr/local/apache2/httpd -D FOREGROUND
+httpd -D FOREGROUND
 
 # certbot --apache -d wfs-pro.dune.hep.ac.uk -d wfs.dune.hep.ac.uk

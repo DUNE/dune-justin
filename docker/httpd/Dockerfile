@@ -26,7 +26,8 @@ COPY services/justin.conf /etc/httpd/conf.d/
 
 COPY docs/*.md /var/www/html/docs/
 
-# COPY docker/httpd/httpdEntrypoint.sh /usr/local/apache2/
+RUN mkdir -p /etc/httpd/bin
+COPY docker/httpd/httpdEntrypoint.sh /etc/httpd/bin/
 
 # RUN ls -l /usr/local/apache2/
 
@@ -36,4 +37,4 @@ COPY docker/certificates/* /etc/grid-security/
 
 USER 1001
 
-# ENTRYPOINT ["/usr/local/apache2/httpdEntrypoint.sh"]
+ENTRYPOINT ["/etc/httpd/bin/httpdEntrypoint.sh"]
