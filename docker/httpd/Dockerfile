@@ -33,7 +33,7 @@ COPY docker/httpd/httpdEntrypoint.sh /etc/httpd/bin/
 
 COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
 
-COPY docker/certificates/* /etc/grid-security/
+COPY -r docker/certificates/* /etc/grid-security/
 
 USER 1001
 
