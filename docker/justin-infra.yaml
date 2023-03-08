@@ -41,7 +41,7 @@ services:
     command: --max-allowed-packet=64MB
     restart: always
     volumes:
-      - ./database/mysql-db:/var/lib/mysql
+      - mysql-db:/var/lib/mysql
       - ./database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
     environment:
       - MYSQL_ROOT_PASSWORD=PAsSWoRd
