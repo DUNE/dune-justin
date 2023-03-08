@@ -3054,12 +3054,13 @@ def awtResults(environ, user, cgiValues):
         elif readResult == 255:
           boxColor = 'white'
         elif readResult == 0 and writeResult == 0:
+#          boxColor = '#DDFFDD' # green
           boxColor = '#80FF80'
         elif readResult:
-          boxColor = '#FF8080'
+          boxColor = '#FF8080' # red
         elif readResult == 0 and \
              (writeResult and writeResult != 255):
-          boxColor = '#FFAA00'
+          boxColor = '#FFAA00' # orange
         else:
           boxColor = 'black'
           

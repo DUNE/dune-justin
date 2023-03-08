@@ -20,6 +20,11 @@
 (
 . /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
 
+# Force choice of VOMS server 
+cat <<'EOF' >/var/lib/justin/vomses
+"dune" "voms1.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms1.fnal.gov" "dune"
+EOF
+
 echo
 echo '======= Create /tmp/x509up_u proxy file'
 echo
@@ -28,9 +33,12 @@ voms-proxy-init \
  -key  /etc/grid-security/userkey.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
+ -vomses /var/lib/justin/vomses
  
 cp /tmp/x509up_u0 /var/lib/justin/dunepro.proxy.pem
 chown apache.apache /var/lib/justin/dunepro.proxy.pem
+
+voms-proxy-info -all -file /var/lib/justin/dunepro.proxy.pem
 
 echo
 echo '======= Create justin-jobs-production.proxy.pem'
@@ -40,7 +48,8 @@ voms-proxy-init \
  -key  /etc/grid-security/justin-jobs-production.key.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
- -out /var/lib/justin/justin-jobs-production.proxy.pem.tmp
+ -out /var/lib/justin/justin-jobs-production.proxy.pem.tmp \
+ -vomses /var/lib/justin/vomses
  
 if [ $? = 0 -a -s /var/lib/justin/justin-jobs-production.proxy.pem.tmp ]
 then
@@ -61,7 +70,8 @@ voms-proxy-init \
  -key  /etc/grid-security/justin-jobs-no-roles.key.pem \
  -voms dune \
  -valid 168:0 \
- -out /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp
+ -out /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp \
+ -vomses /var/lib/justin/vomses
 
 if [ $? = 0 -a -s /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp ]
 then
@@ -80,7 +90,8 @@ voms-proxy-init \
  -key  /etc/grid-security/justin-jobs-analysis.key.pem \
  -voms dune \
  -valid 168:0 \
- -out /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp
+ -out /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp \
+ -vomses /var/lib/justin/vomses
 
 if [ $? = 0 -a -s /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp ]
 then

@@ -1,5 +1,5 @@
 #
-# justin-wsgi-commands - justIN commands API service
+# justin-wsgi-ui - justIN commands and info API service
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -1252,6 +1252,77 @@ command without needing to authorize this computer again for 7 days.
                    '401 Authorization Required',
                    json.dumps(outputDict))
 
+def scopesInfo(startResponse):
+
+  rows = justin.select('SELECT scope_name,wlcg_group_name FROM scopes '
+                       'LEFT JOIN wlcg_groups '
+                       'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
+                       'ORDER BY scope_name')
+  output = ''
+  for row in rows:
+    
+    output += '%s,%s\n' % (row['scope_name'], 
+                row['wlcg_group_name'] if row['wlcg_group_name'] else '')
+
+  startResponse('200 OK',
+                [('Content-type',  'text/csv'),
+                 ('Content-length', str(len(output)))
+                ])
+  return [output.encode('UTF-8')]
+
+def sitesInfo(startResponse):
+  rows   = justin.select('SELECT site_name,enabled '
+                         'FROM sites ORDER BY site_name')
+  output = ''
+  for row in rows:
+    output += '%s,%s\n' % (row['site_name'], bool(row['enabled']))
+
+  startResponse('200 OK',
+                [('Content-type',  'text/csv'),
+                 ('Content-length', str(len(output)))
+                ])
+  return [output.encode('UTF-8')]
+
+def storagesInfo(startResponse):
+  rows   = justin.select('SELECT rse_name,'
+                         'rucio_read AND justin_read AS can_read,'
+                         'rucio_write AND justin_write AS can_write '
+                         'FROM storages '
+                         'WHERE NOT decommissioned AND rse_id<>%d '
+                         'ORDER BY rse_name' % justin.MonteCarloRseID)
+  output = ''
+  for row in rows:
+    output += '%s,%s,%s\n' % (row['rse_name'], bool(row['can_read']),
+                                               bool(row['can_write']))
+
+  startResponse('200 OK',
+                [('Content-type',  'text/csv'),
+                 ('Content-length', str(len(output)))
+                ])
+  return [output.encode('UTF-8')]
+
+def sitesStoragesInfo(startResponse):
+  rows = justin.select('SELECT site_name,rse_name,distance,sites.enabled,'
+                'rucio_read AND justin_read AS can_read,'
+                'rucio_write AND justin_write AS can_write '
+                'FROM sites_storages '
+                'LEFT JOIN sites ON sites.site_id=sites_storages.site_id '
+                'LEFT JOIN storages ON storages.rse_id=sites_storages.rse_id '
+                'WHERE NOT storages.decommissioned AND '
+                'sites_storages.rse_id<>%d '
+                'ORDER BY site_name,rse_name' % justin.MonteCarloRseID)
+  output = ''
+  for row in rows:
+    output += '%s,%s,%.02f,%s,%s,%s\n' % (row['site_name'], row['rse_name'], 
+                                 row['distance'] / 100.0,
+                                 bool(row['enabled']),
+                                 bool(row['can_read']), bool(row['can_write']))
+  startResponse('200 OK',
+                [('Content-type',  'text/csv'),
+                 ('Content-length', str(len(output)))
+                ])
+  return [output.encode('UTF-8')]
+
 #
 # Entry point from mod_wsgi
 #
@@ -1260,12 +1331,6 @@ def application(environ, startResponse):
   justin.db.wsgiCallsCount += 1
   print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
         file=sys.stderr)
-
-  # Quickly reject random GETs etc (if not hanlded by Apache already)
-  if environ['REQUEST_METHOD'] != 'POST':
-    return httpError(startResponse, 
-                     '405 Method not allowed', 
-                     'We only support POST')
 
   try:
     # True should provoke a reconnection attempt.
@@ -1280,8 +1345,26 @@ def application(environ, startResponse):
   # Avoid leftovers from partial, failed transactions in this instance
   justin.db.conn.rollback()
 
+  if environ['REQUEST_URI'] == '/api/info/scopes.csv':
+    return scopesInfo(startResponse)
+
+  if environ['REQUEST_URI'] == '/api/info/sites.csv':
+    return sitesInfo(startResponse)
+
+  if environ['REQUEST_URI'] == '/api/info/storages.csv':
+    return storagesInfo(startResponse)
+
+  if environ['REQUEST_URI'] == '/api/info/sites_storages.csv':
+    return sitesStoragesInfo(startResponse)
+
+  # Quickly reject random GETs etc (if not handled by Apache already)
+  if environ['REQUEST_METHOD'] != 'POST':
+    return httpError(startResponse, 
+                     '405 Method not allowed', 
+                     'We only support POST')
+
   try:
-    # Client always uses POST
+    # justin command client always uses POST
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
     inputString = environ['wsgi.input'].read(inputLength)
     jsonDict = json.loads(inputString)
