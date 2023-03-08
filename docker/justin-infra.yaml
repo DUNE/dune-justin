@@ -42,7 +42,7 @@ services:
     restart: always
     volumes:
       - mysql-db:/var/lib/mysql
-      - ./database/wfdb-create-tables.sql:/docker-entrypoint-initdb.d/wfdb-create-tables.sql
+      - ./database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
     environment:
       - MYSQL_ROOT_PASSWORD=PAsSWoRd
       - MYSQL_PASSWORD=PAsSWoRd
