@@ -36,4 +36,4 @@ COPY docker/certificates/* /etc/grid-security/
 
 USER 1001
 
-ENTRYPOINT ["/usr/local/apache2/httpdEntrypoint.sh"]
+# ENTRYPOINT ["/usr/local/apache2/httpdEntrypoint.sh"]
