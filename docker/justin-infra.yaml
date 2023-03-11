@@ -16,8 +16,8 @@ services:
       - 80
     ports:
       - 80:80
-    volumes:
-      - ./certificates/wfs.dune.hep.ac.uk/:/etc/grid-security/certificates/
+    # volumes:
+    #   - ./certificates/wfs.dune.hep.ac.uk/:/etc/grid-security/certificates/
 #      - ./database/wfdb-create-tables.sql:/docker-entrypoint-initdb.d/wfdb-create-tables.sql
       # - ./dashboard/justin-wsgi-dashboard:/var/www/wsgi/justin-wsgi-dashboard
       # - ./services/justin-wsgi-import-script:/var/www/wsgi/justin-wsgi-import-script

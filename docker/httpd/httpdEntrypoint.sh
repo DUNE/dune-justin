@@ -8,6 +8,8 @@ which httpd
 
 pwd
 
+whoami
+
 httpd -D FOREGROUND
 
 # certbot --apache -d wfs-pro.dune.hep.ac.uk -d wfs.dune.hep.ac.uk
