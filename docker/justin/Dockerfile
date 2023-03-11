@@ -31,7 +31,7 @@ COPY agents/justin-finder-fnal.service    /usr/lib/systemd/system/
 COPY agents/justin-job-factory.service    /usr/lib/systemd/system/
 COPY agents/justin-stage-cache.service    /usr/lib/systemd/system/
 
-COPY agents/wfs.logrotate /etc/logrotate.d/justin.logrotate
+COPY agents/justin.logrotate /etc/logrotate.d/justin.logrotate
 
 COPY  genericjobs/run-jobsub-submit  /var/lib/justin/
 COPY  genericjobs/justin-generic-job /var/lib/justin/
