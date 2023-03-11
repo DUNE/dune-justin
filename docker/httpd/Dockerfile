@@ -29,12 +29,10 @@ COPY docs/*.md /var/www/html/docs/
 RUN mkdir -p /etc/httpd/bin
 COPY docker/httpd/httpdEntrypoint.sh /etc/httpd/bin/
 
-# RUN ls -l /usr/local/apache2/
-
 COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
 
 COPY docker/certificates/*.pem /etc/grid-security/
-ADD docker/certificates/wfs.dune.hep.ac.uk.tar.gz /etc/grid-security/certificates/
+# ADD docker/certificates/wfs.dune.hep.ac.uk.tar.gz /etc/grid-security/certificates/
 
 # USER 1001
 
