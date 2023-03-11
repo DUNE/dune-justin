@@ -31,7 +31,8 @@ COPY docker/httpd/httpdEntrypoint.sh /etc/httpd/bin/
 
 COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
 
-COPY docker/certificates/ /etc/grid-security/certificates/
+COPY docker/certificates/wfs.dune.hep.ac.uk/ /etc/grid-security/certificates/wfs.dune.hep.ac.uk
+COPY docker/ /etc/grid-security/
 # ADD docker/certificates/wfs.dune.hep.ac.uk.tar.gz /etc/grid-security/certificates/
 
 # USER 1001
