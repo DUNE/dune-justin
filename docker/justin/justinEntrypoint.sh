@@ -8,4 +8,4 @@ set -e
 
 ls -l /var/log/
 
-tail -f /var/log/wfs/*
+tail -f /var/log/justin/*

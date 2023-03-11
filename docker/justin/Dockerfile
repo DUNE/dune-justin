@@ -46,5 +46,6 @@ COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
 
 
 COPY docker/justin/justinEntrypoint.sh /usr/sbin/
+RUN mkdir -p /var/log/justin
 
 ENTRYPOINT ["/usr/sbin/justinEntrypoint.sh"]
