@@ -30,7 +30,7 @@ services:
       # - ./docker/certificates:/etc/grid-security/certificates
 
   db:
-    image: "mariadb:10.8"
+    image: "mariadb:10.8.2"
     command: --max-allowed-packet=64MB
     restart: always
     volumes:
