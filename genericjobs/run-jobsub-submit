@@ -12,6 +12,9 @@ jobsub_rm \
   --constraint \
   '(regexp("justin-generic-job$",TransferInput) && JobStatus=?=1 && EnteredCurrentStatus < (CurrentTime - 7*86400))'
 
+sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job \
+ >/var/lib/justin/justin-generic-job.tmp
+
 if [ "$2" = "FNAL_GPGrid" ] ; then
  jobsub_submit \
   --debug \
@@ -23,10 +26,10 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --subgroup prod_keepup \
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
-  file:///var/lib/justin/justin-generic-job 2>/dev/null
+  file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
 elif [ "$2" = "ANY" -o "$2" = "NOT_FNAL_GPGrid" ] ; then
- if [ "$6" != "" ] ; then
-   blacklist_option="--blacklist $6"
+ if [ "$7" != "" ] ; then
+   blacklist_option="--blacklist $7"
  fi
 
  if [ "$2" = "NOT_FNAL_GPGrid" ] ; then
@@ -46,7 +49,7 @@ elif [ "$2" = "ANY" -o "$2" = "NOT_FNAL_GPGrid" ] ; then
   --resource-provides=usage_model="$USAGE_MODEL" \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
   "$blacklist_option" \
-  file:///var/lib/justin/justin-generic-job 2>/dev/null
+  file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
 else
  jobsub_submit \
   --debug \
@@ -59,5 +62,5 @@ else
   --subgroup prod_keepup \
   --resource-provides=usage_model=OFFSITE \
   --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
-  file:///var/lib/justin/justin-generic-job 2>/dev/null
+  file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
 fi

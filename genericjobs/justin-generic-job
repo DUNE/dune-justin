@@ -49,6 +49,8 @@ echo 'Before GFAL unsets, do  printenv | grep GFAL'
 printenv | grep GFAL
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
 
+echo '###justin_job_secret###' > justin_job_secret.txt
+
 echo '### pwd ; ls -lt ###'
 pwd
 ls -lt
@@ -70,13 +72,6 @@ if [ $? -ne 0 ] ; then
  exit 0
 fi
 
-cat <<EOF >justin-send-heartbeat.json
-{
-  "method"       : "send_heartbeat",
-  "jobsub_id"    : "$JOBSUBJOBID"
-}
-EOF
-
 (
 # Subprocess to send regular heartbeats
 
@@ -86,6 +81,18 @@ do
   if [ ! -r justin-send-heartbeat.json ] ; then
     exit 0
   fi
+
+  secret_hash=$(echo -n send_heartbeat$JOBSUBJOBID \
+                | openssl sha256 -hmac `cat justin_job_secret.txt` \
+                | cut -f2 -d' ')
+
+  cat <<EOF >justin-send-heartbeat.json
+{
+  "secret_hash"  : "$secret_hash",
+  "method"       : "send_heartbeat",
+  "jobsub_id"    : "$JOBSUBJOBID"
+}
+EOF
 
   curl \
      --user-agent 'justin-generic-job' \
@@ -112,13 +119,13 @@ mkdir -p $JUSTIN_WORKDIR/home/workspace
 cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
  $JUSTIN_WORKDIR/home
 
-# Use dev version of justin-metadata
-cp -f /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
- $JUSTIN_WORKDIR/home
-
-# Use dev version of justin-webdav-upload
-cp -f /cvmfs/fifeuser4.opensciencegrid.org/sw/dune/dfab8a258a1816ed47506f7c1ce254b22257dbcd/justin-webdav-upload \
- $JUSTIN_WORKDIR
+## Use dev version of justin-metadata
+#cp -f /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
+# $JUSTIN_WORKDIR/home
+#
+## Use dev version of justin-webdav-upload
+#cp -f /cvmfs/fifeuser4.opensciencegrid.org/sw/dune/dfab8a258a1816ed47506f7c1ce254b22257dbcd/justin-webdav-upload \
+# $JUSTIN_WORKDIR
 
 # Assemble values to record
 export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
@@ -150,11 +157,16 @@ openssl req -batch -nodes -newkey rsa:2048 \
 openssl req -batch -nodes -newkey rsa:2048 \
  -keyout justin-jobs-production.key.pem -out justin-jobs-production.csr.pem
 
+secret_hash=$(echo -n get_stage$JOBSUBJOBID \
+                | openssl sha256 -hmac `cat justin_job_secret.txt` \
+                | cut -f2 -d' ')
+
 # Create the JSON to send to the allocator
 cat <<EOF >justin-get-stage.json
 {
   "method"          : "get_stage",
   "jobsub_id"       : "$JOBSUBJOBID",
+  "secret_hash"     : "$secret_hash",
   "site_name"       : "${site_name:-XX-UNKNOWN}",
   "cpuinfo"         : "${JUSTIN_CPUINFO:-Unknown}",
   "os_release"      : "${JUSTIN_OS_RELEASE:-Unknown}",
@@ -371,10 +383,15 @@ fi
 
 tail -c 10000 $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log | base64 --wrap=0 > justin-jobscript.log.b64
 
+secret_hash=$(echo -n record_results$JOBSUBJOBID \
+                | openssl sha256 -hmac `cat justin_job_secret.txt` \
+                | cut -f2 -d' ')
+
 cat <<EOF >justin-record-results.json
 {
   "method": "record_results",
   "jobsub_id": "$JOBSUBJOBID",
+  "secret_hash": "$secret_hash",
   "processed_dids": [$processed_dids],
   "processed_pfns": [$processed_pfns],
   "output_urls": [$output_urls],
@@ -547,10 +564,15 @@ fi
 
 # If all ok, then confirm that to the Workflow Allocator
 
+secret_hash=$(echo -n confirm_results$JOBSUBJOBID \
+                | openssl sha256 -hmac `cat justin_job_secret.txt` \
+                | cut -f2 -d' ')
+
 cat <<EOF >justin-confirm-results.json
 {
-  "method": "confirm_results",
-  "jobsub_id": "$JOBSUBJOBID",
+  "method"      : "confirm_results",
+  "jobsub_id"   : "$JOBSUBJOBID",
+  "secret_hash" : "$secret_hash",
   "output_dids": {
 EOF
 

@@ -44,6 +44,20 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
 
 jobStallSeconds = 3660
 
+rseCountriesRegions = { 
+                        'BR'  : 'South_America',
+                        'CA'  : 'North_America',
+                        'CERN': 'Europe',
+                        'CZ'  : 'Europe',
+                        'DE'  : 'Europe',
+                        'ES'  : 'Europe',
+                        'FR'  : 'Europe',
+                        'NL'  : 'Europe',
+                        'IN'  : 'South_Asia',
+                        'UK'  : 'Europe',
+                        'US'  : 'North_America'
+                      }
+
 awtRequestID = 1
 awtFileID    = 1
 

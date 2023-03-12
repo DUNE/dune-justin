@@ -2371,7 +2371,7 @@ def listStorages(environ, user, cgiValues):
   query = ("SELECT rse_id,rse_name,occupancy,decommissioned,"
            "rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,"
            "rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,"
-           "lan_write_scheme,wan_write_scheme "
+           "lan_write_scheme,wan_write_scheme,rse_region,rse_country,rse_site "
            "FROM storages ORDER BY rse_name")
   justin.db.cur.execute(query)
   storageRows = justin.db.cur.fetchall()
@@ -2381,12 +2381,11 @@ def listStorages(environ, user, cgiValues):
   output += ('<tr>'
         '<th>RSE name</th>'
         '<th>Occupancy</th>'
-        '<th>Read</th>'
-        '<th>(Rucio/justIN)</th>'
-        '<th>Write</th>'
-        '<th>(Rucio/justIN)</th>'
+        '<th>Read (R,j)</th>'
+        '<th>Write (R,j)</th>'
         '<th>LAN write</th>'
         '<th>WAN write</th>'
+        '<th colspan="3">Region / Country / Site</th>'
         '</tr>')
   
   for storageRow in storageRows:  
@@ -2396,25 +2395,31 @@ def listStorages(environ, user, cgiValues):
                % (storageRow['rse_name'], storageRow['rse_name']))
 
     if storageRow['decommissioned']:
-      output += '<td colspan="7">Decommissioned</td></tr>'
+      output += '<td colspan="8">Decommissioned</td></tr>'
     elif storageRow['rse_id'] == justin.MonteCarloRseID:
-      output += '<td colspan="7"> </td></tr>'
+      output += '<td colspan="8"> </td></tr>'
     else:
       output += ('<td>%.2f</td>'
-          '<td>%s</td><td>(%s/%s)</td>'
-          '<td>%s</td><td>(%s/%s)</td>'
+          '<td>%s (%s,%s)</td>'
+          '<td>%s (%s,%s)</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>' 
           % (storageRow['occupancy'],
              bool(storageRow['has_read']),
-              bool(storageRow['rucio_read']),
-              bool(storageRow['justin_read']),
+              str(bool(storageRow['rucio_read']))[0],
+              str(bool(storageRow['justin_read']))[0],
              bool(storageRow['has_write']),
-              bool(storageRow['rucio_write']),
-              bool(storageRow['justin_write']),
+              str(bool(storageRow['rucio_write']))[0],
+              str(bool(storageRow['justin_write']))[0],
              storageRow['lan_write_scheme'],
-             storageRow['wan_write_scheme']
+             storageRow['wan_write_scheme'],
+             storageRow['rse_region'],
+             storageRow['rse_country'],
+             storageRow['rse_site']
             )
          )    
 

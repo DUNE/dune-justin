@@ -22,11 +22,15 @@ The
 is used to manage the jobs. It uses the metadata query
 `rucio-dataset testpro:awt` to find files in the testpro:awt Rucio dataset. 
 The [justIN finder agent](/docs/agents.finder.md) looks for new files in
-that dataset every two hours and caches the new file's replicas at that point.
-This means that if a new file is to added for the tests, it should already be
-replicated to the desired RSEs before it is added the testpro:awt dataset.
-When adding a new RSE, a rule for that RSE also needs to be added to the 
-testpro:awt dataset. 
+that dataset every two hour. At the same time, existing files in the 
+testpro:awt dataset are reset to the finding state. The finder agent then
+looks for the replicas of the new and existing files, updating the PFNs
+of the already cached replicas and adding new replicas as appropriate.
+
+This means that new rules can be added to the testpro:awt dataset for new
+RSEs and the Rucio configuration of the root protocol of the RSEs can be 
+changed. In either case, the changes will be reflected in new AWT tests
+within about two hours.
 
 When an AWT-tagged generic job starts at a site, it contacts the 
 [justIN allocator](/docs/services.allocator.md) and requests a jobscript

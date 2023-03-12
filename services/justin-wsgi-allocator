@@ -80,13 +80,13 @@ def httpOK(startResponse, outputString):
   return [outputString.encode('UTF-8')]
 
 # Return information about the job from the jobsubID
-def makeJobDict(jobsubID, secret = None):
+def makeJobDict(jobsubID, jobscriptSecret = None):
 
   # Find the job info and the stage's max_distance value
   try:
     query = ('SELECT '
              'jobs.allocation_state,'
-             'jobs.secret,'
+             'jobs.jobscript_secret,'
              'stages.max_distance,'
              'jobs.request_id,'
              'jobs.stage_id,'
@@ -117,8 +117,9 @@ def makeJobDict(jobsubID, secret = None):
   if not job:
     return { "error_message": "Failed to find job from jobsubID " + jobsubID }
 
-  if secret is not None and job['secret'] != secret:
-    return { "error_message": "Secret mismatch" }
+  if jobscriptSecret is not None and \
+     job['jobscript_secret'] != jobscriptSecret:
+    return { "error_message": "Jobscript secret mismatch" }
 
   return { "error_message"    : None,
            "request_id"       : job['request_id'],
@@ -130,6 +131,7 @@ def makeJobDict(jobsubID, secret = None):
            "site_enabled"     : job['enabled'],
            "justin_job_id"    : job['justin_job_id'],
            "allocation_state" : job['allocation_state'],
+           "jobscript_secret" : job['jobscript_secret'],
            "for_awt"          : job['for_awt'],
            "max_distance"     : job['max_distance'],
            "min_processors"   : job['min_processors'],
@@ -224,7 +226,7 @@ def addFileToTarFile(tar, name, value):
 # boostrap.sh script which 'owned' by the user. The generic job has the 
 # responsibility to upload the output files matching the patterns defined as
 # part of the stage 
-def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
+def makeTarFile(jsonDict, jobDict, stage):
 
   buffer = io.BytesIO()
   tar = tarfile.TarFile(fileobj = buffer, mode = "w")
@@ -299,7 +301,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
   addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)
 
   # Create a list of RSEs for Workflow Test jobs
-  if forAwt:
+  if jobDict['for_awt']:
     try:
       query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance,'
                '(SELECT wan_pfn FROM replicas WHERE request_id=%d AND '
@@ -322,6 +324,8 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
     except Exception as e:
       print('AWT list of RSEs query fails with: ' + str(e), file=sys.stderr)
       return None
+
+#    print('justin-awt-rse-list.txt\n%s' % query, file=sys.stderr)
 
     awtRseFile = ''
     for rseRow in rseRows:
@@ -389,12 +393,14 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
                     'export JUSTIN_STAGE_ID=' + str(stage['stage_id']),
                     'export JUSTIN_SCOPE=' + scopeName,
                     'export JUSTIN_JOBSUB_ID=' + str(jsonDict['jobsub_id']),
-                    'export JUSTIN_SECRET="' + secret + '"',
-                 'export JUSTIN_FOR_AWT="' + ('TRUE' if forAwt else '') + '"',
+                    'export JUSTIN_JOBSCRIPT_SECRET="' + 
+                                          jobDict['jobscript_secret'] + '"',
+                 'export JUSTIN_FOR_AWT="' + ('TRUE' if jobDict['for_awt'] 
+                                                     else '') + '"',
                  'export JUSTIN_SAM_WEB_URI='
                  '"https://justin.dune.hep.ac.uk/api/samweb/' + 
                  str(jsonDict['jobsub_id']) + '/' +
-                 secret + '"'
+                 jobDict['jobscript_secret'] + '"'
                ]
   addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
 
@@ -428,7 +434,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
          '{\n' +
          '"method" : "get_file",\n' +
          '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
-         '"secret" : "' + secret + '"\n' 
+         '"jobscript_secret" : "' + jobDict['jobscript_secret'] + '"\n' 
          '}\n'
        )
                   )
@@ -438,7 +444,7 @@ def makeTarFile(jsonDict, jobDict, stage, secret, forAwt):
          '{\n' +
          '"method" : "get_allocated_files",\n' +
          '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
-         '"secret" : "' + secret + '"\n' 
+         '"jobscript_secret" : "' + jobDict['jobscript_secret'] + '"\n'
          '}\n'
        )
                   )
@@ -621,8 +627,6 @@ def getStageMethod(startResponse, jsonDict, environ):
                      '404 Not Found', 
                      'No eligible stages found')
 
-  secret = secrets.token_urlsafe(64)
-
 #  print('Before UPDATE jobs SET', file=sys.stderr)
   try:
     # Unique ID string for this instance that may also help in debugging
@@ -637,8 +641,7 @@ def getStageMethod(startResponse, jsonDict, environ):
              'allocation_state="started",'
              'allocator_name="' + allocatorName + '",' 
              'request_id=' + str(stage['request_id']) + ','
-             'stage_id=' + str(stage['stage_id']) + ','
-             'secret="' + secret + '" ' 
+             'stage_id=' + str(stage['stage_id']) + ' '
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
@@ -648,7 +651,7 @@ def getStageMethod(startResponse, jsonDict, environ):
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
-  tarFile = makeTarFile(jsonDict, jobDict, stage, secret, jobDict['for_awt'])
+  tarFile = makeTarFile(jsonDict, jobDict, stage)
   
   if not tarFile:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -841,14 +844,14 @@ def getFileMethod(startResponse, jsonDict):
                      '400 Bad Request',
                      'Missing/invalid jobsub_id in JSON')
 
-  if 'secret' not in jsonDict or \
-     not justin.db.stringNoQuotes(jsonDict['secret']):
+  if 'jobscript_secret' not in jsonDict or \
+     not justin.db.stringNoQuotes(jsonDict['jobscript_secret']):
     return httpError(startResponse,
                      '400 Bad Request',
-                     'Missing/invalid secret in JSON')
+                     'Missing/invalid jobscript secret in JSON')
 
   # Lookup job details
-  jobDict = makeJobDict(jsonDict['jobsub_id'], jsonDict['secret'])
+  jobDict = makeJobDict(jsonDict['jobsub_id'], jsonDict['jobscript_secret'])
 
   if jobDict['error_message']:
     return httpError(startResponse,
@@ -1439,11 +1442,34 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-def checkJobUser(environ):
-  # Check if the identity provided is known and authorized; otherwise 
-  # raise an exception.
+def checkJobUser(environ, jsonDict):
+  # Check if the hash provided is based on the job's secret
+  # or raise an exception
 
-  # Use certificates and proxies for now; will transition to tokens in future
+  if 'secret_hash' not in jsonDict or not jsonDict['secret_hash']:
+    raise RuntimeError('Forbidden - hash of job secret not provided')
+
+  try:
+    row = justin.select('SELECT justin_job_secret FROM jobs '
+                        'WHERE jobsub_id="%s"' % jsonDict['jobsub_id'],
+                        justOne = True)
+    justinJobSecret = row['justin_job_secret']
+  except:
+    raise RuntimeError('Forbidden - failed to get job secret')
+ 
+  hash = base64.b16encode(M2Crypto.EVP.hmac(justinJobSecret.encode(),
+                          (jsonDict['method'] + jsonDict['jobsub_id']).encode(),
+                          algo='sha256')).decode().lower()
+
+#  print('secret_hash=%s hash=%s' % (jsonDict['secret_hash'], hash),
+#        file=sys.stderr)
+
+  if jsonDict['secret_hash'] != hash:
+    raise RuntimeError('Forbidden - invalid hash given')
+
+#
+# TO BE REMOVED: check certificates and proxies for now still too
+#
   if 'SSL_CLIENT_S_DN' not in environ or not environ['SSL_CLIENT_S_DN']:
     raise RuntimeError('Forbidden - identity not provided')
 
@@ -1522,9 +1548,9 @@ def application(environ, startResponse):
 
       # URIs like /api/samweb/JOBSUBJOBID/SECRET/processes/N/METHOD
       uriSplit = environ['REQUEST_URI'].split('/')
-      jsonDict['method']    = 'samweb_' + uriSplit[-1].lower()
-      jsonDict['jobsub_id'] = str(uriSplit[3])
-      jsonDict['secret']    = str(uriSplit[4])
+      jsonDict['method']           = 'samweb_' + uriSplit[-1].lower()
+      jsonDict['jobsub_id']        = str(uriSplit[3])
+      jsonDict['jobscript_secret'] = str(uriSplit[4])
 
     except Exception as e:
       return httpError(startResponse, 
@@ -1572,7 +1598,7 @@ def application(environ, startResponse):
   # All other methods are called by the generic job using its identity
   # which is checked with checkJobUser()
   try:
-    checkJobUser(environ)
+    checkJobUser(environ, jsonDict)
   except Exception as e:
     return httpError(startResponse, '403 Forbidden', str(e))
 

@@ -35,17 +35,24 @@ do
   echo "$fn" > $fn
 
   echo "GFAL_CONFIG_DIR: $GFAL_CONFIG_DIR   GFAL_PLUGIN_DIR: $GFAL_PLUGIN_DIR"
-  ( export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
-    rucio --verbose \
-          upload \
-          --rse "$rse_name" \
-          --protocol "$write_protocol" \
-          --scope testpro \
-          --lifetime 86400 \
-          --name "$fn" "$fn" 2>&1
-  )
+  for i in 1 2 3 4 5
+  do
+    echo "rucio upload attempt $i"
+    ( export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
+      rucio --verbose \
+            upload \
+            --rse "$rse_name" \
+            --protocol "$write_protocol" \
+            --scope testpro \
+            --lifetime 86400 \
+            --name "$fn" "$fn" 2>&1            
+    )
+    upload_retval=$?
+    if [ $upload_retval != 63 ] ; then
+      break
+    fi
+  done
 
-  upload_retval=$?
   echo "'rucio --verbose upload --rse $rse_name --protocol $write_protocol --scope testpro --lifetime 86400 --name $fn $fn' returns $upload_retval"
   echo
   echo

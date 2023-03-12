@@ -377,8 +377,14 @@ def updateStorages():
       logLine('Skip non-disk RSE %s' % rse['rse'])
       continue
       
-    logLine('Processing %s' % rse['rse'])
-  
+    try:
+      attributes = rseClient.list_rse_attributes(rse['rse'])
+    except:
+      logLine('Failed to get attributes for %s' % rse['rse'])
+      continue
+
+    logLine('Processing %s: %s' % (rse['rse'], rse))
+
     availabilityRead = rse['availability_read']
 
     if rse['deterministic']:
@@ -433,18 +439,26 @@ def updateStorages():
           bestWanWriteScheme   = scheme
           bestWanWritePriority = priority
 
-    try:
-      attributes = rseClient.list_rse_attributes(rse['rse'])
-    except Exception as e:
-      logLine('Failed getting attributes for RSE %s: %s' 
-              % (rse['rse'], str(e)))
-      continue
+    if 'country' in attributes:
+      rseCountry = attributes['country']
+      if rseCountry in justin.rseCountriesRegions:
+        rseRegion = justin.rseCountriesRegions[rseCountry]
+      else:
+        rseRegion = ''
+    else:
+      rseCountry = ''
+      rseRegion  = ''
+  
+    if 'site' in attributes:
+      rseSite = attributes['site']
+    else:
+      rseSite = ''
       
     if 'decommissioned' in attributes and \
        attributes['decommissioned'] == True:
-      decommissioned = True
+      rseDecommissioned = True
     else:
-      decommissioned = False
+      rseDecommissioned = False
 
     try:
       usageList = rseClient.get_rse_usage(rse['rse'],
@@ -480,12 +494,18 @@ def updateStorages():
                'occupancy=%f,'
                'rucio_write=%s,rucio_read=%s,'
                'decommissioned=%s,'
+               'rse_region="%s",'
+               'rse_country="%s",'
+               'rse_site="%s",'
                'lan_write_scheme="%s",wan_write_scheme="%s" '
                'WHERE rse_name="%s"'
                % (occupancy,
                   availabilityWrite,
                   availabilityRead,
-                  decommissioned,
+                  rseDecommissioned,
+                  rseRegion,
+                  rseCountry,
+                  rseSite,
                   bestLanWriteScheme, bestWanWriteScheme,
                   rse['rse']
                  )

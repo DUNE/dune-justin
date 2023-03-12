@@ -230,9 +230,7 @@ def findFiles():
            'refind_end_time >= NOW())) '
            'ORDER BY request_id' % justin.db.unixEpoch)
 
-  justin.db.cur.execute(query)
-
-  findingRequests = justin.db.cur.fetchall()
+  findingRequests = justin.select(query)
   if not findingRequests:  
     # Nothing to do
     return
@@ -243,6 +241,15 @@ def findFiles():
   
     logLine('Finding files for Request %d with MQL %s' %
             (request['request_id'], request['mql']))
+  
+    if request['request_id'] == justin.awtRequestID:
+      # If refinding the AWT request, then reset the existing 
+      # files to look for new replicas of theme
+      try:
+        justin.insertUpdate('UPDATE files SET state="finding" '
+                            'WHERE request_id=%d' % justin.awtRequestID)
+      except Exception as e:
+        logLine('Set all existing AWT files to finding fails: ' + str(e))
   
     mqlSplit = request['mql'].split()
 
@@ -441,26 +448,72 @@ def findReplicas():
         else:
           accessibleUntil = ''
         
-        try:
-          # request_id/stage_id are only recorded with the replicas
-          # to make it faster to make charts etc in the Dashboard
-          query = ('INSERT INTO replicas SET '
-                   'request_id=%d,stage_id=%d,'
-                   'rse_id=%d,file_id=%d,'
-                   'wan_pfn="%s",lan_pfn="%s"%s' %
-                   (requestID, stageID,
-                    storagesDict[rse]['rse_id'],
-                    fileRow['file_id'],
-                    wanPFN,
-                    lanPFN,
-                    accessibleUntil))
+        if requestID == justin.awtRequestID:
+          try:
+            logLine('Try to update AWT file: %s %s' 
+                    % (wanPFN, lanPFN))
+          
+            # For AWT, if the file is put back into finding then we can
+            # update the replicas with change PFNs from Rucio
+            query = ('UPDATE replicas SET '
+                     'wan_pfn="%s",lan_pfn="%s" '
+                     'WHERE ' 
+                     'request_id=%d AND stage_id=%d AND '
+                     'rse_id=%d AND file_id=%s'
+                     % (wanPFN,
+                        lanPFN,
+                        requestID, stageID,
+                        storagesDict[rse]['rse_id'],
+                        fileRow['file_id']))
+                        
+            justin.insertUpdate(query)
+          except:
+            # For AWT, we just carry on
+            pass
 
-          justin.db.cur.execute(query)
+          try:
+            logLine('Try to insert AWT file: %s %s' 
+                    % (wanPFN, lanPFN))
+
+            query = ('INSERT INTO replicas SET '              
+                     'request_id=%d,stage_id=%d,'
+                     'rse_id=%d,file_id=%d,'
+                     'wan_pfn="%s",lan_pfn="%s"' %
+                     (requestID, stageID,
+                      storagesDict[rse]['rse_id'],
+                      fileRow['file_id'],
+                      wanPFN,
+                      lanPFN))
+
+            justin.select(query)
+          except:
+            # For AWT, we just carry on
+            pass
+
+          # But we treat whatever happened as everything to be done
           replicasInserted += 1
-        except Exception as e:
-          logLine('Failed inserting replica: ' + str(e))
-          # We give up if this happens, without the commit
-          return
+
+        else:
+          try:
+            # request_id/stage_id are only recorded with the replicas 
+            # to make it faster to make charts etc in the Dashboard
+            query = ('INSERT INTO replicas SET '
+                     'request_id=%d,stage_id=%d,'
+                     'rse_id=%d,file_id=%d,'
+                     'wan_pfn="%s",lan_pfn="%s"%s' %
+                     (requestID, stageID,
+                      storagesDict[rse]['rse_id'],
+                      fileRow['file_id'],
+                      wanPFN,
+                      lanPFN,
+                      accessibleUntil))
+
+            justin.select(query)
+            replicasInserted += 1
+          except Exception as e:
+            logLine('Failed inserting replica: ' + str(e))
+            # We give up if this happens, without the commit
+            return
            
         # Add request/stage to the list to have updated stats at the end
         requestsStages.add((fileRow['request_id'], fileRow['stage_id']))
