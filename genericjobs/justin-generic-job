@@ -82,12 +82,14 @@ do
     exit 0
   fi
 
-  secret_hash=$(echo -n send_heartbeat$JOBSUBJOBID \
+  secret_time=`date +'%s'`
+  secret_hash=$(echo -n send_heartbeat$secret_time$JOBSUBJOBID \
                 | openssl sha256 -hmac `cat justin_job_secret.txt` \
                 | cut -f2 -d' ')
 
   cat <<EOF >justin-send-heartbeat.json
 {
+  "secret_time"  : $secret_time,
   "secret_hash"  : "$secret_hash",
   "method"       : "send_heartbeat",
   "jobsub_id"    : "$JOBSUBJOBID"
@@ -157,15 +159,24 @@ openssl req -batch -nodes -newkey rsa:2048 \
 openssl req -batch -nodes -newkey rsa:2048 \
  -keyout justin-jobs-production.key.pem -out justin-jobs-production.csr.pem
 
-secret_hash=$(echo -n get_stage$JOBSUBJOBID \
+for i in 1 2 3 4 5 
+do
+
+# Sleep for up to 60 seconds to spread out job start storms
+sleep `expr $RANDOM / 512`
+log_line "Attempt $i/5 of curl get_stage"
+
+# Create the JSON to send to the allocator
+secret_time=`date +'%s'`
+secret_hash=$(echo -n get_stage$secret_time$JOBSUBJOBID \
                 | openssl sha256 -hmac `cat justin_job_secret.txt` \
                 | cut -f2 -d' ')
 
-# Create the JSON to send to the allocator
 cat <<EOF >justin-get-stage.json
 {
   "method"          : "get_stage",
   "jobsub_id"       : "$JOBSUBJOBID",
+  "secret_time"     : $secret_time,
   "secret_hash"     : "$secret_hash",
   "site_name"       : "${site_name:-XX-UNKNOWN}",
   "cpuinfo"         : "${JUSTIN_CPUINFO:-Unknown}",
@@ -185,14 +196,7 @@ echo '====start justin-get-stage.json===='
 cat justin-get-stage.json
 echo '====end justin-get-stage.json===='
 
-for i in 1 2 3 4 5 
-do
-
-# Sleep for up to 60 seconds to spread out job start storms
-sleep `expr $RANDOM / 512`
-
 # Make the call to the Workflow Allocator
-log_line "Attempt $i/5 of curl get_stage"
 http_code=`curl \
 --retry 0 \
 --user-agent 'justin-generic-job' \
@@ -383,7 +387,8 @@ fi
 
 tail -c 10000 $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log | base64 --wrap=0 > justin-jobscript.log.b64
 
-secret_hash=$(echo -n record_results$JOBSUBJOBID \
+secret_time=`date +'%s'`
+secret_hash=$(echo -n record_results$secret_time$JOBSUBJOBID \
                 | openssl sha256 -hmac `cat justin_job_secret.txt` \
                 | cut -f2 -d' ')
 
@@ -391,6 +396,7 @@ cat <<EOF >justin-record-results.json
 {
   "method": "record_results",
   "jobsub_id": "$JOBSUBJOBID",
+  "secret_time": $secret_time,
   "secret_hash": "$secret_hash",
   "processed_dids": [$processed_dids],
   "processed_pfns": [$processed_pfns],
@@ -564,7 +570,8 @@ fi
 
 # If all ok, then confirm that to the Workflow Allocator
 
-secret_hash=$(echo -n confirm_results$JOBSUBJOBID \
+secret_time=`date +'%s'`
+secret_hash=$(echo -n confirm_results$secret_time$JOBSUBJOBID \
                 | openssl sha256 -hmac `cat justin_job_secret.txt` \
                 | cut -f2 -d' ')
 
@@ -572,6 +579,7 @@ cat <<EOF >justin-confirm-results.json
 {
   "method"      : "confirm_results",
   "jobsub_id"   : "$JOBSUBJOBID",
+  "secret_time" : $secret_time,
   "secret_hash" : "$secret_hash",
   "output_dids": {
 EOF
@@ -590,9 +598,10 @@ echo "=====Start justin-confirm-results.json=="
 cat justin-confirm-results.json
 echo "=====End justin-confirm-results.json=="
 
+#--retry 5 \
+#--retry-max-time 300 \
+
 http_code=`curl \
---retry 5 \
---retry-max-time 300 \
 --max-time 600 \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
