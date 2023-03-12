@@ -21,10 +21,10 @@ MonteCarloRseID = 1
 
 justinRunDir    = '/var/run/justin'
 
-mysqlUsername   = "wfs"
-mysqlPassword   = "PAsSWoRd"
-mysqlHostname   = "db"
-mysqlDbName     = "wfdb"
+mysqlUsername   = None
+mysqlPassword   = None
+mysqlHostname   = None
+mysqlDbName     = None
 
 cilogonClientID = None
 cilogonSecret   = None

@@ -37,13 +37,15 @@ COPY  genericjobs/run-jobsub-submit  /var/lib/justin/
 COPY  genericjobs/justin-generic-job /var/lib/justin/
 
 RUN mkdir /usr/lib/python3.6/site-packages/justin
-COPY modules/allocator.py /usr/lib/python3.6/site-packages/justin/
+COPY modules/allocator.py /sur/lib/python3.6/site-packages/justin/
 COPY modules/conf.py      /usr/lib/python3.6/site-packages/justin/
 COPY modules/justin_version.py /usr/lib/python3.6/site-packages/justin/
 COPY modules/db.py        /usr/lib/python3.6/site-packages/justin/
 COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
 COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
 
+RUN mkdir -p /etc/justin.d
+cp docker/justin/database.conf /etc/justin.d/
 
 COPY docker/justin/justinEntrypoint.sh /usr/sbin/
 RUN mkdir -p /var/log/justin
