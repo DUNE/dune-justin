@@ -3,7 +3,7 @@ version: '3'
 networks:
   internal:
 volumes:
-  mysql-db:
+  maria-db:
 
 services:
   apache:
@@ -30,17 +30,17 @@ services:
       # - ./docker/certificates:/etc/grid-security/certificates
 
   db:
-    image: "mariadb:10.8.2"
+    image: "mariadb:10.8"
     command: --max-allowed-packet=64MB
     restart: always
     volumes:
-      - mysql-db:/var/lib/mysql
-      - ./database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
+      - maria-db:/var/lib/mysql
+      - ../database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
     environment:
-      - MYSQL_ROOT_PASSWORD=PAsSWoRd
-      - MYSQL_PASSWORD=PAsSWoRd
-      - MYSQL_DATABASE=wfdb
-      - MYSQL_USER=wfs
+      - MARIADB_ROOT_PASSWORD=PAsSWoRd
+      - MARIADB_PASSWORD=PAsSWoRd
+      - MARIADB_DATABASE=justindb
+      - MARIADB_USER=wfs
     # env_file:
     #   - .env
     expose:
