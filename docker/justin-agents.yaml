@@ -3,10 +3,10 @@ version: '3'
 networks:
   internal:
 volumes:
-  mysql-db:
+  maria-db:
 
 services:
-  workflow:
+  justin:
     build:
       context: ..
       dockerfile: docker/justin/Dockerfile    
@@ -18,4 +18,4 @@ services:
     networks:
       internal:
         aliases:
-          - mariadb
+          - justin
