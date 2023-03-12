@@ -33,6 +33,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [Event types](event_types.md)
 - [Generic jobs](generic_jobs.md)
 - [Files](files.md)
+- [Security model](security_model.md)
 
 Versioned copies of this documentation are kept in the docs subdirectory
 of the [dune-justin GitHub repo](https://github.com/DUNE/dune-justin/). All the
