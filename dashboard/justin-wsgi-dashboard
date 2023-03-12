@@ -773,25 +773,45 @@ def listJobscripts(environ, user, cgiValues, pageNumber, pageLength):
   output = header(environ, user, "justIN: Jobscripts Library")
 
   output += "<h1>Jobscripts Library</h1>"
-  
-  query = ('SELECT scope_name,jobscripts_library.description,'
-           'authors_principals.principal_name AS author_name,'
-           'users_principals.principal_name AS jobscript_user_name,'
-           'created_time,jobscript_name '
-           'FROM jobscripts_library '
-           'LEFT JOIN users AS authors '
-           'ON jobscripts_library.author_id=authors.user_id '
-           'LEFT JOIN principal_names AS authors_principals '
-           'ON authors_principals.pn_id=authors.main_pn_id '
-           'LEFT JOIN users AS jobscripts_users '
-           'ON jobscripts_library.user_id=jobscripts_users.user_id '
-           'LEFT JOIN principal_names AS users_principals '
-           'ON users_principals.pn_id=jobscripts_users.main_pn_id '
-           'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
-           'ORDER BY created_time DESC LIMIT %d,%d' %
-           (pageNumber * pageLength, pageLength + 1))
+
+  if user and user['user_name']:
+    output += ('<p><i>Public jobscripts with scopes and your own jobscripts '
+               'with prefix %s</i></p>\n' % user['user_name'])
+
+    query = ('SELECT scope_name,jobscripts_library.description,'
+             'authors_principals.principal_name AS author_name,'
+             'users_principals.principal_name AS jobscript_user_name,'
+             'created_time,jobscript_name '
+             'FROM jobscripts_library '
+             'LEFT JOIN users AS authors '
+             'ON jobscripts_library.author_id=authors.user_id '
+             'LEFT JOIN principal_names AS authors_principals '
+             'ON authors_principals.pn_id=authors.main_pn_id '
+             'LEFT JOIN users AS jobscripts_users '
+             'ON jobscripts_library.user_id=jobscripts_users.user_id '
+             'LEFT JOIN principal_names AS users_principals '
+             'ON users_principals.pn_id=jobscripts_users.main_pn_id '
+             'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
+             'WHERE jobscripts_library.user_id=0 '
+             'OR users_principals.principal_name="%s" '
+             'ORDER BY created_time DESC LIMIT %d,%d' %
+             (user['user_name'], pageNumber * pageLength, pageLength + 1))
+
+  else:
+    query = ('SELECT scope_name,jobscripts_library.description,'
+             'authors_principals.principal_name AS author_name,'
+             'created_time,jobscript_name '
+             'FROM jobscripts_library '
+             'LEFT JOIN users AS authors '
+             'ON jobscripts_library.author_id=authors.user_id '
+             'LEFT JOIN principal_names AS authors_principals '
+             'ON authors_principals.pn_id=authors.main_pn_id '
+             'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
+             'WHERE jobscripts_library.user_id=0 '
+             'ORDER BY created_time DESC LIMIT %d,%d' %
+             (pageNumber * pageLength, pageLength + 1))
  
-  rows = justin.db.select(query)
+  rows = justin.select(query)
 
   output += makePager(pageNumber, pageLength, len(rows), 
                       "%s?method=list-jobscripts&page_number=%d&page_length=%d") 
@@ -2582,10 +2602,10 @@ def showUser(environ, user, cgiValues):
     userName = cgiValues["user_name"]
   except:
     return errorPage(environ, user, "user_name must be given")
-    
+
   if not justin.db.stringIsUsername(userName):
     return errorPage(environ, user, "Invalid user name!")
-        
+
   output = header(environ, user, "justIN: User " + userName)
 
   output += ("<h1>User %s</h1>" % userName)
