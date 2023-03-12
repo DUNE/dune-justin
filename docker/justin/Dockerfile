@@ -51,4 +51,7 @@ COPY docker/justin/database.conf /etc/justin.conf
 COPY docker/justin/justinEntrypoint.sh /usr/sbin/
 RUN mkdir -p /var/log/justin
 
+RUN mkdir -p /docker-entrypoint-initdb.d
+COPY database/justindb-create-tables.sql /docker-entrypoint-initdb.d/justindb-create-tables.sql
+
 ENTRYPOINT ["/usr/sbin/justinEntrypoint.sh"]
