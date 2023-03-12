@@ -779,7 +779,7 @@ if __name__ == '__main__':
           logLine('=============== Start cycle ===============')
           
           justin.conf.readConf()
-          
+          print(justin.conf.mysqlPassword, justin.conf.mysqlHostname, justin.conf.mysqlUsername, justin.conf.mysqlDbName)
           try:
             justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
                                   user=justin.conf.mysqlUsername,
