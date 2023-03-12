@@ -10,11 +10,8 @@ services:
     build:
       context: ..
       dockerfile: docker/justin/Dockerfile    
-    # depends_on:
     volumes:
       - ./services/rucio.cfg:/opt/rucio/etc/rucio.cfg
-    # links:
-    #   - mysql:mysql
     networks:
       internal:
         aliases:

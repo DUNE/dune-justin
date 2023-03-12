@@ -45,7 +45,6 @@ COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
 COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
 
 RUN mkdir -p /etc/justin.d
-COPY docker/justin/database.conf /etc/justin.d/
 COPY docker/justin/database.conf /etc/justin.conf
 
 COPY docker/justin/justinEntrypoint.sh /usr/sbin/
