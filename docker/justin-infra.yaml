@@ -31,10 +31,11 @@ services:
     ports:
       - 3306:3306
     volumes:
+      - ${PWD}/database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql:z
       # - ${PWD}/database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
-      - type: bind
-        source: ${PWD}/database/justindb-create-tables.sql
-        target: /docker-entrypoint-initdb.d/justindb-create-tables.sql
+      # - type: bind
+      #   source: ${PWD}/database/justindb-create-tables.sql
+      #   target: /docker-entrypoint-initdb.d/justindb-create-tables.sql
     networks:
       internal:
         aliases:
