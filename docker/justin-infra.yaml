@@ -1,0 +1,42 @@
+version: '3.2'
+
+networks:
+  internal:
+volumes:
+  maria-db:
+
+services:
+  apache:
+    build:
+      context: ..
+      dockerfile: docker/httpd/Dockerfile
+    expose:
+      - 80
+    ports:
+      - 80:80
+
+  db:
+    image: "mariadb:10.8.2"
+    command: --max-allowed-packet=64MB
+    restart: always
+    volumes:
+      - maria-db:/var/lib/mysql
+    environment:
+      - MARIADB_ROOT_PASSWORD=PAsSWoRd
+      - MARIADB_PASSWORD=PAsSWoRd
+      - MARIADB_DATABASE=justindb
+      - MARIADB_USER=wfs
+    expose:
+      - 3306
+    ports:
+      - 3306:3306
+    volumes:
+      - ${PWD}/database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql:z
+      # - ${PWD}/database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
+      # - type: bind
+      #   source: ${PWD}/database/justindb-create-tables.sql
+      #   target: /docker-entrypoint-initdb.d/justindb-create-tables.sql
+    networks:
+      internal:
+        aliases:
+          - mariadb

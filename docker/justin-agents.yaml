@@ -1,0 +1,18 @@
+version: '3.2'
+
+networks:
+  internal:
+volumes:
+  maria-db:
+
+services:
+  justin:
+    build:
+      context: ..
+      dockerfile: docker/justin/Dockerfile    
+    volumes:
+      - ./services/rucio.cfg:/opt/rucio/etc/rucio.cfg
+    networks:
+      internal:
+        aliases:
+          - justin
