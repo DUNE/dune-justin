@@ -111,11 +111,11 @@ CREATE TABLE `jobs` (
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
-                  'finished','notused','aborted','stalled','jobscript_error') 
+                  'finished','notused','aborted','stalled','jobscript_error',
+                  'outputting_failed') 
                   NOT NULL DEFAULT 'submitted',
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
-  `allocation_count` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `submitted_time` datetime NOT NULL,
   `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
   `outputting_time` datetime NOT NULL DEFAULT '1970-01-01',
@@ -135,9 +135,13 @@ CREATE TABLE `jobs` (
   `max_processors` tinyint unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
-  `secret` varchar(255) NOT NULL DEFAULT '',
+  `justin_job_secret` varchar(255) NOT NULL DEFAULT '',
+  `jobscript_secret` varchar(255) NOT NULL DEFAULT '',
   `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
   `for_awt` tinyint(1) NOT NULL DEFAULT '0',
+  `jobscript_real_seconds` mediumint unsigned NOT NULL DEFAULT 0,
+  `jobscript_cpu_seconds` mediumint unsigned NOT NULL DEFAULT 0,
+  `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
@@ -183,6 +187,7 @@ CREATE TABLE `events` (
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `milliseconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`event_id`),
+  INDEX `awt` (`event_type_id`,`rse_id`,`site_id`,`event_time`),
   INDEX `request_id` (`request_id`,`stage_id`,`event_type_id`,`rse_id`),
   INDEX `file_id` (`file_id`,`event_id`),
   INDEX `justin_job_id` (`justin_job_id`,`event_id`),
@@ -355,7 +360,6 @@ CREATE TABLE `stages` (
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `max_distance` float NOT NULL DEFAULT 0.0,
-  `max_files_per_job` tinyint(3) unsigned NOT NULL DEFAULT 1,
   UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -373,6 +377,7 @@ CREATE TABLE `stages_outputs` (
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
   `dataset` varchar(255) NOT NULL,
+  `destination` varchar(512) NOT NULL,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -461,15 +466,18 @@ DROP TABLE IF EXISTS `storages`;
 CREATE TABLE `storages` (
   `rse_name` varchar(255) NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `decommissioned` tinyint(1) NOT NULL DEFAULT FALSE,
   `occupancy` float NOT NULL DEFAULT 0,
+  `rse_region` varchar(255) NOT NULL DEFAULT '',
+  `rse_country` varchar(255) NOT NULL DEFAULT '',
+  `rse_site` varchar(255) NOT NULL DEFAULT '',
   `rucio_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `rucio_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_read` tinyint(1) NOT NULL DEFAULT TRUE,
-  `use_for_output` tinyint(1) NOT NULL DEFAULT TRUE,
   `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
-  `deterministic_rse` tinyint(1) NOT NULL DEFAULT TRUE,
-  `write_protocol` varchar(255) NOT NULL DEFAULT 'root',
+  `lan_write_scheme` varchar(255) NOT NULL DEFAULT 'root',
+  `wan_write_scheme` varchar(255) NOT NULL DEFAULT 'root',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
@@ -505,7 +513,12 @@ CREATE TABLE `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `main_pn_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (`user_id`)
+  `access_token` text NOT NULL DEFAULT '',
+  `access_token_created` datetime NOT NULL DEFAULT '1970-01-01',
+  `access_token_expires` datetime NOT NULL DEFAULT '1970-01-01',
+  `refresh_token` text NOT NULL DEFAULT '',
+  PRIMARY KEY (`user_id`),
+  INDEX `access_token_expires_created` (`access_token_expires`,`access_token_created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -541,7 +554,7 @@ CREATE TABLE `sessions` (
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `created_time` datetime NOT NULL DEFAULT '1970-01-01',
   `expires_time` datetime NOT NULL DEFAULT '1970-01-01',
-  `linked_session_id` mediumint(5) unsigned NOT NULL DEFAULT 0,
+  `linked_session_id` mediumint(5) unsigned NOT NULL DEFAULT 0,,
   `justin_session` varchar(255) NOT NULL,
   `justin_secret` varchar(255) NOT NULL,
   `justin_code` varchar(255) NOT NULL,
