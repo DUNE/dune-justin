@@ -816,7 +816,7 @@ def listJobscripts(environ, user, cgiValues, pageNumber, pageLength):
   output += makePager(pageNumber, pageLength, len(rows), 
                       "%s?method=list-jobscripts&page_number=%d&page_length=%d") 
              
-  output += '<p><table>'
+  output += '<p><table class="center">'
   output += ('<tr><th>Jobscript</th><th>Description</th><th>Author</th>'
              '<th>Created</th><tr>')
 

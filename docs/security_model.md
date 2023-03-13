@@ -79,8 +79,8 @@ jobscript has finished.
 
 The allocation of a stage to a job also provides another secret: the
 jobscript secret. This is only used within the inner Singularity container 
-that runs the user's jobscript, to get files allocated
-to the job by justIN. This secret is specific to that job and cannot be used
+that runs the user's jobscript, to ask the justIN allocator to allocate files 
+to the job. This secret is specific to that job and cannot be used
 for other methods than `get_file`.
 
 When the user jobscript finishes, the generic job uses the `record_results` 
