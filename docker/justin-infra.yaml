@@ -31,7 +31,7 @@ services:
     ports:
       - 3306:3306
     volumes:
-      - ./database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/justindb-create-tables.sql
+      - ./database/justindb-create-tables.sql:/docker-entrypoint-initdb.d/
     networks:
       internal:
         aliases:
