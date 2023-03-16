@@ -1,4 +1,5 @@
-FROM centos/s2i-core-centos7:latest
+#FROM centos/s2i-core-centos7:latest
+FROM centos:centos7.9.2009
 
 RUN yum update -y
 RUN yum install -y git
