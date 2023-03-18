@@ -1,5 +1,10 @@
+# Build with something like this in the dune-justin top level directory:
+#
+# docker build -t justin:01 -f docker/justin/Dockerfile .
+#
 #FROM centos/s2i-core-centos7:latest
-FROM centos:centos7.9.2009
+#FROM centos:centos7.9.2009
+FROM centos:centos7
 
 RUN yum update -y
 RUN yum install -y git
@@ -42,7 +47,7 @@ COPY modules/allocator.py /usr/lib/python3.6/site-packages/justin/
 COPY modules/conf.py      /usr/lib/python3.6/site-packages/justin/
 COPY modules/justin_version.py /usr/lib/python3.6/site-packages/justin/
 COPY modules/db.py        /usr/lib/python3.6/site-packages/justin/
-COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
+#COPY modules/events.py    /usr/lib/python3.6/site-packages/justin/
 COPY modules/__init__.py  /usr/lib/python3.6/site-packages/justin/
 
 RUN mkdir -p /etc/justin.d

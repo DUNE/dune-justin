@@ -1,3 +1,6 @@
+#
+# docker-compose -f docker/justin-infra.yaml up
+#
 version: '3.2'
 
 networks:

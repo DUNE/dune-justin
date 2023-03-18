@@ -565,7 +565,7 @@ CREATE TABLE `sessions` (
   `ip` varchar(255) NOT NULL DEFAULT '',
   `hostname` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`session_id`),
-  UNIQUE KEY `session` (`session`),
+  UNIQUE KEY `justin_session` (`justin_session`),
   UNIQUE KEY `justin_code` (`justin_code`),
   INDEX `linked_session_id` (`linked_session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
