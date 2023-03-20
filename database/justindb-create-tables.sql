@@ -1,43 +1,11 @@
--- MySQL dump 10.14  Distrib 5.5.68-MariaDB, for Linux (x86_64)
---
--- Host: localhost    Database: justindb
--- ------------------------------------------------------
--- Server version	5.5.68-MariaDB
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `stages_jobscripts`
---
-
-DROP TABLE IF EXISTS `stages_jobscripts`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `stages_jobscripts` (
+CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `jobscript` text NOT NULL,
   UNIQUE KEY `request_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `jobscripts_library`
---
-
-DROP TABLE IF EXISTS `jobscripts_library`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobscripts_library` (
+CREATE TABLE IF NOT EXISTS `jobscripts_library` (
   `jobscript_id` mediumint(8) unsigned AUTO_INCREMENT,
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -49,16 +17,8 @@ CREATE TABLE `jobscripts_library` (
   PRIMARY KEY `jobscript_id` (`jobscript_id`),
   UNIQUE KEY `uniqueness` (`jobscript_name`,`scope_id`,`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `scopes`
---
-
-DROP TABLE IF EXISTS `scopes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `scopes` (
+CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
   `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -66,44 +26,20 @@ CREATE TABLE `scopes` (
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `wlcg_groups`
---
-
-DROP TABLE IF EXISTS `wlcg_groups`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `wlcg_groups` (
+CREATE TABLE IF NOT EXISTS `wlcg_groups` (
   `wlcg_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `wlcg_group_name` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY `wlcg_group_id` (`wlcg_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `accounting_groups`
---
-
-DROP TABLE IF EXISTS `accounting_groups`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `accounting_groups` (
+CREATE TABLE IF NOT EXISTS `accounting_groups` (
   `accounting_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `accounting_group_name` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY `accounting_group_id` (`accounting_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `jobs`
---
-
-DROP TABLE IF EXISTS `jobs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobs` (
+CREATE TABLE IF NOT EXISTS `jobs` (
   `justin_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
   `jobsub_id` varchar(255) NOT NULL,
@@ -152,30 +88,14 @@ CREATE TABLE `jobs` (
     `submitted_time`),
   INDEX `request_stage_allocation` (`request_id`,`stage_id`,`allocation_state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `jobs_logs`
---
-
-DROP TABLE IF EXISTS `jobs_logs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jobs_logs` (
+CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
   PRIMARY KEY (`justin_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `events`
---
-
-DROP TABLE IF EXISTS `events`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `events` (
+CREATE TABLE IF NOT EXISTS `events` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `event_type_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
@@ -194,16 +114,8 @@ CREATE TABLE `events` (
   INDEX `site_id` (`site_id`,`event_id`),
   INDEX `rse_id` (`rse_id`,`event_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `files`
---
-
-DROP TABLE IF EXISTS `files`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `files` (
+CREATE TABLE IF NOT EXISTS `files` (
   `file_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
@@ -225,16 +137,8 @@ CREATE TABLE `files` (
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
   INDEX `request_stage_state_processed_site` (`request_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `replicas`
---
-
-DROP TABLE IF EXISTS `replicas`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `replicas` (
+CREATE TABLE IF NOT EXISTS `replicas` (
   `replica_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `rse_id` smallint(5) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL,
@@ -249,16 +153,8 @@ CREATE TABLE `replicas` (
   INDEX `file_id` (`file_id`),
   INDEX `request_stage_rse` (`request_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `replicas_pins`
---
-
-DROP TABLE IF EXISTS `replicas_pins`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `replicas_pins` (
+CREATE TABLE IF NOT EXISTS `replicas_pins` (
   `replica_id` int(10) unsigned NOT NULL,
   `pin_expire_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `pin_ref` varchar(255) NOT NULL DEFAULT '',
@@ -266,16 +162,8 @@ CREATE TABLE `replicas_pins` (
   `pin_recheck_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `requests`
---
-
-DROP TABLE IF EXISTS `requests`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `requests` (
+CREATE TABLE IF NOT EXISTS `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `name` varchar(255) NOT NULL,
@@ -295,16 +183,8 @@ CREATE TABLE `requests` (
   PRIMARY KEY (`request_id`),
   INDEX `state` (`state`,`refind_last_time`,`refind_seconds`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `sites`
---
-
-DROP TABLE IF EXISTS `sites`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `sites` (
+CREATE TABLE IF NOT EXISTS `sites` (
   `site_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_name` varchar(255) NOT NULL,
   `jobsub_site_name` varchar(255) NOT NULL,
@@ -324,16 +204,8 @@ CREATE TABLE `sites` (
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `sites_storages`
---
-
-DROP TABLE IF EXISTS `sites_storages`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `sites_storages` (
+CREATE TABLE IF NOT EXISTS `sites_storages` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
   `distance` float NOT NULL DEFAULT 100.0,
@@ -342,16 +214,8 @@ CREATE TABLE `sites_storages` (
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   UNIQUE KEY `rse_id` (`rse_id`,`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `stages`
---
-
-DROP TABLE IF EXISTS `stages`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `stages` (
+CREATE TABLE IF NOT EXISTS `stages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
@@ -362,16 +226,8 @@ CREATE TABLE `stages` (
   `max_distance` float NOT NULL DEFAULT 0.0,
   UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `stages_outputs`
---
-
-DROP TABLE IF EXISTS `stages_outputs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `stages_outputs` (
+CREATE TABLE IF NOT EXISTS `stages_outputs` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
@@ -380,46 +236,22 @@ CREATE TABLE `stages_outputs` (
   `destination` varchar(512) NOT NULL,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `stages_outputs`
---
-
-DROP TABLE IF EXISTS `stages_output_storages`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `stages_output_storages` (
+CREATE TABLE IF NOT EXISTS `stages_output_storages` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `stages_environment`
---
-
-DROP TABLE IF EXISTS `stages_environment`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `stages_environment` (
+CREATE TABLE IF NOT EXISTS `stages_environment` (
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `env_name` varchar(255) NOT NULL,
   `env_value` text NOT NULL DEFAULT '',
   UNIQUE KEY `multiple` (`request_id`,`stage_id`,`env_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `get_stage_cache`
---
-
-DROP TABLE IF EXISTS `get_stage_cache`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `get_stage_cache` (
+CREATE TABLE IF NOT EXISTS `get_stage_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
   `min_processors` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `max_processors` tinyint(3) unsigned NOT NULL DEFAULT 1,
@@ -433,16 +265,8 @@ CREATE TABLE `get_stage_cache` (
    `min_processors`,`max_processors`,`min_rss_bytes`,`max_rss_bytes`,
    `max_wall_seconds`,`cache_time`,`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `get_stage_cache`
---
-
-DROP TABLE IF EXISTS `find_file_cache`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `find_file_cache` (
+CREATE TABLE IF NOT EXISTS `find_file_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
   `request_id` mediumint(8) unsigned NOT NULL,
@@ -454,16 +278,8 @@ CREATE TABLE `find_file_cache` (
   INDEX `multiple` (`site_id`, `request_id`, `stage_id`,
                     `cache_time`, `distance`, `file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `storages`
---
-
-DROP TABLE IF EXISTS `storages`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `storages` (
+CREATE TABLE IF NOT EXISTS `storages` (
   `rse_name` varchar(255) NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `decommissioned` tinyint(1) NOT NULL DEFAULT FALSE,
@@ -481,16 +297,8 @@ CREATE TABLE `storages` (
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `jwt_keys`
---
-
-DROP TABLE IF EXISTS `jwt_keys`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `jwt_keys` (
+CREATE TABLE IF NOT EXISTS `jwt_keys` (
   `jwks_n` text NOT NULL,
   `jwks_e` varchar(255) NOT NULL,
   `jwks_alg` varchar(255) NOT NULL,
@@ -499,17 +307,8 @@ CREATE TABLE `jwt_keys` (
   `jwks_kty` varchar(255) NOT NULL,
   PRIMARY KEY (`jwks_kid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
---
--- Table structure for table `users`
---
-
-DROP TABLE IF EXISTS `users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `main_pn_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
@@ -520,17 +319,8 @@ CREATE TABLE `users` (
   PRIMARY KEY (`user_id`),
   INDEX `access_token_expires_created` (`access_token_expires`,`access_token_created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
---
--- Table structure for table `principal_names`
---
-
-DROP TABLE IF EXISTS `principal_names`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `principal_names` (
+CREATE TABLE IF NOT EXISTS `principal_names` (
   `pn_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `principal_name` varchar(255) NOT NULL,
   `user_id` smallint(5) unsigned NOT NULL,
@@ -538,17 +328,8 @@ CREATE TABLE `principal_names` (
   UNIQUE KEY `principal_name` (`principal_name`),
   INDEX `user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
---
--- Table structure for table `sessions`
---
-
-DROP TABLE IF EXISTS `sessions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `sessions` (
+CREATE TABLE IF NOT EXISTS `sessions` (
   `session_id` mediumint(5) unsigned NOT NULL AUTO_INCREMENT,
   `session_type` enum('web','command') NOT NULL DEFAULT 'web',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -569,15 +350,4 @@ CREATE TABLE `sessions` (
   UNIQUE KEY `justin_code` (`justin_code`),
   INDEX `linked_session_id` (`linked_session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2022-02-09 20:26:10
