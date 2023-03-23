@@ -7,7 +7,7 @@ hardware, and wasting electricity.
 
 justIN provides the command justin-test-jobscript which allows you to run a 
 jobscript interactively on your computer. In jobs at remote sites, justIN 
-runs your jobscripts inside a Singularity container. The 
+runs your jobscripts inside an Apptainer container. The 
 justin-test-jobscript command runs your jobscript using the same container 
 format and so provides a very realistic test of your script. The command 
 is available to you after using the same setup justin command as for 

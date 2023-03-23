@@ -78,7 +78,7 @@ and to upload files on behalf of the user after the
 jobscript has finished.
 
 The allocation of a stage to a job also provides another secret: the
-jobscript secret. This is only used within the inner Singularity container 
+jobscript secret. This is only used within the inner Apptainer container 
 that runs the user's jobscript, to ask the justIN allocator to allocate files 
 to the job. This secret is specific to that job and cannot be used
 for other methods than `get_file`.

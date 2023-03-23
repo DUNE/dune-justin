@@ -1990,7 +1990,7 @@ def showJob(environ, user, cgiValues):
                % (jobRow["wall_seconds"],
                   int(jobRow["wall_seconds"]) / 3600))
 
-    output += ('<tr><td>Inner Singularity?</td>'
+    output += ('<tr><td>Inner Apptainer?</td>'
                '<td>%s</td></tr>' % bool(jobRow["inner_apptainer"]))
 
   output += ('<tr><td>Allocation state</td>'

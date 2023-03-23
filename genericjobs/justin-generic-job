@@ -143,7 +143,7 @@ export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -
 echo '==== Before: ls -l /proc/$$/ns/ ===='
 ls -l "/proc/$$/ns/"
 echo '==== After: ls -l /proc/$$/ns/ ===='
-echo '==== Before try singularity ===='
+echo '==== Before try apptainer ===='
   /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
    --shell /usr/bin/hostname \
    /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
@@ -152,7 +152,7 @@ if [ $? = 0 ] ; then
 else
   inner_apptainer=false
 fi
-echo '==== After try singularity ===='
+echo '==== After try apptainer ===='
 
 openssl req -batch -nodes -newkey rsa:2048 \
  -keyout justin-jobs-no-roles.key.pem -out justin-jobs-no-roles.csr.pem

@@ -16,7 +16,7 @@ This man page is distributed along with the
 [justin command](justin_command.md) itself.
 
 EOF
-groff -mandoc -Tascii -P -b ../commands/justin.1 | sed 's/.*/    &/'
+mandoc -T ascii ../commands/justin.1 | col -b | sed 's/.*/    &/'
 
 ) > justin_command.man_page.md
 
@@ -28,7 +28,7 @@ This man page is distributed along with the
 justin-test-jobscripts command itself.
 
 EOF
-groff -mandoc -Tascii -P -b ../commands/justin-test-jobscript.1 | sed 's/.*/    &/'
+mandoc -T ascii ../commands/justin-test-jobscript.1 | col -b | sed 's/.*/    &/'
 
 ) > jobscripts.interactive_tests.man_page.md
 
@@ -40,7 +40,7 @@ This man page is distributed along with the
 justin-cvmfs-upload command itself.
 
 EOF
-groff -mandoc -Tascii -P -b ../commands/justin-cvmfs-upload.1 | sed 's/.*/    &/'
+mandoc -T ascii ../commands/justin-cvmfs-upload.1 | col -b | sed 's/.*/    &/'
 
 ) > jobscripts.rcds.man_page.md
 
@@ -52,7 +52,7 @@ This man page is distributed along with the
 justin-webdav-upload command itself.
 
 EOF
-groff -mandoc -Tascii -P -b ../commands/justin-webdav-upload.1 | sed 's/.*/    &/'
+mandoc -T ascii ../commands/justin-webdav-upload.1 | col -b | sed 's/.*/    &/'
 
 ) > jobscripts.webdav-upload.man_page.md
 
