@@ -1453,7 +1453,8 @@ def checkSecretHash(environ, jsonDict):
     if not secretHash or not secretTime:
       raise
 
-  except:
+  except Exception as e:
+    print('Valid hash of job secret not provided: ' + str(e), file=sys.stderr)
     raise RuntimeError('Forbidden - valid hash of job secret not provided')
 
   nowTime = int(time.time())

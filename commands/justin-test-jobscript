@@ -116,7 +116,8 @@ cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/jobscript-proxy.pem
 chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
 
 echo "====Start of jobscript execution===="
-stdbuf -oL -eL singularity shell \
+stdbuf -oL -eL \
+  /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
   --shell /home/jobscript-wrapper.sh \
   --containall \
   --workdir $JUSTIN_WORKDIR \

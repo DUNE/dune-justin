@@ -273,7 +273,7 @@ def awtJobsToSites():
       'WHERE '
       '(SELECT COUNT(*) FROM jobs WHERE'
       ' jobs.site_id=sites.site_id AND for_awt AND'
-      ' submitted_time > DATE_SUB(NOW(),INTERVAL 12 HOUR)) = 0 '
+      ' submitted_time > DATE_SUB(NOW(),INTERVAL 6 HOUR)) = 0 '
       'ORDER BY site_name'
       # Should change this to random order?
                )

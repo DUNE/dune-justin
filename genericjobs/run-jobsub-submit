@@ -25,7 +25,7 @@ if [ "$2" = "FNAL_GPGrid" ] ; then
   --group dune \
   --subgroup prod_keepup \
   --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC \
-  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6\"' \
   file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
 elif [ "$2" = "ANY" -o "$2" = "NOT_FNAL_GPGrid" ] ; then
  if [ "$7" != "" ] ; then
@@ -47,7 +47,7 @@ elif [ "$2" = "ANY" -o "$2" = "NOT_FNAL_GPGrid" ] ; then
   --group dune \
   --subgroup prod_keepup \
   --resource-provides=usage_model="$USAGE_MODEL" \
-  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6\"' \
   "$blacklist_option" \
   file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
 else
@@ -61,6 +61,6 @@ else
   --group dune \
   --subgroup prod_keepup \
   --resource-provides=usage_model=OFFSITE \
-  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest\"' \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6\"' \
   file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
 fi

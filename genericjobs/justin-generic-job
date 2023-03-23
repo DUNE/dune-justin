@@ -144,7 +144,8 @@ echo '==== Before: ls -l /proc/$$/ns/ ===='
 ls -l "/proc/$$/ns/"
 echo '==== After: ls -l /proc/$$/ns/ ===='
 echo '==== Before try singularity ===='
-  singularity shell --shell /usr/bin/hostname \
+  /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
+   --shell /usr/bin/hostname \
    /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
 if [ $? = 0 ] ; then
   inner_apptainer=true
@@ -290,7 +291,7 @@ chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 echo "====Start of jobscript execution===="
 export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
 /usr/bin/time -o $JUSTIN_WORKDIR/time.txt -f '%e %U %S %M' \
-    singularity shell \
+    /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
     --shell /home/jobscript-wrapper.sh \
     --containall \
     --bind /cvmfs \
