@@ -13,7 +13,7 @@
 1. Make a certificates directory within the docker directory (mkdir docker/certificates)
 2. Populate the directory with the following certificates (looks better in a simple text editor). Note that this is a simple dump of all the available certificates. The actual ones needed may be different. In particular, the subdirectory "wfs.dune.hep.ac.uk" below should actually correspond to the machine being set up.
 
-certificates/
+    certificates
     ├── dune-vm.blackett.manchester.ac.uk.cert.pem
     ├── dune-vm.blackett.manchester.ac.uk.key.pem
     ├── justin-allocator.cert.pem
