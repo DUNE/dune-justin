@@ -3025,9 +3025,11 @@ def awtResults(environ, user, cgiValues):
       cellType = 'th'
     else:
       cellType = 'td'
-    output += ('<%s><div style="writing-mode: vertical-lr">'
+    output += ('<%s><div '
+          'style="writing-mode: vertical-lr">'
           '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>\n' % (cellType, rseName, rseName, cellType))
+          '</div></%s>\n' % (cellType, rseName, 
+                             rseName.replace('-','&#8209;'), cellType))
 
   output += ('<td> </td></tr>\n')
 
@@ -3109,9 +3111,11 @@ def awtResults(environ, user, cgiValues):
       cellType = 'th'
     else:
       cellType = 'td'
-    output += ('<%s><div style="writing-mode: vertical-lr">'
+    output += ('<%s><div '
+          'style="writing-mode: vertical-lr">'
           '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>'
-          '</div></%s>\n' % (cellType, rseName, rseName, cellType))
+          '</div></%s>\n' % (cellType, rseName, 
+                             rseName.replace('-','&#8209;'), cellType))
 
   output += '<td> </td></tr>'
   output += "</table>"
