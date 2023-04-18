@@ -228,8 +228,9 @@ def addFileToTarFile(tar, name, value):
 # part of the stage 
 def makeTarFile(jsonDict, jobDict, stage):
 
-  buffer = io.BytesIO()
-  tar = tarfile.TarFile(fileobj = buffer, mode = "w")
+  buffer        = io.BytesIO()
+  tar           = tarfile.TarFile(fileobj = buffer, mode = "w")
+  jobscriptDict = {}
 
   try:
     query = ("SELECT jobscript,scope_name FROM stages_jobscripts "
@@ -248,6 +249,7 @@ def makeTarFile(jsonDict, jobDict, stage):
     return None
 
   addFileToTarFile(tar, "justin-jobscript.sh", jobscript)
+  jobscriptDict['jobscript'] = jobscript
 
   # Create and add files for VOMS proxies for the job
   try:
@@ -265,10 +267,16 @@ def makeTarFile(jsonDict, jobDict, stage):
     return None
 
   addFileToTarFile(tar, "justin-jobs-no-roles.cert.pem",  newCertNoRoles)
+  jobscriptDict['justin-jobs-no-roles.cert.pem'] = newCertNoRoles
+
   addFileToTarFile(tar, "justin-jobs-no-roles.chain.pem", newChainNoRoles)
+  jobscriptDict['justin-jobs-no-roles.chain.pem'] = newChainNoRoles
 
   addFileToTarFile(tar, "justin-jobs-production.cert.pem",  newCertProduction)
+  jobscriptDict['justin-jobs-production.cert.pem'] = newCertProduction
+
   addFileToTarFile(tar, "justin-jobs-production.chain.pem", newChainProduction)
+  jobscriptDict['justin-jobs-production.chain.pem'] = newChainProduction
 
   # Create a file containing the output file patterns
   try:
@@ -289,6 +297,7 @@ def makeTarFile(jsonDict, jobDict, stage):
     return None
 
   patternsFile = ''
+  jobscriptDict['patterns'] = []
 
   for row in rows:
     patternsFile += (str(row['lifetime_seconds']) + ' ' +
@@ -297,6 +306,12 @@ def makeTarFile(jsonDict, jobDict, stage):
                      ('::URL::' if row['destination'].startswith('https://')
                      else scopeName) + ' ' +
                      row['file_pattern'] + '\n')
+
+    jobscriptDict['patterns'].append((row['lifetime_seconds'],
+                                      row['for_next_stage'],
+                                      row['destination'],
+      ('::URL::' if row['destination'].startswith('https://') else scopeName),
+                                      row['file_pattern']))
     
   addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)
 
@@ -325,9 +340,8 @@ def makeTarFile(jsonDict, jobDict, stage):
       print('AWT list of RSEs query fails with: ' + str(e), file=sys.stderr)
       return None
 
-#    print('justin-awt-rse-list.txt\n%s' % query, file=sys.stderr)
-
     awtRseFile = ''
+    jobscriptDict['awt_rses'] = []
     for rseRow in rseRows:
       if rseRow['lan_pfn'] and rseRow['distance'] == 0:
         pfn = rseRow['lan_pfn']
@@ -341,6 +355,12 @@ def makeTarFile(jsonDict, jobDict, stage):
                                     if rseRow['distance'] == 0
                                     else rseRow['wan_write_scheme'],
                                     pfn)
+
+      jobscriptDict['awt_rses'].append((rseRow['rse_name'],
+                                        rseRow['lan_write_scheme']
+                                        if rseRow['distance'] == 0
+                                        else rseRow['wan_write_scheme'],
+                                        pfn))
       
     addFileToTarFile(tar, 'justin-awt-rse-list.txt', awtRseFile)
                   
@@ -378,11 +398,17 @@ def makeTarFile(jsonDict, jobDict, stage):
     return None
 
   outputRseFile = ''
+  jobscriptDict['output_rses'] = []
   for rseRow in rseRows:
     outputRseFile += '%s %s \n' % (rseRow['rse_name'],
                                    rseRow['lan_write_scheme'] 
                                    if rseRow['distance'] == 0 
                                    else rseRow['wan_write_scheme'])
+
+    jobscriptDict['output_rses'].append((rseRow['rse_name'],
+                                         rseRow['lan_write_scheme'] 
+                                         if rseRow['distance'] == 0 
+                                         else rseRow['wan_write_scheme']))
       
   addFileToTarFile(tar, 'justin-output-rse-list.txt', outputRseFile)
 
@@ -404,8 +430,20 @@ def makeTarFile(jsonDict, jobDict, stage):
                ]
   addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
 
+  jobscriptDict['site_name']        = jobDict['site_name']
+  jobscriptDict['request_id']       = stage['request_id']
+  jobscriptDict['stage_id']         = stage['stage_id']
+  jobscriptDict['scope']            = scopeName
+  jobscriptDict['jobsub_id']        = jsonDict['jobsub_id']
+  jobscriptDict['jobscript_secret'] = jobDict['jobscript_secret']
+  jobscriptDict['for_awt']          = jobDict['for_awt']
+  jobscriptDict['sam_web_uri']      = \
+    'https://justin.dune.hep.ac.uk/api/samweb/%s/%s' \
+     % (jsonDict['jobsub_id'], jobDict['jobscript_secret'])
+
   # User defined environment variables for the jobscript
   jobscriptEnvList = [] 
+  jobscriptDict['stage_env'] = []
 
   try:
     query = ('SELECT env_name,env_value FROM stages_environment '
@@ -420,6 +458,8 @@ def makeTarFile(jsonDict, jobDict, stage):
     for envRow in envRows:
       jobscriptEnvList.append('export %s="%s"'
                               % (envRow['env_name'], envRow['env_value']))
+      jobscriptDict['stage_env'].append((envRow['env_name'],
+                                         envRow['env_value']))
 
   # Append standard list. Standard envs always override user-set versions
   jobscriptEnvList += justinEnvList
@@ -428,7 +468,7 @@ def makeTarFile(jsonDict, jobDict, stage):
                    'justin-jobscript-env.sh',
                    '\n'.join(jobscriptEnvList) + '\n')
 
-  # JSON files to for utility commands to use to contact allocator
+  # JSON files for utility commands to use to contact allocator
   addFileToTarFile(tar, 'justin-get-file.json', 
        (
          '{\n' +
@@ -448,6 +488,8 @@ def makeTarFile(jsonDict, jobDict, stage):
          '}\n'
        )
                   )
+
+  addFileToTarFile(tar, 'jobscript.json', json.dumps(jobscriptDict))
                   
   tar.close()  
   return buffer.getvalue()
