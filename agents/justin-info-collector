@@ -269,11 +269,15 @@ def processOneFileYAML(sitesDict, fileName):
                            [entryName]['attrs']['GLIDEIN_Supported_VOs']\
                            ['value'].split(',')
         except:
-          voList = []
+          try:
+            voList = yamlDict[osgSiteName]['common_entry_fields']\
+                             ['attrs']['GLIDEIN_Supported_VOs']\
+                             ['value'].split(',')
+          except:
+            voList = []
           
         if 'DUNE' not in voList:
           logLine('%s does not support DUNE - ignoring' % entryName)
-#          print(voList)
           continue
 
         # GLIDEIN_Site = justIN jobsubSiteName
@@ -281,18 +285,26 @@ def processOneFileYAML(sitesDict, fileName):
           jobsubSiteName = yamlDict[osgSiteName][osgSiteDomain]\
                      ['BEST_FIT'][entryName]['attrs']['GLIDEIN_Site']['value']
         except:
-          jobsubSiteName = None
+          try:
+            jobsubSiteName = yamlDict[osgSiteName]['common_entry_fields']\
+                               ['attrs']['GLIDEIN_Site']['value']
+          except:
+            jobsubSiteName = None
 
         if not jobsubSiteName:
           logLine('%s has no GLIDEIN_Site - ignoring' % entryName)
           continue
 
-        # GLIDEIN_DUNESite = justIN siteName      
+        # GLIDEIN_DUNESite = justIN siteName
         try:
           siteName = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
                        [entryName]['attrs']['GLIDEIN_DUNESite']['value']
         except:
-          siteName = None
+          try:
+            siteName = yamlDict[osgSiteName]['common_entry_fields']\
+                         ['attrs']['GLIDEIN_DUNESite']['value']
+          except:
+            siteName = None
 
         if not siteName:
           logLine('%s has no GLIDEIN_DUNESite - ignoring' % entryName)
@@ -303,29 +315,45 @@ def processOneFileYAML(sitesDict, fileName):
           wlcgSiteName = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
                           [entryName]['attrs']['GLIDEIN_ResourceName']['value']
         except:
-          wlcgSiteName = ''
+          try:
+            wlcgSiteName = yamlDict[osgSiteName]['common_entry_fields']\
+                             ['attrs']['GLIDEIN_ResourceName']['value']
+          except:
+            wlcgSiteName = ''
 
         # GLIDEIN_CPUS = justIN processors
         try:
           processors = int(yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
                             [entryName]['attrs']['GLIDEIN_CPUS']['value'])
         except:
-          processors = 1
+          try:
+            processors = int(yamlDict[osgSiteName]['common_entry_fields']\
+                               ['attrs']['GLIDEIN_CPUS']['value'])
+          except:
+            processors = 1
 
         # GLIDEIN_MaxMemMBs = justIN rssBytes        
         try:
           rssBytes = 1024 * 1024 * int(yamlDict[osgSiteName][osgSiteDomain]\
                 ['BEST_FIT'][entryName]['attrs']['GLIDEIN_MaxMemMBs']['value'])
         except:
-          # default from OSG_autoconf/etc/default.yml
-          rssBytes = 2500 * 1024 * 1024
+          try:
+            rssBytes = 1024 * 1024 * int(yamlDict[osgSiteName]\
+              ['common_entry_fields']['attrs']['GLIDEIN_MaxMemMBs']['value'])
+          except:
+            # default from OSG_autoconf/etc/default.yml
+            rssBytes = 2500 * 1024 * 1024
 
         # GLIDEIN_Max_Walltime = justIN wallSeconds
         try:
           wallSeconds = int(yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
                 [entryName]['attrs']['GLIDEIN_Max_Walltime']['value'])
         except:
-          wallSeconds = 86400
+          try:
+            wallSeconds = int(yamlDict[osgSiteName]['common_entry_fields']\
+                                 ['attrs']['GLIDEIN_Max_Walltime']['value'])
+          except:
+            wallSeconds = 86400
 
         # Add to sitesDict if not already there
         if siteName not in sitesDict:
@@ -496,10 +524,6 @@ def updateStorages():
       logLine('Skip RSE with bad name %s' % rse['rse'])
       continue
   
-    if rse['rse_type'] != 'DISK' and rse['rse'] != 'FNAL_DCACHE':
-      logLine('Skip non-disk RSE %s' % rse['rse'])
-      continue
-      
     try:
       attributes = rseClient.list_rse_attributes(rse['rse'])
     except:
@@ -507,6 +531,13 @@ def updateStorages():
       continue
 
     logLine('Processing %s: %s' % (rse['rse'], rse))
+
+    if (rse['rse_type'] != 'DISK' and rse['rse'] != 'FNAL_DCACHE') \
+       or ('decommissioned' in attributes and 
+           attributes['decommissioned'] == True):
+      rseDecommissioned = True
+    else:
+      rseDecommissioned = False
 
     availabilityRead = rse['availability_read']
 
@@ -577,12 +608,6 @@ def updateStorages():
     else:
       rseSite = ''
       
-    if 'decommissioned' in attributes and \
-       attributes['decommissioned'] == True:
-      rseDecommissioned = True
-    else:
-      rseDecommissioned = False
-
     try:
       usageList = rseClient.get_rse_usage(rse['rse'],
                                           filters = {"source": "rucio"})
