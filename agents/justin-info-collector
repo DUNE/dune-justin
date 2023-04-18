@@ -36,6 +36,9 @@ import MySQLdb
 # Installed by pip install of Rucio
 import rucio.client
 
+# Needs python36-PyYAML
+import yaml
+
 import justin
 
 updateSitesInterval    = 3600
@@ -43,9 +46,6 @@ updateStoragesInterval = 3600
 updateJwksInterval     = 86400
 
 sleepSeconds = 60
-
-class justinError(Exception):
-  pass
 
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
@@ -164,7 +164,7 @@ def processOneFileXML(sitesDict, fileName):
       wlcgSiteName    = ''
       voList          = []
       processors      = 1
-      rssBytes        = 2147483648
+      rssBytes        = 2000 * 1024 * 1024
       wallSeconds     = 86400            
 
       for xmlEntryChild in xmlEntry.childNodes:
@@ -232,6 +232,124 @@ def processOneFileXML(sitesDict, fileName):
         if wallSeconds < sitesDict[siteName]['smallest_wall_seconds']:
           sitesDict[siteName]['smallest_wall_seconds'] = wallSeconds
 
+def processOneFileYAML(sitesDict, fileName):
+
+  try:
+    yamlDict = yaml.safe_load(open(fileName,'r'))
+  except Exception as e:
+    logLine('Parsing YAML file %s fails with: %s' % (fileName, str(e)))
+    return
+    
+  logLine('Parsing YAML file %s' % fileName)
+
+  for osgSiteName in yamlDict:
+    for osgSiteDomain in yamlDict[osgSiteName]:
+      if osgSiteDomain == 'common_entry_fields':
+        logLine('Skipping common_entry_fields of %s' % osgSiteName)
+        continue
+    
+      if 'BEST_FIT' not in yamlDict[osgSiteName][osgSiteDomain]:
+        logLine('%s:%s has no BEST_FIT - ignoring' 
+                % (osgSiteName,osgSiteDomain))
+        continue
+
+#      print(osgSiteDomain)
+#      print(yamlDict[osgSiteName][osgSiteDomain])
+    
+      for entryName in yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']:
+        if (not yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT'][entryName] 
+            or 'attrs' not in 
+            yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT'][entryName]):
+          logLine('%s has no attrs! - ignoring' % entryName)
+          continue
+
+        # Check if this entry even supports DUNE
+        try:
+          voList = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+                           [entryName]['attrs']['GLIDEIN_Supported_VOs']\
+                           ['value'].split(',')
+        except:
+          voList = []
+          
+        if 'DUNE' not in voList:
+          logLine('%s does not support DUNE - ignoring' % entryName)
+#          print(voList)
+          continue
+
+        # GLIDEIN_Site = justIN jobsubSiteName
+        try:
+          jobsubSiteName = yamlDict[osgSiteName][osgSiteDomain]\
+                     ['BEST_FIT'][entryName]['attrs']['GLIDEIN_Site']['value']
+        except:
+          jobsubSiteName = None
+
+        if not jobsubSiteName:
+          logLine('%s has no GLIDEIN_Site - ignoring' % entryName)
+          continue
+
+        # GLIDEIN_DUNESite = justIN siteName      
+        try:
+          siteName = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+                       [entryName]['attrs']['GLIDEIN_DUNESite']['value']
+        except:
+          siteName = None
+
+        if not siteName:
+          logLine('%s has no GLIDEIN_DUNESite - ignoring' % entryName)
+          continue
+
+        # GLIDEIN_ResourceName = justIN wlcgSiteName
+        try:
+          wlcgSiteName = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+                          [entryName]['attrs']['GLIDEIN_ResourceName']['value']
+        except:
+          wlcgSiteName = ''
+
+        # GLIDEIN_CPUS = justIN processors
+        try:
+          processors = int(yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+                            [entryName]['attrs']['GLIDEIN_CPUS']['value'])
+        except:
+          processors = 1
+
+        # GLIDEIN_MaxMemMBs = justIN rssBytes        
+        try:
+          rssBytes = 1024 * 1024 * int(yamlDict[osgSiteName][osgSiteDomain]\
+                ['BEST_FIT'][entryName]['attrs']['GLIDEIN_MaxMemMBs']['value'])
+        except:
+          # default from OSG_autoconf/etc/default.yml
+          rssBytes = 2500 * 1024 * 1024
+
+        # GLIDEIN_Max_Walltime = justIN wallSeconds
+        try:
+          wallSeconds = int(yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+                [entryName]['attrs']['GLIDEIN_Max_Walltime']['value'])
+        except:
+          wallSeconds = 86400
+
+        # Add to sitesDict if not already there
+        if siteName not in sitesDict:
+          logLine("Create maxima for %s:%s to %d bytes, %d processors" %
+                  (siteName, entryName, rssBytes, processors))
+
+          sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
+                                  'wlcg_site_name'        : wlcgSiteName,
+                                  'largest_rss_bytes'     : rssBytes,
+                                  'largest_processors'    : processors,
+                                  'smallest_wall_seconds' : wallSeconds
+                                }
+
+        # Add as maximas for rss_bytes and processors
+        if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
+          logLine("Update maxima for %s:%s to %d bytes, %d processors from %s"
+                  % (siteName, entryName, rssBytes, processors, fileName))
+          sitesDict[siteName]['largest_rss_bytes']    = rssBytes
+          sitesDict[siteName]['largest_processors']   = processors
+          
+        # Add as miniumum wall seconds
+        if wallSeconds < sitesDict[siteName]['smallest_wall_seconds']:
+          sitesDict[siteName]['smallest_wall_seconds'] = wallSeconds
+
 def buildSites(sitesDict):
 
   tmpDir = tempfile.TemporaryDirectory()
@@ -242,6 +360,11 @@ def buildSites(sitesDict):
     if fileName[-4:] == '.xml':
       logLine('Process XML file: %s' % fileName)
       processOneFileXML(sitesDict, tmpDir.name + '/' + fileName)
+
+  for fileName in os.listdir(tmpDir.name + '/OSG_autoconf'):
+    if fileName[-4:] == '.yml':
+      logLine('Process YAML file: %s' % fileName)
+      processOneFileYAML(sitesDict, tmpDir.name + '/OSG_autoconf/' + fileName)
 
 def updateSites():
   # Get info about sites the pilot factories know about

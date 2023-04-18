@@ -36,6 +36,8 @@ rseAvailabilityRead   = 4
 
 unixEpoch = '1970-01-01 00:00:00'
 
+unseenSitesExpireDays = 7
+
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
                       'jobscript_error', 'outputting_failed' ]
 

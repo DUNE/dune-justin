@@ -2326,7 +2326,10 @@ def listSites(environ, user, cgiValues):
 
   output += ("<h1>Sites</h1>")
   
-  query = "SELECT * FROM sites WHERE site_id > 0 ORDER BY site_name"
+  query = ("SELECT DATE(last_seen_time) AS osg_date,last_get_stage_time,"
+           "site_name,enabled,max_rss_bytes,"
+           "max_processors,max_wall_seconds,max_jobs,wlcg_site_name "
+           "FROM sites WHERE site_id > 0 ORDER BY site_name")
   justin.db.cur.execute(query)
   siteRows = justin.db.cur.fetchall()
 
@@ -2336,6 +2339,7 @@ def listSites(environ, user, cgiValues):
         '<th>Site name</th>'
         '<th>Enabled?</th>'
         '<th>Last job</th>'
+        '<th>Seen in OSG</th>'
         '<th>RSS(MB) / Processors</th>'
         '<th>Max Wall Seconds</th>'
         '<th>Max jobs</th>'
@@ -2352,6 +2356,7 @@ def listSites(environ, user, cgiValues):
           '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
           '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
+          '<td>%s</td>'
           '<td style="text-align: right">%d / %d = %d</td>'
           '<td style="text-align: right">%d</td>'
           '<td style="text-align: right">%d</td>'
@@ -2367,6 +2372,7 @@ def listSites(environ, user, cgiValues):
              'bold' if siteRow['enabled'] else 'normal',
              'TRUE' if siteRow['enabled'] else 'False',
              lastGetStageStr,
+             siteRow['osg_date'],
              int(siteRow['max_rss_bytes'] / 1048576),
               siteRow['max_processors'],
               int((siteRow['max_rss_bytes'] 
@@ -2474,6 +2480,9 @@ def showSite(environ, user, cgiValues):
 
   output += ('<tr><td>WLCG site name</td><td>%s</td></tr>' 
         % siteRow['wlcg_site_name'])
+
+  output += ('<tr><td>Seen in OSG config</td><td>%s</td></tr>'
+             % siteRow['last_seen_time'])
 
   output += ('<tr><td>Enabled?</td><td>%s</td></tr>' 
         % bool(siteRow['enabled']))
@@ -2717,15 +2726,19 @@ def showStorage(environ, user, cgiValues):
 
   output += ('</table>')
 
-  output += ("<h2>Sites by distance</h2>")
+  output += ("<h2>Sites by distance</h2>\n"
+             "<p>Only sites seen in the OSG configuration in the last %d "
+             "days are shown.</p>" % justin.unseenSitesExpireDays)
 
   query = ('SELECT site_name,distance,enabled,'
            'read_result,write_result,jobsub_id '
            'FROM sites '
            'LEFT JOIN sites_storages ON sites_storages.site_id=sites.site_id '
            'LEFT JOIN jobs ON sites_storages.justin_job_id=jobs.justin_job_id '
-           'WHERE rse_id=%d '
-           'ORDER BY distance,site_name' % storageRow['rse_id'])
+           'WHERE rse_id=%d AND '
+           'sites.last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
+           'ORDER BY distance,site_name' 
+           % (storageRow['rse_id'], justin.unseenSitesExpireDays))
 
   justin.db.cur.execute(query)
   siteRows = justin.db.cur.fetchall()
@@ -2959,7 +2972,8 @@ def awtResults(environ, user, cgiValues):
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
            'FROM sites '
            'LEFT JOIN jobs ON jobs.justin_job_id=sites.last_awt_job_id '
-           'ORDER by site_name')
+           'WHERE last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
+           'ORDER by site_name' % justin.unseenSitesExpireDays)
 
   sitesRows = justin.select(query)
   siteNames        = []
@@ -3007,11 +3021,14 @@ def awtResults(environ, user, cgiValues):
 
   # Put the results in nested dictionaries
   for results in resultsRows:
-    sitesStoragesMatrix[results['site_name']][results['rse_name']] = \
-      [results['read_result'], 
-       results['write_result'], 
-       results['jobsub_id'],
-       results['finished_time']]
+    try:
+      sitesStoragesMatrix[results['site_name']][results['rse_name']] = \
+        [results['read_result'], 
+         results['write_result'], 
+         results['jobsub_id'],
+         results['finished_time']]
+    except:
+      pass
 
   output += ('<table class="center">')
 
