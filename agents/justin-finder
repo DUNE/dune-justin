@@ -628,6 +628,7 @@ def findFinishedRequests():
 def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
   # or which have reported they have aborted
+  # or which were submitted a day ago
 
   try:
     query = ('SELECT request_id,stage_id,justin_job_id,jobsub_id,site_id,'
@@ -640,6 +641,8 @@ def findStalledAbortedJobs():
              'OR allocation_state="aborted" '
              'OR allocation_state="jobscript_error" '
              'OR allocation_state="outputting_failed" '
+             'OR (allocation_state="submitted" AND '
+             'submitted_time < DATE_SUB(NOW(),INTERVAL 1 DAY)) '
              'ORDER BY justin_job_id' % justin.db.jobStallSeconds)
 
     justin.db.cur.execute(query)

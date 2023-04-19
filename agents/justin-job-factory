@@ -192,7 +192,7 @@ def anySiteJobs():
    in justin.getUnallocatedCounts():
     logLine('%d processor(s) %d MB: %d unallocated files' % 
             (processors, 
-            int((bytesPerProcessor * processors) / (1024 * 1024)), 
+            int((bytesPerProcessor * processors) / (1024 * 1024)),
             numberUnallocated))
 
     if numberUnallocated > jobsPerCluster:
@@ -227,19 +227,26 @@ def anySiteJobs():
 
     try:
         submitted = justin.db.select('SELECT COUNT(*) AS count FROM jobs '
-                                  'WHERE allocation_state = "submitted" AND '
-                                  'processors = %d AND '
-                                  'rss_bytes > %d AND '
-                                  'rss_bytes <= %d' %
-                                  (processors,
-                                   bytesPerProcessor * (processors - 1),
-                                   bytesPerProcessor * processors
-                                  ), justOne = True
-                                 )
+                       'WHERE allocation_state = "submitted" AND '
+                       'processors = %d AND '
+                       'rss_bytes > %d AND '
+                       'rss_bytes <= %d AND '
+                       'submitted_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) AND '
+                       'NOT for_awt' %
+                       (processors,
+                        bytesPerProcessor * (processors - 1),
+                        bytesPerProcessor * processors
+                       ), justOne = True
+                                    )
         numberSubmitted = submitted['count']
     except Exception as e:
         logLine('Failed getting count of submitted jobs: ' + str(e))
         continue
+          
+    logLine('%d processors %d MB has %d submitted and %d unallocated' % 
+            (processors, 
+             int((bytesPerProcessor * processors) / (1024 * 1024)),
+             numberSubmitted, numberUnallocated))
             
     if numberUnallocated > numberSubmitted:
       ignoreStr = ','.join(ignoreSites)
