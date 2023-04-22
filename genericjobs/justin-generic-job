@@ -15,10 +15,17 @@ log_line '====Start of justin-generic-job===='
 
 function job_aborted() {
 
+  secret_time=`date +'%s'`
+  secret_hash=$(echo -n job_aborted$secret_time$JOBSUBJOBID \
+                | openssl sha256 -hmac `cat justin_job_secret.txt` \
+                | cut -f2 -d' ')
+
   cat <<EOF >justin-job-aborted.json
 {
   "method"         : "job_aborted",
   "jobsub_id"      : "$JOBSUBJOBID",
+  "secret_time"    : $secret_time,
+  "secret_hash"    : "$secret_hash",
   "http_code"      :  $2,
   "aborted_method" : "$3",
   "rse_name"       : "$4"
@@ -29,9 +36,6 @@ EOF
      --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
      --header "Expect:" \
-     --key $X509_USER_PROXY \
-     --cert $X509_USER_PROXY \
-     --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
      --data @justin-job-aborted.json \
      https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/job_aborted_$2
@@ -59,12 +63,6 @@ echo '##############'
 export X509_CERTIFICATES=${X509_CERTIFICATES:-/etc/grid-security/certificates/}
 
 # Check requirements are present
-
-if [ ! -r "$X509_USER_PROXY" ] ; then
- # Stop if proxy file is missing or deleted
- log_line "Cannot read X509_USER_PROXY file = $X509_USER_PROXY"
- exit 0
-fi
 
 curl --version
 if [ $? -ne 0 ] ; then
@@ -99,9 +97,6 @@ EOF
   curl \
      --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
-     --key $X509_USER_PROXY \
-     --cert $X509_USER_PROXY \
-     --cacert $X509_USER_PROXY \
      --capath $X509_CERTIFICATES \
      --data @justin-send-heartbeat.json \
      https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/send_heartbeat
@@ -203,9 +198,6 @@ http_code=`curl \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Expect:" \
---key $X509_USER_PROXY \
---cert $X509_USER_PROXY \
---cacert $X509_USER_PROXY \
 --capath $X509_CERTIFICATES \
 --data @justin-get-stage.json \
 --output justin-files.tar \
@@ -424,9 +416,6 @@ http_code=`curl \
 --retry-max-time 300 \
 --max-time 600 \
 --user-agent 'justin-generic-job' \
---key $X509_USER_PROXY \
---cert $X509_USER_PROXY \
---cacert $X509_USER_PROXY \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Expect:" \
 --capath $X509_CERTIFICATES \
@@ -607,9 +596,6 @@ http_code=`curl \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
 --header "Expect:" \
---key $X509_USER_PROXY \
---cert $X509_USER_PROXY \
---cacert $X509_USER_PROXY \
 --capath $X509_CERTIFICATES \
 --data @justin-confirm-results.json \
 --output confirm-results.log \

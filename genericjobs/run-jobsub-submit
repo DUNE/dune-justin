@@ -10,7 +10,7 @@ jobsub_rm \
   --debug \
   --user dunepro \
   --constraint \
-  '(regexp("justin-generic-job$",TransferInput) && JobStatus=?=1 && EnteredCurrentStatus < (CurrentTime - 7*86400))'
+  '(regexp("justin-generic-job$",TransferInput) && JobStatus=?=1 && EnteredCurrentStatus < (CurrentTime - 90000))'
 
 sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job \
  >/var/lib/justin/justin-generic-job.tmp

@@ -19,14 +19,6 @@
 # This WSGI script relies on justin-api-import-script being run by
 # the mod_wsgi directive WSGIImportScript
 
-# This WSGI script must be run from an Apache httpd server with
-# X.509 proxy certificates enabled. On a systemd system (like 
-# CentOS 7) you need to enable this in OpenSSL inside mod_ssl
-# by adding this line to /usr/lib/systemd/system/httpd.service
-# in the [Service] section:
-#
-# Environment=OPENSSL_ALLOW_PROXY_CERTS=1
-
 import os
 import io
 import re
@@ -1524,29 +1516,6 @@ def checkSecretHash(environ, jsonDict):
 
   if jsonDict['secret_hash'] != secretHash:
     raise RuntimeError('Forbidden - invalid hash given')
-
-#
-# TO BE REMOVED: check certificates and proxies for now still too
-#
-  if 'SSL_CLIENT_S_DN' not in environ or not environ['SSL_CLIENT_S_DN']:
-    raise RuntimeError('Forbidden - identity not provided')
-
-  # Convert to the older format with slashes 
-  clientDN='/'+'/'.join(environ['SSL_CLIENT_S_DN'].split(',')[::-1])
-
-  query = ('SELECT users.generic_jobs FROM x509 '
-           'LEFT JOIN users ON users.user_id=x509.user_id '
-           'WHERE x509dn=LEFT("%s",LENGTH(x509dn)) ORDER BY users.user_id' % 
-           clientDN.replace('\\','\\\\').replace('"','\\"'))
-
-  try:
-    row = justin.db.select(query, justOne = True)
-  except:
-    raise RuntimeError('Error reading users from database')
-
-  # User must be have generic_jobs=TRUE
-  if not row['generic_jobs']:
-    raise RuntimeError('Forbidden - authorized identity not provided')
 
 #def getAllocatorLock(timeoutSeconds):
 #  # Try to get the workflow allocator service lock or raise an exception if
