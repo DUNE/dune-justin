@@ -35,6 +35,7 @@ EOF
   curl \
      --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
+     --header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
      --header "Expect:" \
      --capath $X509_CERTIFICATES \
      --data @justin-job-aborted.json \
@@ -44,6 +45,8 @@ EOF
   # The 1st argument lets the caller choose the exit code on errors
   exit $1
 }
+
+export DUNE_SITE_NAME=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 
 echo '### Start of  printenv | sort'
 printenv | sort
@@ -97,6 +100,7 @@ EOF
   curl \
      --user-agent 'justin-generic-job' \
      --header "X-Jobid: $JOBSUBJOBID" \
+     --header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
      --capath $X509_CERTIFICATES \
      --data @justin-send-heartbeat.json \
      https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/send_heartbeat
@@ -128,7 +132,6 @@ cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
 export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
 export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
 export JUSTIN_HOSTNAME=${HOSTNAME:-`hostname`}
-export site_name=${GLIDEIN_DUNESite:-XX_UNKNOWN}
 
 export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
 export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
@@ -174,7 +177,7 @@ cat <<EOF >justin-get-stage.json
   "jobsub_id"       : "$JOBSUBJOBID",
   "secret_time"     : $secret_time,
   "secret_hash"     : "$secret_hash",
-  "site_name"       : "${site_name:-XX-UNKNOWN}",
+  "site_name"       : "$DUNE_SITE_NAME",
   "cpuinfo"         : "${JUSTIN_CPUINFO:-Unknown}",
   "os_release"      : "${JUSTIN_OS_RELEASE:-Unknown}",
   "hostname"        : "${JUSTIN_HOSTNAME:-unknown}",
@@ -197,6 +200,7 @@ http_code=`curl \
 --retry 0 \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
+--header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
 --header "Expect:" \
 --capath $X509_CERTIFICATES \
 --data @justin-get-stage.json \
@@ -417,6 +421,7 @@ http_code=`curl \
 --max-time 600 \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
+--header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
 --header "Expect:" \
 --capath $X509_CERTIFICATES \
 --data @justin-record-results.json \
@@ -595,6 +600,7 @@ http_code=`curl \
 --max-time 600 \
 --user-agent 'justin-generic-job' \
 --header "X-Jobid: $JOBSUBJOBID" \
+--header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
 --header "Expect:" \
 --capath $X509_CERTIFICATES \
 --data @justin-confirm-results.json \
