@@ -162,7 +162,9 @@ for i in 1 2 3 4 5
 do
 
 # Sleep for up to 60 seconds to spread out job start storms
-sleep `expr $RANDOM / 512`
+sleep_seconds=`expr $RANDOM / 512`
+log_line "Sleep for $sleep_seconds seconds"
+sleep $sleep_seconds
 log_line "Attempt $i/5 of curl get_stage"
 
 # Create the JSON to send to the allocator
@@ -263,8 +265,11 @@ chmod 0400 $JUSTIN_WORKDIR/home/justin-jobs-no-roles.proxy.pem
 # Assemble proxy for uploads by generic job itself
 cat justin-jobs-production.cert.pem  \
     justin-jobs-production.key.pem   \
-    justin-jobs-production.chain.pem > justin-jobs-production.proxy.pem
-chmod 0400 justin-jobs-production.proxy.pem
+    justin-jobs-production.chain.pem \
+  > $JUSTIN_WORKDIR/justin-jobs-production.proxy.pem
+chmod 0400 $JUSTIN_WORKDIR/justin-jobs-production.proxy.pem
+
+export X509_USER_PROXY=${X509_USER_PROXY:-$JUSTIN_WORKDIR/justin-jobs-production.proxy.pem}
 
 if [ -n "$JUSTIN_FOR_AWT" ] ; then
   # If an AWT job, then we give it the generic job's proxy too
@@ -467,11 +472,13 @@ setup metacat
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
 
+log_line 'Test rucio client'
 rucio --config $JUSTIN_WORKDIR/rucio.cfg --version
 if [ $? != 0 ] ; then
   job_aborted 1 900 rucio_test
 fi
 
+log_line 'Test metacat client'
 metacat auth login -m x509 dunepro
 metacat auth whoami
 if [ $? != 0 ] ; then

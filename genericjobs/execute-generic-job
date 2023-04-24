@@ -34,10 +34,18 @@ import MySQLdb
 #
 import justin
 
+justin.conf.readConf()
+justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                 user=justin.conf.mysqlUsername,
+                                 passwd=justin.conf.mysqlPassword, 
+                                 db=justin.conf.mysqlDbName)
+justin.db.conn.autocommit(False)
+justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+
 rawJob = open('/var/lib/justin/justin-generic-job-py','r').read()
 
-processedJob = rawJob.replace('###justin_job_secret###',
-                              secrets.token_urlsafe(64))
+justinJobSecret = secrets.token_urlsafe(64)
+processedJob    = rawJob.replace('###justin_job_secret###', justinJobSecret)
 
 f = tempfile.NamedTemporaryFile(mode='w', delete=False)
 
@@ -49,10 +57,45 @@ f.close()
 
 os.chmod(tempJobFile, 0o700)
 
-jobEnv = { 'PATH'            : '/usr/bin',
-           'GLIDEIN_DUNESite': 'US_FNAL',
-           'JOBSUBJOBID'     : str(int(time.time())) + '@execute-generic-job'
+jobsubJobID = str(int(time.time())) + '@execute-generic-job'
+
+jobEnv = { 'PATH'                : '/usr/bin',
+           'GLIDEIN_DUNESite'    : 'US_FNAL-FermiGrid',
+           'JOBSUBJOBID'         : jobsubJobID,
+           '_CONDOR_JOB_AD'      : '/tmp/_condor_ad',
+           '_CONDOR_MACHINE_AD'  : '/tmp/_condor_ad'
          }
 
-subprocess.run(tempJobFile, env=jobEnv)
+justin.db.cur.execute('INSERT INTO jobs '
+                  'SET factory_name="%s",'
+                  'site_id=23,'
+                  'min_processors=0,'
+                  'max_processors=1,'
+                  'min_rss_bytes=0,'
+                  'max_rss_bytes=4194304000,'
+                  'max_wall_seconds=86400,'
+                  'submitted_time=NOW(),'
+                  'need_to_fetch_jobsub_log=FALSE,'
+                  'for_awt=FALSE,'
+                  'justin_job_secret="%s",'
+                  'jobscript_secret="%s",'
+                  'jobsub_id="%s"'
+                  % (os.uname()[1],
+                     justinJobSecret,
+                     secrets.token_urlsafe(64),
+                     jobsubJobID)
+                 )
+
+justin.db.conn.commit()
+
+subprocess.run(
+ ['/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer',
+  'shell',
+  '--bind',
+  '/cvmfs:/cvmfs',
+  '--shell',
+  tempJobFile,
+  '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6'
+ ],
+ env=jobEnv)
 
