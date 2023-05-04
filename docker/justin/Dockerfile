@@ -12,11 +12,12 @@ RUN yum install -y make
 RUN yum install -y bzip2-devel xz-devel libcurl-devel libjpeg-devel
 RUN yum update -y
 
+RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install mysqlclient
 RUN python3 -m pip install wheel
+RUN python3 -m pip install PyYAML
 RUN python3 -m pip install setuptools_rust
 RUN python3 -m pip install rust
-RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install rucio
 
 COPY agents/justin-info-collector /usr/sbin/
