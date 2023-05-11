@@ -26,6 +26,8 @@ import sys
 import time
 import stat
 import json
+import hmac
+import hashlib
 import secrets
 import base64
 import string
@@ -1504,11 +1506,12 @@ def checkSecretHash(environ, jsonDict):
   except:
     raise RuntimeError('Forbidden - failed to get job secret')
  
-  hash = base64.b16encode(M2Crypto.EVP.hmac(justinJobSecret.encode(),
-                                            (jsonDict['method'] + 
-                                             str(secretTime) + 
-                                             jsonDict['jobsub_id']).encode(),
-                                            algo='sha256')).decode().lower()
+  hash = hmac.new(bytes(justinJobSecret, 'UTF-8'),
+                                     (jsonDict['method'] +
+                                      str(secretTime) +
+                                      jsonDict['jobsub_id']
+                                     ).encode(),
+                                     hashlib.sha256).hexdigest()
 
   print('method=%s secret_hash=%s hash=%s secret_time=%d now=%d' 
         % (jsonDict['method'], secretHash, hash, secretTime, nowTime), 
