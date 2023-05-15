@@ -21,9 +21,11 @@ import os
 import sys
 import ssl
 import time
+import json
 import glob
 import hmac
 import hashlib
+import base64
 import urllib
 import urllib.request
 import subprocess
@@ -61,20 +63,38 @@ def sendJsonURL(url, sendDict):
 
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except urllib.error.URLError as e:
+    try:
+      httpCode = e.code
+    except:
+      httpCode = 0
+
+    logLine('Get JSON URL returns HTTP code %d' % httpCode)
+    logLine(e.read().decode('utf-8'))
+    return { 'status' : httpCode }
+
   except Exception as e:
     logLine('Get JSON URL request fails: ' + str(e))
     return { 'status' : 0 }
-  else:
-    if response.status != 200:
-      logLine('Get JSON URL response not 200, code=%d' 
-              % response.status)
-      return { 'status' : response.status }
 
   try:
-    receivedDict = json.loads(response.read().decode('utf-8'))
-  except Exception as e:
-    logLine('Failed loading json: ' + str(e))
+    responseString = response.read().decode('utf-8')
+  except:
+    logLine('Failed reading response: ' + str(e))
     return { 'status' : 1 }
+  
+# ONCE WE FINISH MOVING TO PYTHON GENERIC JOB THEN ALLOCATOR SHOULD RETURN
+# THE TOKEN IN A JSON DOCUMENT AND WE CAN DROP THIS SPECIAL HANDLING
+  if sendDict['method'] == 'record_results':
+    receivedDict = { 'user_access_token' : responseString }
+  elif len(responseString) == 0:
+    receivedDict = {}
+  else:
+    try:
+      receivedDict = json.loads(responseString)
+    except Exception as e:  
+      logLine('Failed loading json: ' + str(e))
+      return { 'status' : 1 }
 
   receivedDict['status'] = response.status
   return receivedDict
@@ -221,25 +241,27 @@ if heartbeatsPID == 0:
 justinWorkdir = os.environ['PWD']
 
 # Make $HOME directory and workspace subdirectory for Apptainer/Singularity
-os.makedirs(justinWorkdir + '/home/workspace')
+os.makedirs('home/workspace')
 
 # Make jobutils scripts available to jobscripts in a known location
 for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
   os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-             'pro/NULL/jobutils/' + i, justinWorkdir + '/home')
+             'pro/NULL/jobutils/' + i, 'home/' + i)
 
 # Assemble values to send to allocator
-getStageDict = { 'method' : 'get_stage' }
+getStageDict = { 'method' : 'get_stage_json' }
 
 for line in open('/proc/cpuinfo','r').readlines():
-  if line.startswith('model name '):
+  if line.startswith('model name'):
     getStageDict['cpuinfo'] = line.split(':')[1].strip()
     break
 
-getStageDict['os_release'] = open('/etc/redhat-release','r').readlines()[0]
-getStageDict['hostname']   = os.environ['HOSTNAME']
-getStageDict['site_name']  = siteName
+getStageDict['os_release'] \
+  = open('/etc/redhat-release','r').readlines()[0].strip()
+getStageDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
+getStageDict['site_name']   = siteName
 
+getStageDict['site_job_id'] = 'XXX'
 ##  "site_job_id"     : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
 
 for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
@@ -304,7 +326,7 @@ for i in range(1,6):
 
   logLine('get_stage returns HTTP code %d' % receivedDict['status'])
 
-  if receivedDict['status'] != 503 and receiveDict['status'] != 0:
+  if receivedDict['status'] != 503 and receivedDict['status'] != 0:
     break
     
 if receivedDict['status'] != 200:
@@ -383,10 +405,10 @@ export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
-stdbuf -oL -eL ../justin-jobscript.sh 2>&1
+stdbuf -oL -eL ../justin-jobscript 2>&1
 ''')
 
-os.chmod('home/jobscript-wrapper.sh', 0x755)
+os.chmod('home/jobscript-wrapper.sh', 0o755)
 
 logLine('====Start of jobscript execution====')
 jobscriptStartTime=int(time.time())
@@ -418,7 +440,7 @@ justinRecordResultsDict = {
   'output_urls'            : [],
   'output_dids'            : [],
   'next_stage_dids'        : [],
-  'jobscript_log'          : jobscriptOutcome.stdout[:10000],
+  'jobscript_log' : base64.b64encode(jobscriptOutcome.stdout[:10000]).decode(),
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
   'jobscript_finish'       : jobscriptFinishTime,
@@ -448,23 +470,26 @@ for (lifetimeSeconds, forNextStage, destination, scope, pattern) in \
     else:
       justinRecordResultsDict['output_dids'].append(scope + ':' + matchingFile)
 
+justinRecordResultsDict['processed_dids'] = []
 try:
- justinRecordResultsDict['processed_dids'] = \
-   open('home/workspace/justin-processed-dids.txt','r').readlines()
+  for i in open('home/workspace/justin-processed-dids.txt','r').readlines():
+    justinRecordResultsDict['processed_dids'].append(i.strip())
 except:
- pass
+  pass
 
+justinRecordResultsDict['processed_pfns'] = []
 try:
- justinRecordResultsDict['processed_pfns'] = \
-   open('home/workspace/justin-processed-pfns.txt','r').readlines()
+  for i in open('home/workspace/justin-processed-pfns.txt','r').readlines():
+    justinRecordResultsDict['processed_pfns'].append(i.strip())
 except:
- pass
+  pass
 
+logLine('record results: ' + str(justinRecordResultsDict))
 resultsResponseDict = sendJsonURL(
  'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/record_results', 
  justinRecordResultsDict)
 
-logLine('record_results returns HTTP code %d' % resultsResponseDict)
+logLine('record_results returns HTTP code %d' % resultsResponseDict['status'])
 
 if resultsResponseDict['status'] != 200:
   jobAborted(resultsResponseDict['status'], 'record_results', '')
@@ -473,7 +498,11 @@ if jobscriptOutcome.returncode != 0:
   jobAborted(900, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
-logLine('Output RSEs: ', receivedDict['output_rses'])
+logLine('Output RSEs: ' + str(receivedDict['output_rses']))
+
+# Write out the token for uploading to user's scratch
+with open('user-upload-token', 'w') as f:
+  f.write(resultsResponseDict['user_access_token'])
 
 confirmResultsDict = { 'method'      : 'confirm_results',
                        'output_dids' : {},
@@ -548,6 +577,7 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
 
 # If all ok, then confirm that to the Workflow Allocator
 
+logLine('confirm results: ' + str(confirmResultsDict))
 confirmDict = sendJsonURL(
   'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/confirm_results',
   confirmResultsDict)

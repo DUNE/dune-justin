@@ -485,8 +485,14 @@ def makeTarFile(jsonDict, jobDict, stage):
 
   addFileToTarFile(tar, 'jobscript.json', json.dumps(jobscriptDict))
                   
-  tar.close()  
-  return buffer.getvalue()
+  tar.close()
+
+# THIS STILL HAS tar FILE SUPPORT. REWORK AS PURELY JSON OUTPUT ONCE
+# ONLY USING PYTHON GENERIC JOBS
+  if jsonDict['method'] == 'get_stage_json':
+    return json.dumps(jobscriptDict).encode('UTF-8')
+  else:
+    return buffer.getvalue()
 
 def updateAllocationState(jobsub_id, state):
   try:
@@ -687,6 +693,8 @@ def getStageMethod(startResponse, jsonDict, environ):
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
+# THIS STILL HAS tar/json SUPPORT FOR NOW. REMOVE tar ONCE ONLY USING 
+# PYTHON GENERIC JOBS
   tarFile = makeTarFile(jsonDict, jobDict, stage)
   
   if not tarFile:
@@ -702,12 +710,19 @@ def getStageMethod(startResponse, jsonDict, environ):
                      '500 Internal Server Error',
                      'Database commit fails: ' + str(e))
 
-  startResponse('200 OK',
-                [('Content-type',   'application/x-tar'),
-                 ('Content-length', str(len(tarFile)))
-                ])
+  if jsonDict['method'] == 'get_stage_json':
+    startResponse('200 OK',
+                  [('Content-type',   'application/json'),
+                   ('Content-length', str(len(tarFile)))
+                  ])
+    return [tarFile]
+  else:
+    startResponse('200 OK',
+                  [('Content-type',   'application/x-tar'),
+                   ('Content-length', str(len(tarFile)))
+                  ])
 
-  return [tarFile]
+    return [tarFile]
    
 # Record heartbeats from generic jobs
 def sendHeartbeatMethod(startResponse, jsonDict):
@@ -762,7 +777,8 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   # All ok, now process the message
 
-  if httpCode == 404 and jsonDict['aborted_method'] == 'get_stage':
+# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON GENERIC JOBS!
+  if httpCode == 404 and jsonDict['aborted_method'].startswith('get_stage'):
     state = 'notused'
     eventTypeID = justin.db.event_JOB_NOTUSED
   elif jsonDict['aborted_method'] == 'jobscript_error':
@@ -1633,7 +1649,8 @@ def application(environ, startResponse):
     return httpError(startResponse, '403 Forbidden', str(e))
 
   # Get the stage for the job to work on
-  if jsonDict['method'] == 'get_stage':
+# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON GENERIC JOBS!
+  if jsonDict['method'].startswith('get_stage'):
     return getStageMethod(startResponse, jsonDict, environ)
 
   # Record heartbeats from the generic jobs
