@@ -628,7 +628,7 @@ def getStageMethod(startResponse, jsonDict, environ):
                      % jobDict['allocation_state'])
 
   # Site not enabled so no matches allowed 
-  if not jobDict['site_enabled']:
+  if not jobDict['site_enabled'] and not jobDict['for_awt']:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
     return httpError(startResponse, 
                      '404 Not Found',
@@ -1520,7 +1520,8 @@ def checkSecretHash(environ, jsonDict):
                         justOne = True)
     justinJobSecret = row['justin_job_secret']
   except:
-    raise RuntimeError('Forbidden - failed to get job secret')
+    raise RuntimeError('Forbidden - failed to get job secret for %s' 
+                       % jsonDict['jobsub_id'])
  
   hash = hmac.new(bytes(justinJobSecret, 'UTF-8'),
                                      (jsonDict['method'] +

@@ -207,17 +207,28 @@ logLine('====Start of justin-generic-job====')
 for i in os.environ:
  print('%s=%s' % (i, os.environ[i]))
 
+clusterID = None
+procID    = 0
+
 try:
-  jobsubJobID = os.environ['JOBSUBJOBID']
+  for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
+    if line.startswith('ClusterId = '):
+      clusterID = int(line.split('=')[1].strip())
+
+    if line.startswith('ProcId = '):
+      procID = int(line.split('=')[1].strip())
 except:
-  logLine('JOBSUBJOBID not defined - aborting')
+  logLine('Failed getting cluster/proc IDs - aborting')
+  sys.exit(1)
+
+if clusterID:
+  jobsubJobID = ('%d.%d@justin-prod-sched01.dune.hep.ac.uk'
+                 % (clusterID, procID))
+else:
+  logLine('Cluster ID not found - aborting')
   sys.exit(1)
 
 siteName = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
-
-##echo 'Before GFAL unsets, do  printenv | grep GFAL'
-##printenv | grep GFAL
-##unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
 
 # Subprocess to send regular heartbeats
 heartbeatsPID = os.fork()
@@ -267,12 +278,9 @@ getStageDict['site_job_id'] = 'XXX'
 for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
   if line.startswith('RequestCpus = '):
     getStageDict['processors'] = int(line.split('=')[1].strip())
-    break
 
-for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
   if line.startswith('RequestMemory = '):
     getStageDict['rss_bytes'] = 1048576 * int(line.split('=')[1].strip())
-    break
 
 for line in open(os.environ['_CONDOR_MACHINE_AD'],'r').readlines():
   if line.startswith('GLIDEIN_Max_Walltime = '):
@@ -391,6 +399,11 @@ os.chmod('justin-jobs-production.proxy.pem', 0o400)
 
 # AWT jobs get production proxy too
 if receivedDict['for_awt']:
+
+  with open('home/justin-awt-rse-list.txt', 'w') as f:
+    for (rseName, scheme, pfn) in receivedDict['awt_rses']:
+      f.write('%s %s %s\n' % (rseName, scheme, pfn))
+
   with open('home/awt-proxy.pem', 'w') as f:
     f.write(receivedDict['justin-jobs-production.cert.pem'])
     f.write(justinJobsProductionKeyPem)
@@ -440,7 +453,7 @@ justinRecordResultsDict = {
   'output_urls'            : [],
   'output_dids'            : [],
   'next_stage_dids'        : [],
-  'jobscript_log' : base64.b64encode(jobscriptOutcome.stdout[:10000]).decode(),
+  'jobscript_log' : base64.b64encode(jobscriptOutcome.stdout[-10000:]).decode(),
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
   'jobscript_finish'       : jobscriptFinishTime,
