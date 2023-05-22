@@ -11,11 +11,10 @@ RUN yum install -y epel-release lcg-CA wlcg-repo
 RUN yum install -y http://repository.egi.eu/sw/production/umd/4/centos7/x86_64/updates/umd-release-4.1.3-1.el7.centos.noarch.rpm
 RUN yum install -y http://linuxsoft.cern.ch/wlcg/centos7/x86_64/wlcg-repo-1.0.0-1.el7.noarch.rpm
 RUN yum install -y wlcg-vobox
+RUN yum install -y mod_wsgi
 
 # RUN yum install -y certbot python2-certbot-apache
 RUN yum update -y
-
-RUN python3 -m pip install mod_wsgi
 
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY services/justin-wsgi-import-script /var/www/wsgi/
