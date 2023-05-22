@@ -93,7 +93,7 @@ def submitJobs(numberToSubmit,
 
   try: 
     outcome = subprocess.run(
-               ["/var/lib/justin/run-jobsub-submit",
+               ["/var/lib/justin/justin-submit-wrapper",
                 str(numberToSubmit),
                 jobsubSiteName,
                 str(int(maxRssBytes / 1024)),
@@ -119,11 +119,11 @@ def submitJobs(numberToSubmit,
   jobsubHost       = None
   
   for line in outcome.stdout.decode().splitlines():
-    if line.startswith('JobsubJobId of first job:'):
+    if 'job(s) submitted to cluster' in line:
       try:
-        jobsubJobID      = line.split()[4]
+        jobsubJobID      = line.split()[5]
         majorJobsubJobID = jobsubJobID.split('.')[0]
-        jobsubHost       = jobsubJobID.split('@')[1]
+        jobsubHost       = 'justin-prod-sched01.dune.hep.ac.uk'
         break
       except:
         pass
@@ -225,19 +225,22 @@ def anySiteJobs():
     for ignoreRow in ignoreRows:
       ignoreSites.append(ignoreRow['jobsub_site_name'])
 
-    try:
-        submitted = justin.db.select('SELECT COUNT(*) AS count FROM jobs '
+    try:    
+        query = ('SELECT COUNT(*) AS count FROM jobs '
                        'WHERE allocation_state = "submitted" AND '
-                       'processors = %d AND '
-                       'rss_bytes > %d AND '
-                       'rss_bytes <= %d AND '
+                       'min_processors < %d AND '
+                       'max_processors >= %d AND '
+                       'min_rss_bytes < %d AND '
+                       'max_rss_bytes >= %d AND '
                        'submitted_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) AND '
                        'NOT for_awt' %
                        (processors,
-                        bytesPerProcessor * (processors - 1),
+                        processors,
+                        bytesPerProcessor * processors,
                         bytesPerProcessor * processors
-                       ), justOne = True
-                                    )
+                       ))
+        logLine('numberSubmitted query: ' + query)
+        submitted = justin.db.select(query, justOne = True)
         numberSubmitted = submitted['count']
     except Exception as e:
         logLine('Failed getting count of submitted jobs: ' + str(e))
@@ -256,8 +259,7 @@ def anySiteJobs():
       logLine('Submit jobs with blacklist: ' + ignoreStr)
       submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
               siteID         = 0,
-              jobsubSiteName = ('NOT_FNAL_GPGrid' 
-                                if ('FNAL_GPGrid' in ignoreSites) else 'ANY'),
+              jobsubSiteName = '',
               minProcessors  = processors - 1,
               maxProcessors  = processors,
               minRssBytes    = bytesPerProcessor * (processors - 1),

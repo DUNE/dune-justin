@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# Wrapper around condor_submit
+#
+# In the future, this Will be merged directly into justin-job-factory...
+#
+
+generic_job_tmp=`mktemp /tmp/generic-job.XXXXXX.py`
+
+sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job-py \
+ >$generic_job_tmp
+chown mcnab.dune $generic_job_tmp
+
+cat <<EOF | su -l mcnab -c "/usr/bin/condor_submit -spool"
+Universe        = vanilla
+Environment     = "CLUSTER=\$(Cluster);PROCESS=\$(Process);JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
+Notification    = Never
+Executable      = $generic_job_tmp
+Arguments       = 
++JOB_EXPECTED_MAX_LIFETIME = $5
++AccountingGroup = "group_dune.prod_keepup.dunepro"
+rank               = Mips / 2 + Memory
+job_lease_duration = 3600
+request_memory  = ${4}KB
+request_cpus    = $4
+GetEnv          = False
+Output          = generic-job_\$(Cluster).\$(Process).out
+Error           = generic-job_\$(Cluster).\$(Process).err
+Log             = generic-job_\$(Cluster).\$(Process).log
++SingularityImage="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6"
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT_OR_EVICT
++DESIRED_usage_model = "OFFSITE,DEDICATED,OPPORTUNISTIC"
++Drain = False
++Blacklist_Sites = "$7"
++DESIRED_SITES = "$2"
+requirements = target.machine =!= MachineAttrMachine1 && target.machine =!= MachineAttrMachine2 && (isUndefined(DesiredOS) || stringListsIntersect(toUpper(DesiredOS),IFOS_installed)) && (stringListsIntersect(toUpper(target.HAS_usage_model), toUpper(my.DESIRED_usage_model))) && ((isUndefined(target.GLIDEIN_Site) == FALSE) && (stringListIMember(target.GLIDEIN_Site,my.DESIRED_Sites)))
+Queue $1
+EOF
+exit $?
+
+if [ "$2" = "ANY" ] ; then
+ if [ "$7" != "" ] ; then
+   blacklist_option="--blacklist $7"
+ fi
+
+ jobsub_submit \
+  --debug \
+  -N ${1} \
+  --memory ${3}KB \
+  --cpu ${4} \
+  --expected-lifetime=${5}s \
+  --group dune \
+  --subgroup prod_keepup \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6\"' \
+  "$blacklist_option" \
+  file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
+else
+ jobsub_submit \
+  --debug \
+  -N ${1} \
+  --site ${2} \
+  --memory ${3}KB \
+  --cpu ${4} \
+  --expected-lifetime=${5}s \
+  --group dune \
+  --subgroup prod_keepup \
+  --lines '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6\"' \
+  file:///var/lib/justin/justin-generic-job.tmp 2>/dev/null
+fi
