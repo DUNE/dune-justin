@@ -207,27 +207,7 @@ logLine('====Start of justin-generic-job====')
 for i in os.environ:
  print('%s=%s' % (i, os.environ[i]))
 
-clusterID = None
-procID    = 0
-
-try:
-  for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
-    if line.startswith('ClusterId = '):
-      clusterID = int(line.split('=')[1].strip())
-
-    if line.startswith('ProcId = '):
-      procID = int(line.split('=')[1].strip())
-except:
-  logLine('Failed getting cluster/proc IDs - aborting')
-  sys.exit(1)
-
-if clusterID:
-  jobsubJobID = ('%d.%d@justin-prod-sched01.dune.hep.ac.uk'
-                 % (clusterID, procID))
-else:
-  logLine('Cluster ID not found - aborting')
-  sys.exit(1)
-
+jobsubJobID = os.environ['JOBSUBJOBID']
 siteName = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
 
 # Subprocess to send regular heartbeats

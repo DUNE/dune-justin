@@ -146,7 +146,7 @@ def findFilesMetaCat(requestID, mql):
       response = urllib.request.urlopen(
        "https://metacat.fnal.gov:9443/dune_meta_demo/app/data/query?"
        "with_meta=no&with_provenance=no",
-       data = mql.encode()           )
+       data = mql.encode()             )
 
       if response.status != 200:
         logLine("Reading files list from MetaCat fails with HTTP code "

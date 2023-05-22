@@ -31,9 +31,9 @@ import hashlib
 import secrets
 import base64
 import string
-import tarfile
 import urllib
 import M2Crypto
+import htcondor
 
 import justin
 
@@ -140,6 +140,9 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
 # Exceptions must by caught by the caller
 def delegateJobsProxy(newCertRequest, jobsProxyString):
 
+  print('newCertRequest: ' + newCertRequest, file=sys.stderr)
+  print('jobsProxyString: ' + str(jobsProxyString), file=sys.stderr)
+
   jobsProxyKey      = M2Crypto.RSA.load_key_string(jobsProxyString)
   jobsProxyCertsBIO = M2Crypto.BIO.MemoryBuffer(jobsProxyString)
 
@@ -202,47 +205,32 @@ def delegateJobsProxy(newCertRequest, jobsProxyString):
 
   return (newCert.as_pem().decode(), jobsProxyCertsChain)
 
-def addFileToTarFile(tar, name, value):
+def makeJobscriptDict(jsonDict, jobDict, stage):
+  # Collect values to be transmitted to the user jobscript
 
-  buffer = io.BytesIO()
-  buffer.write(value.encode())
-
-  info       = tarfile.TarInfo(name = name)
-  info.size  = buffer.tell()
-  info.mode  = stat.S_IRUSR | stat.S_IWUSR
-  info.mtime = time.time()
-
-  buffer.seek(0)
-  tar.addfile(tarinfo = info, fileobj = buffer)
-
-# Make an uncompressed tar file to return to the generic job. 
-# The generic job 'owns' the files in the tar file, one of which is the
-# boostrap.sh script which 'owned' by the user. The generic job has the 
-# responsibility to upload the output files matching the patterns defined as
-# part of the stage 
-def makeTarFile(jsonDict, jobDict, stage):
-
-  buffer        = io.BytesIO()
-  tar           = tarfile.TarFile(fileobj = buffer, mode = "w")
   jobscriptDict = {}
 
   try:
-    query = ("SELECT jobscript,scope_name FROM stages_jobscripts "
+    query = ("SELECT jobscript,scope_name,principal_name "
+             "FROM stages_jobscripts "
              "LEFT JOIN requests "
              "ON requests.request_id=stages_jobscripts.request_id "
              "LEFT JOIN scopes ON scopes.scope_id=requests.scope_id "
+             "LEFT JOIN users ON users.user_id=requests.user_id "
+             "LEFT JOIN principal_names "
+             "ON principal_names.pn_id=users.main_pn_id "
              "WHERE stages_jobscripts.request_id=%d "
              "AND stages_jobscripts.stage_id=%d" 
              % (stage['request_id'], stage['stage_id']))
 
-    row = justin.db.select(query, justOne = True)
+    row       = justin.db.select(query, justOne = True)
     jobscript = row['jobscript']
     scopeName = row['scope_name'] if row['scope_name'] else ''
+    jobscriptDict['principal_name'] = row['principal_name']
   except Exception as e:
     print('SELECT stages_jobscripts fails: ' + str(e), file=sys.stderr)
     return None
 
-  addFileToTarFile(tar, "justin-jobscript.sh", jobscript)
   jobscriptDict['jobscript'] = jobscript
 
   # Create and add files for VOMS proxies for the job
@@ -260,19 +248,12 @@ def makeTarFile(jsonDict, jobDict, stage):
           file=sys.stderr)
     return None
 
-  addFileToTarFile(tar, "justin-jobs-no-roles.cert.pem",  newCertNoRoles)
-  jobscriptDict['justin-jobs-no-roles.cert.pem'] = newCertNoRoles
-
-  addFileToTarFile(tar, "justin-jobs-no-roles.chain.pem", newChainNoRoles)
-  jobscriptDict['justin-jobs-no-roles.chain.pem'] = newChainNoRoles
-
-  addFileToTarFile(tar, "justin-jobs-production.cert.pem",  newCertProduction)
-  jobscriptDict['justin-jobs-production.cert.pem'] = newCertProduction
-
-  addFileToTarFile(tar, "justin-jobs-production.chain.pem", newChainProduction)
+  jobscriptDict['justin-jobs-no-roles.cert.pem']    = newCertNoRoles
+  jobscriptDict['justin-jobs-no-roles.chain.pem']   = newChainNoRoles
+  jobscriptDict['justin-jobs-production.cert.pem']  = newCertProduction
   jobscriptDict['justin-jobs-production.chain.pem'] = newChainProduction
 
-  # Create a file containing the output file patterns
+  # Create a list of the output file patterns
   try:
     query = ("SELECT lifetime_seconds,destination,file_pattern,"
              "for_next_stage "
@@ -290,24 +271,14 @@ def makeTarFile(jsonDict, jobDict, stage):
   except:
     return None
 
-  patternsFile = ''
   jobscriptDict['patterns'] = []
 
   for row in rows:
-    patternsFile += (str(row['lifetime_seconds']) + ' ' +
-                     str(row['for_next_stage']) + ' ' + 
-                     row['destination'] + ' ' +
-                     ('::URL::' if row['destination'].startswith('https://')
-                     else scopeName) + ' ' +
-                     row['file_pattern'] + '\n')
-
     jobscriptDict['patterns'].append((row['lifetime_seconds'],
                                       row['for_next_stage'],
                                       row['destination'],
       ('::URL::' if row['destination'].startswith('https://') else scopeName),
                                       row['file_pattern']))
-    
-  addFileToTarFile(tar, 'justin-output-patterns.txt', patternsFile)
 
   # Create a list of RSEs for Workflow Test jobs
   if jobDict['for_awt']:
@@ -334,7 +305,6 @@ def makeTarFile(jsonDict, jobDict, stage):
       print('AWT list of RSEs query fails with: ' + str(e), file=sys.stderr)
       return None
 
-    awtRseFile = ''
     jobscriptDict['awt_rses'] = []
     for rseRow in rseRows:
       if rseRow['lan_pfn'] and rseRow['distance'] == 0:
@@ -344,20 +314,12 @@ def makeTarFile(jsonDict, jobDict, stage):
       else:
         continue
 
-      awtRseFile += '%s %s %s\n' % (rseRow['rse_name'],
-                                    rseRow['lan_write_scheme']
-                                    if rseRow['distance'] == 0
-                                    else rseRow['wan_write_scheme'],
-                                    pfn)
-
       jobscriptDict['awt_rses'].append((rseRow['rse_name'],
                                         rseRow['lan_write_scheme']
                                         if rseRow['distance'] == 0
                                         else rseRow['wan_write_scheme'],
                                         pfn))
-      
-    addFileToTarFile(tar, 'justin-awt-rse-list.txt', awtRseFile)
-                  
+                        
   # Create an ordered output RSE list specific to this stage
   #
   # When the occupancy figures are usable this needs to have 
@@ -391,39 +353,13 @@ def makeTarFile(jsonDict, jobDict, stage):
   except:
     return None
 
-  outputRseFile = ''
   jobscriptDict['output_rses'] = []
   for rseRow in rseRows:
-    outputRseFile += '%s %s \n' % (rseRow['rse_name'],
-                                   rseRow['lan_write_scheme'] 
-                                   if rseRow['distance'] == 0 
-                                   else rseRow['wan_write_scheme'])
-
     jobscriptDict['output_rses'].append((rseRow['rse_name'],
                                          rseRow['lan_write_scheme'] 
                                          if rseRow['distance'] == 0 
                                          else rseRow['wan_write_scheme']))
       
-  addFileToTarFile(tar, 'justin-output-rse-list.txt', outputRseFile)
-
-  # Standard justin environment variables in justin-env.sh  These are also 
-  # put in justin-jobscript-env.sh for the jobscript Singularity container
-  justinEnvList = [ 'export JUSTIN_SITE_NAME=' + str(jobDict['site_name']),
-                    'export JUSTIN_REQUEST_ID=' + str(stage['request_id']),
-                    'export JUSTIN_STAGE_ID=' + str(stage['stage_id']),
-                    'export JUSTIN_SCOPE=' + scopeName,
-                    'export JUSTIN_JOBSUB_ID=' + str(jsonDict['jobsub_id']),
-                    'export JUSTIN_JOBSCRIPT_SECRET="' + 
-                                          jobDict['jobscript_secret'] + '"',
-                 'export JUSTIN_FOR_AWT="' + ('TRUE' if jobDict['for_awt'] 
-                                                     else '') + '"',
-                 'export JUSTIN_SAM_WEB_URI='
-                 '"https://justin.dune.hep.ac.uk/api/samweb/' + 
-                 str(jsonDict['jobsub_id']) + '/' +
-                 jobDict['jobscript_secret'] + '"'
-               ]
-  addFileToTarFile(tar, 'justin-env.sh', '\n'.join(justinEnvList) + '\n')
-
   jobscriptDict['site_name']        = jobDict['site_name']
   jobscriptDict['request_id']       = stage['request_id']
   jobscriptDict['stage_id']         = stage['stage_id']
@@ -436,7 +372,6 @@ def makeTarFile(jsonDict, jobDict, stage):
      % (jsonDict['jobsub_id'], jobDict['jobscript_secret'])
 
   # User defined environment variables for the jobscript
-  jobscriptEnvList = [] 
   jobscriptDict['stage_env'] = []
 
   try:
@@ -450,49 +385,10 @@ def makeTarFile(jsonDict, jobDict, stage):
   else:
     # Add the user defined ones
     for envRow in envRows:
-      jobscriptEnvList.append('export %s="%s"'
-                              % (envRow['env_name'], envRow['env_value']))
       jobscriptDict['stage_env'].append((envRow['env_name'],
                                          envRow['env_value']))
 
-  # Append standard list. Standard envs always override user-set versions
-  jobscriptEnvList += justinEnvList
-
-  addFileToTarFile(tar,
-                   'justin-jobscript-env.sh',
-                   '\n'.join(jobscriptEnvList) + '\n')
-
-  # JSON files for utility commands to use to contact allocator
-  addFileToTarFile(tar, 'justin-get-file.json', 
-       (
-         '{\n' +
-         '"method" : "get_file",\n' +
-         '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
-         '"jobscript_secret" : "' + jobDict['jobscript_secret'] + '"\n' 
-         '}\n'
-       )
-                  )
-                  
-  addFileToTarFile(tar, 'justin-allocated-files.json', 
-       (
-         '{\n' +
-         '"method" : "get_allocated_files",\n' +
-         '"jobsub_id" : "' + str(jsonDict['jobsub_id']) + '",\n' +
-         '"jobscript_secret" : "' + jobDict['jobscript_secret'] + '"\n'
-         '}\n'
-       )
-                  )
-
-  addFileToTarFile(tar, 'jobscript.json', json.dumps(jobscriptDict))
-                  
-  tar.close()
-
-# THIS STILL HAS tar FILE SUPPORT. REWORK AS PURELY JSON OUTPUT ONCE
-# ONLY USING PYTHON GENERIC JOBS
-  if jsonDict['method'] == 'get_stage_json':
-    return json.dumps(jobscriptDict).encode('UTF-8')
-  else:
-    return buffer.getvalue()
+  return jobscriptDict
 
 def updateAllocationState(jobsub_id, state):
   try:
@@ -669,7 +565,14 @@ def getStageMethod(startResponse, jsonDict, environ):
                      '404 Not Found', 
                      'No eligible stages found')
 
-#  print('Before UPDATE jobs SET', file=sys.stderr)
+  jobscriptDict = makeJobscriptDict(jsonDict, jobDict, stage)
+ 
+  if not jobscriptDict:
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed to create jobscript dictionary')
+           
   try:
     # Unique ID string for this instance that may also help in debugging
     allocatorName = environ['SERVER_NAME']
@@ -693,16 +596,16 @@ def getStageMethod(startResponse, jsonDict, environ):
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
-# THIS STILL HAS tar/json SUPPORT FOR NOW. REMOVE tar ONCE ONLY USING 
-# PYTHON GENERIC JOBS
-  tarFile = makeTarFile(jsonDict, jobDict, stage)
-  
-  if not tarFile:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Failed to create tar file')
-           
+  try:
+    clusterID = int(jsonDict['jobsub_id'].split('.')[0])
+    procID    = int(jsonDict['jobsub_id'].split('@')[0].split('.')[1])
+
+    schedd = htcondor.Schedd()
+    schedd.edit('ClusterId == %d && ProcId == %d' % (clusterID, procID),
+                'justIN_User', '\"%s\"' % jobscript['principal_name'])
+  except Exception as e:
+    print('schedd.edit() fails with %s' % str(e), file=sys.stderr)
+
   try:
     justin.db.conn.commit()
   except Exception as e:
@@ -710,19 +613,13 @@ def getStageMethod(startResponse, jsonDict, environ):
                      '500 Internal Server Error',
                      'Database commit fails: ' + str(e))
 
-  if jsonDict['method'] == 'get_stage_json':
-    startResponse('200 OK',
-                  [('Content-type',   'application/json'),
-                   ('Content-length', str(len(tarFile)))
-                  ])
-    return [tarFile]
-  else:
-    startResponse('200 OK',
-                  [('Content-type',   'application/x-tar'),
-                   ('Content-length', str(len(tarFile)))
-                  ])
+  s = json.dumps(jobscriptDict).encode('UTF-8')
+  startResponse('200 OK',
+                [('Content-type',   'application/json'),
+                 ('Content-length', str(len(s)))
+                ])
 
-    return [tarFile]
+  return [s]
    
 # Record heartbeats from generic jobs
 def sendHeartbeatMethod(startResponse, jsonDict):

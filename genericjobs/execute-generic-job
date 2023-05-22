@@ -57,7 +57,8 @@ f.close()
 
 os.chmod(tempJobFile, 0o700)
 
-jobsubJobID = str(int(time.time())) + '@execute-generic-job'
+clusterID = str(int(time.time()))
+jobsubJobID = clusterID + '.0@execute-generic-job'
 
 jobEnv = { 'PATH'                : '/usr/bin',
            'GLIDEIN_DUNESite'    : 'US_FNAL-FermiGrid',
@@ -65,6 +66,8 @@ jobEnv = { 'PATH'                : '/usr/bin',
            '_CONDOR_JOB_AD'      : '/tmp/_condor_ad',
            '_CONDOR_MACHINE_AD'  : '/tmp/_condor_ad'
          }
+
+print('Insert %s into justIN DB' % jobsubJobID)
 
 justin.db.cur.execute('INSERT INTO jobs '
                   'SET factory_name="%s",'
