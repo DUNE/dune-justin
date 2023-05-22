@@ -24,6 +24,8 @@ RUN python3 -m pip install setuptools_rust
 RUN python3 -m pip install rust
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install rucio
+RUN python3 -m pip install pyyaml
+RUN python3 -m pip install htcondor
 
 COPY agents/justin-info-collector /usr/sbin/
 COPY agents/justin-finder         /usr/sbin/
