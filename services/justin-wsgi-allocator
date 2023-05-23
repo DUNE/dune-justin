@@ -142,6 +142,8 @@ def delegateJobsProxy(newCertRequest, jobsProxyString):
 
   print('newCertRequest: ' + newCertRequest, file=sys.stderr)
   print('jobsProxyString: ' + str(jobsProxyString), file=sys.stderr)
+  if not jobsProxyString:
+    print('Failed to read proxy file from disk?', file=sys.stderr)
 
   jobsProxyKey      = M2Crypto.RSA.load_key_string(jobsProxyString)
   jobsProxyCertsBIO = M2Crypto.BIO.MemoryBuffer(jobsProxyString)

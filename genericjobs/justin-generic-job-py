@@ -208,26 +208,28 @@ for i in os.environ:
  print('%s=%s' % (i, os.environ[i]))
 
 jobsubJobID = os.environ['JOBSUBJOBID']
-siteName = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
+siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
+jobPID      = os.getpid()
 
-# Subprocess to send regular heartbeats
-heartbeatsPID = os.fork()
-
-if heartbeatsPID == 0:
-
+# Start of subprocess to send regular heartbeats
+if os.fork() == 0:
   # Redirect stdout/stderr
   so = open('heartbeats.log', 'a+')
   os.dup2(so.fileno(), sys.stdout.fileno())
   se = open('heartbeats.log', 'a+')
   os.dup2(se.fileno(), sys.stderr.fileno())
-
-  while True:
+  
+  # Send heartbeats until parent exits
+  while os.getppid() == jobPID:
     sendJsonURL('https://justin-allocator-pro.dune.hep.ac.uk'
                               '/api/allocator/send_heartbeat',
                 { "method" : "send_heartbeat" }
                )
              
     time.sleep(600)
+
+  sys.exit(0)    
+# End of subprocess to send regular heartbeats
 
 justinWorkdir = os.environ['PWD']
 
