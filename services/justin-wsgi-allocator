@@ -1008,7 +1008,7 @@ def recordResultsMethod(startResponse, jsonDict):
     justin.db.insertUpdate(
         'INSERT INTO jobs_logs SET justin_job_id=' + str(justinJobID) + ','
         'jobscript_log="%s"' %
-        base64.b64decode(jsonDict['jobscript_log']).decode().replace('"', '_')
+        jsonDict['jobscript_log'].replace('\\','\\\\').replace('"','\\"')
                        )                           
   except Exception as e:
     return httpError(startResponse,

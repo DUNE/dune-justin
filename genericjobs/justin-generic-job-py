@@ -118,6 +118,7 @@ def executeMetaCatCommand(args):
     ret = os.system(
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
      'setup metacat ; '
+     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune ; '
      'export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app ; '
      'metacat auth login -m x509 dunepro ; '
@@ -136,8 +137,9 @@ def executeRucioCommand(args):
     ret = os.system(
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
      'setup rucio ; '
+     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR ; '
-     'rucio --account dunepro --auth-strategy x509 %s' % args)
+     'rucio --account dunepro --auth-strategy x509_proxy %s' % args)
 
     if ret == 0:
       break
@@ -435,7 +437,7 @@ justinRecordResultsDict = {
   'output_urls'            : [],
   'output_dids'            : [],
   'next_stage_dids'        : [],
-  'jobscript_log' : base64.b64encode(jobscriptOutcome.stdout[-10000:]).decode(),
+  'jobscript_log'          : jobscriptOutcome.stdout.decode()[-10000:],
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
   'jobscript_finish'       : jobscriptFinishTime,
@@ -451,9 +453,9 @@ outputFiles = []
 for (lifetimeSeconds, forNextStage, destination, scope, pattern) in \
     receivedDict['patterns']:
   
-  matchingPath = glob.glob('home/workspace/' + pattern)
-  for i in matches:
-    matchingFile = matchingPath.split('/')[-1]
+  matches = glob.glob('home/workspace/' + pattern)
+  for match in matches:
+    matchingFile = match.split('/')[-1]
     outputFiles.append((lifetimeSeconds, destination, scope, matchingFile))
     
     if scope == '::URL::':
@@ -541,11 +543,13 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
                                 '--transfer-timeout 1200 '
                                 '--protocol %s '
                                 '--scope %s '
-                                '--name "%s" '
+                                '--name %s '
                                 'home/workspace/%s' %
                (('--lifetime %d' % lifetimeSeconds) if lifetimeSeconds else '',
+                rse,
                 scheme,
                 fileScope,
+                fileName,
                 fileName))
 
       if ret == 0:

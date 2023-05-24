@@ -97,6 +97,6 @@ fi
 
 ls -lRS
 
-# Create compressed tar file with all log files including the jobscript.log
+# Create compressed tar file with all log files 
 tar zcf `echo "$JUSTIN_JOBSUB_ID.logs.tgz" | sed 's/@/_/g'` *.log
 exit $jobscriptExit
