@@ -2,6 +2,10 @@
 #
 # Wrapper around condor_submit
 #
+# Command line arguments:
+#  1: number to submit, 2: site name(s), 3: memory KB, 4: cpus, 
+#  5: length seconds, 6: justIN job secret
+#
 # In the future, this Will be merged directly into justin-job-factory...
 #
 
@@ -12,31 +16,29 @@ sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job-py \
 chown mcnab.dune $generic_job_tmp
 
 cat <<EOF | su -l mcnab -c "/usr/bin/condor_submit -spool"
-Universe        = vanilla
-Environment     = "CLUSTER=\$(Cluster);PROCESS=\$(Process);JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
-Notification    = Never
-Executable      = $generic_job_tmp
-Arguments       = 
-+JOB_EXPECTED_MAX_LIFETIME = $5
-accounting_group = group_dune.prod_keepup
-accounting_group_user = justinjobs
-rank               = Mips / 2 + Memory
-job_lease_duration = 3600
-request_memory  = ${4}KB
-request_cpus    = $4
-GetEnv          = False
-Output          = generic-job_\$(Cluster).\$(Process).out
-Error           = generic-job_\$(Cluster).\$(Process).err
-Log             = generic-job_\$(Cluster).\$(Process).log
-+justIN_User    = "justinjobs@dune.hep.ac.uk"
-+SingularityImage="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6"
++Desired_Sites          = "$2"
++Job_Expected_Max_Lifetime = $5
++justIN_User            = "justinjobs@dune.hep.ac.uk"
++SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
+universe                = vanilla
+environment = "CLUSTER=\$(Cluster) PROCESS=\$(Process) JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
+notification            = Never
+executable              = $generic_job_tmp
+arguments               = 
+accounting_group        = group_dune.prod_keepup
+accounting_group_user   = justinjobs
+rank                    = Mips / 2 + Memory
+job_lease_duration      = 3600
+request_memory          = ${3}KB
+request_cpus            = $4
+request_disk            = 1
+getenv                  = False
+output                  = generic_job_logs/\$(Cluster).\$(Process).out
+error                   = generic_job_logs/\$(Cluster).\$(Process).err
+log                     = generic_job_logs/\$(Cluster).\$(Process).log
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
-+DESIRED_usage_model = "OFFSITE,DEDICATED,OPPORTUNISTIC"
-+Drain = False
-+Blacklist_Sites = "$7"
-+DESIRED_SITES = "$2"
-requirements = target.machine =!= MachineAttrMachine1 && target.machine =!= MachineAttrMachine2 && (isUndefined(DesiredOS) || stringListsIntersect(toUpper(DesiredOS),IFOS_installed)) && (stringListsIntersect(toUpper(target.HAS_usage_model), toUpper(my.DESIRED_usage_model))) && ((isUndefined(target.GLIDEIN_Site) == FALSE) && (stringListIMember(target.GLIDEIN_Site,my.DESIRED_Sites)))
+requirements = ((isUndefined(target.GLIDEIN_DUNESite) == FALSE) && (stringListIMember(target.GLIDEIN_DUNESite,my.Desired_Sites)))
 Queue $1
 EOF
 exit $?

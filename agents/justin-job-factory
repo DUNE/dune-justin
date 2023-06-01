@@ -39,10 +39,10 @@ import justin
 sleepSeconds      = 60
 jobsPerCluster    = 192
 
-# Jobsub names of all sites we always ignore. This is for sites unknown to us 
+# DUNE names of all sites we always ignore. This is for sites unknown to us 
 # because they do not have pilot factory entries. Known sites are disabled in
 # the database.
-alwaysIgnoreSitesList = [ 'UConn-HPC' ] 
+alwaysIgnoreSitesList = [ ] # [ 'UConn-HPC' ] 
 
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
@@ -68,26 +68,28 @@ def updateSiteCounts():
     logLine('Updated site job counts')
    
 def submitJobs(numberToSubmit, 
-               siteID,
-               jobsubSiteName,
+               firstSiteID,
+               desiredSiteNames,
                minProcessors,
                maxProcessors,
                minRssBytes,
                maxRssBytes,
                maxWallSeconds,
-               ignoreStr,
                forAwt = False):
 
-  logLine('submitJobs %d %s %s %d-%d %d-%d %d %s' %
+  # If targetting one site, then firstSiteID should be non-zero
+  # desiredSiteNames is a comma separated list of DUNE site names
+  # to match GLIDEIN_DUNESite classads
+
+  logLine('submitJobs %d %d %s %d-%d %d-%d %d' %
           (numberToSubmit,
-           siteID,
-           jobsubSiteName,
+           firstSiteID,
+           desiredSiteNames,
            minProcessors,
            maxProcessors,
            minRssBytes,
            maxRssBytes,
-           maxWallSeconds,
-           ignoreStr))
+           maxWallSeconds))
 
   justinJobSecret = secrets.token_urlsafe(64)
 
@@ -95,12 +97,11 @@ def submitJobs(numberToSubmit,
     outcome = subprocess.run(
                ["/var/lib/justin/justin-submit-wrapper",
                 str(numberToSubmit),
-                jobsubSiteName,
+                desiredSiteNames,
                 str(int(maxRssBytes / 1024)),
                 str(maxProcessors),
                 str(maxWallSeconds),
                 justinJobSecret,
-                ignoreStr
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
@@ -135,7 +136,7 @@ def submitJobs(numberToSubmit,
 
   logLine("Submitted cluster %s to %s%s" % 
           (jobsubJobID, 
-           jobsubSiteName,
+           desiredSiteNames,
            ' (AWT job)' if forAwt else ''))
 
   # Record the job(s) in the database
@@ -156,7 +157,7 @@ def submitJobs(numberToSubmit,
                   'jobscript_secret="%s",'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
-                     siteID,
+                     firstSiteID,
                      minProcessors,
                      maxProcessors,
                      minRssBytes,
@@ -173,15 +174,15 @@ def submitJobs(numberToSubmit,
       # But try to keep going
       logLine('INSERT INTO jobs fails with: ' + str(e))
 
-  # Record that we've done a submission for this site
-  try:
-    justin.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
-                'WHERE site_id=%d' % siteID
-               )
+  # Record that we've done a submission if just for one site
+  if firstSiteID:
+    try:
+      justin.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
+                            'WHERE site_id=%d' % firstSiteID)
 
-  except Exception as e:
-    # But try to keep going
-    logLine('Update last_submitted_time fails with: ' + str(e))
+    except Exception as e:
+      # But try to keep going
+      logLine('Update last_submitted_time fails with: ' + str(e))
 
   # Commit it all to the DB
   justin.db.conn.commit()
@@ -199,7 +200,7 @@ def anySiteJobs():
       numberUnallocated = jobsPerCluster
 
     try:
-      ignoreRows = justin.db.select('SELECT jobsub_site_name '
+      desiredRows = justin.db.select('SELECT site_name '
                      'FROM sites '
                      'LEFT JOIN get_stage_cache '
                      'ON get_stage_cache.site_id=sites.site_id '
@@ -208,8 +209,8 @@ def anySiteJobs():
                      'AND get_stage_cache.min_rss_bytes=%d '
                      'AND get_stage_cache.max_rss_bytes=%d '
                      'AND get_stage_cache.max_wall_seconds=%d '
-                     'WHERE get_stage_cache.site_id IS NULL '
-                     'OR NOT sites.enabled '
+                     'WHERE get_stage_cache.site_id IS NOT NULL '
+                     'AND sites.enabled '
                      'ORDER by site_name' % 
                      (processors - 1, 
                       processors, 
@@ -217,13 +218,14 @@ def anySiteJobs():
                       bytesPerProcessor * processors,
                       86400))
     except Exception as e:
-      logLine('Failed getting list of ignored sites for get_stage_cache: ' + 
+      logLine('Failed getting list of desired sites for get_stage_cache: ' + 
               str(e))
       return
 
-    ignoreSites = alwaysIgnoreSitesList
-    for ignoreRow in ignoreRows:
-      ignoreSites.append(ignoreRow['jobsub_site_name'])
+    desiredSites = set() # use a set to remove duplicates
+    for desiredRow in desiredRows:
+      if desiredRow['site_name'] not in alwaysIgnoreSitesList:
+        desiredSites.add(desiredRow['site_name'])
 
     try:    
         query = ('SELECT COUNT(*) AS count FROM jobs '
@@ -251,22 +253,19 @@ def anySiteJobs():
              int((bytesPerProcessor * processors) / (1024 * 1024)),
              numberSubmitted, numberUnallocated))
             
-    if numberUnallocated > numberSubmitted:
-      ignoreStr = ','.join(ignoreSites)
-      if not ignoreStr:
-        ignoreStr = ' '
+    if desiredSites and (numberUnallocated > numberSubmitted):
+      desiredSitesStr = ','.join(desiredSites)
       
-      logLine('Submit jobs with blacklist: ' + ignoreStr)
+      logLine('Submit jobs with desired sites: ' + desiredSitesStr)
       submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
-              siteID         = 0,
-              jobsubSiteName = '',
-              minProcessors  = processors - 1,
-              maxProcessors  = processors,
-              minRssBytes    = bytesPerProcessor * (processors - 1),
-              maxRssBytes    = bytesPerProcessor * processors,
-              maxWallSeconds = 86400,
-              ignoreStr      = ignoreStr,
-              forAwt         = False)
+               firstSiteID      = 0,
+               desiredSiteNames = desiredSitesStr,
+               minProcessors    = processors - 1,
+               maxProcessors    = processors,
+               minRssBytes      = bytesPerProcessor * (processors - 1),
+               maxRssBytes      = bytesPerProcessor * processors,
+               maxWallSeconds   = 86400,
+               forAwt           = False)
 
 def awtJobsToSites():
   # Go through the sites deciding where to submit AWT jobs
@@ -291,15 +290,14 @@ def awtJobsToSites():
   
   for row in rows:
       submitJobs(numberToSubmit = 1,
-                 siteID         = row['site_id'],
-                 jobsubSiteName = row['jobsub_site_name'],
-                 minProcessors  = 0,
-                 maxProcessors  = 1,
-                 minRssBytes    = 0,
-                 maxRssBytes    = 1024 * 1024 * 1024,
-                 maxWallSeconds = 3600,
-                 ignoreStr      = ' ',
-                 forAwt         = True)
+                 firstSiteID      = row['site_id'],
+                 desiredSiteNames = row['site_name'],
+                 minProcessors    = 0,
+                 maxProcessors    = 1,
+                 minRssBytes      = 0,
+                 maxRssBytes      = 1024 * 1024 * 1024,
+                 maxWallSeconds   = 3600,
+                 forAwt           = True)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs

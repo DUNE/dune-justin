@@ -29,7 +29,6 @@ import json
 import hmac
 import hashlib
 import secrets
-import base64
 import string
 import urllib
 import M2Crypto
@@ -686,6 +685,7 @@ def jobAbortedMethod(startResponse, jsonDict):
     eventTypeID = justin.db.event_JOB_ABORTED
   elif jsonDict['aborted_method'] in [ 'rucio_attach', 'rucio_upload',
                                        'metacat_declare' ]:
+# WANT TO RESET FILE ALLOCATIONS TOO?
     state = 'outputting_failed'
 ##### NEEDS CHANGING TO AN outputting error EVENT!!!
     eventTypeID = justin.db.event_JOB_ABORTED
@@ -710,12 +710,12 @@ def jobAbortedMethod(startResponse, jsonDict):
   else:
     rseName = None
 
-  justin.db.logEvent(eventTypeID = eventTypeID,
-                  requestID   = jobDict['request_id'],
-                  stageID     = jobDict['stage_id'],
-                  justinJobID    = jobDict['justin_job_id'],
-                  siteID      = jobDict['site_id'],
-                  rseName     = rseName
+  justin.db.logEvent(eventTypeID  = eventTypeID,
+                     requestID    = jobDict['request_id'],
+                     stageID      = jobDict['stage_id'],
+                     justinJobID  = jobDict['justin_job_id'],
+                     siteID       = jobDict['site_id'],
+                     rseName      = rseName
                  )
 
   return httpOK(startResponse, '')
@@ -1018,7 +1018,7 @@ def recordResultsMethod(startResponse, jsonDict):
   if forAwt:
     saveAwtResults(justinJobID, 
                    siteID, 
-                   base64.b64decode(jsonDict['jobscript_log']).decode())
+                   jsonDict['jobscript_log'])
 
   if 'jobscript_exit' in jsonDict and jsonDict['jobscript_exit'] != 0:
     # Jobscript said it failed by exiting with non-zero value
