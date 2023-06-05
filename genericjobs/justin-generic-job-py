@@ -272,7 +272,7 @@ for line in open(os.environ['_CONDOR_MACHINE_AD'],'r').readlines():
     break
 
 logLine('==== Before try apptainer ====')
-getStageDict['inner_apptainer'] = (0 == os.system(
+getStageDict['has_inner_apptainer'] = (0 == os.system(
    '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer '
    'shell --shell /usr/bin/hostname '
    '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6'
@@ -395,9 +395,11 @@ if receivedDict['for_awt']:
 
   os.chmod('home/awt-proxy.pem', 0o400)
 
-# Wrapper to be run inside the container
-with open('home/jobscript-wrapper.sh','w') as f:
-  f.write('''#!/bin/sh
+### NEED TO RECORD USER SECONDS, MAX MEMORY ETC!!!!
+if getStageDict['has_inner_apptainer']:
+  # Wrapper to be run inside the container
+  with open('home/jobscript-wrapper.sh','w') as f:
+    f.write('''#!/bin/sh
 export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
@@ -405,25 +407,50 @@ cd workspace
 stdbuf -oL -eL ../justin-jobscript 2>&1
 ''')
 
-os.chmod('home/jobscript-wrapper.sh', 0o755)
+  os.chmod('home/jobscript-wrapper.sh', 0o755)
 
-logLine('====Start of jobscript execution====')
-jobscriptStartTime=int(time.time())
+  logLine('Inner apptainer available. Run jobscript inside container')
+  logLine('====Start of jobscript execution====')
+  jobscriptStartTime=int(time.time())
 
-### NEED TO RECORD USER SECONDS, MAX MEMORY ETC!!!!
-jobscriptOutcome = subprocess.run(
- '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell '
- '--shell /home/jobscript-wrapper.sh '
- '--containall '
- '--bind /cvmfs '
- '--workdir %s '
- '--home %s/home:/home '
- '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 '
- % (justinWorkdir, justinWorkdir),
- stdout=subprocess.PIPE,
- stderr=subprocess.STDOUT,
- shell=True 
-)
+  jobscriptOutcome = subprocess.run(
+  '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell '
+  '--shell /home/jobscript-wrapper.sh '
+  '--containall '
+  '--bind /cvmfs '
+  '--workdir %s '
+  '--home %s/home:/home '
+  '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 '
+  % (justinWorkdir, justinWorkdir),
+  stdout=subprocess.PIPE,
+  stderr=subprocess.STDOUT,
+  shell=True 
+  )
+  
+else:
+  # Wrapper to be run outside a container
+  with open('home/jobscript-wrapper.sh','w') as f:
+    f.write('''#!/bin/sh
+cd home
+export HOME="$PWD"
+export JUSTIN_PATH="$HOME"
+export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
+cd workspace
+. ../justin-jobscript-env.sh
+stdbuf -oL -eL ../justin-jobscript 2>&1
+''')
+
+  os.chmod('home/jobscript-wrapper.sh', 0o755)
+
+  logLine('Inner apptainer not available. Run jobscript in generic job context')
+  logLine('====Start of jobscript execution====')
+  jobscriptStartTime=int(time.time())
+
+  jobscriptOutcome = subprocess.run('home/jobscript-wrapper.sh ',
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
+                                    shell=True 
+                                   )
 
 jobscriptFinishTime=int(time.time())
 logLine('====End of jobscript execution====')

@@ -189,7 +189,7 @@ def submitJobs(numberToSubmit,
 
 def anySiteJobs():
   
-  for (processors, bytesPerProcessor, numberUnallocated) \
+  for (processors, bytesPerProcessor, jobHadInnerApptainer, numberUnallocated) \
    in justin.getUnallocatedCounts():
     logLine('%d processor(s) %d MB: %d unallocated files' % 
             (processors, 
@@ -211,17 +211,21 @@ def anySiteJobs():
                      'AND get_stage_cache.max_wall_seconds=%d '
                      'WHERE get_stage_cache.site_id IS NOT NULL '
                      'AND sites.enabled '
+                     'AND sites.has_inner_apptainer=%s '
                      'ORDER by site_name' % 
                      (processors - 1, 
                       processors, 
                       bytesPerProcessor * (processors - 1),
                       bytesPerProcessor * processors,
-                      86400))
+                      86400,
+                      jobHadInnerApptainer))
     except Exception as e:
       logLine('Failed getting list of desired sites for get_stage_cache: ' + 
               str(e))
       return
 
+# SOME DOUBLE COUNTING HERE FOR COUNTS WITH AND WITHOUT INNER SINGULARITY?
+# WILL GO AWAY WHEN REDONE FOR CLASSAD MATCHING OF INNER SINGULARITY?
     desiredSites = set() # use a set to remove duplicates
     for desiredRow in desiredRows:
       if desiredRow['site_name'] not in alwaysIgnoreSitesList:

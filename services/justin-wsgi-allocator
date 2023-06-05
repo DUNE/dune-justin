@@ -91,6 +91,7 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
              'jobs.min_rss_bytes,'
              'jobs.max_rss_bytes,'
              'jobs.max_wall_seconds,'
+             'jobs.has_inner_apptainer,'
              'sites.site_name,'
              'sites.max_jobs,'
              'sites.running_jobs,'
@@ -114,24 +115,25 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
      job['jobscript_secret'] != jobscriptSecret:
     return { "error_message": "Jobscript secret mismatch" }
 
-  return { "error_message"    : None,
-           "request_id"       : job['request_id'],
-           "stage_id"         : job['stage_id'],
-           "site_id"          : job['site_id'],
-           "site_name"        : job['site_name'],
-           "running_jobs"     : job['running_jobs'],
-           "max_jobs"         : job['max_jobs'],
-           "site_enabled"     : job['enabled'],
-           "justin_job_id"    : job['justin_job_id'],
-           "allocation_state" : job['allocation_state'],
-           "jobscript_secret" : job['jobscript_secret'],
-           "for_awt"          : job['for_awt'],
-           "max_distance"     : job['max_distance'],
-           "min_processors"   : job['min_processors'],
-           "max_processors"   : job['max_processors'],
-           "min_rss_bytes"    : job['min_rss_bytes'],
-           "max_rss_bytes"    : job['max_rss_bytes'],
-           "max_wall_seconds" : job['max_wall_seconds']
+  return { "error_message"       : None,
+           "request_id"          : job['request_id'],
+           "stage_id"            : job['stage_id'],
+           "site_id"             : job['site_id'],
+           "site_name"           : job['site_name'],
+           "running_jobs"        : job['running_jobs'],
+           "max_jobs"            : job['max_jobs'],
+           "site_enabled"        : job['enabled'],
+           "justin_job_id"       : job['justin_job_id'],
+           "allocation_state"    : job['allocation_state'],
+           "jobscript_secret"    : job['jobscript_secret'],
+           "for_awt"             : job['for_awt'],
+           "max_distance"        : job['max_distance'],
+           "min_processors"      : job['min_processors'],
+           "max_processors"      : job['max_processors'],
+           "min_rss_bytes"       : job['min_rss_bytes'],
+           "max_rss_bytes"       : job['max_rss_bytes'],
+           "max_wall_seconds"    : job['max_wall_seconds'],
+           "has_inner_apptainer" : job['has_inner_apptainer']
          }
 
 # Make a new certificate from the certificate request sent by the 
@@ -416,7 +418,8 @@ def findCachedStage(jobDict):
  "max_processors=%d AND "
  "min_rss_bytes=%d AND "
  "max_rss_bytes=%d AND "
- "max_wall_seconds=%d "
+ "max_wall_seconds=%d AND "
+ "job_had_inner_apptainer=%s "
  "ORDER BY cache_time DESC "
  "LIMIT 1" % 
  ( jobDict["site_id"],
@@ -424,7 +427,8 @@ def findCachedStage(jobDict):
    jobDict["max_processors"], 
    jobDict["min_rss_bytes"],
    jobDict["max_rss_bytes"], 
-   jobDict["max_wall_seconds"] )
+   jobDict["max_wall_seconds"],
+   jobDict["has_inner_apptainer"] )
           )
      
   stageRow = justin.db.select(query, justOne=True)
@@ -449,7 +453,7 @@ def getStageMethod(startResponse, jsonDict, environ):
                      'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required integer/bool values (eg rss_bytes)
-  for name in ['rss_bytes', 'processors', 'wall_seconds', 'inner_apptainer']:
+  for name in ['rss_bytes', 'processors', 'wall_seconds', 'has_inner_apptainer']:
     try:
       n = int(jsonDict[name])
     except:
@@ -484,8 +488,8 @@ def getStageMethod(startResponse, jsonDict, environ):
                         'hostname="%s",' 
                         'rss_bytes=%d,' 
                         'processors=%d,' 
-                        'wall_seconds=%d,' 
-                        'inner_apptainer=%s ' 
+                        'wall_seconds=%d,'
+                        'has_inner_apptainer=%s ' 
                         'WHERE jobsub_id="%s"' % 
                         (jsonDict['site_name'], 
                          jsonDict['cpuinfo'],
@@ -494,7 +498,7 @@ def getStageMethod(startResponse, jsonDict, environ):
                          jsonDict['rss_bytes'],
                          jsonDict['processors'],
                          jsonDict['wall_seconds'],
-                         jsonDict['inner_apptainer'],
+                         jsonDict['has_inner_apptainer'],
                          jsonDict['jobsub_id']))
     justin.db.conn.commit()
   except Exception as e:
@@ -552,7 +556,6 @@ def getStageMethod(startResponse, jsonDict, environ):
     # Use the Just In Time decision making: identify the best request+stage 
     # candidate combination at this moment
     try:
-#      print('Before findCachedStage()', file=sys.stderr)
       stage = findCachedStage(jobDict)
     except Exception as e:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')

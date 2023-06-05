@@ -119,6 +119,7 @@ def findStage(jobDict):
  "LEFT JOIN stages ON files.request_id=stages.request_id AND "
  "files.stage_id=stages.stage_id "
  "LEFT JOIN requests ON requests.request_id=files.request_id "
+ "LEFT JOIN scopes ON requests.scope_id=scopes.scope_id "
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "LEFT JOIN sites_storages ON replicas.rse_id=sites_storages.rse_id AND "
@@ -137,6 +138,7 @@ def findStage(jobDict):
  "AND storages.rucio_read "
  "AND storages.justin_read "
  "AND NOT storages.decommissioned "
+ "%s "
  "ORDER BY stage_rank DESC,sites_storages.distance,rand() "
  "LIMIT 1" %
  (
@@ -146,7 +148,9 @@ def findStage(jobDict):
   jobDict["max_rss_bytes"],
   jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
   jobDict["max_processors"],
-  jobDict["max_wall_seconds"]
+  jobDict["max_wall_seconds"],
+  "" if jobDict["has_inner_apptainer"] 
+  else ("AND scopes.wlcg_group_id=%d" % justin.productionWLCGGroupID)
  ))
     
   fileRows = justin.db.select(query)
@@ -171,26 +175,27 @@ def cacheFindStageResults():
 
   try:
     siteRows = justin.db.select('SELECT site_id,site_name,'
-                             'enabled,jobsub_site_name '
-                             'FROM sites ORDER by site_name')
+                                'enabled,jobsub_site_name,has_inner_apptainer '
+                                'FROM sites ORDER by site_name')
   except Exception as e:
     logLine('Failed getting list of sites for get_stage_cache: ' + str(e))
     return
 
-  for (processors,bytesPerProcessor,numberUnallocated) \
+  for (processors,bytesPerProcessor,jobHadInnerApptainer,numberUnallocated) \
    in justin.getUnallocatedCounts():
     
     for siteRow in siteRows:
 
       if siteRow['enabled']:
-        jobDict = { "error_message"   : None,
-                    "site_id"         : siteRow['site_id'],
-                    "site_name"       : siteRow['site_name'],
-                    "min_processors"  : processors - 1,
-                    "max_processors"  : processors,
+        jobDict = { "error_message"         : None,
+                    "site_id"               : siteRow['site_id'],
+                    "site_name"             : siteRow['site_name'],
+                    "min_processors"        : processors - 1,
+                    "max_processors"        : processors,
                     "min_rss_bytes"   : bytesPerProcessor * (processors - 1),
                     "max_rss_bytes"   : bytesPerProcessor * processors,
-                    "max_wall_seconds": 86400
+                    "has_inner_apptainer"   : jobHadInnerApptainer,
+                    "max_wall_seconds"      : 86400
                   }
 
         try:
@@ -215,31 +220,33 @@ def cacheFindStageResults():
 
         try:
           justin.db.insertUpdate('INSERT INTO get_stage_cache SET '
-                              'site_id=%d,'
-                              'min_processors=%d,'
-                              'max_processors=%d,'
-                              'min_rss_bytes=%d,'
-                              'max_rss_bytes=%d,'
-                              'max_wall_seconds=%d,'
-                              'request_id=%d,'
-                              'stage_id=%d,'
-                              'cache_time=NOW() '
-                              'ON DUPLICATE KEY UPDATE ' 
-                              'request_id=%d,'
-                              'stage_id=%d,'
-                              'cache_time=NOW() ' % 
-                              (jobDict['site_id'],
-                               jobDict['min_processors'],
-                               jobDict['max_processors'],
-                               jobDict['min_rss_bytes'],
-                               jobDict['max_rss_bytes'],
-                               jobDict['max_wall_seconds'],
-                               requestID,
-                               stageID,
-                               requestID,
-                               stageID
-                              )
-                             )
+                                 'site_id=%d,'
+                                 'min_processors=%d,'
+                                 'max_processors=%d,'
+                                 'min_rss_bytes=%d,'
+                                 'max_rss_bytes=%d,'
+                                 'max_wall_seconds=%d,'
+                                 'job_had_inner_apptainer=%s,'
+                                 'request_id=%d,'
+                                 'stage_id=%d,'
+                                 'cache_time=NOW() '
+                                 'ON DUPLICATE KEY UPDATE ' 
+                                 'request_id=%d,'
+                                 'stage_id=%d,'
+                                 'cache_time=NOW() ' % 
+                                 (jobDict['site_id'],
+                                  jobDict['min_processors'],
+                                  jobDict['max_processors'],
+                                  jobDict['min_rss_bytes'],
+                                  jobDict['max_rss_bytes'],
+                                  jobDict['max_wall_seconds'],
+                                  jobHadInnerApptainer,
+                                  requestID,
+                                  stageID,
+                                  requestID,
+                                  stageID
+                                 )
+                                )
 
         except Exception as e:
           logLine('Record  fails with: ' + str(e))

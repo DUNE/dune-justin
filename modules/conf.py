@@ -17,7 +17,8 @@
 import configparser
 
 # Constants
-MonteCarloRseID = 1
+MonteCarloRseID       = 1
+productionWLCGGroupID = 2
 
 justinRunDir    = '/var/run/justin'
 

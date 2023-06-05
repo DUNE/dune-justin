@@ -37,42 +37,58 @@ jobsNoRolesProxyFile   = '/var/lib/justin/justin-jobs-no-roles.proxy.pem'
 
 # Populate the list unallocatedCounts with tuples for the number of
 # unallocated files for any running request or stage for each processor
-# and memory combination
+# memory and inner apptainer combination
 def getUnallocatedCounts():
 
   unallocatedCounts = []
+  
+  try:
+    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
+                        'WHERE wlcg_group_name="/dune/production"', 
+                        justOne = True)
+    productionWLCGGroupID = int(row['wlcg_group_id'])
+  except Exception as e:
+    logLine('Failed getting /dune/production group IDs: ' + str(e))
+    return
 
   for processors in range(1, 9):
     for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024]:
+      for hasInnerApptainer in [True, False]:
       
-      try:
-        matches = justin.select('SELECT COUNT(*) AS count FROM files '
+        try:
+          matches = justin.select('SELECT COUNT(*) AS count FROM files '
                                 'LEFT JOIN requests '
                                 'ON requests.request_id = files.request_id '
                                 'LEFT JOIN stages '
                                 'ON stages.request_id = files.request_id AND '
                                 'stages.stage_id = files.stage_id '
+                                'LEFT JOIN scopes '
+                                'ON requests.scope_id=scopes.scope_id '
                                 'WHERE files.request_id <> %d AND '
                                 'files.state = "unallocated" AND '
                                 'requests.state="running" AND '
                                 'stages.processors = %d AND '
                                 'stages.rss_bytes > %d AND '
-                                'stages.rss_bytes <= %d' %
+                                'stages.rss_bytes <= %d %s' %
                                 (justin.awtRequestID,
                                  processors,
                                  bytesPerProcessor * (processors - 1),
-                                 bytesPerProcessor * processors
+                                 bytesPerProcessor * processors,
+                                 ('AND scopes.wlcg_group_id = %d' 
+                                  % productionWLCGGroupID)
+                                   if not hasInnerApptainer else ''
                                 ), justOne = True
                                )
 
-        if matches['count']:
-          unallocatedCounts.append((processors, 
-                                    bytesPerProcessor,
-                                    matches['count']
-                                  ))
-      except Exception as e:
-        logLine('Failed getting count of unallocated: ' + str(e))
-        continue
+          if matches['count']:
+            unallocatedCounts.append((processors, 
+                                      bytesPerProcessor,
+                                      hasInnerApptainer,
+                                      matches['count']
+                                    ))
+        except Exception as e:
+          logLine('Failed getting count of unallocated: ' + str(e))
+          continue
 
   return unallocatedCounts
 

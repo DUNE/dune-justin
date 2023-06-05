@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `hostname` varchar(255) NOT NULL DEFAULT '',
   `cpuinfo` varchar(255) NOT NULL DEFAULT '',
-  `inner_apptainer` tinyint(1) NOT NULL DEFAULT 0,
+  `has_inner_apptainer` tinyint(1) NOT NULL DEFAULT 0,
   `os_release` varchar(255) NOT NULL DEFAULT '',
   `rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
   `min_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `has_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
   `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
   `submitted_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `running_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -258,12 +259,13 @@ CREATE TABLE IF NOT EXISTS `get_stage_cache` (
   `min_rss_bytes` bigint(20) unsigned NOT NULL DEFAULT 0,
   `max_rss_bytes` bigint(20) unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint(8) unsigned NOT NULL DEFAULT 86400,
+  `job_had_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
   `request_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `cache_time` datetime NOT NULL,
   UNIQUE KEY `multiple` (`site_id`,
    `min_processors`,`max_processors`,`min_rss_bytes`,`max_rss_bytes`,
-   `max_wall_seconds`,`cache_time`,`request_id`,`stage_id`)
+   `max_wall_seconds`,`needs_inner_apptainer`,`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `find_file_cache` (
