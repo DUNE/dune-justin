@@ -901,17 +901,10 @@ def processOutputDids(outputDids, requestID, stageID, justinJobID):
                         'stage_id='           + str(stageID + 1)
                        )
 
-def saveAwtResults(justinJobID, siteID, jobscriptLog):
-
-#  print('AWT %d %d in saveAwtResults' % (justinJobID, siteID), 
-#         file=sys.stderr)
+def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
 
   for line in jobscriptLog.splitlines():
-#    print('AWT %d %d %s' % (justinJobID, siteID, line), 
-#            file=sys.stderr)
     if line.startswith('==awt== '):
-#      print('AWT %d %d %s' % (justinJobID, siteID, line), 
-#            file=sys.stderr)
       lineSplitted = line.split()
       
       try:
@@ -954,9 +947,15 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog):
               file=sys.stderr)
 
   try:
+    # If AWT job found no inner apptainer support, then set site to false
+    # else leave site as it is, thus recording the low water mark
+
     justin.db.insertUpdate('UPDATE sites SET '
-                           'last_awt_time=NOW(),last_awt_job_id=%d '
-                           'WHERE site_id=%d' % (justinJobID, siteID))
+                           'last_awt_time=NOW(), last_awt_job_id=%d %s '
+                           'WHERE site_id=%d' 
+                  % (justinJobID, 
+                     '' if hasInnerApptainer else ',has_inner_apptainer=false',
+                     siteID))
 
   except Exception as e:
     print('Update awt last time fails with %s' % str(e), 
@@ -988,7 +987,8 @@ def recordResultsMethod(startResponse, jsonDict):
       
   try:
     query = ('SELECT jobs.justin_job_id, jobs.request_id, jobs.stage_id,'
-             'for_awt, jobs.site_id, users.access_token '
+             'for_awt, jobs.site_id, users.access_token, '
+             'jobs.has_inner_apptainer '
              'FROM jobs '
              'LEFT JOIN requests ON requests.request_id=jobs.request_id '
              'LEFT JOIN users ON users.user_id=requests.user_id '
@@ -996,12 +996,13 @@ def recordResultsMethod(startResponse, jsonDict):
 
     row = justin.db.select(query, justOne = True)
 
-    justinJobID     = int(row['justin_job_id'])
-    requestID       = int(row['request_id'])
-    stageID         = int(row['stage_id'])
-    siteID          = int(row['site_id'])
-    forAwt          = row['for_awt']
-    userAccessToken = row['access_token']
+    justinJobID       = int(row['justin_job_id'])
+    requestID         = int(row['request_id'])
+    stageID           = int(row['stage_id'])
+    siteID            = int(row['site_id'])
+    forAwt            = row['for_awt']
+    userAccessToken   = row['access_token']
+    hasInnerApptainer = row['has_inner_apptainer']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -1021,7 +1022,8 @@ def recordResultsMethod(startResponse, jsonDict):
   if forAwt:
     saveAwtResults(justinJobID, 
                    siteID, 
-                   jsonDict['jobscript_log'])
+                   jsonDict['jobscript_log'],
+                   hasInnerApptainer)
 
   if 'jobscript_exit' in jsonDict and jsonDict['jobscript_exit'] != 0:
     # Jobscript said it failed by exiting with non-zero value
