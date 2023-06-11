@@ -275,9 +275,9 @@ def queryRucio(fileDIDs):
                         ca_cert   = '/etc/grid-security/certificates',
                         auth_type = 'x509', 
                         account   = 'dunepro',
-                        creds     = {'client_cert': '/var/lib/justin/dunepro.proxy.pem'})
+#                        creds     = {'client_cert': '/var/lib/justin/dunepro.proxy.pem'})
 ##### NEEDS CHANGING ONCE justin-jobs-production IS IN RUCIO FOR dunepro
-#                        creds     = {'client_cert': '/var/lib/justin/justin-jobs-production.proxy.pem'})
+                        creds     = {'client_cert': '/var/lib/justin/justin-jobs-production.proxy.pem'})
   except Exception as e:
     print("Connect to Rucio fails with: " + str(e), file=sys.stderr)
     return None

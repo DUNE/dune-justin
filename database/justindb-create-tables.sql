@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   INDEX `justin_job_id` (`justin_job_id`,`request_id`,`stage_id`),
   KEY `state_file_id` (`state`,`file_id`),
   INDEX `request_stage_state_file` (`request_id`,`stage_id`,`state`,`file_id`),
+  INDEX `request_stage_file_id` (`request_id`,`stage_id`,`file_id`),
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
   INDEX `request_stage_state_processed_site` (`request_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

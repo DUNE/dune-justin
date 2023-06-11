@@ -29,12 +29,13 @@ voms-proxy-init \
  -cert /etc/grid-security/justin-jobs-production.cert.pem \
  -key  /etc/grid-security/justin-jobs-production.key.pem \
  -voms dune:/dune/Role=Production \
+ -vomsdir /etc/grid-security/vomsdir \
  -valid 168:0 \
  -out /var/lib/justin/justin-jobs-production.proxy.pem.tmp 
  
 if [ $? = 0 -a -s /var/lib/justin/justin-jobs-production.proxy.pem.tmp ]
 then
-#  cp -f /var/lib/justin/justin-jobs-production.proxy.pem.tmp /tmp/x509up_u0
+  cp -f /var/lib/justin/justin-jobs-production.proxy.pem.tmp /tmp/x509up_u0
 
   chown $HTTPD_USER_GROUP /var/lib/justin/justin-jobs-production.proxy.pem.tmp
   mv -f /var/lib/justin/justin-jobs-production.proxy.pem.tmp \
@@ -50,6 +51,7 @@ voms-proxy-init \
  -cert /etc/grid-security/justin-jobs-no-roles.cert.pem \
  -key  /etc/grid-security/justin-jobs-no-roles.key.pem \
  -voms dune \
+ -vomsdir /etc/grid-security/vomsdir \
  -valid 168:0 \
  -out /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp 
 
@@ -69,6 +71,7 @@ voms-proxy-init \
  -cert /etc/grid-security/justin-jobs-analysis.cert.pem \
  -key  /etc/grid-security/justin-jobs-analysis.key.pem \
  -voms dune \
+ -vomsdir /etc/grid-security/vomsdir \
  -valid 168:0 \
  -out /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp 
 
