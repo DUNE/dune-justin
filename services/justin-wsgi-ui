@@ -804,29 +804,42 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
   except:
     lifetimeDays = 1
 
-  if (jsonDict['output_pattern'] or jsonDict['output_pattern_next_stage']) \
-     and not scopeName:
-    return ('400 Bad Request', 
-            'Scope must be specified when creating the request if '
-            '--output_pattern '
-            'or --output_pattern_next_stage given for this stage')
-
   outputPatterns = []
 
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
-      outputPatterns.append((False, i))
+      try:
+        (pattern, destination) = i.split(':', 1)
+      except:
+        return ('400 Bad Request',
+                'Output patterns must be of the form PATTERN:DESTINATION')
+
+      if not destination.startswith('https://') and not scopeName:
+        return ('400 Bad Request', 
+                'Scope must be specified when creating the request if '
+                '--output-pattern is given for this stage '
+                'and a Rucio dataset is specified')
+
+      outputPatterns.append((False, pattern, destination))
 
   if not quick:
-    if jsonDict['output_pattern_next_stage']:
-      for i in jsonDict['output_pattern_next_stage']:
-        outputPatterns.append((True, i))
+    if jsonDict['output_pattern']:
+      for i in jsonDict['output_pattern']:
+        try:
+          (pattern, destination) = i.split(':', 1)
+        except:
+          return ('400 Bad Request',
+                  'Output patterns must be of the form PATTERN:DESTINATION')
 
-  for (forNextStage, patternDestination) in outputPatterns:
-    try:
-      (pattern, destination) = patternDestination.split(':',1)
-    except:
-      continue
+        if not destination.startswith('https://') and not scopeName:
+          return ('400 Bad Request', 
+                  'Scope must be specified when creating the request if '
+                  '--output-pattern-next-stage is given for this stage '
+                  'and a Rucio dataset is specified')
+
+        outputPatterns.append((True, pattern, destination))
+
+  for (forNextStage, pattern, destination) in outputPatterns:
 
     if not justin.stringIsFilePattern(pattern):
       return ('400 Bad Request', 'Invalid file pattern')

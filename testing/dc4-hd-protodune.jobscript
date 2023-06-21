@@ -62,8 +62,12 @@ campaign="justIN.r${JUSTIN_REQUEST_ID}s${JUSTIN_STAGE_ID}"
 export LD_PRELOAD=${XROOTD_LIB}/libXrdPosixPreload.so
 echo "$LD_PRELOAD"
 
-lar -c $FCL_FILE "$pfn" $events_option -o $outFile > ${fname}_reco_${now}.log 2>&1
+lar -c $FCL_FILE $events_option -o $outFile "$pfn" > ${fname}_reco_${now}.log 2>&1
 )
+
+echo '=== Start last 100 lines of lar log file ==='
+tail -100 ${fname}_reco_${now}.log
+echo '=== End last 100 lines of lar log file ==='
 
 # Subshell exits with exit code of last command
 larExit=$?

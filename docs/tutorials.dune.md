@@ -134,18 +134,18 @@ how to repeat part of it. We'll run LArSoft to process some data that is
 registered in MetaCat and Rucio, and temporarily store the output files in
 Rucio-managed storage at remote sites.
 
-To start with, run this command to view the dc4-vd-coldbox-top:default
+To start with, run this command to view the dc4-vd-coldbox-bottom:default
 jobscript:
 
-    justin show-jobscript --jobscript-id dc4-vd-coldbox-top:default
+    justin show-jobscript --jobscript-id dc4-vd-coldbox-bottom:default
 
 The comments at the top explain how to use the jobscript to process some
 VD coldbox files. For this tutorial though, please use this command:
 
     justin quick-request \
     --mql \
-    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-    --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 \
+    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+    --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
     
@@ -199,8 +199,8 @@ EOS scratch space at CERN in the future.
 To follow this section of the tutorial you do not strictly need to be logged
 in to a dunegpvm machine at Fermilab, as you can access files on scratch 
 remotely using GFAL tools. However, it is easier to check from a dunegpvm
-machine as you can use /pfns/dune/scratch/users/$USER where $USER is your
-Fermilab username. 
+machine as you can look in /pfns/dune/scratch/users/$USER where $USER is your
+Fermilab username using Unix commands. 
 
 We can adapt the DC4 example from the previous section to use scratch for
 outputs like this. If you are not on a dunegpvm, replace `$USER` with your
@@ -211,8 +211,8 @@ Fermilab username.
 
     justin quick-request \
     --mql \
-    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-    --jobscript-id dc4-vd-coldbox-top:default --max-distance 30 \
+    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+    --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
 
@@ -220,7 +220,7 @@ If you are on a dunegpvm machine, you can view the output directory
 by just using ls, after replacing 00000 with the ID number of your request
 including leading zeros:
 
-    ls /pfns/dune/scratch/users/$USER/000000/1/
+    ls /pnfs/dune/scratch/users/$USER/000000/1/
 
 From anywhere you have GFAL commands and an X.509 proxy, this should work,
 again after replacing 00000 with the ID number of your request
@@ -247,7 +247,9 @@ jobscript interactively on your computer. In jobs at remote sites, justIN runs
 your jobscripts inside an Apptainer container. The `justin-test-jobscript`
 command runs your jobscript using the same container format and so provides
 a very realistic test of your script. The command is available to you after 
-using the same `setup justin` command as for `justin` itself.
+using the same `setup justin` command as for `justin` itself. It's not
+necessary to have Apptainer or Singularity installed as the command gets
+Apptainer from cvmfs.
 
 If your jobscript reads from remote storage, you also need to have a valid
 DUNE VOMS proxy created with voms-proxy-init. On a dunegpvm computer
@@ -271,8 +273,8 @@ Let's rerun the Data Challenge 4 jobscript we used in the previous section,
 but this time use a local file and run it interactively. First get a copy
 of the jobscript in your current directory:
 
-    justin show-jobscript --jobscript-id dc4-vd-coldbox-top:default \
-      > my-dc4-vd-coldbox-top.jobscript
+    justin show-jobscript --jobscript-id dc4-vd-coldbox-bottom:default \
+      > my-dc4-vd-coldbox-bottom.jobscript
 
 Have a look at it with your favourite text editor and maybe add an extra
 line  before the fcl file comment. So it reads:
@@ -284,8 +286,8 @@ Now run it with `justin-test-jobscript`. All of the files it creates are
 made under /tmp in the directory name it prints out.
 
     justin-test-jobscript --mql \
-     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-     --jobscript my-dc4-vd-coldbox-top.jobscript \
+     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+     --jobscript my-dc4-vd-coldbox-bottom.jobscript \
      --env NUM_EVENTS=1
 
 This should only take a couple of minutes to run as we limited it to process
@@ -302,14 +304,14 @@ quick-request with these options:
 
     justin quick-request \
     --mql \
-    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
-    --jobscript my-dc4-vd-coldbox-top.jobscript --max-distance 30 \
+    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+    --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
 
 As you can see, you just need to change 
-`--jobscript-id dc4-vd-coldbox-top:default` to the option  
-`--jobscript my-dc4-vd-coldbox-top.jobscript` to use the local file as the
+`--jobscript-id dc4-vd-coldbox-bottom:default` to the option  
+`--jobscript my-dc4-vd-coldbox-bottom.jobscript` to use the local file as the
 jobscript.
     
 ## Rapid Code Distribution to jobs via cvmfs

@@ -328,7 +328,7 @@ if receivedDict['status'] != 200:
 # Stage-defined and standard environment variables for the jobscript
 with open('home/justin-jobscript-env.sh','w') as f:
   for (n,v) in receivedDict['stage_env']:
-    f.write('export %s="%s"' % (n,v))
+    f.write('export %s="%s"\n' % (n,v))
 
   f.write('export JUSTIN_SITE_NAME=%s\n' % receivedDict['site_name'])
   f.write('export JUSTIN_REQUEST_ID=%d\n' % receivedDict['request_id'])
