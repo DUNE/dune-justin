@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+import argparse
+
 import os
 import os.path
 import sys
@@ -24,11 +26,13 @@ import json
 import time
 import ssl
 import urllib.request
-import argparse
 
-verbose = False
+#
+# Start of WebDAV uploads: this code is shared between justin-webdav-upload 
+# and justin-generic-job-py to make them both self contained
+#
 
-def checkRemoteDirectories(sslContext, token, dirSplit):
+def webdavCheckRemoteDirectories(sslContext, token, dirSplit):
 
   # Go down through the directories looking for the highest one that exists
   for highest in range(len(dirSplit) - 1, 1, -1): 
@@ -36,19 +40,17 @@ def checkRemoteDirectories(sslContext, token, dirSplit):
     # Don't do the check once we get down to the bare hostname 
     # But otherwise do stop if the directory exists already
     if highest > 2 and \
-       remoteExists(sslContext, token, '/'.join(dirSplit[:highest + 1])):
+       webdavRemoteExists(sslContext, token, '/'.join(dirSplit[:highest + 1])):
       break
       
   for i in range(highest+1, len(dirSplit)):
-    remoteDirCreate(sslContext, token, '/'.join(dirSplit[:i+1]))
+    webdavRemoteDirCreate(sslContext, token, '/'.join(dirSplit[:i+1]))
 
-def remoteExists(sslContext, token, url):
+def webdavRemoteExists(sslContext, token, url):
 
   httpRequest = urllib.request.Request(url,
                   headers = { 'User-Agent'     : 'justin-webdav-upload',
                               'Authorization'  : 'Bearer ' + token
-#                              ,
-#                              'Expect'         : '100-continue'
                             },
                   method = 'HEAD')
 
@@ -62,29 +64,25 @@ def remoteExists(sslContext, token, url):
   except Exception as e:
     print('Unknown error checking if %s exists: %s' % (url, str(e)), 
           file=sys.stderr)
-    sys.exit(2)
+    raise
 
   if httpCode == 404:
-    if verbose:
-      print('%s does not exist' % url, file=sys.stderr)
+    print('%s does not exist' % url, file=sys.stderr)
     return False
     
   if httpCode == 200:
-    if verbose:
-      print('%s exists' % url, file=sys.stderr)
+    print('%s exists' % url, file=sys.stderr)
     return True
 
   print('Unexpected HTTP code %d when checking for %s' % (httpCode, url),
         file=sys.stderr)
-  sys.exit(2)
+  raise RuntimeError('Unexpected HTTP code %d' % httpCode)
   
-def remoteDirCreate(sslContext, token, url):
+def webdavRemoteDirCreate(sslContext, token, url):
 
   httpRequest = urllib.request.Request(url,
                   headers = { 'User-Agent'     : 'justin-webdav-upload',
                               'Authorization'  : 'Bearer ' + token
-#                              ,
-#                              'Expect'         : '100-continue'
                             },
                   method = 'MKCOL')
 
@@ -94,33 +92,46 @@ def remoteDirCreate(sslContext, token, url):
 
   except urllib.error.URLError as e:
     print('HTTP error: ' + str(e), file=sys.stderr)
-    sys.exit(2)
+    raise
     
   except Exception as e:
     print('Unknown error: ' + str(e), file=sys.stderr)
-    sys.exit(2)
+    raise
   
   if httpCode == 201:
-    if verbose:
-      print('%s created, HTTP code %d' % (url, httpCode), file=sys.stderr)
+    print('%s created, HTTP code %d' % (url, httpCode), file=sys.stderr)
     return
 
   print('Unexpected HTTP code %d when creating %s' % (httpCode, url),
         file=sys.stderr)
-  sys.exit(2)
+  raise RuntimeError('Unexpected HTTP code %d' % httpCode)
   
-def putFile(sslContext, token, source, destinationDir):
+def webdavPutFile(token, source, destinationDir):
+
+  destDirSplit = destinationDir.split('/')
+
+  # Remove any final "/" and "//" after the one in "https://"
+  for i in range(2, len(destDirSplit)):
+    if destDirSplit[i] == '':
+      destDirSplit.pop(i)
+      
+  destinationDir = '/'.join(destDirSplit)
+
+  sslContext = ssl.SSLContext()
+  sslContext.verify_mode = ssl.CERT_REQUIRED
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  # Check the directory tree already exists and create if necessary
+  webdavCheckRemoteDirectories(sslContext, token, destDirSplit)
 
   sourceFile = source.split('/')[-1]
   destinationURL = destinationDir + '/' + sourceFile
     
-  if remoteExists(sslContext, token, destinationURL):
+  if webdavRemoteExists(sslContext, token, destinationURL):
     print('File already exists at %s' % destinationURL, file=sys.stderr)
-    sys.exit(2)
+    raise RuntimeError('File already exists')
   
-  #
   # Do a PUT to the desired destination, but expect a redirect
-  # 
   httpRequest = urllib.request.Request(destinationURL,
                   headers = { 'User-Agent'     : 'justin-webdav-upload',
                               'Authorization'  : 'Bearer ' + token,
@@ -131,7 +142,7 @@ def putFile(sslContext, token, source, destinationDir):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
     # Success is failure as we want a 307 redirect
-    sys.exit(2)
+    raise RuntimeError('No redirect received')
 
   except urllib.error.HTTPError as e:
 
@@ -141,23 +152,22 @@ def putFile(sslContext, token, source, destinationDir):
     else:
       print('Unexpected HTTP code %d when creating %s' 
             % (e.code, destinationURL), file=sys.stderr)
-      sys.exit(2)
+      raise
     
   except Exception as e:
     print('Unexpected error when creating %s: %s' 
           % (str(e), destinationURL), file=sys.stderr)
     message = e.read().decode('utf-8')
     print(message, file=sys.stderr)
-    sys.exit(2)
+    raise
 
-  if verbose:
-    print('Redirected to %s' % location, file=sys.stderr)
+  print('Redirected to %s' % location, file=sys.stderr)
 
   #
   # Now use the URL we got from the redirection
   # 
   httpRequest = urllib.request.Request(location,
-                  data = open(source, 'r'),
+                  data = open(source, 'rb'),
                   headers = { 'User-Agent' : 'justin-webdav-upload' },
                   method = 'PUT')
 
@@ -172,31 +182,31 @@ def putFile(sslContext, token, source, destinationDir):
   except Exception as e:
     print('Error when creating %s: %s'
           % (destinationURL, str(e)), file=sys.stderr)
-    sys.exit(2)
+    raise
 
   if response.status == 201:
-    print(destinationURL)
-    sys.exit(0)
+    # Created successfully
+    print('Created ' + destinationURL)
+    return
 
   print('Unexpected HTTP code %d when creating %s' 
-        % (httpCode, destinationURL), file=sys.stderr)
-  sys.exit(2)
+        % (response.status, destinationURL), file=sys.stderr)
+  raise RuntimeError('Unexpected HTTP code %d' % response.status)
+
+#
+# End of WebDAV uploads code
+#
 
 #
 # PROGRAM MAIN !!!
 # 
 
 parser = argparse.ArgumentParser(prog='justin-webdav-upload',
-  usage='justin-webdav-upload [--help] [--verbose] --token-file '
+  usage='justin-webdav-upload [--help] --token-file '
         'TOKENFILE --source-file SOURCEFILE --destination-directory URL \n\n'
         'See the justin-webdav-upload(1) man page for detailed help '
         'and command syntax\n')
                                  
-parser.add_argument("-v", 
-                    "--verbose",
-                    action = "store_true",
-                    help = "Verbose logging")
-
 parser.add_argument("--token-file",
                     type = str,
                     help = "Token file")
@@ -213,9 +223,6 @@ try:
   args = vars(parser.parse_args())
 except:
   sys.exit(1)
-
-if args['verbose']:
-  verbose = True
 
 if not args['token_file']:
   print('--token-file missing', file=sys.stderr)
@@ -251,18 +258,12 @@ if not args['destination_directory'].startswith( \
         file=sys.stderr)
   sys.exit(1)
 
-destDir      = args['destination_directory']
-destDirSplit = destDir.split('/')
+destinationDir = args['destination_directory']
 
-# Remove any final "/" and "//" after the one in "https://"
-for i in range(2, len(destDirSplit)):
-  if destDirSplit[i] == '':
-    destDirSplit.pop(i)
-
-sslContext = ssl.SSLContext()
-sslContext.verify_mode = ssl.CERT_REQUIRED
-sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
-
-checkRemoteDirectories(sslContext, token, destDirSplit)
-
-putFile(sslContext, token, args['source_file'], '/'.join(destDirSplit))
+try:
+  webdavPutFile(token, args['source_file'], destinationDir)
+  sys.exit(0)
+except Exception as e:
+  print('justin-webdav-upload fails: ' + str(e), file=sys.stderr)
+  sys.exit(2)
+  
