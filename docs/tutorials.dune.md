@@ -310,9 +310,9 @@ quick-request with these options:
     --output-pattern '*_reco_data_*.root:output-test-01'
 
 As you can see, you just need to change 
-`--jobscript-id dc4-vd-coldbox-bottom:default` to the option  
-`--jobscript my-dc4-vd-coldbox-bottom.jobscript` to use the local file as the
-jobscript.
+`--jobscript-id dc4-vd-coldbox-bottom:default` to the 
+option `--jobscript my-dc4-vd-coldbox-bottom.jobscript` 
+to use the local file as the jobscript.
     
 ## Rapid Code Distribution to jobs via cvmfs
 

@@ -86,9 +86,10 @@ def sendJsonURL(url, sendDict):
   
 # ONCE WE FINISH MOVING TO PYTHON GENERIC JOB THEN ALLOCATOR SHOULD RETURN
 # THE TOKEN IN A JSON DOCUMENT AND WE CAN DROP THIS SPECIAL HANDLING
-  if sendDict['method'] == 'record_results':
-    receivedDict = { 'user_access_token' : responseString }
-  elif len(responseString) == 0:
+#  if sendDict['method'] == 'record_results':
+#    receivedDict = { 'user_access_token' : responseString }
+#  elif len(responseString) == 0:
+  if len(responseString) == 0:
     receivedDict = {}
   else:
     try:
@@ -530,8 +531,8 @@ with open('home/justin-allocated-files.json', 'w') as f:
          )
 
 # The jobscript in any scripting language supported by the container
-with open('home/justin-jobscript','w') as f:
-  f.write(receivedDict['jobscript'])
+with open('home/justin-jobscript','wb') as f:
+  f.write(receivedDict['jobscript'].encode())
 
 os.chmod('home/justin-jobscript', 0o755)
 
@@ -694,8 +695,8 @@ logLine('Output RSEs: ' + str(receivedDict['output_rses']))
 
 # TO DO: DROP THIS FILE WRITE?
 # Write out the token for uploading to user's scratch
-with open('user-upload-token', 'w') as f:
-  f.write(resultsResponseDict['user_access_token'])
+#with open('user-upload-token', 'w') as f:
+#  f.write(resultsResponseDict['user_access_token'])
 
 confirmResultsDict = { 'method'      : 'confirm_results',
                        'output_dids' : {},

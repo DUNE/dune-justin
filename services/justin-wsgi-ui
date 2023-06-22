@@ -238,13 +238,14 @@ def queryMetaCat(mql):
               data = mql.encode() )
 
     if response.status != 200:
-      print("Reading files list from MetaCat fails with HTTP code "
-                + str(response.status), file=sys.stderr)
+      print("Reading files list from MetaCat for %s fails with HTTP code %d"
+            % (mql, response.status), file=sys.stderr)
       return None
 
     fileLines = response.readlines()
   except Exception as e:    
-    print("Reading files list from MetaCat fails with: " + str(e), 
+    print("Reading files list from MetaCat for %s fails with: %s" 
+          % (mql, str(e)), 
           file=sys.stderr)
     return None
 
@@ -324,7 +325,7 @@ def showFilesCmd(startResponse, jsonDict):
     if fileDIDs is None:
       return httpError(startResponse, 
                        '400 Bad Request', 
-                       'query error')
+                       'MQL query error')
 
     outputString = ''
     for oneDID in fileDIDs:
@@ -393,14 +394,14 @@ def showReplicasCmd(startResponse, jsonDict):
     if fileDIDs is None:
       return httpError(startResponse, 
                        '400 Bad Request', 
-                       'query error')
+                       'MQL query error')
 
     outputString = queryRucio(fileDIDs)
 
     if outputString is None:
       return httpError(startResponse, 
                        '400 Bad Request', 
-                       'query error')
+                       'Rucio query error')
 
     return httpOK(startResponse, outputString)
 

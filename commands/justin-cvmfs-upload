@@ -144,10 +144,12 @@ parser.add_argument('tar_file',
 
 args = parser.parse_args()
 
-rcdsServer = findRcdsServer()
-if not rcdsServer:
-  print('Failed to find RCDS server', file=sys.stderr)
-  sys.exit(1)
+#rcdsServer = findRcdsServer()
+#if not rcdsServer:
+#  print('Failed to find RCDS server', file=sys.stderr)
+#  sys.exit(1)
+
+rcdsServer = 'rcds01.fnal.gov'
 
 if args.verbose:
   print('Found RCDS server: ' + rcdsServer, file=sys.stderr)

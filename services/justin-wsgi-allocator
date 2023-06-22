@@ -606,7 +606,7 @@ def getStageMethod(startResponse, jsonDict, environ):
 
     schedd = htcondor.Schedd()
     schedd.edit('ClusterId == %d && ProcId == %d' % (clusterID, procID),
-                'justIN_User', '\"%s\"' % jobscript['principal_name'])
+                'justIN_User', '\"%s\"' % jobscriptDict['principal_name'])
   except Exception as e:
     print('schedd.edit() fails with %s' % str(e), file=sys.stderr)
 
@@ -1154,7 +1154,8 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed updating jobs: ' + str(e))
 
-  return httpOK(startResponse, userAccessToken)
+  return httpOK(startResponse, 
+                json.dumps({ 'user_access_token' : userAccessToken }))
 
 # Return a list of file DIDs allocated to this job.
 # This can be used by jobscripts which don't have a keep of input
