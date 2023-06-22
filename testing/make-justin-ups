@@ -72,7 +72,6 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
 
 cp $MJU_GIT_DIR/dune-justin/jobutils/justin-allocated-files \
    $MJU_GIT_DIR/dune-justin/jobutils/justin-get-file \
-   $MJU_GIT_DIR/dune-justin/jobutils/justin-metadata \
    $MJU_GIT_DIR/dune-justin/jobutils/pdjson2metadata \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
 
