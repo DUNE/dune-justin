@@ -11,7 +11,7 @@
 
 generic_job_tmp=`mktemp /tmp/generic-job.XXXXXX.py`
 
-sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job-py \
+sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job \
  >$generic_job_tmp
 chown mcnab.dune $generic_job_tmp
 

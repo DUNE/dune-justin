@@ -1,630 +1,794 @@
-#!/bin/bash
+#!/usr/bin/env python3
 #
-# Generic Job which will get a stage's jobscript from the
-# justIN allocator service
+# justin-generic-job-py - HTCondor job submitted by justin-job-factory agent
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
-# Everything goes to stdout
-exec 2>&1
+import os
+import os.path
+import sys
+import ssl
+import time
+import json
+import glob
+import hmac
+import hashlib
+import base64
+import urllib
+import urllib.request
+import subprocess
 
-function log_line() {
-echo `date -u +'%Y-%m-%d %H:%M:%S '`$1
-}
+# Three globals used again and again
+siteName        = 'XX_UNKNOWN'
+jobsubJobID     = None
+justinJobSecret = '###justin_job_secret###'
 
-log_line '====Start of justin-generic-job===='
+def logLine(text):
+  print(time.strftime('%b %d %H:%M:%S ' + text + '\n'))
 
-function job_aborted() {
+def sendJsonURL(url, sendDict):
 
-  secret_time=`date +'%s'`
-  secret_hash=$(echo -n job_aborted$secret_time$JOBSUBJOBID \
-                | openssl sha256 -hmac `cat justin_job_secret.txt` \
-                | cut -f2 -d' ')
+  sendDict['jobsub_id']   = jobsubJobID
+  sendDict['secret_time'] = str(int(time.time()))
+  sendDict['secret_hash'] = hmac.new(bytes(justinJobSecret, 'UTF-8'),
+                                     (sendDict['method'] +
+                                      sendDict['secret_time'] +
+                                      jobsubJobID
+                                     ).encode(),
+                                     hashlib.sha256).hexdigest()
 
-  cat <<EOF >justin-job-aborted.json
-{
-  "method"         : "job_aborted",
-  "jobsub_id"      : "$JOBSUBJOBID",
-  "secret_time"    : $secret_time,
-  "secret_hash"    : "$secret_hash",
-  "http_code"      :  $2,
-  "aborted_method" : "$3",
-  "rse_name"       : "$4"
-}
-EOF
+  httpRequest = urllib.request.Request(url,
+                   headers = { 'User-Agent'       : 'justin-generic-job',
+                               'X-Jobid'          : jobsubJobID,
+                               'X-DUNE-Site-Name' : siteName,
+                               'Expect'           : ''
+                             },
+                   data = json.dumps(sendDict).encode(),
+                   method = 'POST')
+  sslContext = ssl.SSLContext()
+  sslContext.verify_mode = ssl.CERT_REQUIRED
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
-  curl \
-     --user-agent 'justin-generic-job' \
-     --header "X-Jobid: $JOBSUBJOBID" \
-     --header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
-     --header "Expect:" \
-     --capath $X509_CERTIFICATES \
-     --data @justin-job-aborted.json \
-     https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/job_aborted_$2
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except urllib.error.URLError as e:
+    try:
+      httpCode = e.code
+    except:
+      httpCode = 0
 
-  # If in a subshell, this just exits that, not the job, so must be caught
-  # The 1st argument lets the caller choose the exit code on errors
-  exit $1
-}
+    logLine('Get JSON URL returns HTTP code %d' % httpCode)
+    logLine(e.read().decode('utf-8'))
+    return { 'status' : httpCode }
 
-export DUNE_SITE_NAME=${GLIDEIN_DUNESite:-XX_UNKNOWN}
+  except Exception as e:
+    logLine('Get JSON URL request fails: ' + str(e))
+    return { 'status' : 0 }
 
-echo '### Start of  printenv | sort'
-printenv | sort
-echo '### End of printenv'
+  try:
+    responseString = response.read().decode('utf-8')
+  except:
+    logLine('Failed reading response: ' + str(e))
+    return { 'status' : 1 }
+  
+# ONCE WE FINISH MOVING TO PYTHON GENERIC JOB THEN ALLOCATOR SHOULD RETURN
+# THE TOKEN IN A JSON DOCUMENT AND WE CAN DROP THIS SPECIAL HANDLING
+#  if sendDict['method'] == 'record_results':
+#    receivedDict = { 'user_access_token' : responseString }
+#  elif len(responseString) == 0:
+  if len(responseString) == 0:
+    receivedDict = {}
+  else:
+    try:
+      receivedDict = json.loads(responseString)
+    except Exception as e:  
+      logLine('Failed loading json: ' + str(e))
+      return { 'status' : 1 }
 
-echo 'Before GFAL unsets, do  printenv | grep GFAL'
-printenv | grep GFAL
-unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
+  receivedDict['status'] = response.status
+  return receivedDict
 
-echo '###justin_job_secret###' > justin_job_secret.txt
+def jobAborted(httpCode, abortedMethod, rseName):
 
-echo '### pwd ; ls -lt ###'
-pwd
-ls -lt
-echo '##############'
+  jobAbortedDict = { "method"         : "job_aborted",
+                     "http_code"      : httpCode,
+                     "aborted_method" : abortedMethod,
+                     "rse_name"       : rseName
+                   }
 
-export X509_CERTIFICATES=${X509_CERTIFICATES:-/etc/grid-security/certificates/}
+  sendJsonURL(
+    'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/job_aborted_'
+     + str(httpCode),
+    jobAbortedDict)
 
-# Check requirements are present
+def executeMetaCatCommand(args):
 
-curl --version
-if [ $? -ne 0 ] ; then
- log_line Failed running curl
- exit 0
-fi
+  for i in range(1, 4):  
+    ret = os.system(
+     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
+     'setup metacat ; '
+     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
+     'export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune ; '
+     'export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app ; '
+     'metacat auth login -m x509 dunepro ; '
+     'metacat %s' % args)
+     
+    if ret == 0:
+      break
 
-(
-# Subprocess to send regular heartbeats
+    time.sleep(1)
 
-while :
-do
-  # Stop if JSON file is missing or deleted
-  if [ ! -r justin-send-heartbeat.json ] ; then
-    exit 0
-  fi
+  return ret
+  
+def executeRucioCommand(args):
 
-  secret_time=`date +'%s'`
-  secret_hash=$(echo -n send_heartbeat$secret_time$JOBSUBJOBID \
-                | openssl sha256 -hmac `cat justin_job_secret.txt` \
-                | cut -f2 -d' ')
+  for i in range(1, 4):
+    ret = os.system(
+     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
+     'setup rucio ; '
+     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
+     'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR ; '
+     'rucio --account dunepro --auth-strategy x509_proxy %s' % args)
 
-  cat <<EOF >justin-send-heartbeat.json
-{
-  "secret_time"  : $secret_time,
-  "secret_hash"  : "$secret_hash",
-  "method"       : "send_heartbeat",
-  "jobsub_id"    : "$JOBSUBJOBID"
-}
-EOF
+    if ret == 0:
+      break
 
-  curl \
-     --user-agent 'justin-generic-job' \
-     --header "X-Jobid: $JOBSUBJOBID" \
-     --header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
-     --capath $X509_CERTIFICATES \
-     --data @justin-send-heartbeat.json \
-     https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/send_heartbeat
+    time.sleep(1)
 
-  sleep 600
-done
+  return ret
+  
+def webdavUpload(fileName, destination):
+# THIS WILL BE REPLACED WITH THE python3 CODE OF justin-webdav-upload ITSELF!
+  return os.system(
+    '/cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/'
+    'bin/justin-webdav-upload '
+    '--verbose '
+    '--token-file user-upload-token '
+    '--source-file "home/workspace/%s" '
+    '--destination-directory %s' % (fileName, destination))
 
-) >justin-heartbeat.log 2>&1 &
+#
+# Start of WebDAV uploads: this code is shared between justin-webdav-upload 
+# and justin-generic-job-py to make them both self contained
+#
 
-# All paths are relative to this
-export JUSTIN_WORKDIR=`pwd`
+def webdavCheckRemoteDirectories(sslContext, token, dirSplit):
+
+  # Go down through the directories looking for the highest one that exists
+  for highest in range(len(dirSplit) - 1, 1, -1): 
+  
+    # Don't do the check once we get down to the bare hostname 
+    # But otherwise do stop if the directory exists already
+    if highest > 2 and \
+       webdavRemoteExists(sslContext, token, '/'.join(dirSplit[:highest + 1])):
+      break
+      
+  for i in range(highest+1, len(dirSplit)):
+    webdavRemoteDirCreate(sslContext, token, '/'.join(dirSplit[:i+1]))
+
+def webdavRemoteExists(sslContext, token, url):
+
+  httpRequest = urllib.request.Request(url,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token
+                            },
+                  method = 'HEAD')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    httpCode = response.status 
+
+  except urllib.error.URLError as e:
+    httpCode = e.code
+
+  except Exception as e:
+    print('Unknown error checking if %s exists: %s' % (url, str(e)), 
+          file=sys.stderr)
+    raise
+
+  if httpCode == 404:
+    print('%s does not exist' % url, file=sys.stderr)
+    return False
+    
+  if httpCode == 200:
+    print('%s exists' % url, file=sys.stderr)
+    return True
+
+  print('Unexpected HTTP code %d when checking for %s' % (httpCode, url),
+        file=sys.stderr)
+  raise RuntimeError('Unexpected HTTP code %d' % httpCode)
+  
+def webdavRemoteDirCreate(sslContext, token, url):
+
+  httpRequest = urllib.request.Request(url,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token
+                            },
+                  method = 'MKCOL')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)    
+    httpCode = response.status 
+
+  except urllib.error.URLError as e:
+    print('HTTP error: ' + str(e), file=sys.stderr)
+    raise
+    
+  except Exception as e:
+    print('Unknown error: ' + str(e), file=sys.stderr)
+    raise
+  
+  if httpCode == 201:
+    print('%s created, HTTP code %d' % (url, httpCode), file=sys.stderr)
+    return
+
+  print('Unexpected HTTP code %d when creating %s' % (httpCode, url),
+        file=sys.stderr)
+  raise RuntimeError('Unexpected HTTP code %d' % httpCode)
+  
+def webdavPutFile(token, source, destinationDir):
+
+  destDirSplit = destinationDir.split('/')
+
+  # Remove any final "/" and "//" after the one in "https://"
+  for i in range(2, len(destDirSplit)):
+    if destDirSplit[i] == '':
+      destDirSplit.pop(i)
+      
+  destinationDir = '/'.join(destDirSplit)
+
+  sslContext = ssl.SSLContext()
+  sslContext.verify_mode = ssl.CERT_REQUIRED
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  # Check the directory tree already exists and create if necessary
+  webdavCheckRemoteDirectories(sslContext, token, destDirSplit)
+
+  sourceFile = source.split('/')[-1]
+  destinationURL = destinationDir + '/' + sourceFile
+    
+  if webdavRemoteExists(sslContext, token, destinationURL):
+    print('File already exists at %s' % destinationURL, file=sys.stderr)
+    raise RuntimeError('File already exists')
+  
+  # Do a PUT to the desired destination, but expect a redirect
+  httpRequest = urllib.request.Request(destinationURL,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token,
+                              'Expect'         : '100-continue'
+                            },
+                  method = 'PUT')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    # Success is failure as we want a 307 redirect
+    raise RuntimeError('No redirect received')
+
+  except urllib.error.HTTPError as e:
+
+    if e.code == 307:
+      # And failure is success
+      location = e.headers['Location']
+    else:
+      print('Unexpected HTTP code %d when creating %s' 
+            % (e.code, destinationURL), file=sys.stderr)
+      raise
+    
+  except Exception as e:
+    print('Unexpected error when creating %s: %s' 
+          % (str(e), destinationURL), file=sys.stderr)
+    message = e.read().decode('utf-8')
+    print(message, file=sys.stderr)
+    raise
+
+  print('Redirected to %s' % location, file=sys.stderr)
+
+  #
+  # Now use the URL we got from the redirection
+  # 
+  httpRequest = urllib.request.Request(location,
+                  data = open(source, 'rb'),
+                  headers = { 'User-Agent' : 'justin-webdav-upload' },
+                  method = 'PUT')
+
+  # Replace .has_header to prevent the default Content-Type 
+  # IMO dCache should ignore Content-Type rather than reject the request
+  httpRequest.has_header \
+   = lambda header_name: (header_name == 'Content-type' or
+                urllib.request.Request.has_header(httpRequest, header_name))
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except Exception as e:
+    print('Error when creating %s: %s'
+          % (destinationURL, str(e)), file=sys.stderr)
+    raise
+
+  if response.status == 201:
+    # Created successfully
+    print('Created ' + destinationURL)
+    return
+
+  print('Unexpected HTTP code %d when creating %s' 
+        % (response.status, destinationURL), file=sys.stderr)
+  raise RuntimeError('Unexpected HTTP code %d' % response.status)
+#
+# End of WebDAV uploads code
+#
+
+def updateMetadataTmp(fileScope, fileName, 
+                      getStageDict, receivedDict, recordResultsDict):
+  try:
+    metadata = json.load(open('home/workspace/' + fileName + '.json', 'r'))
+  except FileNotFoundError:
+    metadata = { "metadata" : {} }
+  except Exception as e:
+    logLine("File home/workspace/%s.json exists but JSON load fails: %s" % 
+            (fileName, str(e)))
+    raise
+
+  metadata['size']      = os.path.getsize('home/workspace/' + fileName)
+  metadata['namespace'] = fileScope
+  metadata['name']      = fileName
+  metadata['metadata']['DUNE.workflow'] = {}
+
+  metadata['metadata']['DUNE.workflow']['site_name'] \
+   = getStageDict['site_name'] 
+  metadata['metadata']['DUNE.workflow']['request_id'] \
+   = receivedDict['request_id']
+  metadata['metadata']['DUNE.workflow']['stage_id'] \
+   = receivedDict['stage_id']
+  metadata['metadata']['DUNE.workflow']['hostname'] \
+   = getStageDict['hostname']
+
+  metadata['metadata']['DUNE.workflow']['jobscript_start'] \
+   = recordResultsDict['jobscript_start']
+  metadata['metadata']['DUNE.workflow']['jobscript_finish'] \
+   = recordResultsDict['jobscript_finish']
+
+  metadata['metadata']['DUNE.workflow']['jobscript_real_seconds'] \
+   = 0
+  metadata['metadata']['DUNE.workflow']['jobscript_cpu_seconds'] \
+   = 0
+
+  metadata['metadata']['DUNE.workflow']['cpuinfo'] \
+   = getStageDict['cpuinfo']
+  metadata['metadata']['DUNE.workflow']['os_release'] \
+   = getStageDict['os_release']
+  metadata['metadata']['DUNE.workflow']['job_id'] \
+   = jobsubJobID
+
+  with open('tmp.json', 'w') as f:
+    f.write(json.dumps(metadata, indent = 4, sort_keys = True))
+  
+########################################################################
+logLine('====Start of justin-generic-job====')
+
+for i in os.environ:
+ print('%s=%s' % (i, os.environ[i]))
+
+jobsubJobID = os.environ['JOBSUBJOBID']
+siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
+jobPID      = os.getpid()
+
+# Start of subprocess to send regular heartbeats
+if os.fork() == 0:
+  # Redirect stdout/stderr
+  so = open('heartbeats.log', 'a+')
+  os.dup2(so.fileno(), sys.stdout.fileno())
+  se = open('heartbeats.log', 'a+')
+  os.dup2(se.fileno(), sys.stderr.fileno())
+  
+  # Send heartbeats until parent exits
+  while os.getppid() == jobPID:
+    sendJsonURL('https://justin-allocator-pro.dune.hep.ac.uk'
+                              '/api/allocator/send_heartbeat',
+                { "method" : "send_heartbeat" }
+               )
+             
+    time.sleep(600)
+
+  sys.exit(0)    
+# End of subprocess to send regular heartbeats
+
+justinWorkdir = os.environ['PWD']
 
 # Make $HOME directory and workspace subdirectory for Apptainer/Singularity
-mkdir -p $JUSTIN_WORKDIR/home/workspace
+os.makedirs('home/workspace')
 
-# Copy all of the justin-* scripts in jobutils to $HOME
-cp -f /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/jobutils/* \
- $JUSTIN_WORKDIR/home
+# Make jobutils scripts available to jobscripts in a known location
+for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
+  os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
+             'pro/NULL/jobutils/' + i, 'home/' + i)
 
-## Use dev version of justin-metadata
-#cp -f /cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a0f91b7b24130be3e95b0987af20fd47d8f8bfaa/justin-metadata \
-# $JUSTIN_WORKDIR/home
-#
-## Use dev version of justin-webdav-upload
-#cp -f /cvmfs/fifeuser4.opensciencegrid.org/sw/dune/dfab8a258a1816ed47506f7c1ce254b22257dbcd/justin-webdav-upload \
-# $JUSTIN_WORKDIR
+# Assemble values to send to allocator
+getStageDict = { 'method' : 'get_stage_json' }
 
-# Assemble values to record
-export JUSTIN_CPUINFO=`grep '^model name' /proc/cpuinfo | head -1 | cut -c14-`
-export JUSTIN_OS_RELEASE=`head -1 /etc/redhat-release`
-export JUSTIN_HOSTNAME=${HOSTNAME:-`hostname`}
+for line in open('/proc/cpuinfo','r').readlines():
+  if line.startswith('model name'):
+    getStageDict['cpuinfo'] = line.split(':')[1].strip()
+    break
 
-export processors=`grep '^RequestCpus = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
-export rss_mb=`grep '^RequestMemory = ' $_CONDOR_JOB_AD | cut -d' ' -f3`
-export rss_bytes=`expr $rss_mb \* 1048576`
-export wall_seconds=`grep '^GLIDEIN_Max_Walltime = ' $_CONDOR_MACHINE_AD | cut -d' ' -f3`
+getStageDict['os_release'] \
+  = open('/etc/redhat-release','r').readlines()[0].strip()
+getStageDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
+getStageDict['site_name']   = siteName
 
-echo '==== Before: ls -l /proc/$$/ns/ ===='
-ls -l "/proc/$$/ns/"
-echo '==== After: ls -l /proc/$$/ns/ ===='
-echo '==== Before try apptainer ===='
-  /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
-   --shell /usr/bin/hostname \
-   /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
-if [ $? = 0 ] ; then
-  inner_apptainer=true
-else
-  inner_apptainer=false
-fi
-echo '==== After try apptainer ===='
+getStageDict['site_job_id'] = 'XXX'
+##  "site_job_id"     : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
 
-openssl req -batch -nodes -newkey rsa:2048 \
- -keyout justin-jobs-no-roles.key.pem -out justin-jobs-no-roles.csr.pem
+for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
+  if line.startswith('RequestCpus = '):
+    getStageDict['processors'] = int(line.split('=')[1].strip())
 
-openssl req -batch -nodes -newkey rsa:2048 \
- -keyout justin-jobs-production.key.pem -out justin-jobs-production.csr.pem
+  if line.startswith('RequestMemory = '):
+    getStageDict['rss_bytes'] = 1048576 * int(line.split('=')[1].strip())
 
-for i in 1 2 3 4 5 
-do
+for line in open(os.environ['_CONDOR_MACHINE_AD'],'r').readlines():
+  if line.startswith('GLIDEIN_Max_Walltime = '):
+    getStageDict['wall_seconds'] = int(line.split('=')[1].strip())
+    break
 
-# Sleep for up to 60 seconds to spread out job start storms
-sleep_seconds=`expr $RANDOM / 512`
-log_line "Sleep for $sleep_seconds seconds"
-sleep $sleep_seconds
-log_line "Attempt $i/5 of curl get_stage"
+logLine('==== Before try apptainer ====')
+getStageDict['has_inner_apptainer'] = (0 == os.system(
+   '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer '
+   'shell --shell /usr/bin/hostname '
+   '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6'
+   ))
+logLine('==== After try apptainer ====')
 
-# Create the JSON to send to the allocator
-secret_time=`date +'%s'`
-secret_hash=$(echo -n get_stage$secret_time$JOBSUBJOBID \
-                | openssl sha256 -hmac `cat justin_job_secret.txt` \
-                | cut -f2 -d' ')
+# Make no roles CSR 
+os.system('openssl req -batch -nodes -newkey rsa:2048 '
+          '-keyout justin-jobs-no-roles.key.pem '
+          '-out justin-jobs-no-roles.csr.pem')
 
-cat <<EOF >justin-get-stage.json
-{
-  "method"          : "get_stage",
-  "jobsub_id"       : "$JOBSUBJOBID",
-  "secret_time"     : $secret_time,
-  "secret_hash"     : "$secret_hash",
-  "site_name"       : "$DUNE_SITE_NAME",
-  "cpuinfo"         : "${JUSTIN_CPUINFO:-Unknown}",
-  "os_release"      : "${JUSTIN_OS_RELEASE:-Unknown}",
-  "hostname"        : "${JUSTIN_HOSTNAME:-unknown}",
-  "rss_bytes"       : ${rss_bytes:-0},
-  "processors"      : ${processors:-0},
-  "wall_seconds"    : ${wall_seconds:-0},
-  "inner_apptainer" : $inner_apptainer,
-  "site_job_id"     : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
-  "csr-no-roles"    : "`sed -z 's/\n/\\\\n/g' justin-jobs-no-roles.csr.pem`",
-  "csr-production"  : "`sed -z 's/\n/\\\\n/g' justin-jobs-production.csr.pem`"
-}
-EOF
+getStageDict['csr-no-roles'] = \
+  open('justin-jobs-no-roles.csr.pem', 'r').read()
 
-echo '====start justin-get-stage.json===='
-cat justin-get-stage.json
-echo '====end justin-get-stage.json===='
+justinJobsNoRolesKeyPem = \
+  open('justin-jobs-no-roles.key.pem', 'r').read()
 
-# Make the call to the Workflow Allocator
-http_code=`curl \
---retry 0 \
---user-agent 'justin-generic-job' \
---header "X-Jobid: $JOBSUBJOBID" \
---header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
---header "Expect:" \
---capath $X509_CERTIFICATES \
---data @justin-get-stage.json \
---output justin-files.tar \
---write-out "%{http_code}\n" \
-https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_stage`
+# Make production CSR
+os.system('openssl req -batch -nodes -newkey rsa:2048 '
+          '-keyout justin-jobs-production.key.pem '
+          '-out justin-jobs-production.csr.pem')
 
-chmod 0600 justin-files.tar 
-log_line "($i/5) curl returns HTTP code $http_code"
+getStageDict['csr-production'] = \
+  open('justin-jobs-production.csr.pem', 'r').read()
 
-if [ "$http_code" != "503" -a "$http_code" != "000" ] ; then
- break
-fi
-done
+justinJobsProductionKeyPem = \
+  open('justin-jobs-production.key.pem', 'r').read()
 
-if [ "$http_code" != "200" ] ; then
-  log_line "curl call to allocator to get stage fails with code $http_code"
-  cat justin-files.tar
-  echo
-  exit 0
-fi
+for i in range(1,6):
 
-tar xvf justin-files.tar
+  # Sleep for up to 60 seconds to spread out job start storms
+  logLine('Random sleep ...')
+##REINSTATE THIS AFTER TESTING!!!!
+  ##time.sleep(random.randrange(61))
 
-if [ -r justin-env.sh ] ; then
-  . ./justin-env.sh
-fi
+  logLine('====start justin-get-stage.json====')
+  print(json.dumps(getStageDict))
+  logLine('====end justin-get-stage.json====')
 
-echo '====Start justin-output-patterns.txt===='
-cat justin-output-patterns.txt
-echo '====End justin-output-patterns.txt===='
+  receivedDict = sendJsonURL(
+    'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_stage',
+    getStageDict)
 
-echo '====Start justin-env.sh===='
-cat justin-env.sh
-echo '====End justin-env.sh===='
+  logLine('get_stage returns HTTP code %d' % receivedDict['status'])
 
-echo '====Start justin-jobscript-env.sh===='
-cat justin-jobscript-env.sh
-echo '====End justin-jobscript-env.sh===='
-cp justin-jobscript-env.sh $JUSTIN_WORKDIR/home
+  if receivedDict['status'] != 503 and receivedDict['status'] != 0:
+    break
+    
+if receivedDict['status'] != 200:
+## WANT TO PRINT OUT MESSAGE NOT JUST CODE AS ABOVE ALREADY
+  sys.exit(0)
 
-echo '====Start justin-get-file.json===='
-cat justin-get-file.json
-echo '====End justin-get-file.json===='
-cp justin-get-file.json $JUSTIN_WORKDIR/home
+# Stage-defined and standard environment variables for the jobscript
+with open('home/justin-jobscript-env.sh','w') as f:
+  for (n,v) in receivedDict['stage_env']:
+    f.write('export %s="%s"\n' % (n,v))
 
-echo '====Start justin-jobscript.sh===='
-cat justin-jobscript.sh
-echo '====End justin-jobscript.sh===='
-cp justin-jobscript.sh $JUSTIN_WORKDIR/home
-chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
+  f.write('export JUSTIN_SITE_NAME=%s\n' % receivedDict['site_name'])
+  f.write('export JUSTIN_REQUEST_ID=%d\n' % receivedDict['request_id'])
+  f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])
+  f.write('export JUSTIN_SCOPE=%s\n' % receivedDict['scope'])
+  f.write('export JUSTIN_JOBSUB_ID=%s\n' % receivedDict['jobsub_id'])
+  f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
+          % receivedDict['jobscript_secret'])
+  f.write('export JUSTIN_SAM_WEB_URI='
+          '"https://justin.dune.hep.ac.uk/api/samweb/%s/%s"\n' 
+          % (receivedDict['jobsub_id'], receivedDict['jobscript_secret']))
+
+# JSON for justin-get-file command to use
+with open('home/justin-get-file.json', 'w') as f:
+  f.write(json.dumps({ 'method' : 'get_file',
+                       'jobsub_id' : receivedDict['jobsub_id'],
+                       'jobscript_secret' : receivedDict['jobscript_secret']
+                     }
+                    )
+         )
+
+# JSON for justin-allocated-files command to use
+with open('home/justin-allocated-files.json', 'w') as f:
+  f.write(json.dumps({ 'method' : 'get_allocated_files',
+                       'jobsub_id' : receivedDict['jobsub_id'],
+                       'jobscript_secret' : receivedDict['jobscript_secret']
+                     }
+                    )
+         )
+
+# The jobscript in any scripting language supported by the container
+with open('home/justin-jobscript','wb') as f:
+  f.write(receivedDict['jobscript'].encode())
+
+os.chmod('home/justin-jobscript', 0o755)
 
 # Assemble proxy to be used by jobscript
-cat justin-jobs-no-roles.cert.pem  \
-    justin-jobs-no-roles.key.pem   \
-    justin-jobs-no-roles.chain.pem \
-  > $JUSTIN_WORKDIR/home/justin-jobs-no-roles.proxy.pem
-chmod 0400 $JUSTIN_WORKDIR/home/justin-jobs-no-roles.proxy.pem
-    
-# Assemble proxy for uploads by generic job itself
-cat justin-jobs-production.cert.pem  \
-    justin-jobs-production.key.pem   \
-    justin-jobs-production.chain.pem \
-  > $JUSTIN_WORKDIR/justin-jobs-production.proxy.pem
-chmod 0400 $JUSTIN_WORKDIR/justin-jobs-production.proxy.pem
+with open('home/justin-jobs-no-roles.proxy.pem', 'w') as f:
+  f.write(receivedDict['justin-jobs-no-roles.cert.pem'])
+  f.write(justinJobsNoRolesKeyPem)
+  f.write(receivedDict['justin-jobs-no-roles.chain.pem'])
 
-export X509_USER_PROXY=${X509_USER_PROXY:-$JUSTIN_WORKDIR/justin-jobs-production.proxy.pem}
+os.chmod('home/justin-jobs-no-roles.proxy.pem', 0o400)
 
-if [ -n "$JUSTIN_FOR_AWT" ] ; then
-  # If an AWT job, then we give it the generic job's proxy too
-  cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/awt-proxy.pem
-  chmod 0400 $JUSTIN_WORKDIR/home/awt-proxy.pem
-  cp justin-awt-rse-list.txt $JUSTIN_WORKDIR/home
-fi
+# Assemble proxy to be used by generic job itself
+with open('justin-jobs-production.proxy.pem', 'w') as f:
+  f.write(receivedDict['justin-jobs-production.cert.pem'])
+  f.write(justinJobsProductionKeyPem)
+  f.write(receivedDict['justin-jobs-production.chain.pem'])
 
-# Wrapper to be run inside the container
-cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
-#!/bin/sh
-export JUSTIN_PATH="\$HOME"
-export X509_USER_PROXY="\$HOME/justin-jobs-no-roles.proxy.pem"
+os.chmod('justin-jobs-production.proxy.pem', 0o400)
+
+# AWT jobs get production proxy too
+if receivedDict['for_awt']:
+
+  with open('home/justin-awt-rse-list.txt', 'w') as f:
+    for (rseName, scheme, pfn) in receivedDict['awt_rses']:
+      f.write('%s %s %s\n' % (rseName, scheme, pfn))
+
+  with open('home/awt-proxy.pem', 'w') as f:
+    f.write(receivedDict['justin-jobs-production.cert.pem'])
+    f.write(justinJobsProductionKeyPem)
+    f.write(receivedDict['justin-jobs-production.chain.pem'])
+
+  os.chmod('home/awt-proxy.pem', 0o400)
+
+### NEED TO RECORD USER SECONDS, MAX MEMORY ETC!!!!
+if getStageDict['has_inner_apptainer']:
+  # Wrapper to be run inside the container
+  with open('home/jobscript-wrapper.sh','w') as f:
+    f.write('''#!/bin/sh
+export JUSTIN_PATH="$HOME"
+export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
-stdbuf -oL -eL ../justin-jobscript.sh 2>&1
-EOF
-chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
+stdbuf -oL -eL ../justin-jobscript 2>&1
+''')
 
-echo "====Start of jobscript execution===="
-export JUSTIN_JOBSCRIPT_START=`date --iso-8601=seconds --utc`
-/usr/bin/time -o $JUSTIN_WORKDIR/time.txt -f '%e %U %S %M' \
-    /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
-    --shell /home/jobscript-wrapper.sh \
-    --containall \
-    --bind /cvmfs \
-    --workdir $JUSTIN_WORKDIR \
-    --home $JUSTIN_WORKDIR/home:/home \
-    /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 \
-    > $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log 
-export JUSTIN_JOBSCRIPT_EXIT=$?
-export JUSTIN_JOBSCRIPT_FINISH=`date --iso-8601=seconds --utc`
-export JUSTIN_JOBSCRIPT_REAL_SECONDS=`cut -d' ' -f1 $JUSTIN_WORKDIR/time.txt`
-export JUSTIN_JOBSCRIPT_USER_SECONDS=`cut -d' ' -f2 $JUSTIN_WORKDIR/time.txt`
-export JUSTIN_JOBSCRIPT_SYS_SECONDS=`cut -d' ' -f3 $JUSTIN_WORKDIR/time.txt`
-export JUSTIN_JOBSCRIPT_MAX_RSS_KB=`cut -d' ' -f4 $JUSTIN_WORKDIR/time.txt`
-echo "====End of jobscript execution===="
+  os.chmod('home/jobscript-wrapper.sh', 0o755)
 
-echo '#### justin-jobscript.log'
-cat $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log
-echo '####'
+  logLine('Inner apptainer available. Run jobscript inside container')
+  logLine('====Start of jobscript execution====')
+  jobscriptStartTime=int(time.time())
 
-# Make the lists of output files and files for the next stage
-echo -n > justin-outputs.txt
-echo -n > justin-output-urls.txt
-echo -n > justin-output-dids.txt
-echo -n > justin-next-stage-dids.txt
-
-echo '### Contents of workspace directory ###'
-ls -lR home/workspace
-echo '###'
-
-cat justin-output-patterns.txt | (
-while read lifetime for_next_stage destination scope pattern
-do
-  (
-    cd $JUSTIN_WORKDIR/home/workspace
-    # $pattern is wildcard-expanded here - so a list of files
-    for fn in $pattern
-    do
-      if [ -r "$fn" ] ; then
-        # justin-outputs.txt gets DATASET SCOPE FILENAME on each line
-        echo "$lifetime $destination $scope $fn" \
-          >> $JUSTIN_WORKDIR/justin-outputs.txt
-
-        if [ "$scope" = '::URL::' ] ; then
-          echo "$destination/$fn" >> $JUSTIN_WORKDIR/justin-output-urls.txt
-        else
-          if [ "$for_next_stage" = "True" ] ; then
-            # justin-next-stage-dids gets a list of DIDs
-            echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-next-stage-dids.txt
-          else
-            # justin-output-dids.txt gets DID = SCOPE:FILENAME
-            echo "$scope:$fn" >> $JUSTIN_WORKDIR/justin-output-dids.txt
-          fi
-        fi
-      fi
-    done
+  jobscriptOutcome = subprocess.run(
+  '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell '
+  '--shell /home/jobscript-wrapper.sh '
+  '--containall '
+  '--bind /cvmfs '
+  '--workdir %s '
+  '--home %s/home:/home '
+  '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6 '
+  % (justinWorkdir, justinWorkdir),
+  stdout=subprocess.PIPE,
+  shell=True 
   )
-done
-)
+  
+else:
+  # Wrapper to be run outside a container
+  with open('home/jobscript-wrapper.sh','w') as f:
+    f.write('''#!/bin/sh
+cd home
+export HOME="$PWD"
+export JUSTIN_PATH="$HOME"
+export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
+cd workspace
+. ../justin-jobscript-env.sh
+stdbuf -oL -eL ../justin-jobscript 2>&1
+''')
 
-echo '#### justin-outputs.txt'
-cat $JUSTIN_WORKDIR/justin-outputs.txt
-echo '####'
-echo
-echo '#### justin-output-urls.txt'
-cat $JUSTIN_WORKDIR/justin-output-urls.txt
-echo '####'
-echo
-echo '#### justin-output-dids.txt'
-cat $JUSTIN_WORKDIR/justin-output-dids.txt
-echo '####'
-echo
-echo '#### justin-next-stage-dids.txt'
-cat $JUSTIN_WORKDIR/justin-next-stage-dids.txt
-echo '####'
-echo
-echo '#### justin-output-rse-list.txt'
-cat $JUSTIN_WORKDIR/justin-output-rse-list.txt
-echo '####'
+  os.chmod('home/jobscript-wrapper.sh', 0o755)
 
-output_urls=`echo \`sed 's/.*/"&"/' justin-output-urls.txt\`|sed 's/ /,/g'`
+  logLine('Inner apptainer not available. Run jobscript in generic job context')
+  logLine('====Start of jobscript execution====')
+  jobscriptStartTime=int(time.time())
 
-output_dids=`echo \`sed 's/.*/"&"/' justin-output-dids.txt\`|sed 's/ /,/g'`
+  jobscriptOutcome = subprocess.run('home/jobscript-wrapper.sh ',
+                                    stdout=subprocess.PIPE,
+                                    shell=True 
+                                   )
 
-next_stage_dids=`echo \`sed 's/.*/"&"/' justin-next-stage-dids.txt\`|sed 's/ /,/g'`
+jobscriptFinishTime=int(time.time())
+logLine('====End of jobscript execution====')
 
-# justin-jobscript.sh should produce lists of successfully processed input files
-if [ -f $JUSTIN_WORKDIR/home/workspace/justin-processed-dids.txt ] ; then
-  processed_dids=`echo \`sed -r 's/.+/"&"/' $JUSTIN_WORKDIR/home/workspace/justin-processed-dids.txt\`|sed 's/ /,/g'`
-fi
+logLine('#### start jobscript log ####')
+print(jobscriptOutcome.stdout)
+logLine('#### end jobscript log ####')
 
-if [ -f $JUSTIN_WORKDIR/home/workspace/justin-processed-pfns.txt ] ; then
-  processed_pfns=`echo \`sed -r 's/.+/"&"/' $JUSTIN_WORKDIR/home/workspace/justin-processed-pfns.txt\`|sed 's/ /,/g'`
-fi
-
-tail -c 10000 $JUSTIN_WORKDIR/home/workspace/justin-jobscript.log | base64 --wrap=0 > justin-jobscript.log.b64
-
-secret_time=`date +'%s'`
-secret_hash=$(echo -n record_results$secret_time$JOBSUBJOBID \
-                | openssl sha256 -hmac `cat justin_job_secret.txt` \
-                | cut -f2 -d' ')
-
-cat <<EOF >justin-record-results.json
-{
-  "method": "record_results",
-  "jobsub_id": "$JOBSUBJOBID",
-  "secret_time": $secret_time,
-  "secret_hash": "$secret_hash",
-  "processed_dids": [$processed_dids],
-  "processed_pfns": [$processed_pfns],
-  "output_urls": [$output_urls],
-  "output_dids": [$output_dids],
-  "next_stage_dids": [$next_stage_dids],
-  "jobscript_log": "`cat justin-jobscript.log.b64`",
-  "jobscript_exit": $JUSTIN_JOBSCRIPT_EXIT,
-  "jobscript_start": "$JUSTIN_JOBSCRIPT_START",
-  "jobscript_finish": "$JUSTIN_JOBSCRIPT_FINISH",
-  "jobscript_real_seconds": $JUSTIN_JOBSCRIPT_REAL_SECONDS,
-  "jobscript_user_seconds": $JUSTIN_JOBSCRIPT_USER_SECONDS,
-  "jobscript_sys_seconds": $JUSTIN_JOBSCRIPT_SYS_SECONDS,
-  "jobscript_max_rss_kb": $JUSTIN_JOBSCRIPT_MAX_RSS_KB
+justinRecordResultsDict = {
+  'method'                 : 'record_results',
+  'output_urls'            : [],
+  'output_dids'            : [],
+  'next_stage_dids'        : [],
+  'jobscript_log'          : jobscriptOutcome.stdout.decode()[-10000:],
+  'jobscript_exit'         : jobscriptOutcome.returncode,
+  'jobscript_start'        : jobscriptStartTime,
+  'jobscript_finish'       : jobscriptFinishTime,
+  'jobscript_real_seconds' : 0,
+  'jobscript_user_seconds' : 0,
+  'jobscript_sys_seconds'  : 0,
+  'jobscript_max_rss_kb'   : 0
 }
-EOF
 
-echo "=====Start justin-record-results.json=="
-cat justin-record-results.json
-echo "=====End justin-record-results.json=="
+outputFiles = []
 
-http_code=`curl \
---retry 5 \
---retry-max-time 300 \
---max-time 600 \
---user-agent 'justin-generic-job' \
---header "X-Jobid: $JOBSUBJOBID" \
---header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
---header "Expect:" \
---capath $X509_CERTIFICATES \
---data @justin-record-results.json \
---output $JUSTIN_WORKDIR/user-upload-token \
---write-out "%{http_code}\n" \
-https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/record_results`
+# Find files matching output patterns specified for this stage
+for (lifetimeSeconds, forNextStage, destination, scope, pattern) in \
+    receivedDict['patterns']:
+  
+  matches = glob.glob('home/workspace/' + pattern)
+  for match in matches:
+    matchingFile = match.split('/')[-1]
+    outputFiles.append((lifetimeSeconds, destination, scope, matchingFile))
+    
+    if scope == '::URL::':
+      justinRecordResultsDict['output_urls'].append(destination + '/' +
+                                                        matchingFile)
+    elif forNextStage:
+      justinRecordResultsDict['next_stage_dids'].append(scope + ':' + 
+                                                        matchingFile)    
+    else:
+      justinRecordResultsDict['output_dids'].append(scope + ':' + matchingFile)
 
-log_line "record_results returns HTTP code $http_code"
+justinRecordResultsDict['processed_dids'] = []
+try:
+  for i in open('home/workspace/justin-processed-dids.txt','r').readlines():
+    justinRecordResultsDict['processed_dids'].append(i.strip())
+except:
+  pass
 
-if [ "$http_code" != 200 ] ; then
-  job_aborted 0 $http_code record_results
-fi
+justinRecordResultsDict['processed_pfns'] = []
+try:
+  for i in open('home/workspace/justin-processed-pfns.txt','r').readlines():
+    justinRecordResultsDict['processed_pfns'].append(i.strip())
+except:
+  pass
 
-if [ "$JUSTIN_JOBSCRIPT_EXIT" != 0 ] ; then
-  job_aborted 0 900 jobscript_error
-fi
+logLine('record results: ' + str(justinRecordResultsDict))
+resultsResponseDict = sendJsonURL(
+ 'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/record_results', 
+ justinRecordResultsDict)
 
-# Just try the first RSE for now; eventually will do failovers on errors
-export OUTPUT_RSE=`head -1 justin-output-rse-list.txt | cut -f1 -d' '`
-export OUTPUT_PROTOCOL=`head -1 justin-output-rse-list.txt | cut -f2 -d' '`
-log_line "Using $OUTPUT_RSE for output"
+logLine('record_results returns HTTP code %d' % resultsResponseDict['status'])
 
-cat $JUSTIN_WORKDIR/justin-outputs.txt | (
+if resultsResponseDict['status'] != 200:
+  jobAborted(resultsResponseDict['status'], 'record_results', '')
 
-cat <<EOF >$JUSTIN_WORKDIR/rucio.cfg
-[client]
-rucio_host = https://dune-rucio.fnal.gov
-auth_host = https://auth-dune-rucio.fnal.gov
-account = dunepro
-auth_type = x509_proxy
-request_retries = 3
-EOF
+if jobscriptOutcome.returncode != 0:
+  jobAborted(900, 'jobscript_error', '')
 
-echo '====Start rucio.cfg===='
-cat $JUSTIN_WORKDIR/rucio.cfg
-echo '====End rucio.cfg===='
+# Now try to upload the output files we recorded as created by the job
+logLine('Output RSEs: ' + str(receivedDict['output_rses']))
 
-source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
-setup rucio
-unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
-setup metacat
+# TO DO: DROP THIS FILE WRITE?
+# Write out the token for uploading to user's scratch
+#with open('user-upload-token', 'w') as f:
+#  f.write(resultsResponseDict['user_access_token'])
 
-export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
-export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_demo/app
+confirmResultsDict = { 'method'      : 'confirm_results',
+                       'output_dids' : {},
+                       'output_urls' : []  }
 
-log_line 'Test rucio client'
-rucio --config $JUSTIN_WORKDIR/rucio.cfg --version
-if [ $? != 0 ] ; then
-  job_aborted 1 900 rucio_test
-fi
+# Go through the list of output files
+for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
+  
+  if fileScope == '::URL::': 
+    # Uploading to user scratch
+#    ret = webdavUpload(fileName, destination)
+#    if ret:
+#      logLine('WebDAV upload fails with code %d' % ret)
 
-log_line 'Test metacat client'
-metacat auth login -m x509 dunepro
-metacat auth whoami
-if [ $? != 0 ] ; then
-  job_aborted 1 900 metacat_test
-fi
+    try:
+      webdavPutFile(resultsResponseDict['user_access_token'], 
+                    'home/workspace/' + fileName,
+                    destination)
+    except:
+      jobAborted(900, 'webdav_upload', '')
+    
+    confirmResultsDict['output_urls'].append(destination + '/' + fileName)
+  elif receivedDict['output_rses']:
+    # Uploading to Rucio managed storage
+    
+    # Create tmp.json metadata file for this output file
+    try:
+      updateMetadataTmp(fileScope, fileName, 
+                        getStageDict, receivedDict, justinRecordResultsDict)
+    except:
+      jobAborted(900, 'update_metadata', '')
 
-touch justin-output-urls-uploaded.txt
-touch justin-output-dids-rses.txt
+    # First try to register with MetaCat
+    ret = executeMetaCatCommand('file declare --json -f tmp.json "%s:%s"' 
+                                  % (fileScope, destination))
+    if ret:
+      logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))
+      jobAborted(900, 'metacat_registration', '')
 
-while read lifetime destination scope fn
-do
-  if [ "$scope" == '::URL::' ] ; then
-    $JUSTIN_WORKDIR/justin-webdav-upload \
-       --verbose \
-       --token-file $JUSTIN_WORKDIR/user-upload-token \
-       --source-file "$JUSTIN_WORKDIR/home/workspace/$fn" \
-       --destination-directory $destination
-       
-    if [ $? != 0 ] ; then
-      log_line "WebDAV upload fails"
-      job_aborted 1 900 webdav_upload
-    fi
-       
-    echo "\"$destination/$fn\"" >> justin-output-urls-uploaded.txt
-  else
-    # Output to Rucio managed storage, within a Rucio dataset
-    $JUSTIN_WORKDIR/home/justin-metadata "$scope" "$fn" > tmp.json
-    echo "==== Start MetaCat JSON for $fn ===="
-    cat tmp.json
-    echo "==== End MetaCat JSON for $fn ===="
+    # If that succeeds, then try to register/upload with rucio    
+    for (rse,scheme) in receivedDict['output_rses'][:3]:
+      logLine('Try %s:%s to %s/%s' 
+              % (fileScope, fileName, rse, scheme))
+           
+      ret = executeRucioCommand('upload %s '
+                                '--rse %s '
+                                '--transfer-timeout 1200 '
+                                '--protocol %s '
+                                '--scope %s '
+                                '--name %s '
+                                'home/workspace/%s' %
+               (('--lifetime %d' % lifetimeSeconds) if lifetimeSeconds else '',
+                rse,
+                scheme,
+                fileScope,
+                fileName,
+                fileName))
 
-    log_line "Try to declare file in MetaCat (1/3)"
-    echo "metacat file declare --json -f tmp.json "$scope:$destination""
-    metacat file declare --json -f tmp.json "$scope:$destination"
-    metacat_return_code=$?
-    echo "metacat returns $metacat_return_code"
-    if [ $metacat_return_code != 0 ] ; then
-      sleep 1
-      log_line "Retry declare file in MetaCat (2/3)"
-      metacat file declare --json -f tmp.json "$scope:$destination"
-      metacat_return_code=$?
-      if [ $metacat_return_code != 0 ] ; then
-        sleep 1
-        log_line "Last chance to declare file in MetaCat (3/3)"
-        metacat file declare --json -f tmp.json "$scope:$destination"
-        metacat_return_code=$?
-      fi
-    fi
+      if ret == 0:
+        break
+      else:
+        logLine('Failed to upload %s:%s to %s' % (fileScope, fileName, rse))
 
-    if [ $metacat_return_code = 0 ] ; then
-      if [ "$lifetime" -gt 0 ] ; then
-        lifetime_option="--lifetime $lifetime"
-      fi
-      log_line "Upload $scope:$fn to $OUTPUT_RSE/$OUTPUT_PROTOCOL"
-      rucio --config $JUSTIN_WORKDIR/rucio.cfg --verbose \
-          upload \
-          $lifetime_option \
-          --rse "$OUTPUT_RSE" \
-          --transfer-timeout 1200 \
-          --protocol "$OUTPUT_PROTOCOL" \
-          --scope "$scope" \
-          --name "$fn" \
-          "$JUSTIN_WORKDIR/home/workspace/$fn"
+    if ret:
+      logLine('Failed to upload %s:%s' % (fileScope, fileName))
+      jobAborted(900, 'rucio_upload', '')
 
-      if [ $? = 0 ] ; then
-        log_line "Add $scope:$fn to $scope:$destination"
-        rucio --config $JUSTIN_WORKDIR/rucio.cfg \
-             --verbose attach "$scope:$destination" "$scope:$fn"
-        if [ $? != 0 ] ; then
-          log_line "rucio attach fails"
-          job_aborted 1 900 rucio_attach
-        fi
-        echo "\"$scope:$fn\":\"$OUTPUT_RSE\"" >> justin-output-dids-rses.txt
-      else
-        log_line "rucio upload fails"
-        job_aborted 1 900 rucio_upload "$OUTPUT_RSE"
-      fi
-    else
-      log_line "metacat file declaration fails"
-      job_aborted 1 900 metacat_declare
-    fi
-  fi
-done
+    # Add to dataset
+    logLine('Adding %s:%s to %s:%s' 
+            % (fileScope, fileName, fileScope, destination))
 
-)
-if [ $? != 0 ] ; then
-  # Exit/aborts inside subshell just exit the subshell with a non-zero code
-  # So we exit the generic job script properly here
-  exit 0
-fi
+    ret = executeRucioCommand('attach "%s:%s" "%s:%s"'
+                              % (fileScope, destination, fileScope, fileName))
+    if ret:
+      logLine('rucio attach fails')
+      jobAborted(900, 'rucio_attach', '')
+
+    # Add to list of uploaded files for confirm results
+    confirmResultsDict['output_dids'][fileScope + ':' + fileName] = rse
 
 # If all ok, then confirm that to the Workflow Allocator
 
-secret_time=`date +'%s'`
-secret_hash=$(echo -n confirm_results$secret_time$JOBSUBJOBID \
-                | openssl sha256 -hmac `cat justin_job_secret.txt` \
-                | cut -f2 -d' ')
+logLine('confirm results: ' + str(confirmResultsDict))
+confirmDict = sendJsonURL(
+  'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/confirm_results',
+  confirmResultsDict)
 
-cat <<EOF >justin-confirm-results.json
-{
-  "method"      : "confirm_results",
-  "jobsub_id"   : "$JOBSUBJOBID",
-  "secret_time" : $secret_time,
-  "secret_hash" : "$secret_hash",
-  "output_dids": {
-EOF
+logLine('confirm_results returns HTTP code %d' % confirmDict['status'])
 
-echo `cat justin-output-dids-rses.txt` \
-  | sed 's/ /,/g' >>justin-confirm-results.json
+if confirmDict['status'] != 200:
+  jobAborted(900, 'confirm_results', '')
 
-echo '}, "output_urls": [' >> justin-confirm-results.json
-
-echo `cat justin-output-urls-uploaded.txt` \
-  | sed 's/ /,/g' >>justin-confirm-results.json
-
-echo '] }' >>justin-confirm-results.json
-
-echo "=====Start justin-confirm-results.json=="
-cat justin-confirm-results.json
-echo "=====End justin-confirm-results.json=="
-
-#--retry 5 \
-#--retry-max-time 300 \
-
-http_code=`curl \
---max-time 600 \
---user-agent 'justin-generic-job' \
---header "X-Jobid: $JOBSUBJOBID" \
---header "X-DUNE-Site-Name: $DUNE_SITE_NAME" \
---header "Expect:" \
---capath $X509_CERTIFICATES \
---data @justin-confirm-results.json \
---output confirm-results.log \
---write-out "%{http_code}\n" \
-https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/confirm_results`
-
-log_line "confirm_results returns HTTP code $http_code"
-echo "=====Start confirm-results.log=="
-touch confirm-results.log
-cat confirm-results.log
-echo "=====End confirm-results.log=="
-
-if [ "$http_code" != 200 ] ; then
-  job_aborted 0 $http_code confirm_results
-fi
-
-log_line '====End of justin-generic-job===='
-exit 0
-
+logLine('====End of justin-generic-job====')
+sys.exit(0)
+########################################################################
