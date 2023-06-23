@@ -10,6 +10,12 @@ is a command-line utility for upload one or more files contained in a tar
 archive file to cvmfs using the Fermilab Rapid Code Distribution Service 
 (RCDS). The full cvmfs path is then output by the command.
 
+The environment variable 
+.B JOBSUB_DROPBOX_SERVER_LIST 
+is used to find the RCDS server to use, or 
+.B rcds01.fnal.gov
+if the variable is not set.
+
 .SH OPTIONS AND ARGUMENTS
 
 .HP 
