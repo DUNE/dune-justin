@@ -91,6 +91,13 @@ def webdavRemoteDirCreate(sslContext, token, url):
     httpCode = response.status 
 
   except urllib.error.URLError as e:
+    # For MKCOL, HTTP code 405 means directory already exists 
+    # http://www.webdav.org/specs/rfc2518.html#rfc.section.8.3.2.p.4
+    # Presumably another job created it ...
+    if e.code == 405:
+      print('%s already exists now!' % url, file=sys.stderr)
+      return
+
     print('HTTP error: ' + str(e), file=sys.stderr)
     raise
     

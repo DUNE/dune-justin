@@ -78,23 +78,6 @@ def sendRequest(url, method, data):
     
   return response
 
-def findRcdsServer():
-
-  for jobsubServer in ['jobsub03.fnal.gov:8443',
-                       'jobsub02.fnal.gov:8443',
-                       'jobsub01.fnal.gov:8443']:
-
-    response = sendRequest('https://%s/jobsub/acctgroups/dune/dropboxcvmfsserver/' 
-                           % jobsubServer,
-                           'GET', 
-                           None)
-
-    try:
-      responseJson = json.loads(response.read().decode('utf-8'))
-      return responseJson['out']
-    except:
-      return None
-
 def getCvmfsPath(rcdsServer, hashString):
 
   response = sendRequest('https://%s//pubapi/exists?cid=dune/%s'
@@ -144,15 +127,13 @@ parser.add_argument('tar_file',
 
 args = parser.parse_args()
 
-#rcdsServer = findRcdsServer()
-#if not rcdsServer:
-#  print('Failed to find RCDS server', file=sys.stderr)
-#  sys.exit(1)
-
-rcdsServer = 'rcds01.fnal.gov'
+try:
+  rcdsServer = os.environ['JOBSUB_DROPBOX_SERVER_LIST'].split()[0]
+except:
+  rcdsServer = 'rcds01.fnal.gov'
 
 if args.verbose:
-  print('Found RCDS server: ' + rcdsServer, file=sys.stderr)
+  print('Using RCDS server: ' + rcdsServer, file=sys.stderr)
 
 try:
   tarFileContents = open(args.tar_file, 'rb').read()
