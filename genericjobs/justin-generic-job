@@ -113,6 +113,8 @@ def jobAborted(httpCode, abortedMethod, rseName):
     'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/job_aborted_'
      + str(httpCode),
     jobAbortedDict)
+    
+  sys.exit(0)
 
 def executeMetaCatCommand(args):
 
