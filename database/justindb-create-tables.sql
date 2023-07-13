@@ -314,7 +314,6 @@ CREATE TABLE IF NOT EXISTS `jwt_keys` (
 CREATE TABLE IF NOT EXISTS `users` (
   `user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `main_pn_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `generic_jobs` tinyint(1) NOT NULL DEFAULT FALSE,
   `access_token` text NOT NULL DEFAULT '',
   `access_token_created` datetime NOT NULL DEFAULT '1970-01-01',
   `access_token_expires` datetime NOT NULL DEFAULT '1970-01-01',
