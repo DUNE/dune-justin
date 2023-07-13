@@ -33,7 +33,7 @@ draft > submitted > running > paused > running > finished.
 As part of its definition, a request may include one or more stages, each 
 of which can apply a sequence of processing steps to the input or output 
 files. Each stage specifies a 
-[jobscript](jobscripts.md) used by generic jobs to run 
+[jobscript](jobscripts.md) used by wrapper jobs to run 
 the relevant applications. The stage definition specifies the requirements on 
 the worker nodes (for example memory and job duration).
 
@@ -46,6 +46,6 @@ state.
 Once the request has moved to the running state the 
 [Finder agent](agents.finder.md) builds the list of input files for its first
 stage, and looks up the replicas of each file using Rucio. Once replicas are 
-available, then generic jobs submitted by the 
-[Generic Job Factory](agents.job_factory.md)
+available, then wrapper jobs submitted by the 
+[justIN Job Factory](agents.job_factory.md)
 will begin to match unallocated files and processing can begin.

@@ -16,6 +16,9 @@ justin-cvmfs-upload command itself.
            Code Distribution Service (RCDS). The full cvmfs path is then output by
            the command.
     
+           The environment variable JOBSUB_DROPBOX_SERVER_LIST is used to find the
+           RCDS server to use, or rcds01.fnal.gov if the variable is not set.
+    
     
     OPTIONS AND ARGUMENTS
            -h, --help

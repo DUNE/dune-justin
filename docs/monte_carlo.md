@@ -1,6 +1,6 @@
 # Monte Carlo requests
 
-justIN relies on matching unprocessed input files with generic
+justIN relies on matching unprocessed input files with wrapper
 jobs which start on worker nodes at sites. To be able to include Monte Carlo
 requests in the system, it is necessary to create virtual counter files in
 the [justIN database](database.md)'s list of files. These counter

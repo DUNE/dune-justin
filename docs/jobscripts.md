@@ -1,7 +1,7 @@
 # Jobscripts
 
 The jobscripts supplied when creating a stage are shell scripts 
-which the generic jobs execute for the user, on the worker nodes matched 
+which the wrapper jobs execute for the user, on the worker nodes matched 
 to that stage.  
 
 They are started in an empty workspace directory.  Several environment 
@@ -37,7 +37,7 @@ Each file returned by justin-get-file is marked as allocated and will not be
 processed by any other jobs. When the jobscript finishes, it must 
 leave files with lists of the files it processed in its 
 workspace directory. These lists are sent to the allocator service by the 
-generic job which marks those input files as being successfully 
+wrapper job which marks those input files as being successfully 
 processed. Any allocated files which are not listed are treated as
 unprocessed, and the allocator service resets their state to unallocated, 
 ready for matching by another job.
@@ -53,7 +53,7 @@ It is not necessary to create list files which would otherwise be empty.
 You can refer to each processed file either by its DID or PFN (or both!) as
 long as they are put in the correct list file. 
 
-Output files which are to be uploaded with Rucio by the generic job must 
+Output files which are to be uploaded with Rucio by the wrapper job must 
 be created in the jobscript's workspace directory and have filenames 
 matching the patterns given by --output-pattern or 
 --output-pattern-next-stage when the stage was created.  The suffix 

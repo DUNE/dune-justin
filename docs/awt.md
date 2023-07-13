@@ -13,7 +13,7 @@ at each site and reported results, and so tests whether the sites are
 accessilble to justIN jobs. It also has a link to that job's page on the 
 justIN dashboard.
 
-Generic jobs are tagged for AWT and targetted at each known 
+Wrapper jobs are tagged for AWT and targetted at each known 
 [DUNE site](https://justin.dune.hep.ac.uk/dashboard/?method=list-sites),
 whether it is enabled for user jobs or not.
 
@@ -32,7 +32,7 @@ RSEs and the Rucio configuration of the root protocol of the RSEs can be
 changed. In either case, the changes will be reflected in new AWT tests
 within about two hours.
 
-When an AWT-tagged generic job starts at a site, it contacts the 
+When an AWT-tagged wrapper job starts at a site, it contacts the 
 [justIN allocator](/docs/services.allocator.md) and requests a jobscript
 to execute in the normal way. The allocator recognises that the job is
 tagged for AWT and returns an additional file with a list of RSEs to be
@@ -51,7 +51,7 @@ The jobscript is taken from the single stage of the AWT request and is
 visible at the foot of 
 [that stage's page](https://justin.dune.hep.ac.uk/dashboard/?method=show-stage&request_id=1&stage_id=1).
 
-The production VOMS proxy normally used by the generic job for file uploads
+The production VOMS proxy normally used by the wrapper job for file uploads
 is made available to the AWT jobscript at `$JUSTIN_PATH/awt-proxy.pem` and
 this is currently used for both read and write tests. 
 

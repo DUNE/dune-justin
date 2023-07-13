@@ -29,7 +29,7 @@ import urllib.request
 
 #
 # Start of WebDAV uploads: this code is shared between justin-webdav-upload 
-# and justin-generic-job-py to make them both self contained
+# and justin-wrapper-job-py to make them both self contained
 #
 
 def webdavCheckRemoteDirectories(sslContext, token, dirSplit):

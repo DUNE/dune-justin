@@ -718,7 +718,7 @@ def getUser(environ):
 def createUser(principalName):
   
   try:
-    userID = justin.insertUpdate('INSERT INTO users SET generic_jobs=FALSE')
+    userID = justin.insertUpdate('INSERT INTO users SET main_pn_id=0')
 
     pnID = justin.insertUpdate('INSERT INTO principal_names SET '
                                'principal_name="%s",user_id=%d'

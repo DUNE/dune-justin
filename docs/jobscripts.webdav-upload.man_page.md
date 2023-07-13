@@ -8,12 +8,12 @@ justin-webdav-upload command itself.
            justin-webdav-upload - justIN utility to upload files via WebDAV
     
     SYNOPSIS
-           justin-webdav-upload [--help] [--verbose] --token-file TOKENFILE
-           --source-file SOURCEFILE --destination-directory URL
+           justin-webdav-upload [--help] --token-file TOKENFILE --source-file
+           SOURCEFILE --destination-directory URL
     
     DESCRIPTION
            justin-webdav-upload is a command-line utility to upload a file using
-           WebDAV and a token. It is used by justIN generic jobs to upload job
+           WebDAV and a token. It is used by justIN wrapper jobs to upload job
            outputs to scratch disk rather than to Rucio-managed storage. Currently
            it is limited to Fermilab scratch, managed by dCache. You may find it
            useful for some debugging but it is not supported for end-users: you
@@ -23,10 +23,6 @@ justin-webdav-upload command itself.
     OPTIONS
            -h, --help
     	      Show help message and exit.
-    
-    
-           -v, --verbose
-    	      Turn on verbose logging.
     
     
            --token-file TOKENFILE

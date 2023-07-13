@@ -147,7 +147,7 @@ a value of 100 which represents maximally remote storages.
 
 If one or more options 
 .B --output-pattern PATTERN:DESTINATION
-is given then the generic job will look for files created by the script
+is given then the wrapper job will look for files created by the script
 which match the pattern given as PATTERN. The pattern is a Bash 
 shell pattern using *, ? and
 [...] expressions. See the bash(1) Pattern Matching section for details. 
@@ -283,7 +283,7 @@ the Jobsub ID, Request ID, Stage ID, State, and creation time are shown.
 .SH JOBSCRIPTS
 
 The user jobscripts supplied when creating a stage are shell scripts
-which the generic jobs execute on the worker nodes matched to that stage.
+which the wrapper jobs execute on the worker nodes matched to that stage.
 They are started in an empty workspace directory.
 Several environment variables are made available to the
 scripts, all prefixed with JUSTIN_, including $JUSTIN_REQUEST_ID, 
@@ -319,7 +319,7 @@ processed by any other jobs. When the jobscript finishes, it
 .B must
 leave files with lists of the processed files in its
 workspace directory. These lists are sent to the justIN allocator service by
-the generic job, which either marks input files as being successfully 
+the wrapper job, which either marks input files as being successfully 
 processed or resets their state to unallocated, ready for matching by another
 job. 
 
@@ -333,7 +333,7 @@ can use a mix of DIDs and PFNs, as long as each appears in the correct list
 file. Any files not represented in either file will be treated as unprocessed
 and made available for other jobs to process.
 
-Output files which are to be uploaded with Rucio by the generic job must be 
+Output files which are to be uploaded with Rucio by the wrapper job must be 
 created in the jobscript's workspace directory and have filenames matching
 the patterns given by
 .B --output-pattern

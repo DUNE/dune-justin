@@ -135,7 +135,7 @@ This man page is distributed along with the
     	      100 which represents maximally remote storages.
     
     	      If one or more options --output-pattern PATTERN:DESTINATION is
-    	      given then the generic job will look for files created by the
+    	      given then the wrapper job will look for files created by the
     	      script which match the pattern given as PATTERN. The pattern is
     	      a Bash shell pattern using *, ? and [...] expressions. See the
     	      bash(1) Pattern Matching section for details.  If the given
@@ -258,7 +258,7 @@ This man page is distributed along with the
     
     JOBSCRIPTS
            The user jobscripts supplied when creating a stage are shell scripts
-           which the generic jobs execute on the worker nodes matched to that
+           which the wrapper jobs execute on the worker nodes matched to that
            stage.  They are started in an empty workspace directory.  Several
            environment variables are made available to the scripts, all prefixed
            with JUSTIN_, including $JUSTIN_REQUEST_ID, $JUSTIN_STAGE_ID and
@@ -293,7 +293,7 @@ This man page is distributed along with the
            not be processed by any other jobs. When the jobscript finishes, it
            must leave files with lists of the processed files in its workspace
            directory. These lists are sent to the justIN allocator service by the
-           generic job, which either marks input files as being successfully
+           wrapper job, which either marks input files as being successfully
            processed or resets their state to unallocated, ready for matching by
            another job.
     
@@ -307,7 +307,7 @@ This man page is distributed along with the
            the correct list file. Any files not represented in either file will be
            treated as unprocessed and made available for other jobs to process.
     
-           Output files which are to be uploaded with Rucio by the generic job
+           Output files which are to be uploaded with Rucio by the wrapper job
            must be created in the jobscript's workspace directory and have
            filenames matching the patterns given by --output-pattern or
            --output-pattern-next-stage when the stage was created. The suffixed
@@ -346,6 +346,11 @@ This man page is distributed along with the
            authorized, you can use the justin command on that computer for 7 days,
            and then you will be invited to re-authorize it. You can have multiple
            computers at multiple sites authorized at the same time.
+    
+    
+    ENVIRONMENT
+           If set, the value of the environment variable JUSTIN_OPTIONS is
+           prepended to the list of options after the justin subcommand.
     
     
     FILES

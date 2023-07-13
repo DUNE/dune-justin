@@ -17,11 +17,11 @@ The database is implemented as a MySQL/Mariadb SQL database.
 
 ## Tables
 
-- jobscripts - scripts from users to be executed by generic jobs
+- jobscripts - scripts from users to be executed by wrapper jobs
 - events - a log of fine grained events within the system
 - files - input files associcated with each stage of each request
-- jobs - jobs created by the Generic Job Factory
-- jobs_logs - logs from the jobscripts that generic jobs run 
+- jobs - jobs created by the justIN Job Factory
+- jobs_logs - logs from the jobscripts that wrapper jobs run 
 - replicas - replica RSEs and PFNs obtained from Rucio
 - replicas_pins - used by the FNAL Finder Agent to manage pins
 - requests - workflows submitted to the system for processing

@@ -55,15 +55,15 @@ for example, to collaborate on jobscripts and on managing running requests.
 
 ## Credentials in justIN jobs
 
-When the [justIN job factory](agents.job_factory.md) submits generic jobs to 
+When the [justIN job factory](agents.job_factory.md) submits wrapper jobs to 
 the DUNE HTCondor pool, 
 it creates a secret for that cluster of jobs as a string. This secret
 is passed to the job as a file and also stored in the justIN database for 
-each job in the cluster. The generic jobs use the secrets to authenticate
+each job in the cluster. The wrapper jobs use the secrets to authenticate
 to the justIN allocator service, in the form of HMAC SHA256 hashes of the
 method, time and job ID to prevent replay attacks and reuse of unused hashes.
 
-When the generic job starts it sends a `get_stage` request to the allocator 
+When the wrapper job starts it sends a `get_stage` request to the allocator 
 to discover what stage within what request to work on. As part of this
 message, the job includes an X.509 certificate signing request which matches
 an RSA key it has created. The allocator signs the request with a VOMS proxy
@@ -73,7 +73,7 @@ assemble a valid VOMS proxy includng the private key it created earlier.
 Two VOMS proxies are delegated to the job in this way: one with no roles and
 only the ability to read from storage, which is shared with the container
 running the user's jobscript; and one with the DUNE Production role
-which allows the generic job to register output files in MetaCat and Rucio 
+which allows the wrapper job to register output files in MetaCat and Rucio 
 and to upload files on behalf of the user after the
 jobscript has finished.
 
@@ -83,12 +83,12 @@ that runs the user's jobscript, to ask the justIN allocator to allocate files
 to the job. This secret is specific to that job and cannot be used
 for other methods than `get_file`.
 
-When the user jobscript finishes, the generic job uses the `record_results` 
+When the user jobscript finishes, the wrapper job uses the `record_results` 
 method to tell the allocator which files have been processed and what output
 files are to be uploaded. 
 
 The allocator supplies the user's access token 
-to allow the generic job to upload to scratch areas as the user.
+to allow the wrapper job to upload to scratch areas as the user.
 
 Output files either go to dCache scratch space using the token or to
 Rucio-managed storage using the Production role VOMS proxy. In the Rucio

@@ -1,6 +1,6 @@
 # Allocator Service
 
-Once a generic job arrives at a worker node, it contacts the 
+Once a wrapper job arrives at a worker node, it contacts the 
 allocator service which determines which unallocated file from one stage 
 best matches that worker node. This matching includes the characteristics 
 of the worker node job slot (memory, time limit etc), and whether the site 
@@ -12,7 +12,7 @@ at the same site, "nearby", or elsewhere but still eligible.
 
 The [jobscript](jobscripts.md) 
 to be ran and the details of the request and stage are 
-returned to the generic job. The script can use these details to request a 
+returned to the wrapper job. The script can use these details to request a 
 series of files to process with the application it invokes. Each input 
 file successfully processed by the application is reported to the allocator
 service so that the input file’s status can be updated from Allocated to 
