@@ -25,6 +25,7 @@ import sys
 import json
 import time
 import ssl
+import shlex
 import urllib.request
 import argparse
 import platform
@@ -40,7 +41,8 @@ def body(buf):
 # PROGRAM MAIN !!!
 # 
 
-parser = argparse.ArgumentParser(prog='justin', usage='justin COMMAND OPTIONS')
+#parser = argparse.ArgumentParser(prog='justin', usage='justin COMMAND OPTIONS')
+parser = argparse.ArgumentParser(usage='justin COMMAND OPTIONS')
 
 commands = [ "create-request", 
              "submit-request", 
@@ -185,8 +187,16 @@ parser.add_argument("--state",
 parser.add_argument("--url",
                     type = str,
                     help = "justIN service to contact")
+
 try:
-  args = parser.parse_args()
+  justinArgv = sys.argv[1:2]
+  justinArgv += shlex.split(os.getenv('JUSTIN_OPTIONS'))
+  justinArgv += sys.argv[3:]
+except:
+  justinArgv = sys.argv[1:]
+
+try:
+  args = parser.parse_args(justinArgv)
 except:
   print('\nSee the justin(1) man page for detailed help and command syntax\n')
   parser.print_help()

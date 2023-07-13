@@ -32,7 +32,7 @@ import secrets
 import string
 import urllib
 import M2Crypto
-import htcondor
+#import htcondor
 
 import justin
 
@@ -600,15 +600,15 @@ def getStageMethod(startResponse, jsonDict, environ):
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
 
-  try:
-    clusterID = int(jsonDict['jobsub_id'].split('.')[0])
-    procID    = int(jsonDict['jobsub_id'].split('@')[0].split('.')[1])
-
-    schedd = htcondor.Schedd()
-    schedd.edit('ClusterId == %d && ProcId == %d' % (clusterID, procID),
-                'justIN_User', '\"%s\"' % jobscriptDict['principal_name'])
-  except Exception as e:
-    print('schedd.edit() fails with %s' % str(e), file=sys.stderr)
+#  try:
+#    clusterID = int(jsonDict['jobsub_id'].split('.')[0])
+#    procID    = int(jsonDict['jobsub_id'].split('@')[0].split('.')[1])
+#
+#    schedd = htcondor.Schedd()
+#    schedd.edit('ClusterId == %d && ProcId == %d' % (clusterID, procID),
+#                'justIN_User', '\"%s\"' % jobscriptDict['principal_name'])
+#  except Exception as e:
+#    print('schedd.edit() fails with %s' % str(e), file=sys.stderr)
 
   try:
     justin.db.conn.commit()
