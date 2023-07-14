@@ -1,0 +1,26 @@
+#!/bin/sh
+: <<'EOF'
+
+sha1sum jobscript for justIN. 
+By default runs sha1sum on /dev/urandom for 1800 seconds / 30 minutes.
+
+Submit a request like this to run 10 jobs:
+
+justin quick-request --monte-carlo 10 --jobscript sha1sum.jobscript
+
+EOF
+
+# Try to get an unprocessed file from this stage
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+
+if [ "$did_pfn_rse" != "" ] ; then
+  did=`echo $did_pfn_rse | cut -f1 -d' '`
+  pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+  rse=`echo $did_pfn_rse | cut -f3 -d' '`
+
+  # We say we processed whatever we were given
+  echo "$pfn" > justin-processed-pfns.txt
+
+  timeout ${SHA1SUM_SECONDS:-1800} sha1sum /dev/urandom
+fi
+exit 0
