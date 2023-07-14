@@ -410,7 +410,7 @@ def cilogonCallback(startResponse, environ):
       cilogonState = str(rawValues[i][0])
 
   if not justinSession or (justinSession != cilogonState):
-    output = errorPage('/dashboard/', environ, None,
+    output = errorPage(environ, None,
                        'Required session cookie not found! '
                        'Have you got cookies disabled in your web browser?')
     startResponseOK(startResponse, output)
@@ -418,7 +418,7 @@ def cilogonCallback(startResponse, environ):
 
   tokensDict = oidcTokensRequest(cilogonCode, environ)
   if not tokensDict:
-    output = errorPage('/dashboard/', environ, None,
+    output = errorPage(environ, None,
                        'Failed to get your tokens from CILogon')
     startResponseOK(startResponse, output)
     return output
@@ -430,7 +430,7 @@ def cilogonCallback(startResponse, environ):
     if '/dune' not in wlcgGroups:
       raise
   except:
-    output = errorPage('/dashboard/', environ, None,
+    output = errorPage(environ, None,
                        'You are not registered in the /dune group on CILogon!')
     startResponseOK(startResponse, output)
     return output
@@ -440,7 +440,7 @@ def cilogonCallback(startResponse, environ):
     if not justin.stringIsUsername(eppn):
       raise
   except:
-    output = errorPage('/dashboard/', environ,
+    output = errorPage(environ,
                        'No eduPersonPrincipalName provided '
                        'by your identity provider / SSO!')
     startResponseOK(startResponse, output)
@@ -461,7 +461,7 @@ def cilogonCallback(startResponse, environ):
     userID = createUser(eppn)
 
     if not userID:
-      output = errorPage('/dashboard/', environ,
+      output = errorPage(environ,
                        'Failed to create new user record for you!')
       startResponseOK(startResponse, output)
       return output
@@ -481,7 +481,7 @@ def cilogonCallback(startResponse, environ):
 
   except Exception as e:
     print('Failed to update users with tokens: ' + str(e), file=sys.stderr)
-    output = errorPage('/dashboard/', environ, 'Failed to store your tokens')
+    output = errorPage(environ, 'Failed to store your tokens')
     startResponseOK(startResponse, output)
     return output
         

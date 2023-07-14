@@ -3,10 +3,10 @@
 justIN's wrapper jobs are extensions of the jobsub/glideInWMS jobs
 developed at Fermilab and inherit their properties. There is a one to one
 mapping between an instance of a wrapper job in justIN and the
-corresponding jobsub job. Consequently justIN uses jobsub style string IDs
+corresponding HTCondor job. Consequently justIN uses jobsub style string IDs
 when referring to jobs in log files, the Dashboard, environment variables
 exposed to user scripts etc, and these take the form 
-NNNNNN.N@jobsubNN.fnal.gov where N are integers.
+NNNNNN.N@host.name where N are integers.
 
 Within justIN, a wrapper job is in one of several allocation
 states given here:
@@ -28,7 +28,7 @@ states given here:
   to work on and exited.
 - **aborted** - the wrapper job failed in some way and reported this to the
   allocator service.
-- **stalled** - the [Finder](finder.md) agent has identified that the job 
+- **stalled** - the [Finder](agents.finder.md) agent has identified that the job 
   stopped sending regular heartbeats and has marked it as stalled. This may
   be because the job was killed by a local batch system for exceeding limits
   on memory usage etc.
