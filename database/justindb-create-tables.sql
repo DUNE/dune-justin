@@ -234,7 +234,6 @@ CREATE TABLE IF NOT EXISTS `stages_outputs` (
   `stage_id` tinyint(3) unsigned NOT NULL,
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
-  `dataset` varchar(255) NOT NULL,
   `destination` varchar(512) NOT NULL,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

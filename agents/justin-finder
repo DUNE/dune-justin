@@ -555,16 +555,74 @@ def findReplicas():
 def findSubmittedRequests():
   # Find requests waiting in the submitted state and set them to running
 
-  try:
-    query = ('UPDATE requests SET started=NOW(),state="running" '
-             'WHERE state="submitted" ORDER BY request_id')
+  datasetsToCreate  = set()
+  requestIDsToStart = []
 
-    justin.insertUpdate(query)
+  try:
+    requests = justin.select('SELECT requests.request_id,scope_name '
+                             'FROM requests '
+                             'LEFT JOIN scopes '
+                             'ON requests.scope_id=scopes.scope_id '
+                             'WHERE requests.state="submitted" '
+                             'ORDER BY requests.request_id')
   except:
-    logLine('Failed to update submitted requests')
+    logLine('Failed to get list of submitted requests')
     return
-        
-  justin.db.conn.commit()
+
+  for request in requests:
+    requestIDsToStart.append(str(request['request_id']))
+  
+    try:
+      stagesOutputs = justin.select('SELECT destination,lifetime_seconds '
+                                'FROM stages_outputs '
+                                'WHERE request_id=%d' % request['request_id'])
+    except:
+      logLine('Failed to get list of outputs of submitted requests')
+      return
+      
+    for stageOutput in stagesOutputs:
+      if not stageOutput['destination'].startswith('https://'):
+        datasetsToCreate.add( (request['scope_name'],
+                               stageOutput['destination'],
+                               stageOutput['lifetime_seconds']) )
+
+  if datasetsToCreate:
+    try:
+      didClient = rucio.client.didclient.DIDClient()
+    except Exception as e:
+      logLine("Connect to Rucio fails with: " + str(e))
+      return
+      
+    for (scopeName,datasetName,lifetimeSeconds) in datasetsToCreate:
+      try:
+        ret = didClient.add_dataset(scope    = scopeName,
+                                    name     = datasetName,
+                                    lifetime = lifetimeSeconds)
+                                    
+      except rucio.common.exception.DataIdentifierAlreadyExists:
+        pass
+
+      except:
+        logLine("Exception adding dataset %s:%s" % (scopeName, datasetName))
+        return
+
+      else:
+        if not ret:
+          logLine("Failed adding dataset %s:%s" % (scopeName, datasetName))
+          return
+
+  if requestIDsToStart:
+    # All successful (or not needed) so mark requests as running
+    try:
+      query = ('UPDATE requests SET started=NOW(),state="running" '
+               'WHERE request_id IN (%s)' % (','.join(requestIDsToStart)))
+
+      justin.insertUpdate(query)
+    except Exception as e:
+      logLine("Exception setting requests to running: %s" % str(e))
+      return
+
+    justin.db.conn.commit()
 
 def findFinishedRequests():
   # Find requests with all files in terminal states and set to finished
