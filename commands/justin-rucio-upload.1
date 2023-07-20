@@ -1,0 +1,52 @@
+.TH JUSTIN  "2023" "justin-rucio-upload" "justIN Manual"
+.SH NAME
+.B justin-rucio-upload
+\- justIN utility to upload files with the Rucio upload API
+.SH SYNOPSIS
+.B justin-rucio-upload [--help] --rse RSE --scope SCOPE --protocol PROTOCOL
+.B --dataset DATASET PATH
+.SH DESCRIPTION
+.B justin-rucio-upload
+is a command-line utility to upload a file using Rucio's upload API which
+provides more options than the 
+.B rucio upload 
+command. It is
+used by justIN wrapper jobs to upload job outputs to Rucio managed storage.
+You may find it useful for some debugging but it is not supported for 
+end-users.
+
+.SH OPTIONS
+
+None of the options are optional!
+
+.HP 
+.B "-h, --help"
+.br
+Show help message and exit.
+
+.HP 
+.B "--rse RSE"
+.br
+The name of the RSE.
+
+.HP 
+.B "--scope SCOPE"
+.br
+The scope used for the uploaded file and the Rucio dataset to which it is
+attached.
+
+.HP 
+.B "--protocol PROTOCOL"
+.br
+The protocol used for the upload: davs, root, etc.
+
+.HP 
+.B "--dataset DATASET"
+.br
+The name suffix of the dataset, without the scope.
+
+.SH AUTHOR
+Andrew McNab <Andrew.McNab@cern.ch>
+
+.SH "SEE ALSO"
+justin(1)

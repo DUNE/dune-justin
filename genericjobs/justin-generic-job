@@ -151,16 +151,6 @@ def executeRucioCommand(args):
     time.sleep(1)
 
   return ret
-  
-def webdavUpload(fileName, destination):
-# THIS WILL BE REPLACED WITH THE python3 CODE OF justin-webdav-upload ITSELF!
-  return os.system(
-    '/cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/'
-    'bin/justin-webdav-upload '
-    '--verbose '
-    '--token-file user-upload-token '
-    '--source-file "home/workspace/%s" '
-    '--destination-directory %s' % (fileName, destination))
 
 #
 # Start of WebDAV uploads: this code is shared between justin-webdav-upload 
@@ -716,9 +706,6 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
   
   if fileScope == '::URL::': 
     # Uploading to user scratch
-#    ret = webdavUpload(fileName, destination)
-#    if ret:
-#      logLine('WebDAV upload fails with code %d' % ret)
 
     try:
       webdavPutFile(resultsResponseDict['user_access_token'], 

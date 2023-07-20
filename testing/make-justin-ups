@@ -62,12 +62,14 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-webdav-upload \
+   $MJU_GIT_DIR/dune-justin/commands/justin-rucio-upload \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
 
 cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-webdav-upload.1 \
+   $MJU_GIT_DIR/dune-justin/commands/justin-rucio-upload.1 \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/man/man1
 
 cp $MJU_GIT_DIR/dune-justin/jobutils/justin-allocated-files \

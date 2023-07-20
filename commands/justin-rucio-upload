@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+#
+# justin-rucio-upload - upload files to Rucio managed storage using the
+#                       extra options of the Rucio upload Python API
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import sys
+import argparse
+import rucio.client.uploadclient
+
+#
+# PROGRAM MAIN !!!
+# 
+
+parser = argparse.ArgumentParser(prog='justin-rucio-upload',
+  usage='justin-rucio-upload [--help] PATH '
+        'See the justin-rucio-upload(1) man page for detailed help '
+        'and command syntax\n')
+                                 
+parser.add_argument("path",
+                    type = str,
+                    help = "File path")
+
+parser.add_argument("--rse",
+                    type = str,
+                    help = "RSE name")
+
+parser.add_argument("--protocol",
+                    type = str,
+                    help = "Protocol")
+
+parser.add_argument("--scope",
+                    type = str,
+                    help = "Scope of file and dataset")
+
+parser.add_argument("--dataset",
+                    type = str,
+                    help = "Name of dataset without scope prefix")
+
+try:
+  args = vars(parser.parse_args())
+except:
+  sys.exit(1)
+
+if not args['rse']:
+  print('--rse missing', file=sys.stderr)
+  sys.exit(1)
+
+if not args['protocol']:
+  print('--protocol missing', file=sys.stderr)
+  sys.exit(1)
+
+if not args['scope']:
+  print('--scope missing', file=sys.stderr)
+  sys.exit(1)
+
+if not args['dataset']:
+  print('--dataset missing', file=sys.stderr)
+  sys.exit(1)
+
+try:
+  uploadClient = rucio.client.uploadclient.UploadClient()
+  uploadDict = { 'path'             : args['path'],
+                 'rse'              : args['rse'],
+                 'did_scope'        : args['scope'],
+                 'dataset_scope'    : args['scope'],
+                 'dataset_name'     : args['dataset'],
+                 'force_protocol'   : args['protocol'],
+                 'transfer_timeout' : 1200
+               }
+
+  ret = uploadClient.upload([uploadDict])
+  sys.exit(ret)
+except Exception as e:
+  print('justin-rucio-upload fails: ' + str(e), file=sys.stderr)
+  sys.exit(99)
