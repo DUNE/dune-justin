@@ -19,6 +19,7 @@
 #
 
 import sys
+import logging
 import argparse
 import rucio.client.uploadclient
 
@@ -73,6 +74,8 @@ if not args['dataset']:
   sys.exit(1)
 
 try:
+  logging.basicConfig(level = logging.DEBUG)
+
   uploadClient = rucio.client.uploadclient.UploadClient()
   uploadDict = { 'path'             : args['path'],
                  'rse'              : args['rse'],
