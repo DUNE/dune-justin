@@ -152,6 +152,23 @@ def executeRucioCommand(args):
 
   return ret
 
+def executeJustinRucioUpload(args):
+
+  for i in range(1, 4):
+    ret = os.system(
+     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
+     'setup rucio ; setup justin ; '
+     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
+     'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR ; '
+     'justin-rucio-upload %s' % args)
+
+    if ret == 0:
+      break
+
+    time.sleep(1)
+
+  return ret
+
 #
 # Start of WebDAV uploads: this code is shared between justin-webdav-upload 
 # and justin-generic-job-py to make them both self contained
@@ -737,20 +754,30 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
       logLine('Try %s:%s to %s/%s' 
               % (fileScope, fileName, rse, scheme))
            
-      ret = executeRucioCommand('upload %s '
-                                '--rse %s '
-                                '--transfer-timeout 1200 '
-                                '--protocol %s '
-                                '--scope %s '
-                                '--name %s '
-                                'home/workspace/%s' %
-               (('--lifetime %d' % lifetimeSeconds) if lifetimeSeconds else '',
-                rse,
-                scheme,
-                fileScope,
-                fileName,
-                fileName))
+#      ret = executeRucioCommand('upload %s '
+#                                '--rse %s '
+#                                '--transfer-timeout 1200 '
+#                                '--protocol %s '
+#                                '--scope %s '
+#                                '--name %s '
+#                                'home/workspace/%s' %
+#               (('--lifetime %d' % lifetimeSeconds) if lifetimeSeconds else '',
+#                rse,
+#                scheme,
+#                fileScope,
+#                fileName,
+#                fileName))
 
+      ret = executeJustinRucioUpload('--rse %s '
+                                     '--protocol %s '
+                                     '--scope %s '
+                                     '--dataset %s '
+                                     'home/workspace/%s' %
+                                     (rse,
+                                      scheme,
+                                      fileScope,
+                                      destination,
+                                      fileName))
       if ret == 0:
         break
       else:
@@ -760,15 +787,16 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
       logLine('Failed to upload %s:%s' % (fileScope, fileName))
       jobAborted(900, 'rucio_upload', '')
 
-    # Add to dataset
-    logLine('Adding %s:%s to %s:%s' 
-            % (fileScope, fileName, fileScope, destination))
-
-    ret = executeRucioCommand('attach "%s:%s" "%s:%s"'
-                              % (fileScope, destination, fileScope, fileName))
-    if ret:
-      logLine('rucio attach fails')
-      jobAborted(900, 'rucio_attach', '')
+#    # Add to dataset
+# THIS IS NOW DONE BY justin-rucio-upload 
+#    logLine('Adding %s:%s to %s:%s' 
+#            % (fileScope, fileName, fileScope, destination))
+#
+#    ret = executeRucioCommand('attach "%s:%s" "%s:%s"'
+#                              % (fileScope, destination, fileScope, fileName))
+#    if ret:
+#      logLine('rucio attach fails')
+#      jobAborted(900, 'rucio_attach', '')
 
     # Add to list of uploaded files for confirm results
     confirmResultsDict['output_dids'][fileScope + ':' + fileName] = rse
