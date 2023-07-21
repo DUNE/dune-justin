@@ -7,7 +7,8 @@ scope (Rucio), and in the usertests:output-test-01 dataset in MetaCat and
 Rucio, use this command to create the request:
 
 justin quick-request \
---mql "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
+--mql \
+"files from dune:all where core.run_type='dc4-vd-coldbox-top' and dune.campaign='dc4' limit 10" \
 --jobscript dc4-vd-coldbox-top.jobscript --max-distance 30 --rss-mb 4000 \
 --scope usertests --output-pattern '*_reco_data_*.root:output-test-01' 
 

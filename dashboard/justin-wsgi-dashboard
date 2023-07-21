@@ -1862,9 +1862,16 @@ def showFile(environ, user, cgiValues):
 
   output += '</td></tr>'
 
-  output += ('<tr><td colspan=2><a href="'
-   'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
-   'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+  # THIS IS A BIT OF HACK WHILE HAVE OLD DATASETS AROUND
+  if requestID > 400:
+    output += ('<tr><td colspan=2><a href="'
+     'https://metacat.fnal.gov:9443/dune_meta_prod/app/gui/show_file?did=%s">'
+     'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+
+  else:
+    output += ('<tr><td colspan=2><a href="'
+     'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
+     'Find in Demo MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
 
   output += "</table>"  
   output += footer()

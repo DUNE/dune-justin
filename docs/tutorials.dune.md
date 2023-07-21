@@ -144,7 +144,7 @@ VD coldbox files. For this tutorial though, please use this command:
 
     justin quick-request \
     --mql \
-    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
     --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
@@ -211,7 +211,7 @@ Fermilab username.
 
     justin quick-request \
     --mql \
-    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
     --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
@@ -286,7 +286,7 @@ Now run it with `justin-test-jobscript`. All of the files it creates are
 made under /tmp in the directory name it prints out.
 
     justin-test-jobscript --mql \
-     "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+     "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
      --jobscript my-dc4-vd-coldbox-bottom.jobscript \
      --env NUM_EVENTS=1
 
@@ -304,7 +304,7 @@ quick-request with these options:
 
     justin quick-request \
     --mql \
-    "files from dc4:dc4 where core.run_type='dc4-vd-coldbox-bottom' limit 10" \
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
     --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
