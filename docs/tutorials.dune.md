@@ -140,11 +140,14 @@ jobscript:
     justin show-jobscript --jobscript-id dc4-vd-coldbox-bottom:default
 
 The comments at the top explain how to use the jobscript to process some
-VD coldbox files. For this tutorial though, please use this command:
+VD coldbox files. For this tutorial though, please use these commands:
 
+    MQL_QUERY=\
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
+    "and dune.campaign='dc4' limit 10" 
+    
     justin quick-request \
-    --mql \
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
+    --mql "$MQL_QUERY" \
     --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
@@ -155,7 +158,9 @@ What is this doing?
 go.
 2. `--mql "files from ... limit 10"` tells justIN to send the MQL query in
 quotes to MetaCat and get a list of matching files. In this case, only the
-first 10 matching files are returned.
+first 10 matching files are returned. To make it easier to read we've put
+the query in `$MQL_QUERY` but you could put it in quotes on the `justin`
+command line itself.
 3. `--jobscript-id` tells justIN to use the jobscript we've been looking at.
 4. `--max-distance 30` says that only replicas of files within a distance of
 30 from where the job is running will be considered. In practice, 30 means 
@@ -208,10 +213,12 @@ Fermilab username.
 
     USERF=$USER
     FNALURL='https://fndcadoor.fnal.gov:2880/dune/scratch/users'
-
+    MQL_QUERY=\
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
+    "and dune.campaign='dc4' limit 10" 
+    
     justin quick-request \
-    --mql \
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
+    --mql "$MQL_QUERY" \
     --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
@@ -285,8 +292,11 @@ line  before the fcl file comment. So it reads:
 Now run it with `justin-test-jobscript`. All of the files it creates are
 made under /tmp in the directory name it prints out.
 
-    justin-test-jobscript --mql \
-     "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
+    MQL_QUERY=\
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
+    "and dune.campaign='dc4' limit 10" 
+    
+    justin-test-jobscript --mql "$MQL_QUERY" \
      --jobscript my-dc4-vd-coldbox-bottom.jobscript \
      --env NUM_EVENTS=1
 
@@ -302,9 +312,12 @@ delete the directory in /tmp when you're finished.
 If you want to test your jobscript running in real jobs, you can repeat the
 quick-request with these options:
 
+    MQL_QUERY=\
+    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
+    "and dune.campaign='dc4' limit 10" 
+    
     justin quick-request \
-    --mql \
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' and dune.campaign='dc4' limit 10" \
+    --mql "$MQL_QUERY" \
     --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'

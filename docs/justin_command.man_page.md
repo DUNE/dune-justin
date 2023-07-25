@@ -146,13 +146,17 @@ This man page is distributed along with the
     	      slash. Nested subdirectories for request ID and stage ID will be
     	      added, and resulting output files placed there. The user's token
     	      from the justIN dashboard is used for the upload.  If an
-    	      https:// URL is not given, DESTINATION is interpreted as an
-    	      existing Rucio dataset minus the scope component. The overall
-    	      scope of the request is used and the output files are uploaded
-    	      with Rucio and registered in that dataset. Furthermore, files
-    	      for Rucio-managed storage must have a corresponding JSON
-    	      metadata file with the same name but with ".json" appended, that
-    	      will be recorded for that file in MetaCat.
+    	      https:// URL is not given, DESTINATION is interpreted as a Rucio
+    	      dataset minus the scope component. The overall scope of the
+    	      request is used and the output files are uploaded with Rucio and
+    	      registered in that dataset. If the dataset does not already
+    	      exist then it will be created when the request changes state
+    	      from submitted to running and if the --lifetime-days option is
+    	      given, then a rule for the new dataset will be created with that
+    	      lifetime rather than the default 1 day.  Furthermore, files for
+    	      Rucio-managed storage must have a corresponding JSON metadata
+    	      file with the same name but with ".json" appended, that will be
+    	      recorded for that file in MetaCat.
     
     	      Alternatively --output-pattern-next-stage PATTERN:DATASET can be
     	      given in which case the output file will be uploaded to Rucio-
@@ -160,16 +164,16 @@ This man page is distributed along with the
     	      Database as an unprocessed input file for the next stage and
     	      available for allocation to instances of that stage's script.
     
+    	      --lifetime-days DAYS sets the Rucio rule lifetime when creating
+    	      a new dataset, for all output files that are uploaded in the
+    	      given stage.  The lifetime defaults to 1 day if not specified.
+    
     	      If one or more options --output-rse NAME is given, then the RSE
     	      used for uploads of output files will be chosen from that list
     	      of RSEs, with preference given to RSEs which are closer in
     	      distance. If this option is not used, or none of the given RSEs
     	      are available, then the default algorithm for choosing the
     	      closest available RSE is used.
-    
-    	      --lifetime-days DAYS sets the Rucio lifetime for all output
-    	      files that are uploaded. The lifetime defaults to 1 day if not
-    	      specified.
     
     	      --env NAME=VALUE can be used one or more times to set
     	      environment variables when the stage's jobscript is executed.

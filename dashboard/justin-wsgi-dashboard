@@ -1863,12 +1863,13 @@ def showFile(environ, user, cgiValues):
   output += '</td></tr>'
 
   # THIS IS A BIT OF HACK WHILE HAVE OLD DATASETS AROUND
-  if requestID > 400:
+  if requestID > 400 and ':' in fileDID:
     output += ('<tr><td colspan=2><a href="'
      'https://metacat.fnal.gov:9443/dune_meta_prod/app/gui/show_file?did=%s">'
      'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
 
-  else:
+  elif ':' in fileDID:
+    # This test skips monte-carlo-NNNNNN counter DIDs
     output += ('<tr><td colspan=2><a href="'
      'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
      'Find in Demo MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
@@ -1876,6 +1877,29 @@ def showFile(environ, user, cgiValues):
   output += "</table>"  
   output += footer()
   return output
+
+def outputJobLog(startResponse, environ, user):
+
+  if '/dune/production' not in user['wlcg_groups']:
+    return('')
+
+  try:
+    qs = environ['QUERY_STRING']
+    cluster = int(qs.split('.')[0])
+    proc    = int(qs.split('.')[1])
+    output = os.popen('sudo -u mcnab '
+                 '/var/lib/justin/justin-get-output %d.%d' % (cluster, proc), 
+                 'r').read()
+  except Exception as e:
+   print(qs,cluster,proc,str(e), file=sys.stderr)
+   return('')
+
+  startResponse('200 OK',
+                [('Content-type',   'text/plain'),
+                 ('Content-length', str(len(output)))
+                ])
+
+  return(output)
 
 def showJob(environ, user, cgiValues):
   try:
@@ -3278,7 +3302,7 @@ def application(environ, startResponse):
     return [message.encode('UTF-8')]
 
   # Avoid leftovers from partial, failed transactions in this instance
-  justin.db.conn.rollback()
+  justin.db.conn.rollback()  
   
   if environ['REQUEST_URI'].startswith('/login/cilogon/login?'):
     output = cilogonCallback(startResponse, environ)
@@ -3294,6 +3318,10 @@ def application(environ, startResponse):
     return [output.encode('UTF-8')]
 
   user = getUser(environ)
+
+  if environ['REQUEST_URI'].startswith('/joblogs/'):
+    output = outputJobLog(startResponse, environ, user)
+    return [output.encode('UTF-8')]
 
   if environ['REQUEST_URI'].startswith('/docs'):
     output = docsPage(startResponse, environ, user)

@@ -695,6 +695,11 @@ def jobAbortedMethod(startResponse, jsonDict):
   else:
     state = 'aborted'
     eventTypeID = justin.db.event_JOB_ABORTED
+
+  print('Job %s aborted: %d %s' % (str(jsonDict['jobsub_id']),
+                                   eventTypeID,
+                                   str(jsonDict['aborted_method'])),
+        file=sys.stderr)
  
   try:
     justin.db.insertUpdate(

@@ -60,7 +60,8 @@ def sendJsonURL(url, sendDict):
                    method = 'POST')
   sslContext = ssl.SSLContext()
   sslContext.verify_mode = ssl.CERT_REQUIRED
-  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+  sslContext.load_verify_locations(capath = 
+                       '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
 
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
@@ -113,7 +114,8 @@ def jobAborted(httpCode, abortedMethod, rseName):
     'https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/job_aborted_'
      + str(httpCode),
     jobAbortedDict)
-    
+
+  time.sleep(10)    
   sys.exit(0)
 
 def executeMetaCatCommand(args):
@@ -268,7 +270,8 @@ def webdavPutFile(token, source, destinationDir):
 
   sslContext = ssl.SSLContext()
   sslContext.verify_mode = ssl.CERT_REQUIRED
-  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+  sslContext.load_verify_locations(capath = 
+                       '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
 
   # Check the directory tree already exists and create if necessary
   webdavCheckRemoteDirectories(sslContext, token, destDirSplit)
@@ -359,33 +362,38 @@ def updateMetadataTmp(fileScope, fileName,
   metadata['size']      = os.path.getsize('home/workspace/' + fileName)
   metadata['namespace'] = fileScope
   metadata['name']      = fileName
-  metadata['metadata']['DUNE.workflow'] = {}
+  metadata['metadata']['dune.workflow'] = {}
 
-  metadata['metadata']['DUNE.workflow']['site_name'] \
+  metadata['metadata']['dune.workflow']['site_name'] \
    = getStageDict['site_name'] 
-  metadata['metadata']['DUNE.workflow']['request_id'] \
+  metadata['metadata']['dune.workflow']['request_id'] \
    = receivedDict['request_id']
-  metadata['metadata']['DUNE.workflow']['stage_id'] \
+  metadata['metadata']['dune.workflow']['stage_id'] \
    = receivedDict['stage_id']
-  metadata['metadata']['DUNE.workflow']['hostname'] \
+  metadata['metadata']['dune.workflow']['hostname'] \
    = getStageDict['hostname']
 
-  metadata['metadata']['DUNE.workflow']['jobscript_start'] \
+  metadata['metadata']['dune.workflow']['jobscript_start'] \
    = recordResultsDict['jobscript_start']
-  metadata['metadata']['DUNE.workflow']['jobscript_finish'] \
+  metadata['metadata']['dune.workflow']['jobscript_finish'] \
    = recordResultsDict['jobscript_finish']
 
-  metadata['metadata']['DUNE.workflow']['jobscript_real_seconds'] \
+  metadata['metadata']['dune.workflow']['jobscript_real_seconds'] \
    = 0
-  metadata['metadata']['DUNE.workflow']['jobscript_cpu_seconds'] \
+  metadata['metadata']['dune.workflow']['jobscript_cpu_seconds'] \
    = 0
 
-  metadata['metadata']['DUNE.workflow']['cpuinfo'] \
+  metadata['metadata']['dune.workflow']['cpuinfo'] \
    = getStageDict['cpuinfo']
-  metadata['metadata']['DUNE.workflow']['os_release'] \
+  metadata['metadata']['dune.workflow']['os_release'] \
    = getStageDict['os_release']
-  metadata['metadata']['DUNE.workflow']['job_id'] \
+  metadata['metadata']['dune.workflow']['job_id'] \
    = jobsubJobID
+
+  # Force lowercase in top level metadata keys names
+  for keyName in metadata['metadata']:
+    if keyName != keyName.lower():
+      metadata['metadata'][keyName.lower()] = metadata['metadata'].pop(keyName)
 
   with open('tmp.json', 'w') as f:
     f.write(json.dumps(metadata, indent = 4, sort_keys = True))
@@ -510,6 +518,7 @@ for i in range(1,6):
     
 if receivedDict['status'] != 200:
 ## WANT TO PRINT OUT MESSAGE NOT JUST CODE AS ABOVE ALREADY
+  time.sleep(10)
   sys.exit(0)
 
 # Stage-defined and standard environment variables for the jobscript
@@ -522,6 +531,8 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])
   f.write('export JUSTIN_SCOPE=%s\n' % receivedDict['scope'])
   f.write('export JUSTIN_JOBSUB_ID=%s\n' % receivedDict['jobsub_id'])
+  f.write('export CLUSTER=%s\n' % receivedDict['jobsub_id'].split('.')[0])  
+  f.write('export PROCESS=%s\n' % receivedDict['jobsub_id'].split('.')[1].split('@')[0]) 
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % receivedDict['jobscript_secret'])
   f.write('export JUSTIN_SAM_WEB_URI='
@@ -582,7 +593,6 @@ if receivedDict['for_awt']:
 
   os.chmod('home/awt-proxy.pem', 0o400)
 
-### NEED TO RECORD USER SECONDS, MAX MEMORY ETC!!!!
 if getStageDict['has_inner_apptainer']:
   # Wrapper to be run inside the container
   with open('home/jobscript-wrapper.sh','w') as f:
@@ -591,7 +601,7 @@ export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
-stdbuf -oL -eL ../justin-jobscript 2>&1
+stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
 ''')
 
   os.chmod('home/jobscript-wrapper.sh', 0o755)
@@ -601,6 +611,7 @@ stdbuf -oL -eL ../justin-jobscript 2>&1
   jobscriptStartTime=int(time.time())
 
   jobscriptOutcome = subprocess.run(
+  '/usr/bin/time -o time.txt -f "%%e %%U %%S %%M" '
   '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell '
   '--shell /home/jobscript-wrapper.sh '
   '--containall '
@@ -623,7 +634,7 @@ export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
-stdbuf -oL -eL ../justin-jobscript 2>&1
+stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
 ''')
 
   os.chmod('home/jobscript-wrapper.sh', 0o755)
@@ -632,7 +643,9 @@ stdbuf -oL -eL ../justin-jobscript 2>&1
   logLine('====Start of jobscript execution====')
   jobscriptStartTime=int(time.time())
 
-  jobscriptOutcome = subprocess.run('home/jobscript-wrapper.sh ',
+  jobscriptOutcome = subprocess.run('/usr/bin/time -o time.txt '
+                                    '-f "%%e %%U %%S %%M"'
+                                    'home/jobscript-wrapper.sh ',
                                     stdout=subprocess.PIPE,
                                     shell=True 
                                    )
@@ -640,23 +653,43 @@ stdbuf -oL -eL ../justin-jobscript 2>&1
 jobscriptFinishTime=int(time.time())
 logLine('====End of jobscript execution====')
 
-logLine('#### start jobscript log ####')
+logLine('#### start subprocess log ####')
 print(jobscriptOutcome.stdout)
+logLine('#### end subprocess log ####')
+
+try:
+  jobscriptLog = open('home/workspace/jobscript.log','r').read()
+except:
+  jobscriptLog = ''
+
+logLine('#### start jobscript log ####')
+print(jobscriptLog)
 logLine('#### end jobscript log ####')
+
+try:
+  (jobscriptRealSeconds,
+   jobscriptUserSeconds,
+   jobscriptSysSeconds,
+   jobscriptMaxRssKB) = open('time.txt','r').read().split()
+except:
+  jobscriptRealSeconds = 0
+  jobscriptUserSeconds = 0
+  jobscriptSysSeconds  = 0
+  jobscriptMaxRssKB    = 0
 
 justinRecordResultsDict = {
   'method'                 : 'record_results',
   'output_urls'            : [],
   'output_dids'            : [],
   'next_stage_dids'        : [],
-  'jobscript_log'          : jobscriptOutcome.stdout.decode()[-10000:],
+  'jobscript_log'          : jobscriptLog[-10000:],
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
   'jobscript_finish'       : jobscriptFinishTime,
-  'jobscript_real_seconds' : 0,
-  'jobscript_user_seconds' : 0,
-  'jobscript_sys_seconds'  : 0,
-  'jobscript_max_rss_kb'   : 0
+  'jobscript_real_seconds' : jobscriptRealSeconds,
+  'jobscript_user_seconds' : jobscriptUserSeconds,
+  'jobscript_sys_seconds'  : jobscriptSysSeconds,
+  'jobscript_max_rss_kb'   : jobscriptMaxRssKB
 }
 
 outputFiles = []
@@ -739,12 +772,19 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
     try:
       updateMetadataTmp(fileScope, fileName, 
                         getStageDict, receivedDict, justinRecordResultsDict)
-    except:
+    except Exception as e:
+      logLine('updateMetadataTmp() fails ' + str(e))
       jobAborted(900, 'update_metadata', '')
 
     # First try to register with MetaCat
     ret = executeMetaCatCommand('file declare --json -f tmp.json "%s:%s"' 
                                   % (fileScope, destination))
+
+    # IF DEPLOYED METACAT SERVER DOES NOT NOW MATCH CVMFS VERSION !!!!!
+    ret = 0
+    print(open('tmp.json','r').read())
+    # END CLOWN WORLD STUFF
+
     if ret:
       logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))
       jobAborted(900, 'metacat_registration', '')
@@ -753,20 +793,6 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
     for (rse,scheme) in receivedDict['output_rses'][:3]:
       logLine('Try %s:%s to %s/%s' 
               % (fileScope, fileName, rse, scheme))
-           
-#      ret = executeRucioCommand('upload %s '
-#                                '--rse %s '
-#                                '--transfer-timeout 1200 '
-#                                '--protocol %s '
-#                                '--scope %s '
-#                                '--name %s '
-#                                'home/workspace/%s' %
-#               (('--lifetime %d' % lifetimeSeconds) if lifetimeSeconds else '',
-#                rse,
-#                scheme,
-#                fileScope,
-#                fileName,
-#                fileName))
 
       ret = executeJustinRucioUpload('--rse %s '
                                      '--protocol %s '
@@ -787,17 +813,6 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
       logLine('Failed to upload %s:%s' % (fileScope, fileName))
       jobAborted(900, 'rucio_upload', '')
 
-#    # Add to dataset
-# THIS IS NOW DONE BY justin-rucio-upload 
-#    logLine('Adding %s:%s to %s:%s' 
-#            % (fileScope, fileName, fileScope, destination))
-#
-#    ret = executeRucioCommand('attach "%s:%s" "%s:%s"'
-#                              % (fileScope, destination, fileScope, fileName))
-#    if ret:
-#      logLine('rucio attach fails')
-#      jobAborted(900, 'rucio_attach', '')
-
     # Add to list of uploaded files for confirm results
     confirmResultsDict['output_dids'][fileScope + ':' + fileName] = rse
 
@@ -814,5 +829,6 @@ if confirmDict['status'] != 200:
   jobAborted(900, 'confirm_results', '')
 
 logLine('====End of justin-generic-job====')
+time.sleep(10)
 sys.exit(0)
 ########################################################################
