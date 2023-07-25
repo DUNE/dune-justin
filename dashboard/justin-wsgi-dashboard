@@ -1878,28 +1878,35 @@ def showFile(environ, user, cgiValues):
   output += footer()
   return output
 
-def outputJobLog(startResponse, environ, user):
+def outputWrapperLog(startResponse, environ, user):
 
-  if '/dune/production' not in user['wlcg_groups']:
-    return('')
+  if not user or '/dune' not in user['wlcg_groups']:
+    startResponse('302 Moved', [('Location', environ['REQUEST_URI'] + '&login'),
+                                ('Content-length', '0')
+                               ])
+    return ''
 
   try:
-    qs = environ['QUERY_STRING']
-    cluster = int(qs.split('.')[0])
-    proc    = int(qs.split('.')[1])
+    filename = environ['REQUEST_URI'].split('/')[2]
+    cluster = int(filename.split('.')[0])
+    proc    = int(filename.split('.')[1])
     output = os.popen('sudo -u mcnab '
                  '/var/lib/justin/justin-get-output %d.%d' % (cluster, proc), 
                  'r').read()
   except Exception as e:
-   print(qs,cluster,proc,str(e), file=sys.stderr)
+   print(environ['REQUEST_URI'], str(e), file=sys.stderr)
+   startResponse('302 Moved', [('Location', '/dashboard/'),
+                               ('Content-length', '0')
+                              ])
    return('')
 
   startResponse('200 OK',
-                [('Content-type',   'text/plain'),
-                 ('Content-length', str(len(output)))
+                [('Content-type',        'text/plain'),
+                 ('Content-Disposition', 'inline'),
+                 ('Content-length',       str(len(output)))
                 ])
 
-  return(output)
+  return output
 
 def showJob(environ, user, cgiValues):
   try:
@@ -2131,15 +2138,17 @@ def showJob(environ, user, cgiValues):
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
-        '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
-        'Landscape job page</a> '
+#        '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
+#        'Landscape job page</a> '
+        '<a href="/wrapperlogs/%s.txt">'
+        'Wrapper job log</a> '
         '</td></tr>'
-        % (jobsubID, jobsubID))
+        % (jobsubID, jobsubID.split('@')[0]))
 
   output += "</table>"
 
   if jobRow['jobscript_log']:
-    output += "<h2>Jobscript log</h2>"
+    output += "<h2>Jobscript log <small>(last 10,000 characters)</small></h2>"
     output += '<pre style="white-space:pre-wrap;">'
     output += html.escape(jobRow["jobscript_log"].strip(), quote=True)
     output += '</pre>'
@@ -3319,8 +3328,8 @@ def application(environ, startResponse):
 
   user = getUser(environ)
 
-  if environ['REQUEST_URI'].startswith('/joblogs/'):
-    output = outputJobLog(startResponse, environ, user)
+  if environ['REQUEST_URI'].startswith('/wrapperlogs/'):
+    output = outputWrapperLog(startResponse, environ, user)
     return [output.encode('UTF-8')]
 
   if environ['REQUEST_URI'].startswith('/docs'):

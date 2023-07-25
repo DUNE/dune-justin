@@ -9,7 +9,21 @@
 JOB=`echo "$1" | sed 's/[^0-9.]//g'`
 
 condor_transfer_data "$JOB" >/dev/null 2>&1
-if [ -r "/tmp/justin-wrapper-$JOB.out" ] ; then
- cat "/tmp/justin-wrapper-$JOB.out"
+
+echo "======="
+echo "======= Start of job $JOB log"
+echo "======="
+if [ -r "/tmp/justin-wrapper-$JOB.log" ] ; then
+ cat "/tmp/justin-wrapper-$JOB.log"
+else
+ echo '(missing - deleted?)'
 fi
-rm -f "/tmp/justin-wrapper-$JOB.out" "/tmp/justin-wrapper-$JOB.log"
+echo
+echo "======="
+echo "======= Start of job $JOB output"
+echo "======="
+if [ -r "/tmp/justin-wrapper-$JOB.out" ] ; then
+ cat "/tmp/justin-wrapper-$JOB.ot"
+else
+ echo '(missing - deleted?)'
+fi
