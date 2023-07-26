@@ -382,6 +382,8 @@ def updateMetadataTmp(fileScope, fileName,
    = receivedDict['request_id']
   metadata['metadata']['dune.workflow']['stage_id'] \
    = receivedDict['stage_id']
+  metadata['metadata']['dune.workflow']['user'] \
+   = receivedDict['principal_name']
   metadata['metadata']['dune.workflow']['hostname'] \
    = getStageDict['hostname']
 
