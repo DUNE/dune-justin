@@ -23,7 +23,7 @@ echo "======="
 echo "======= Start of job $JOB output"
 echo "======="
 if [ -r "/tmp/justin-wrapper-$JOB.out" ] ; then
- cat "/tmp/justin-wrapper-$JOB.ot"
+ cat "/tmp/justin-wrapper-$JOB.out"
 else
  echo '(missing - deleted?)'
 fi

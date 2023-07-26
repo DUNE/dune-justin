@@ -379,9 +379,10 @@ def updateMetadataTmp(fileScope, fileName,
    = recordResultsDict['jobscript_finish']
 
   metadata['metadata']['dune.workflow']['jobscript_real_seconds'] \
-   = 0
+   = recordResultsDict['jobscript_real_seconds']
   metadata['metadata']['dune.workflow']['jobscript_cpu_seconds'] \
-   = 0
+   = recordResultsDict['jobscript_user_seconds'] + \
+     recordResultsDict['jobscript_sys_seconds']
 
   metadata['metadata']['dune.workflow']['cpuinfo'] \
    = getStageDict['cpuinfo']
@@ -686,10 +687,10 @@ justinRecordResultsDict = {
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
   'jobscript_finish'       : jobscriptFinishTime,
-  'jobscript_real_seconds' : jobscriptRealSeconds,
-  'jobscript_user_seconds' : jobscriptUserSeconds,
-  'jobscript_sys_seconds'  : jobscriptSysSeconds,
-  'jobscript_max_rss_kb'   : jobscriptMaxRssKB
+  'jobscript_real_seconds' : int(float(jobscriptRealSeconds)),
+  'jobscript_user_seconds' : int(float(jobscriptUserSeconds)),
+  'jobscript_sys_seconds'  : int(float(jobscriptSysSeconds)),
+  'jobscript_max_rss_kb'   : int(float(jobscriptMaxRssKB))
 }
 
 outputFiles = []
