@@ -23,6 +23,7 @@ import sys
 import ssl
 import time
 import json
+import zlib
 import glob
 import hmac
 import hashlib
@@ -348,6 +349,18 @@ def webdavPutFile(token, source, destinationDir):
 # End of WebDAV uploads code
 #
 
+def calculateAdler32(fileName):
+
+  checksum = zlib.adler32(b"")
+ 
+  with open(fileName, "rb") as f:
+   block = f.read(16 * 1024)
+   while block:
+    checksum = zlib.adler32(block, checksum)
+    block = f.read(16 * 1024)
+    
+  return ("%08x" % checksum)
+
 def updateMetadataTmp(fileScope, fileName, 
                       getStageDict, receivedDict, recordResultsDict):
   try:
@@ -359,7 +372,6 @@ def updateMetadataTmp(fileScope, fileName,
             (fileName, str(e)))
     raise
 
-  metadata['size']      = os.path.getsize('home/workspace/' + fileName)
   metadata['namespace'] = fileScope
   metadata['name']      = fileName
   metadata['metadata']['dune.workflow'] = {}
@@ -773,13 +785,19 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
     try:
       updateMetadataTmp(fileScope, fileName, 
                         getStageDict, receivedDict, justinRecordResultsDict)
+
+      fileAdler32 = calculateAdler32('home/workspace/' + fileName)
+      fileSize    = os.path.getsize('home/workspace/' + fileName)
     except Exception as e:
       logLine('updateMetadataTmp() fails ' + str(e))
       jobAborted(900, 'update_metadata', '')
 
     # First try to register with MetaCat
-    ret = executeMetaCatCommand('file declare --json -f tmp.json "%s:%s"' 
-                                  % (fileScope, destination))
+    ret = executeMetaCatCommand('file declare --json -f tmp.json '
+                                '-s %d -c "adler32:%s" '
+                                '"%s:%s"' 
+                                  % (fileSize, fileAdler32,
+                                     fileScope, destination))
 
     # IF DEPLOYED METACAT SERVER DOES NOT NOW MATCH CVMFS VERSION !!!!!
     ret = 0
