@@ -1,7 +1,5 @@
 # DUNE justIN tutorial
 
-**THIS TUTORIAL IS STILL IN A DRAFT STATE AND NOT READY FOR NEW USERS**
-
 ## Prerequisites
 
 This tutorial has been tested on the DUNE dunegpvm computers at Fermilab and on
