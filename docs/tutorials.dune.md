@@ -392,7 +392,7 @@ you can see the file in place with:
 
     ls -l $INPUT_TAR_DIR_LOCAL
 
-It may take a bit longer for the cvmfs files to propogate to remove sites,
+It may take a bit longer for the cvmfs files to propogate to remote sites,
 and you should bear that in mind if you see errors in the jobs. 
 These files are likely to last about a month in cvmfs before they
 expire, but you should rerun the commands shown above to upload the tar file

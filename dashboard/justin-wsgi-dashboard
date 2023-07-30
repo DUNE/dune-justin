@@ -48,7 +48,6 @@ class justinStackedLine(pygal.StackedLine):
     self.imageSize = imageSize
     pygal.StackedLine.__init__(self, include_x_axis=True, 
                                stroke_style={'width': 2}, 
-                               legend_at_bottom=True, 
                                show_x_guides=True, 
                                style=pygal.style.LightColorizedStyle, 
                                x_label_rotation=30, 
@@ -56,6 +55,7 @@ class justinStackedLine(pygal.StackedLine):
                                height=500, 
                                x_title='Bin start times',
                                y_title='Number per bin',
+#                               legend_at_bottom=True, 
                                legend_at_bottom_columns=legend_at_bottom_columns)
     self.x_labels = [ time.strftime('%b-%d %H:%M', 
                                     time.gmtime(
