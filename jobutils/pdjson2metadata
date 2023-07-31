@@ -29,9 +29,6 @@ coreAttributes = {
     "first_event":  "core.first_event_number",
     "last_event" :  "core.last_event_number",
     "event_count":  "core.event_count",
-    "application":  "core.application",
-    "start_time" :  "core.start_time",
-    "end_time"   :  "core.end_time",
     "user"       :  None,
     "group"      :  None
 }
