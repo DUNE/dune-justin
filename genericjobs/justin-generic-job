@@ -546,8 +546,9 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])
   f.write('export JUSTIN_SCOPE=%s\n' % receivedDict['scope'])
   f.write('export JUSTIN_JOBSUB_ID=%s\n' % receivedDict['jobsub_id'])
-  f.write('export CLUSTER=%s\n' % receivedDict['jobsub_id'].split('.')[0])  
-  f.write('export PROCESS=%s\n' % receivedDict['jobsub_id'].split('.')[1].split('@')[0]) 
+  f.write('unset JOBSUBJOBID\n')
+#  f.write('export CLUSTER=%s\n' % receivedDict['jobsub_id'].split('.')[0])  
+#  f.write('export PROCESS=%s\n' % receivedDict['jobsub_id'].split('.')[1].split('@')[0]) 
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % receivedDict['jobscript_secret'])
   f.write('export JUSTIN_SAM_WEB_URI='
