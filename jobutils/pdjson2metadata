@@ -7,7 +7,8 @@
 # SCRIPTS ASSOCIATED WITH APPLICATIONS, LIKE extractor_prod.py !
 #
 # Adapted from 
-# https://github.com/ivmfnal/protodune/blob/main/tools/declare_meta.py
+# https://github.com/ivmfnal/protodune/blob/main/tools/declare_meta.py and
+# https://github.com/ivmfnal/protodune/blob/main/declad/mover.py
 # to write out modified JSON rather than uploading it. This allows the script
 # to be run inside jobscripts supplied by users.
 #
@@ -16,6 +17,7 @@
 #
 
 import sys, json
+import datetime
 
 coreAttributes = {
     "event_count":  "core.event_count",
@@ -68,6 +70,25 @@ for run, subrun, rtype in inputMetadata.pop("runs", []):
 outputMetadata["metadata"]["core.runs_subruns"] = sorted(list(runsSubruns))
 outputMetadata["metadata"]["core.runs"] = sorted(list(runs))
 outputMetadata["metadata"]["core.run_type"] = runType
+
+app = inputMetadata.pop("application", None)
+if app:
+  if "name" in app:    
+    outputMetadata["metadata"]["core.application.name"] = app["name"]
+  if "version" in app: 
+    outputMetadata["metadata"]["core.application.version"] = app["version"]
+  if "family" in app:  
+    outputMetadata["metadata"]["core.application.family"] = app["family"]
+  if "family" in app and "name" in app:
+    outputMetadata["metadata"]["core.application"] = \
+      app["family"] + "." + app["name"]
+
+for k in ("start_time", "end_time"):
+  t = inputMetadata.pop(k, None)
+  if t is not None:
+    t = datetime.datetime.fromisoformat(t).replace(
+                                 tzinfo=datetime.timezone.utc).timestamp()
+    outputMetadata["metadata"]["core." + k] = t
 
 for name, value in inputMetadata.items():
   if name == 'parents':

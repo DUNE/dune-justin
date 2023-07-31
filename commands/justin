@@ -31,7 +31,7 @@ import argparse
 import platform
 
 # The make-justin-tag script looks for this and updates it - so format matters
-versionNumber = '00.09.04'
+versionNumber = '00.09.05'
 sessionFile   = '/var/tmp/justin.session.' + str(os.getuid())
 
 def body(buf): 
