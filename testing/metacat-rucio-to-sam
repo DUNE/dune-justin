@@ -28,6 +28,17 @@ export SAM_EXPERIMENT=dune
 setup metacat
 metacat auth login -m x509 dunepro
 
+then do
+
+metacat-rucio-to-sam --mql MQL --sam-query SAMQUERY --number N
+
+The script does the MQL query with MetaCat and the SAMQUERY with SAM
+and tries to declare each file returned by the MetaCat query which is absent
+from the SAM query.
+
+CURRENTLY IT JUST DOES A DRY RUN BY OUTPUTING m-r-t-s.json WITH THE SAM
+JSON AND PRINTING THE declare-file AND add-file-location SAM COMMANDS
+
 """
 
 import sys
