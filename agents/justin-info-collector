@@ -671,6 +671,7 @@ def updateScopes():
   # Get info about scopes Rucio knows about
   logLine('---- Start updateScopes ----')
 
+# WE NEED A WAY OF POPULATING wlcg_groups AUTOMATICALLY TOO
   try:
     row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
                         'WHERE wlcg_group_name="/dune"', justOne = True)

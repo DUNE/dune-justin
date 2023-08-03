@@ -18,7 +18,7 @@
 #
 
 (
-. /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
+#. /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
 
 HTTPD_USER_GROUP=apache.apache
 
@@ -29,7 +29,6 @@ voms-proxy-init \
  -cert /etc/grid-security/justin-jobs-production.cert.pem \
  -key  /etc/grid-security/justin-jobs-production.key.pem \
  -voms dune:/dune/Role=Production \
- -vomsdir /etc/grid-security/vomsdir \
  -valid 168:0 \
  -out /var/lib/justin/justin-jobs-production.proxy.pem.tmp 
  
@@ -51,7 +50,6 @@ voms-proxy-init \
  -cert /etc/grid-security/justin-jobs-no-roles.cert.pem \
  -key  /etc/grid-security/justin-jobs-no-roles.key.pem \
  -voms dune \
- -vomsdir /etc/grid-security/vomsdir \
  -valid 168:0 \
  -out /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp 
 
@@ -71,7 +69,6 @@ voms-proxy-init \
  -cert /etc/grid-security/justin-jobs-analysis.cert.pem \
  -key  /etc/grid-security/justin-jobs-analysis.key.pem \
  -voms dune \
- -vomsdir /etc/grid-security/vomsdir \
  -valid 168:0 \
  -out /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp 
 

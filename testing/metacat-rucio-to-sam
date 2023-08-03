@@ -199,7 +199,7 @@ def processMissingFiles(number, samList, metaCatList, repClient):
     if numberDeclared >= number:
       break
 
-  print('\n%d files declared to SAM\n' % numberDeclared)
+  print('\n%d file(s) declared to SAM\n' % numberDeclared)
 
 #
 # PROGRAM MAIN !!!

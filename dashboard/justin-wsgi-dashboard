@@ -29,13 +29,15 @@ import json
 import secrets
 import base64
 import pprint
-import markdown
 import urllib
 import urllib.parse
 import urllib.request
 
-# install with  pip3 install pygal
+# install with pip3 install pygal
 import pygal
+
+# needs python36-markdown RPM
+import markdown
 
 import justin
 

@@ -265,7 +265,7 @@ CREATE TABLE IF NOT EXISTS `get_stage_cache` (
   `cache_time` datetime NOT NULL,
   UNIQUE KEY `multiple` (`site_id`,
    `min_processors`,`max_processors`,`min_rss_bytes`,`max_rss_bytes`,
-   `max_wall_seconds`,`needs_inner_apptainer`,`request_id`,`stage_id`)
+   `max_wall_seconds`,`job_had_inner_apptainer`,`request_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `find_file_cache` (

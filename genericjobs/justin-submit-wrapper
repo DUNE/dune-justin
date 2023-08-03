@@ -22,6 +22,7 @@ cat <<EOF | su -l mcnab -c "/usr/bin/condor_submit -spool"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
 universe                = vanilla
 environment = "CLUSTER=\$(Cluster) PROCESS=\$(Process) JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
+periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
 notification            = Never
 executable              = $generic_job_tmp
 arguments               = 
