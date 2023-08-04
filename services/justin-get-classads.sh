@@ -84,7 +84,7 @@ do
     --output justin-get-classads-$prodev.txt \
     --write-out "%{http_code}\n" \
     --connect-timeout 10 \
-    --max-time 20 \
+    --max-time 60 \
     --retry 5 \
     http://justin-allocator-$prodev.dune.hep.ac.uk/api/get-classads \
     2>/dev/null`
