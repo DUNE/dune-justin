@@ -154,7 +154,7 @@ def makeMetadataForSAM(metaCatFile):
  
   return samMetadata
 
-def processMissingFiles(number, samList, metaCatList, repClient):
+def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
 
   numberDeclared = 0
 
@@ -189,15 +189,27 @@ def processMissingFiles(number, samList, metaCatList, repClient):
     with open('m-r-t-s.json', 'w') as f:
       f.write(json.dumps(samMetadata, indent = 4) + '\n')
       
-    print('samweb declare-file m-r-t-s.json')
+    print('samweb declare-file m-r-t-s.json for %s' % metaCatFile['name'])
+    if dryRun:
+      ret = 0
+    else:
+      ret = os.system('samweb declare-file m-r-t-s.json')
 
-    for pfn in rucioFile['pfns']:
-      if not 'tape_backed' in pfn:
-        print('samweb add-file-location %s %s' % (metaCatFile['name'], pfn))
+    if ret == 0:
+      for pfn in rucioFile['pfns']:
+        if not 'tape_backed' in pfn:
+          print('samweb add-file-location %s %s' % (metaCatFile['name'], pfn))
+
+          if not dryRun:
+            os.system('samweb add-file-location %s %s' 
+                      % (metaCatFile['name'], pfn))
         
-    numberDeclared += 1
-    if numberDeclared >= number:
-      break
+      numberDeclared += 1
+      if numberDeclared >= number:
+        break
+    else:
+      print('samweb declare for %s fails with code %d!'
+            % (metaCatFile['name'], ret))
 
   print('\n%d file(s) declared to SAM\n' % numberDeclared)
 
@@ -220,10 +232,17 @@ parser.add_argument("--number",
                     type = int,
                     help = "SAM declares per invocation")
 
+parser.add_argument("--dry-run",
+                    action = "store_true",
+                    help = "Do not commit to SAM")
+
 try:
   args = vars(parser.parse_args())
 except:
   sys.exit(1)
+
+
+args['dry_run'] = True
 
 if not args['mql']:
   print('--mql missing', file=sys.stderr)
@@ -254,7 +273,8 @@ except Exception as e:
   print("Connect to Rucio fails with: " + str(e))
   sys.exit(2)
 
-sys.exit(processMissingFiles(args['number'], 
+sys.exit(processMissingFiles(args['dry_run'],
+                             args['number'], 
                              samList, 
                              metaCatList, 
                              repClient))
