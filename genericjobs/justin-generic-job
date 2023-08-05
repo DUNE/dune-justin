@@ -800,12 +800,15 @@ for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
                                 '-s %d -c "adler32:%s" '
                                 '"%s:%s"' 
                                   % (fileSize, fileAdler32,
-                                     fileScope, destination))
+                                     'dune', 'all'
+         # we now use the above hard-coded dataset in MetaCat for everything :-(
+                                     # fileScope, destination
+                                     ))
 
-    # IF DEPLOYED METACAT SERVER DOES NOT NOW MATCH CVMFS VERSION !!!!!
-    ret = 0
-    print(open('tmp.json','r').read())
-    # END CLOWN WORLD STUFF
+#    # IF DEPLOYED METACAT SERVER DOES NOT NOW MATCH CVMFS VERSION !!!!!
+#    ret = 0
+#    print(open('tmp.json','r').read())
+#    # END CLOWN WORLD STUFF
 
     if ret:
       logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))

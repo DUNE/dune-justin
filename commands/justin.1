@@ -151,6 +151,9 @@ is given then the wrapper job will look for files created by the script
 which match the pattern given as PATTERN. The pattern is a Bash 
 shell pattern using *, ? and
 [...] expressions. See the bash(1) Pattern Matching section for details. 
+The DESTINATION component has any of the variables 
+$JUSTIN_SCOPE, $JUSTIN_REQUEST_ID, or $JUSTIN_STAGE_ID replaced. The form
+${JUSTIN_SCOPE} etc may also be used.
 If the given DESTINATION starts with https:// then the matching output files
 will be uploaded to WebDAV scratch space, such as dCache at Fermilab. The
 DESTINATION must be the URL of a directory accessible via WebDAV, and given

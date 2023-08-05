@@ -21,6 +21,7 @@
 conn = None
 cur  = None
 
+import os
 import re
 import sys
 import time
@@ -212,6 +213,22 @@ def stringIsEnvName(s):
 
 def stringNoQuotes(s):
   return re.search('["`\']', s) is None
+
+# Use os.path.expandvars() to replace environment variables from dictionary envs
+def expandEnvVars(s, envs):
+  savedEnviron = dict(os.environ)
+  os.environ.clear()
+
+  try:
+    os.environ.update(envs)
+    expandedString = os.path.expandvars(s)
+  except:
+    expandedString = s
+  finally:
+    os.environ.clear()
+    os.environ.update(savedEnviron)
+
+  return expandedString
 
 # Log an event to the database, returning an error message or None if no
 # errors. You must ensure events are committed along with anything else

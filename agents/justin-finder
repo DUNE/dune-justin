@@ -629,11 +629,14 @@ def findSubmittedRequests():
           logLine("Failed adding dataset %s:%s" % (scopeName, datasetName))
           return
 
-      try:
-        executeMetaCatCommand("dataset create '%s:%s'" % (scopeName, datasetName))
-      except:
-        # We assume failures are due to the dataset already being registered
-        pass
+# We now use dune:all in MetaCat for everything :-( 
+# This is set in the wrapper jobs
+#
+#      try:
+#        executeMetaCatCommand("dataset create '%s:%s'" % (scopeName, datasetName))
+#      except:
+#        # We assume failures are due to the dataset already being registered
+#        pass
 
   if requestIDsToStart:
     # All successful (or not needed) so mark requests as running

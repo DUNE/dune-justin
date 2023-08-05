@@ -814,17 +814,24 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
                          jobscript.replace('\\','\\\\').replace('"','\\"')))
 
   except Exception as e:
-    return ('500 Internal Server Error', 'Error updating justIN database ' + str(e))
+    return ('500 Internal Server Error', 
+            'Error updating justIN database ' + str(e))
 
   try:
     lifetimeDays = int(jsonDict['lifetime_days'])
   except:
     lifetimeDays = 1
 
+  justinEnvVars = { 'JUSTIN_REQUEST_ID' : str(requestID),
+                    'JUSTIN_STAGE_ID'   : str(stageID)    }
+
+  if scopeName:
+    justinEnvVars['JUSTIN_SCOPE'] = scopeName
+
   outputPatterns = []
 
-  if jsonDict['output_pattern']:
-    for i in jsonDict['output_pattern']:
+#  if jsonDict['output_pattern']:
+  for i in jsonDict['output_pattern']:
       try:
         (pattern, destination) = i.split(':', 1)
       except:
@@ -833,15 +840,16 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
       if not destination.startswith('https://') and not scopeName:
         return ('400 Bad Request', 
-                'Scope must be specified when creating the request if '
+                'A scope must be specified when creating the request if '
                 '--output-pattern is given for this stage '
-                'and a Rucio dataset is specified')
+                'and a Rucio dataset is given.')
 
+      destination = justin.expandEnvVars(destination, justinEnvVars)
       outputPatterns.append((False, pattern, destination))
 
   if not quick:
-    if jsonDict['output_pattern']:
-      for i in jsonDict['output_pattern']:
+#    if jsonDict['output_pattern_next_stage']:
+      for i in jsonDict['output_pattern_next_stage']:
         try:
           (pattern, destination) = i.split(':', 1)
         except:
@@ -850,10 +858,11 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
         if not destination.startswith('https://') and not scopeName:
           return ('400 Bad Request', 
-                  'Scope must be specified when creating the request if '
+                  'A scope must be specified when creating the request if '
                   '--output-pattern-next-stage is given for this stage '
-                  'and a Rucio dataset is specified')
+                  'and a Rucio dataset is given.')
 
+        destination = justin.expandEnvVars(destination, justinEnvVars)
         outputPatterns.append((True, pattern, destination))
 
   for (forNextStage, pattern, destination) in outputPatterns:

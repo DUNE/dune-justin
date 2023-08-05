@@ -93,7 +93,7 @@ to allow the wrapper job to upload to scratch areas as the user.
 Output files either go to dCache scratch space using the token or to
 Rucio-managed storage using the Production role VOMS proxy. In the Rucio
 case the files are also registered in MetaCat and added to the correct 
-Rucio/MetaCat dataset. 
+Rucio dataset. 
 
 Finally the `confirm_results` method uses the job's hashed
 secret to communicate the outcome of the uploads to the allocator. 

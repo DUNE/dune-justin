@@ -138,25 +138,28 @@ This man page is distributed along with the
     	      given then the wrapper job will look for files created by the
     	      script which match the pattern given as PATTERN. The pattern is
     	      a Bash shell pattern using *, ? and [...] expressions. See the
-    	      bash(1) Pattern Matching section for details.  If the given
-    	      DESTINATION starts with https:// then the matching output files
-    	      will be uploaded to WebDAV scratch space, such as dCache at
-    	      Fermilab. The DESTINATION must be the URL of a directory
-    	      accessible via WebDAV, and given with or without a trailing
-    	      slash. Nested subdirectories for request ID and stage ID will be
-    	      added, and resulting output files placed there. The user's token
-    	      from the justIN dashboard is used for the upload.  If an
-    	      https:// URL is not given, DESTINATION is interpreted as a Rucio
-    	      dataset minus the scope component. The overall scope of the
-    	      request is used and the output files are uploaded with Rucio and
-    	      registered in that dataset. If the dataset does not already
-    	      exist then it will be created when the request changes state
-    	      from submitted to running and if the --lifetime-days option is
-    	      given, then a rule for the new dataset will be created with that
-    	      lifetime rather than the default 1 day.  Furthermore, files for
-    	      Rucio-managed storage must have a corresponding JSON metadata
-    	      file with the same name but with ".json" appended, that will be
-    	      recorded for that file in MetaCat.
+    	      bash(1) Pattern Matching section for details.  The DESTINATION
+    	      component has any of the variables $JUSTIN_SCOPE,
+    	      $JUSTIN_REQUEST_ID, or $JUSTIN_STAGE_ID replaced. The form
+    	      ${JUSTIN_SCOPE} etc may also be used.  If the given DESTINATION
+    	      starts with https:// then the matching output files will be
+    	      uploaded to WebDAV scratch space, such as dCache at Fermilab.
+    	      The DESTINATION must be the URL of a directory accessible via
+    	      WebDAV, and given with or without a trailing slash. Nested
+    	      subdirectories for request ID and stage ID will be added, and
+    	      resulting output files placed there. The user's token from the
+    	      justIN dashboard is used for the upload.	If an https:// URL is
+    	      not given, DESTINATION is interpreted as a Rucio dataset minus
+    	      the scope component. The overall scope of the request is used
+    	      and the output files are uploaded with Rucio and registered in
+    	      that dataset. If the dataset does not already exist then it will
+    	      be created when the request changes state from submitted to
+    	      running and if the --lifetime-days option is given, then a rule
+    	      for the new dataset will be created with that lifetime rather
+    	      than the default 1 day.  Furthermore, files for Rucio-managed
+    	      storage must have a corresponding JSON metadata file with the
+    	      same name but with ".json" appended, that will be recorded for
+    	      that file in MetaCat.
     
     	      Alternatively --output-pattern-next-stage PATTERN:DATASET can be
     	      given in which case the output file will be uploaded to Rucio-
