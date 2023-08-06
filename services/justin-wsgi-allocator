@@ -258,7 +258,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
 
   # Create a list of the output file patterns
   try:
-    query = ("SELECT lifetime_seconds,destination,file_pattern,"
+    query = ("SELECT destination,file_pattern,"
              "for_next_stage "
              "FROM stages_outputs "
              "LEFT JOIN stages "
@@ -277,8 +277,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
   jobscriptDict['patterns'] = []
 
   for row in rows:
-    jobscriptDict['patterns'].append((row['lifetime_seconds'],
-                                      row['for_next_stage'],
+    jobscriptDict['patterns'].append((row['for_next_stage'],
                                       row['destination'],
       ('::URL::' if row['destination'].startswith('https://') else scopeName),
                                       row['file_pattern']))

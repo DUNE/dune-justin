@@ -23,6 +23,7 @@ cat <<EOF | su -l mcnab -c "/usr/bin/condor_submit -spool"
 universe                = vanilla
 environment = "CLUSTER=\$(Cluster) PROCESS=\$(Process) JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
+max_retries             = 0
 notification            = Never
 executable              = $generic_job_tmp
 arguments               = 

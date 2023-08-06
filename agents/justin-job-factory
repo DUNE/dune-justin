@@ -191,9 +191,10 @@ def anySiteJobs():
   
   for (processors, bytesPerProcessor, jobHadInnerApptainer, numberUnallocated) \
    in justin.getUnallocatedCounts():
-    logLine('%d processor(s) %d MB: %d unallocated files' % 
+    logLine('%d processor(s) %d MB (App=%s): %d unallocated files' % 
             (processors, 
             int((bytesPerProcessor * processors) / (1024 * 1024)),
+            jobHadInnerApptainer,
             numberUnallocated))
 
     if numberUnallocated > jobsPerCluster:

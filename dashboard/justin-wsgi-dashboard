@@ -2137,6 +2137,11 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["finished_time"]))
 
+  if jobRow["allocation_state"] in ['finished', 'jobscript_error']:
+    output += ('<tr><td>Saved logs</td>'
+               '<td colspan="2">justin-logs:%s.logs.tgz</td></tr>' 
+               % jobsubID.replace('@','-'))
+
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '

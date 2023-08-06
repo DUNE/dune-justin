@@ -711,13 +711,13 @@ justinRecordResultsDict = {
 outputFiles = []
 
 # Find files matching output patterns specified for this stage
-for (lifetimeSeconds, forNextStage, destination, scope, pattern) in \
+for (forNextStage, destination, scope, pattern) in \
     receivedDict['patterns']:
   
   matches = glob.glob('home/workspace/' + pattern)
   for match in matches:
     matchingFile = match.split('/')[-1]
-    outputFiles.append((lifetimeSeconds, destination, scope, matchingFile))
+    outputFiles.append((destination, scope, matchingFile))
     
     if scope == '::URL::':
       justinRecordResultsDict['output_urls'].append(destination + '/' +
@@ -752,6 +752,36 @@ logLine('record_results returns HTTP code %d' % resultsResponseDict['status'])
 if resultsResponseDict['status'] != 200:
   jobAborted(resultsResponseDict['status'], 'record_results', '')
 
+# Create a logs.tgz file and upload with rucio
+# At the very least jobscript.log will be there
+tgzName = jobsubJobID.replace('@','-') + '.logs.tgz'
+try:
+  ret = os.system('cd home/workspace ; tar zcf ../../%s *.log' % tgzName)
+except Exception as e:
+  logLine('tar zcf %s *.log fails %s' % (tgzName, str(e)))
+  ret = 1
+  
+if ret:
+  jobAborted(900, 'create_logs_tgz', '')
+
+for (rse,scheme) in receivedDict['output_rses'][:3]:
+  logLine('Try justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
+
+  ret = executeJustinRucioUpload('--rse %s '
+                                 '--protocol %s '
+                                 '--scope justin-logs '
+                                 '--dataset jobscripts '
+                                 '%s' % (rse, scheme, tgzName))
+  if ret == 0:
+    break
+  else:
+    logLine('Failed to upload justin-logs:%s to %s' % (tgzName, rse))
+
+if ret:
+  logLine('Failed to upload justin-logs:%s' % tgzName)
+  jobAborted(900, 'rucio_upload_logs_tgz', '')
+
+# No other uploads if the jobscript returned an error 
 if jobscriptOutcome.returncode != 0:
   jobAborted(900, 'jobscript_error', '')
 
@@ -768,7 +798,7 @@ confirmResultsDict = { 'method'      : 'confirm_results',
                        'output_urls' : []  }
 
 # Go through the list of output files
-for (lifetimeSeconds, destination, fileScope, fileName) in outputFiles:
+for (destination, fileScope, fileName) in outputFiles:
   
   if fileScope == '::URL::': 
     # Uploading to user scratch

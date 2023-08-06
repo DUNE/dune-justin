@@ -830,8 +830,9 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
   outputPatterns = []
 
-#  if jsonDict['output_pattern']:
-  for i in jsonDict['output_pattern']:
+  # check output_pattern is not None then proceed
+  if jsonDict['output_pattern']:
+    for i in jsonDict['output_pattern']:
       try:
         (pattern, destination) = i.split(':', 1)
       except:
@@ -848,7 +849,8 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
       outputPatterns.append((False, pattern, destination))
 
   if not quick:
-#    if jsonDict['output_pattern_next_stage']:
+    # check output_pattern is not None then proceed
+    if jsonDict['output_pattern_next_stage']:
       for i in jsonDict['output_pattern_next_stage']:
         try:
           (pattern, destination) = i.split(':', 1)
