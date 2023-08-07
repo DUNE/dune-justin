@@ -52,6 +52,10 @@ parser.add_argument("--dataset",
                     type = str,
                     help = "Name of dataset without scope prefix")
 
+parser.add_argument("--timeout",
+                    type = int,
+                    help = "Timeout limit in seconds")
+
 try:
   args = vars(parser.parse_args())
 except:
@@ -74,17 +78,24 @@ if not args['dataset']:
   sys.exit(1)
 
 try:
+  timeout = int(args['timeout'])
+except:
+  print('--timeout missing', file=sys.stderr)
+  sys.exit(1)
+
+try:
   logging.basicConfig(level = logging.DEBUG)
 
-  uploadClient = rucio.client.uploadclient.UploadClient()
-  uploadDict = { 'path'             : args['path'],
-                 'rse'              : args['rse'],
-                 'did_scope'        : args['scope'],
-                 'dataset_scope'    : args['scope'],
-                 'dataset_name'     : args['dataset'],
-                 'force_protocol'   : args['protocol'],
-                 'transfer_timeout' : 1200
-               }
+  client       = rucio.client.Client(timeout = timeout)
+  uploadClient = rucio.client.uploadclient.UploadClient(client)
+  uploadDict   = { 'path'             : args['path'],
+                   'rse'              : args['rse'],
+                   'did_scope'        : args['scope'],
+                   'dataset_scope'    : args['scope'],
+                   'dataset_name'     : args['dataset'],
+                   'force_protocol'   : args['protocol'],
+                   'transfer_timeout' : timeout
+                 }
 
   ret = uploadClient.upload([uploadDict])
   sys.exit(ret)

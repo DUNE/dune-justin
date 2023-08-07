@@ -4,7 +4,7 @@
 \- justIN utility to upload files with the Rucio upload API
 .SH SYNOPSIS
 .B justin-rucio-upload [--help] --rse RSE --scope SCOPE --protocol PROTOCOL
-.B --dataset DATASET PATH
+.B --dataset DATASET PATH --timeout SECONDS
 .SH DESCRIPTION
 .B justin-rucio-upload
 is a command-line utility to upload a file using Rucio's upload API which
@@ -44,6 +44,11 @@ The protocol used for the upload: davs, root, etc.
 .B "--dataset DATASET"
 .br
 The name suffix of the dataset, without the scope.
+
+.HP 
+.B "--timeout SECONDS"
+.br
+Timeout in seconds to pass to Rucio.
 
 .SH AUTHOR
 Andrew McNab <Andrew.McNab@cern.ch>
