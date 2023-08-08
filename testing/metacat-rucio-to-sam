@@ -36,9 +36,6 @@ The script does the MQL query with MetaCat and the SAMQUERY with SAM
 and tries to declare each file returned by the MetaCat query which is absent
 from the SAM query.
 
-CURRENTLY IT JUST DOES A DRY RUN BY OUTPUTING m-r-t-s.json WITH THE SAM
-JSON AND PRINTING THE declare-file AND add-file-location SAM COMMANDS
-
 """
 
 import os
@@ -197,6 +194,7 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
       ret = os.system('samweb declare-file m-r-t-s.json')
 
     if ret == 0:
+      locationAdded = False
       for pfn in rucioFile['pfns']:
         if pfn.startswith('root://fndca1.fnal.gov:1094/pnfs/fnal.gov/usr'
                           '/dune/persistent/staging/'):
@@ -206,10 +204,16 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
           print('samweb add-file-location %s %s' % (metaCatFile['name'], samPFN))
 
           if not dryRun:
-            os.system('samweb add-file-location %s %s' 
-                      % (metaCatFile['name'], samPFN))
-        
-      numberDeclared += 1
+            ret = os.system('samweb add-file-location %s %s' 
+                            % (metaCatFile['name'], samPFN))
+            if ret:
+              locationAdded = True
+              
+      if locationAdded:        
+        numberDeclared += 1
+      else:
+        print('Failed to add location for %s' % metaCatFile['name'])
+
       if numberDeclared >= number:
         break
     else:
