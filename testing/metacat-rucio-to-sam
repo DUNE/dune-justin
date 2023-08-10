@@ -173,6 +173,16 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
       print('Skip %s:%s - failed to get replicas: %s' 
             % (metaCatFile['namespace'], metaCatFile['name'], str(e)))
       continue
+
+    samPFN = None
+    for pfn in rucioFile['pfns']:
+      if pfn.startswith('root://fndca1.fnal.gov:1094/pnfs/fnal.gov/usr'
+                        '/dune/persistent/staging/'):        
+        samPFN = '/pnfs' + pfn[45:]
+
+    if not samPFN:
+      print('%s has no Fermilab PFN - skipping' % metaCatFile['name'])
+      continue
  
     samMetadata = makeMetadataForSAM(metaCatFile)
     if not samMetadata:
@@ -186,7 +196,7 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
 
     with open('m-r-t-s.json', 'w') as f:
       f.write(json.dumps(samMetadata, indent = 4) + '\n')
-      
+
     print('samweb declare-file m-r-t-s.json for %s' % metaCatFile['name'])
     if dryRun:
       ret = 0
@@ -194,28 +204,18 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
       ret = os.system('samweb declare-file m-r-t-s.json')
 
     if ret == 0:
-      locationAdded = False
-      for pfn in rucioFile['pfns']:
-        if pfn.startswith('root://fndca1.fnal.gov:1094/pnfs/fnal.gov/usr'
-                          '/dune/persistent/staging/'):
-        
-          samPFN = '/pnfs' + pfn[45:]
-                          
-          print('samweb add-file-location %s %s' % (metaCatFile['name'], samPFN))
+      print('samweb add-file-location %s %s' % (metaCatFile['name'], samPFN))
 
-          if not dryRun:
-            ret = os.system('samweb add-file-location %s %s' 
-                            % (metaCatFile['name'], samPFN))
-            if ret:
-              locationAdded = True
+      if not dryRun:
+        ret = os.system('samweb add-file-location %s %s' 
+                        % (metaCatFile['name'], samPFN))
               
-      if locationAdded:        
-        numberDeclared += 1
-      else:
-        print('Failed to add location for %s' % metaCatFile['name'])
-
-      if numberDeclared >= number:
-        break
+        if ret == 0:
+          numberDeclared += 1
+          if numberDeclared >= number:
+            break
+        else:
+          print('Failed to add location for %s' % metaCatFile['name'])
     else:
       print('samweb declare for %s fails with code %d!'
             % (metaCatFile['name'], ret))

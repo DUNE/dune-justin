@@ -1892,7 +1892,7 @@ def outputWrapperLog(startResponse, environ, user):
     filename = environ['REQUEST_URI'].split('/')[2]
     cluster = int(filename.split('.')[0])
     proc    = int(filename.split('.')[1])
-    output = os.popen('sudo -u mcnab '
+    output = os.popen('sudo -u dunejustin '
                  '/var/lib/justin/justin-get-output %d.%d' % (cluster, proc), 
                  'r').read()
   except Exception as e:

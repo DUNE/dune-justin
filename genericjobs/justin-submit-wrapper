@@ -13,13 +13,13 @@ generic_job_tmp=`mktemp /tmp/generic-job.XXXXXX.py`
 
 sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job \
  >$generic_job_tmp
-chown mcnab.dune $generic_job_tmp
+chown dunejustin.dune $generic_job_tmp
 
-cat <<EOF | su -l mcnab -c "/usr/bin/condor_submit -spool"
+cat <<EOF | su -l dunejustin -c "/usr/bin/condor_submit -spool"
 +Desired_Sites          = "$2"
 +Job_Expected_Max_Lifetime = $5
-+justIN_User            = "justinjobs@dune.hep.ac.uk"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
++Jobsub_Group           = "dune"
 universe                = vanilla
 environment = "CLUSTER=\$(Cluster) PROCESS=\$(Process) JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
@@ -28,7 +28,7 @@ notification            = Never
 executable              = $generic_job_tmp
 arguments               = 
 accounting_group        = group_dune.prod_keepup
-accounting_group_user   = justinjobs
+#accounting_group_user   = dunejustin
 rank                    = Mips / 2 + Memory
 job_lease_duration      = 3600
 request_memory          = ${3}KB

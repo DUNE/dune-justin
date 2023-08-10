@@ -3,7 +3,7 @@
 # sudo wrapper for condor_transfer_data
 #
 # Place this in /etc/sudoers.d/justin-get-output-sudoer
-# apache ALL=(mcnab) NOPASSWD: /var/lib/justin/justin-get-output
+# apache ALL=(dunejustin) NOPASSWD: /var/lib/justin/justin-get-output
 # 
 
 JOB=`echo "$1" | sed 's/[^0-9.]//g'`
