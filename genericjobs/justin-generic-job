@@ -753,9 +753,13 @@ for (rse,scheme) in receivedDict['output_rses'][:3]:
   ret = executeJustinRucioUpload('--rse %s '
                                  '--protocol %s '
                                  '--scope justin-logs '
-                                 '--dataset jobscripts '
+                                 '--dataset request_%d '
                                  '--timeout 1200 '
-                                 '%s' % (rse, scheme, tgzName))
+                                 '%s' 
+                                 % (rse, 
+                                    scheme, 
+                                    receivedDict['request_id'], 
+                                    tgzName))
   if ret == 0:
     break
   else:

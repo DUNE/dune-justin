@@ -604,14 +604,20 @@ def findSubmittedRequests():
                                stageOutput['destination'],
                                stageOutput['lifetime_seconds']) )
 
+    datasetsToCreate.add( ('justin-logs', 
+                           'request_%d' % request['request_id'],
+                           604800) )
+
   if datasetsToCreate:
     try:
-      didClient = rucio.client.didclient.DIDClient()
+      didClient  = rucio.client.didclient.DIDClient()
+      ruleClient = rucio.client.ruleclient.RuleClient()
     except Exception as e:
       logLine("Connect to Rucio fails with: " + str(e))
       return
       
     for (scopeName,datasetName,lifetimeSeconds) in datasetsToCreate:
+      # Create the dataset if not already there
       try:
         ret = didClient.add_dataset(scope    = scopeName,
                                     name     = datasetName,
@@ -629,7 +635,22 @@ def findSubmittedRequests():
           logLine("Failed adding dataset %s:%s" % (scopeName, datasetName))
           return
 
-# We now use dune:all in MetaCat for everything :-( 
+        # Create a rule for the new dataset
+        ret = ruleClient.add_replication_rule(
+                     dids = [ {'scope' : scopeName,
+                               'name'  : datasetName} ], 
+                     copies = 1, 
+                     rse_expression = '*', 
+                     lifetime = lifetimeSeconds)
+
+        if not ret:
+          logLine("Failed adding rule for %s:%s" % (scopeName, datasetName))
+          return
+
+# SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
+# NEED THEIR LIFETIME EXTENDING. THIS IS NEEDED FOR LONG WORKFLOWS.
+      
+# We now use dune:all in MetaCat for everything ?!?!
 # This is set in the wrapper jobs
 #
 #      try:
