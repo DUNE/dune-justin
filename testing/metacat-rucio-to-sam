@@ -177,8 +177,10 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
     samPFN = None
     for pfn in rucioFile['pfns']:
       if pfn.startswith('root://fndca1.fnal.gov:1094/pnfs/fnal.gov/usr'
-                        '/dune/persistent/staging/'):        
-        samPFN = '/pnfs' + pfn[45:]
+                        '/dune/persistent/staging/'):
+                        
+        pfnSplit = pfn.split('/')
+        samPFN = 'dcache:/pnfs/' + '/'.join(pfnSplit[6:-1])
 
     if not samPFN:
       print('%s has no Fermilab PFN - skipping' % metaCatFile['name'])

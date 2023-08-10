@@ -591,22 +591,49 @@ def findSubmittedRequests():
     requestIDsToStart.append(str(request['request_id']))
   
     try:
-      stagesOutputs = justin.select('SELECT destination,lifetime_seconds '
-                                'FROM stages_outputs '
-                                'WHERE request_id=%d' % request['request_id'])
-    except:
-      logLine('Failed to get list of outputs of submitted requests')
+      stagesOutputs = justin.select(
+          'SELECT destination,lifetime_seconds,stage_id '
+          'FROM stages_outputs '
+          'WHERE request_id=%d' % request['request_id'])
+    except Exception as e:
+      logLine('Failed to get list of outputs of submitted requests: '
+              + str(e))
       return
-      
+
     for stageOutput in stagesOutputs:
       if not stageOutput['destination'].startswith('https://'):
+        # A Rucio dataset
+        try:
+          stagesOutputStorages = justin.select(
+           'SELECT rse_name FROM stages_output_storages '
+           'LEFT JOIN storages '
+           'ON storages.rse_id=stages_output_storages.rse_id '
+           'WHERE stages_output_storages.request_id=%d '
+           'AND stages_output_storages.stage_id=%s '
+           % (request['request_id'], 
+              stageOutput['stage_id']))
+        except Exception as e:
+          logLine('Failed to get list of output RSE: ' + str(e))
+          return
+          
+        rseNames = []
+        for stageOutputStorage in stagesOutputStorages:
+          rseNames.append(stageOutputStorage['rse_name'])
+
+        if rseNames:
+          rseExpression = '|'.join(rseNames)
+        else:
+          rseExpression = justin.rseDisksExpression
+        
         datasetsToCreate.add( (request['scope_name'],
                                stageOutput['destination'],
-                               stageOutput['lifetime_seconds']) )
+                               stageOutput['lifetime_seconds'],
+                               rseExpression) )
 
     datasetsToCreate.add( ('justin-logs', 
                            'request_%d' % request['request_id'],
-                           604800) )
+                           604800,
+                           justin.rseDisksExpression) )
 
   if datasetsToCreate:
     try:
@@ -616,7 +643,8 @@ def findSubmittedRequests():
       logLine("Connect to Rucio fails with: " + str(e))
       return
       
-    for (scopeName,datasetName,lifetimeSeconds) in datasetsToCreate:
+    for (scopeName,datasetName,lifetimeSeconds,rseExpression) \
+      in datasetsToCreate:
       # Create the dataset if not already there
       try:
         ret = didClient.add_dataset(scope    = scopeName,
@@ -626,8 +654,9 @@ def findSubmittedRequests():
       except rucio.common.exception.DataIdentifierAlreadyExists:
         pass
 
-      except:
-        logLine("Exception adding dataset %s:%s" % (scopeName, datasetName))
+      except Exception as e:
+        logLine("Exception adding dataset %s:%s : %s" 
+                % (scopeName, datasetName, str(e)))
         return
 
       else:
@@ -636,12 +665,17 @@ def findSubmittedRequests():
           return
 
         # Create a rule for the new dataset
-        ret = ruleClient.add_replication_rule(
+        try:
+          ret = ruleClient.add_replication_rule(
                      dids = [ {'scope' : scopeName,
                                'name'  : datasetName} ], 
                      copies = 1, 
-                     rse_expression = '*', 
+                     rse_expression = rseExpression, 
                      lifetime = lifetimeSeconds)
+        except Exception as e:
+          logLine('Exception adding rule for %s:%s : %s'
+                  % (scopeName, datasetName, str(e)))
+          ret = None
 
         if not ret:
           logLine("Failed adding rule for %s:%s" % (scopeName, datasetName))

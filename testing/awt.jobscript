@@ -4,6 +4,7 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
 setup justin
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
+export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
 which rucio
 rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
@@ -23,10 +24,7 @@ do
   echo $JUSTIN_SITE_NAME $rse_name $write_protocol $read_pfn
 
   # Test download of file prepositioned on RSEs
-  (
-    export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
-    xrdcp --force --nopbar --verbose "$read_pfn" "downloaded.txt"
-  )
+  xrdcp --force --nopbar --verbose "$read_pfn" "downloaded.txt"
   download_retval=$?
 
   echo "'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt' returns $download_retval"
@@ -39,16 +37,14 @@ do
   for i in 1 2 3 4 5
   do
     echo "justin-rucio-upload attempt $i"
-    ( export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
-      justin-rucio-upload \
+    justin-rucio-upload \
             --rse "$rse_name" \
             --protocol "$write_protocol" \
             --scope testpro \
             --dataset awt-uploads \
             --timeout 1200 \
-            "$fn" 2>&1 \
-            | sed -r 's/\x1B\[([0-9]{1,3}(;[0-9]{1,2};?)?)?[mGK]//g'
-    )
+            "$fn" 2>&1 
+#            | sed -r 's/\x1B\[([0-9]{1,3}(;[0-9]{1,2};?)?)?[mGK]//g'
     upload_retval=$?
     if [ $upload_retval != 63 ] ; then
       break
@@ -66,7 +62,7 @@ done
 
 )
 
-voms-proxy-info --all --file $JUSTIN_PATH/awt-proxy.pem
+voms-proxy-info --all --file $X509_USER_PROXY
 
 echo
 echo '===== Results ====='
