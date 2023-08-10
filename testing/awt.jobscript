@@ -74,7 +74,7 @@ echo
 echo 'Download/upload commands:'
 echo 'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt'
 echo 'justin-rucio-upload --rse $rse_name --protocol $write_protocol --scope testpro --dataset awt-uploads --timeout 1200 FILENAME'
-echo 'Use the Landscape link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
+echo 'Use the wrapper job link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
 echo
 echo 'Each line: $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval $read_pfn $write_protocol'
 cat results.txt

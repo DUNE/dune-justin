@@ -648,7 +648,7 @@ def findSubmittedRequests():
           return
 
 # SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
-# NEED THEIR LIFETIME EXTENDING. THIS IS NEEDED FOR LONG WORKFLOWS.
+# NEED THEIR LIFETIME EXTENDING? THIS IS NEEDED FOR LONG WORKFLOWS?
       
 # We now use dune:all in MetaCat for everything ?!?!
 # This is set in the wrapper jobs
