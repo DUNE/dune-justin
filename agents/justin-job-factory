@@ -38,8 +38,9 @@ import justin
 
 sleepSeconds      = 60
 jobsPerCluster    = 192
+maxSubmitted      = 2000
 
-# DUNE names of all sites we always ignore. This is for sites unknown to us 
+# Jobsub names of all sites we always ignore. This is for sites unknown to us 
 # because they do not have pilot factory entries. Known sites are disabled in
 # the database.
 alwaysIgnoreSitesList = [ ] # [ 'UConn-HPC' ] 
@@ -191,17 +192,14 @@ def anySiteJobs():
   
   for (processors, bytesPerProcessor, jobHadInnerApptainer, numberUnallocated) \
    in justin.getUnallocatedCounts():
-    logLine('%d processor(s) %d MB (App=%s): %d unallocated files' % 
+    logLine('---- %d processor(s) %d MB (App=%s) has %d unallocated files ----' % 
             (processors, 
             int((bytesPerProcessor * processors) / (1024 * 1024)),
             jobHadInnerApptainer,
             numberUnallocated))
 
-    if numberUnallocated > jobsPerCluster:
-      numberUnallocated = jobsPerCluster
-
     try:
-      desiredRows = justin.db.select('SELECT site_name '
+      desiredRows = justin.db.select('SELECT jobsub_site_name '
                      'FROM sites '
                      'LEFT JOIN get_stage_cache '
                      'ON get_stage_cache.site_id=sites.site_id '
@@ -213,7 +211,7 @@ def anySiteJobs():
                      'WHERE get_stage_cache.site_id IS NOT NULL '
                      'AND sites.enabled '
                      'AND sites.has_inner_apptainer=%s '
-                     'ORDER by site_name' % 
+                     'ORDER by jobsub_site_name' % 
                      (processors - 1, 
                       processors, 
                       bytesPerProcessor * (processors - 1),
@@ -229,8 +227,8 @@ def anySiteJobs():
 # WILL GO AWAY WHEN REDONE FOR CLASSAD MATCHING OF INNER SINGULARITY?
     desiredSites = set() # use a set to remove duplicates
     for desiredRow in desiredRows:
-      if desiredRow['site_name'] not in alwaysIgnoreSitesList:
-        desiredSites.add(desiredRow['site_name'])
+      if desiredRow['jobsub_site_name'] not in alwaysIgnoreSitesList:
+        desiredSites.add(desiredRow['jobsub_site_name'])
 
     try:    
         query = ('SELECT COUNT(*) AS count FROM jobs '
@@ -252,17 +250,25 @@ def anySiteJobs():
     except Exception as e:
         logLine('Failed getting count of submitted jobs: ' + str(e))
         continue
-          
+        
     logLine('%d processors %d MB has %d submitted and %d unallocated' % 
             (processors, 
              int((bytesPerProcessor * processors) / (1024 * 1024)),
              numberSubmitted, numberUnallocated))
             
+    if numberSubmitted > maxSubmitted:
+      logLine('Skipping due to number already submitted > %d' % maxSubmitted)
+      continue
+          
     if desiredSites and (numberUnallocated > numberSubmitted):
       desiredSitesStr = ','.join(desiredSites)
-      
-      logLine('Submit jobs with desired sites: ' + desiredSitesStr)
-      submitJobs(numberToSubmit = numberUnallocated - numberSubmitted,
+
+      numberToSubmit = numberUnallocated - numberSubmitted
+      if numberToSubmit > jobsPerCluster:
+        numberToSubmit = jobsPerCluster
+
+      logLine('Submit %d jobs with desired sites: %s' % (numberToSubmit, desiredSitesStr))
+      submitJobs(numberToSubmit = numberToSubmit,
                firstSiteID      = 0,
                desiredSiteNames = desiredSitesStr,
                minProcessors    = processors - 1,
@@ -296,7 +302,7 @@ def awtJobsToSites():
   for row in rows:
       submitJobs(numberToSubmit = 1,
                  firstSiteID      = row['site_id'],
-                 desiredSiteNames = row['site_name'],
+                 desiredSiteNames = row['jobsub_site_name'],
                  minProcessors    = 0,
                  maxProcessors    = 1,
                  minRssBytes      = 0,

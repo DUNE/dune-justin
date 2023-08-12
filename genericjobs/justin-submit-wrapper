@@ -3,10 +3,10 @@
 # Wrapper around condor_submit
 #
 # Command line arguments:
-#  1: number to submit, 2: site name(s), 3: memory KB, 4: cpus, 
+#  1: number to submit, 2: JOBSUB STYLE site name(s), 3: memory KB, 4: cpus, 
 #  5: length seconds, 6: justIN job secret
 #
-# In the future, this Will be merged directly into justin-job-factory...
+# In the future, this will be merged directly into justin-job-factory...
 #
 
 generic_job_tmp=`mktemp /tmp/generic-job.XXXXXX.py`
@@ -24,10 +24,12 @@ universe                = vanilla
 environment = "CLUSTER=\$(Cluster) PROCESS=\$(Process) JOBSUBJOBID=\$(Cluster).\$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
 max_retries             = 0
+retry_until             = True
 notification            = Never
 executable              = $generic_job_tmp
 arguments               = 
-accounting_group        = group_dune.prod_keepup
+accounting_group        = group_dune.prod_mcsim
+#accounting_group        = group_dune.prod_keepup
 #accounting_group_user   = dunejustin
 rank                    = Mips / 2 + Memory
 job_lease_duration      = 3600
@@ -41,7 +43,7 @@ log                     = /tmp/justin-wrapper-\$(Cluster).\$(Process).log
 transfer_output_files   = ""
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
-requirements = ((isUndefined(target.GLIDEIN_DUNESite) == FALSE) && (stringListIMember(target.GLIDEIN_DUNESite,my.Desired_Sites)))
+requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (stringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
 Queue $1
 EOF
 exit $?

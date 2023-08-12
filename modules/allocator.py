@@ -52,7 +52,9 @@ def getUnallocatedCounts():
     return
 
   for processors in range(1, 9):
-    for bytesPerProcessor in [2000 * 1024 * 1024, 4000 * 1024 * 1024, 5500 * 1024 * 1024 ]:
+    for bytesPerProcessor in [2000 * 1024 * 1024, 
+                              4000 * 1024 * 1024, 
+                              5500 * 1024 * 1024 ]:
       for hasInnerApptainer in [True, False]:
       
         try:

@@ -446,7 +446,6 @@ def getStageMethod(startResponse, jsonDict, environ):
 
   if 'jobsub_id' not in jsonDict or \
      not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Missing jobsub_id in JSON')
@@ -477,7 +476,9 @@ def getStageMethod(startResponse, jsonDict, environ):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
 
-#  print('Before UPDATE jobs site_name etc', file=sys.stderr)
+  # If the job is in the submitted state then update with host details
+  # If not in submitted, then some mismatch which we catch and return 
+  # 410 below
   try:
     justin.db.insertUpdate('UPDATE jobs SET '
                         'site_id=(SELECT site_id FROM sites '
@@ -489,7 +490,8 @@ def getStageMethod(startResponse, jsonDict, environ):
                         'processors=%d,' 
                         'wall_seconds=%d,'
                         'has_inner_apptainer=%s ' 
-                        'WHERE jobsub_id="%s"' % 
+                        'WHERE jobsub_id="%s" AND '
+                        'allocation_state="submitted"' % 
                         (jsonDict['site_name'], 
                          jsonDict['cpuinfo'],
                          jsonDict['os_release'],
@@ -518,10 +520,11 @@ def getStageMethod(startResponse, jsonDict, environ):
                      '400 Bad Request', 
                      jobDict['error_message'] + ' in getStageMethod')
 
-  # Some kind of mismatch. Maybe the idle job was marked as stalled.
-  if jobDict['allocation_state'] != 'submitted' and \
-     jobDict['allocation_state'] != 'notused':
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+  # Some kind of mismatch. Maybe the idle job was marked as stalled. Maybe 
+  # HTCondor rescheduled the job and it has tried to run again. In all cases 
+  # leave the job state as is.
+  if jobDict['allocation_state'] != 'submitted':
+# WHY WAS THIS HERE???     and jobDict['allocation_state'] != 'notused':
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot get stage as job already in %s state' 

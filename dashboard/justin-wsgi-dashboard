@@ -1697,7 +1697,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN jobs ON jobs.justin_job_id=files.justin_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.request_id=%d AND files.stage_id=%d %s "
-           "ORDER BY files.file_id LIMIT %d,%d" % 
+           "ORDER BY files.file_id DESC LIMIT %d,%d" % 
            (justin.db.event_FILE_ALLOCATED, requestID, stageID, stateFilter,
             pageNumber * pageLength, pageLength + 1))
 
