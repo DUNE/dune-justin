@@ -5,7 +5,7 @@ See https://justin.dune.hep.ac.uk/ for documentation
 
 ### Branches/tags policy
 
-(This will be adopted in the near future.)
+(This will be adopted when we get to 01.00.00)
 
 Most development happens on the main branch, via pull requests
 
