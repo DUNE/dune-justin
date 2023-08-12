@@ -95,6 +95,15 @@ def submitJobs(numberToSubmit,
   justinJobSecret = secrets.token_urlsafe(64)
 
   try: 
+    print(["/var/lib/justin/justin-submit-wrapper",
+                str(numberToSubmit),
+                desiredSiteNames,
+                str(int(maxRssBytes / 1024)),
+                str(maxProcessors),
+                str(maxWallSeconds),
+                justinJobSecret,
+                justin.allocatorHost
+               ])
     outcome = subprocess.run(
                ["/var/lib/justin/justin-submit-wrapper",
                 str(numberToSubmit),
@@ -103,6 +112,7 @@ def submitJobs(numberToSubmit,
                 str(maxProcessors),
                 str(maxWallSeconds),
                 justinJobSecret,
+                justin.allocatorHost
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
@@ -110,11 +120,11 @@ def submitJobs(numberToSubmit,
                timeout = 60
                             ) 
   except Exception as e:
-    logLine("run-jobsub-submit fails with error: " + str(e))
+    logLine("justin-submit-wrapper fails with error: " + str(e))
     return
 
   logLine(outcome.stdout.decode())
-  logLine('run-jobsub-submit exit code: ' + str(outcome.returncode))
+  logLine('justin-submit-wrapper exit code: ' + str(outcome.returncode))
 
   # Scrape the stdout to find the Jobsub job ID
   majorJobsubJobID = None
@@ -132,7 +142,7 @@ def submitJobs(numberToSubmit,
    
   if not majorJobsubJobID or not jobsubHost:
     # What??
-    logLine("Valid jobsub job ID not found after submitting job(s)!")
+    logLine("Valid job ID not found after submitting job(s)!")
     return
 
   logLine("Submitted cluster %s to %s%s" % 
@@ -231,13 +241,15 @@ def anySiteJobs():
         desiredSites.add(desiredRow['jobsub_site_name'])
 
     try:    
+        # The 1 day limit should match the 1 day periodic remove for idle
+        # jobs in the HTCondor inputfile
         query = ('SELECT COUNT(*) AS count FROM jobs '
                        'WHERE allocation_state = "submitted" AND '
                        'min_processors < %d AND '
                        'max_processors >= %d AND '
                        'min_rss_bytes < %d AND '
                        'max_rss_bytes >= %d AND '
-                       'submitted_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) AND '
+                       'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY) AND '
                        'NOT for_awt' %
                        (processors,
                         processors,

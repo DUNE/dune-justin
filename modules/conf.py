@@ -30,9 +30,15 @@ mysqlDbName     = None
 cilogonClientID = None
 cilogonSecret   = None
 
+justinUsername = None
+justinGroup    = None
+
+allocatorHost = None
+
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
-         cilogonClientID, cilogonSecret
+         cilogonClientID, cilogonSecret, justinUsername, justinGroup, \
+         allocatorHost
 
   parser = configparser.RawConfigParser()
 
@@ -46,7 +52,8 @@ def readConf():
       if oneFile[-5:] == '.conf':
         parser.read('/etc/justin.d/' + oneFile)
 
-  # Standalone configuration file, read after justin.d in case of manual overrides
+  # Standalone configuration file, read after justin.d 
+  # in case of manual overrides
   parser.read('/etc/justin.conf')
 
   # Options for the [database] section
@@ -59,7 +66,7 @@ def readConf():
   try:
     mysqlPassword = parser.get('database','password').strip()
   except:
-    mysqlPassword = None
+     mysqlPassword = None
 
   try:
     mysqlHostname = parser.get('database','hostname').strip()
@@ -82,3 +89,22 @@ def readConf():
     cilogonSecret = parser.get('cilogon','secret').strip()
   except:
     cilogonSecret = None
+
+  # Options for the [agents] section
+
+  try:
+    justinUsername = parser.get('agents','user').strip()
+  except:
+    justinUsername = 'dunejustin'
+
+  try:
+    justinGroup = parser.get('agents','group').strip()
+  except:
+    justinGroup = 'dune'
+
+  # Options for the [services] section
+
+  try:
+    allocatorHost = parser.get('services','allocator_host').strip()
+  except:
+    allocatorHost = 'justin-allocator-pro.dune.hep.ac.uk'

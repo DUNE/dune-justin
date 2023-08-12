@@ -4,14 +4,16 @@
 #
 # Command line arguments:
 #  1: number to submit, 2: JOBSUB STYLE site name(s), 3: memory KB, 4: cpus, 
-#  5: length seconds, 6: justIN job secret
+#  5: length seconds, 6: justIN job secret, 7: allocator hostname
 #
 # In the future, this will be merged directly into justin-job-factory...
 #
 
 generic_job_tmp=`mktemp /tmp/generic-job.XXXXXX.py`
 
-sed "s/###justin_job_secret###/$6/g" /var/lib/justin/justin-generic-job \
+sed -e "s/###justin_job_secret###/$6/g" \
+    -e "s/###justin_allocator_host###/$7/g" \
+ /var/lib/justin/justin-generic-job \
  >$generic_job_tmp
 chown dunejustin.dune $generic_job_tmp
 
