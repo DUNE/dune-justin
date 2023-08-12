@@ -237,7 +237,7 @@ def anySiteJobs():
                        'max_processors >= %d AND '
                        'min_rss_bytes < %d AND '
                        'max_rss_bytes >= %d AND '
-                       'submitted_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) AND '
+                       'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY) AND '
                        'NOT for_awt' %
                        (processors,
                         processors,
