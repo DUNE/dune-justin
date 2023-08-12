@@ -30,15 +30,15 @@ mysqlDbName     = None
 cilogonClientID = None
 cilogonSecret   = None
 
-justinUsername = None
-justinGroup    = None
+justinUsername  = None
+justinGroup     = None
 
-allocatorHost = None
+proDev          = None
 
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, justinUsername, justinGroup, \
-         allocatorHost
+         proDev
 
   parser = configparser.RawConfigParser()
 
@@ -102,9 +102,7 @@ def readConf():
   except:
     justinGroup = 'dune'
 
-  # Options for the [services] section
-
   try:
-    allocatorHost = parser.get('services','allocator_host').strip()
+    proDev = parser.get('agents','pro_dev').strip()
   except:
-    allocatorHost = 'justin-allocator-pro.dune.hep.ac.uk'
+    proDev = 'pro'

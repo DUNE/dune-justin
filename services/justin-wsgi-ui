@@ -1239,7 +1239,7 @@ def newSession(startResponse, environ, jsonDict):
   
   justinSession = secrets.token_urlsafe(64)
   justinSecret  = secrets.token_urlsafe(64)
-  justinCode    = secrets.token_urlsafe(28)
+  justinCode    = secrets.token_urlsafe(25)
   savedURI      = '/dashboard/'
   userAgent     = environ.get('HTTP_USER_AGENT', '')
   ip            = environ.get('REMOTE_ADDR', '')
@@ -1270,10 +1270,10 @@ def newSession(startResponse, environ, jsonDict):
                            ip, hostname,
               jsonDict['os_release'].replace('\\','\\\\').replace('"','\\"') ))
     justin.db.conn.commit()
-  except:
+  except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
-                     'Failed creating session')
+                     'Failed creating session: ' + str(e))
 
   outputDict = { 'session' : justinSession, 'secret' : justinSecret }
 
@@ -1281,13 +1281,13 @@ def newSession(startResponse, environ, jsonDict):
 '''
 To authorize this computer to run the justin command, visit this page with your
 usual web browser and follow the instructions within the next 10 minutes:
-https://justin.dune.hep.ac.uk/authorize/%s
+https://justin-%s.dune.hep.ac.uk/authorize/%s
 
 Check that the Session ID displayed on that page is %s
 
 Once you've followed the instructions on that web page, you can run the justin
 command without needing to authorize this computer again for 7 days.
-''' % (justinCode, justinSession[:7])
+''' % (justin.proDev, justinCode, justinSession[:7])
    
   return httpError(startResponse, 
                    '401 Authorization Required',

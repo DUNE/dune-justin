@@ -18,13 +18,13 @@ GET_FILE_TMP=`mktemp /tmp/justin_get_file_XXXXXX`
 http_code=`curl \
 --user-agent 'justin-get-file' \
 --silent \
---header "X-Jobid: $JOBSUBJOBID" \
+--header "X-Jobid: $JUSTIN_JOBSUB_ID" \
 --header "Accept: text/plain" \
 --capath ${X509_CERTIFICATES:-/etc/grid-security/certificates/} \
 --data @$JUSTIN_PATH/justin-get-file.json \
 --output $GET_FILE_TMP \
 --write-out "%{http_code}\n" \
-https://justin-allocator-pro.dune.hep.ac.uk/api/allocator/get_file 2>/dev/null`
+https://justin-allocator-$JUSTIN_PRO_DEV.dune.hep.ac.uk/api/allocator/get_file 2>/dev/null`
 
 if [ "$http_code" = 200 ] ; then
  cat $GET_FILE_TMP

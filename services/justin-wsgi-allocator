@@ -345,9 +345,9 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              'NOT storages.decommissioned '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
-             % (stage['request_id'], 
+             % (stage['request_id'],
                 stage['stage_id'],
-                jobDict['site_id']                
+                jobDict['site_id']
                )
             )
 

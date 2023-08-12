@@ -108,7 +108,8 @@ def jobAborted(httpCode, abortedMethod, rseName):
                    }
 
   sendJsonURL(
-    'https://###justin_allocator_host###/api/allocator/job_aborted_'
+    'https://justin-allocator-###prodev###.dune.hep.ac.uk'
+    '/api/allocator/job_aborted_'
      + str(httpCode),
     jobAbortedDict)
 
@@ -404,6 +405,7 @@ jobPID      = os.getpid()
 
 # Start of subprocess to send regular heartbeats
 if os.fork() == 0:
+  time.sleep(600)
   # Redirect stdout/stderr
   so = open('heartbeats.log', 'a+')
   os.dup2(so.fileno(), sys.stdout.fileno())
@@ -412,13 +414,12 @@ if os.fork() == 0:
   
   # Send heartbeats until parent exits
   while os.getppid() == jobPID:
-    sendJsonURL('https://###justin_allocator_host###'
-                              '/api/allocator/send_heartbeat',
+    sendJsonURL('https://justin-allocator-###prodev###.dune.hep.ac.uk'
+                '/api/allocator/send_heartbeat',
                 { "method" : "send_heartbeat" }
                )
-             
     time.sleep(600)
-
+             
   sys.exit(0)    
 # End of subprocess to send regular heartbeats
 
@@ -430,7 +431,7 @@ os.makedirs('home/workspace')
 # Make jobutils scripts available to jobscripts in a known location
 for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
   os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-             'pro/NULL/jobutils/' + i, 'home/' + i)
+             '###prodev###/NULL/jobutils/' + i, 'home/' + i)
 
 # Assemble values to send to allocator
 getStageDict = { 'method' : 'get_stage_json' }
@@ -502,7 +503,8 @@ for i in range(1,6):
   logLine('====end justin-get-stage.json====')
 
   receivedDict = sendJsonURL(
-    'https://###justin_allocator_host###/api/allocator/get_stage',
+    'https://justin-allocator-###prodev###.dune.hep.ac.uk'
+    '/api/allocator/get_stage',
     getStageDict)
 
   logLine('get_stage returns HTTP code %d' % receivedDict['status'])
@@ -521,14 +523,13 @@ with open('home/justin-jobscript-env.sh','w') as f:
   for (n,v) in receivedDict['stage_env']:
     f.write('export %s="%s"\n' % (n,v))
 
+  f.write('export JUSTIN_PRO_DEV=###prodev###\n')
   f.write('export JUSTIN_SITE_NAME=%s\n' % receivedDict['site_name'])
   f.write('export JUSTIN_REQUEST_ID=%d\n' % receivedDict['request_id'])
   f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])
   f.write('export JUSTIN_SCOPE=%s\n' % receivedDict['scope'])
   f.write('export JUSTIN_JOBSUB_ID=%s\n' % receivedDict['jobsub_id'])
   f.write('unset JOBSUBJOBID\n')
-#  f.write('export CLUSTER=%s\n' % receivedDict['jobsub_id'].split('.')[0])  
-#  f.write('export PROCESS=%s\n' % receivedDict['jobsub_id'].split('.')[1].split('@')[0]) 
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % receivedDict['jobscript_secret'])
   f.write('export JUSTIN_SAM_WEB_URI='
@@ -724,7 +725,8 @@ except:
 
 logLine('record results: ' + str(justinRecordResultsDict))
 resultsResponseDict = sendJsonURL(
- 'https://###justin_allocator_host###/api/allocator/record_results', 
+ 'https://justin-allocator-###prodev###.dune.hep.ac.uk'
+ '/api/allocator/record_results', 
  justinRecordResultsDict)
 
 logLine('record_results returns HTTP code %d' % resultsResponseDict['status'])
@@ -861,7 +863,8 @@ for (destination, fileScope, fileName) in outputFiles:
 
 logLine('confirm results: ' + str(confirmResultsDict))
 confirmDict = sendJsonURL(
-  'https://###justin_allocator_host###/api/allocator/confirm_results',
+  'https://justin-allocator-###prodev###.dune.hep.ac.uk'
+  '/api/allocator/confirm_results',
   confirmResultsDict)
 
 logLine('confirm_results returns HTTP code %d' % confirmDict['status'])

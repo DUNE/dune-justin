@@ -1178,7 +1178,6 @@ def showStage(environ, user, cgiValues):
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
-           "stages.max_files_per_job,"
            "stages_jobscripts.jobscript,"
            "jobscript_name,"
            "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
@@ -1229,9 +1228,6 @@ def showStage(environ, user, cgiValues):
 
   output += ('<tr><td>Max distance for inputs</td>'
         '<td>%.1f</td></tr>' % stageRow["max_distance"])
-
-  output += ('<tr><td>Max files per job</td>'
-        '<td>%d</td></tr>' % stageRow["max_files_per_job"])
 
   output += ('<tr><td>Output RSEs</td>'
         '<td>')

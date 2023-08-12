@@ -95,15 +95,6 @@ def submitJobs(numberToSubmit,
   justinJobSecret = secrets.token_urlsafe(64)
 
   try: 
-    print(["/var/lib/justin/justin-submit-wrapper",
-                str(numberToSubmit),
-                desiredSiteNames,
-                str(int(maxRssBytes / 1024)),
-                str(maxProcessors),
-                str(maxWallSeconds),
-                justinJobSecret,
-                justin.allocatorHost
-               ])
     outcome = subprocess.run(
                ["/var/lib/justin/justin-submit-wrapper",
                 str(numberToSubmit),
@@ -112,7 +103,7 @@ def submitJobs(numberToSubmit,
                 str(maxProcessors),
                 str(maxWallSeconds),
                 justinJobSecret,
-                justin.allocatorHost
+                justin.proDev
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,
