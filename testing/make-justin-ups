@@ -67,6 +67,7 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-webdav-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-rucio-upload \
+   $MJU_GIT_DIR/dune-justin/commands/metacat-rucio-to-sam \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
 
 cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
