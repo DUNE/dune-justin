@@ -61,6 +61,7 @@ def sendJsonURL(url, sendDict):
                    method = 'POST')
   sslContext = ssl.SSLContext()
   sslContext.verify_mode = ssl.CERT_REQUIRED
+  sslContext.check_hostname = True
   sslContext.load_verify_locations(capath = 
                        '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
 
@@ -251,6 +252,7 @@ def webdavPutFile(token, source, destinationDir):
 
   sslContext = ssl.SSLContext()
   sslContext.verify_mode = ssl.CERT_REQUIRED
+  sslContext.check_hostname = True
   sslContext.load_verify_locations(capath = 
                        '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
 

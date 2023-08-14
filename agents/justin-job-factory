@@ -103,7 +103,7 @@ def submitJobs(numberToSubmit,
                 str(maxProcessors),
                 str(maxWallSeconds),
                 justinJobSecret,
-                justin.proDev
+                justin.conf.proDev
                ],
                stdin   = subprocess.DEVNULL,
                stderr  = subprocess.STDOUT,

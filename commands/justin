@@ -256,6 +256,7 @@ httpRequest = urllib.request.Request(url + '/' + args.command,
 
 sslContext = ssl.SSLContext()
 sslContext.verify_mode = ssl.CERT_REQUIRED
+sslContext.check_hostname = True
 
 # Use embedded UK e-Science CA and Root certificates, expiring in 2027
 sslContext.load_verify_locations(cadata = '''

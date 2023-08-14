@@ -32,6 +32,9 @@ if [ "$http_code" = 200 ] ; then
 elif [ "$http_code" = 404 ] ; then 
  echo "No files available from this stage" >&2
  retcode=1
+elif [ "$http_code" = 000 ] ; then 
+ echo "curl error" >&2
+ retcode=4
 else
  echo "get_file receives:" >&2
  cat $GET_FILE_TMP >&2
