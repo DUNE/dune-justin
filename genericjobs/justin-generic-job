@@ -525,7 +525,12 @@ with open('home/justin-jobscript-env.sh','w') as f:
   for (n,v) in receivedDict['stage_env']:
     f.write('export %s="%s"\n' % (n,v))
 
+# REMOVE THIS
   f.write('export JUSTIN_PRO_DEV=###prodev###\n')
+# ^^^^^^^^^^^
+
+  f.write('export JUSTIN_ALLOCATOR='
+   'https://justin-allocator-###prodev###.dune.hep.ac.uk/api/allocator/\n')
   f.write('export JUSTIN_SITE_NAME=%s\n' % receivedDict['site_name'])
   f.write('export JUSTIN_REQUEST_ID=%d\n' % receivedDict['request_id'])
   f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])

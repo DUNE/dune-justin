@@ -24,7 +24,7 @@ http_code=`curl \
 --data @$JUSTIN_PATH/justin-get-file.json \
 --output $GET_FILE_TMP \
 --write-out "%{http_code}\n" \
-https://justin-allocator-$JUSTIN_PRO_DEV.dune.hep.ac.uk/api/allocator/get_file 2>/dev/null`
+${JUSTIN_ALLOCATOR}get_file 2>/dev/null`
 
 if [ "$http_code" = 200 ] ; then
  cat $GET_FILE_TMP

@@ -92,7 +92,7 @@ def readConf():
   # Options for the [agents] section
 
   try:
-    agentUsername = parser.get('agents','user').strip()
+    agentUsername = parser.get('agents','username').strip()
   except:
     agentUsername = 'dunejustin'
 
