@@ -35,7 +35,7 @@ rseAvailabilityDelete = 1
 rseAvailabilityWrite  = 2
 rseAvailabilityRead   = 4
 
-rseDisksExpression = 'istape=False\\decommisioned=True'
+rseDisksExpression = 'istape=False\\decommissioned=True'
 
 unixEpoch = '1970-01-01 00:00:00'
 

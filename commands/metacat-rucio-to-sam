@@ -25,6 +25,8 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio
 setup sam_web_client
 export SAM_EXPERIMENT=dune
+export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
+export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
 setup metacat
 metacat auth login -m x509 dunepro
 
@@ -199,7 +201,8 @@ def processMissingFiles(dryRun, number, samList, metaCatList, repClient):
     with open('m-r-t-s.json', 'w') as f:
       f.write(json.dumps(samMetadata, indent = 4) + '\n')
 
-    print('samweb declare-file m-r-t-s.json for %s' % metaCatFile['name'])
+    print('(%d/%d) samweb declare-file m-r-t-s.json for %s' 
+          % (numberDeclared + 1, number, metaCatFile['name']))
     if dryRun:
       ret = 0
     else:

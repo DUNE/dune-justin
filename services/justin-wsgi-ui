@@ -692,14 +692,14 @@ def modifyRequestCmds(startResponse, jsonDict, user):
              "AND state='running'" % requestID)
 
   elif jsonDict['command'] == 'finish-request':
-    if requestState != 'running':
+    if requestState != 'running' and requestState != 'submitted':
       return httpError(startResponse,
                        '403 Forbidden',
                        'You cannot finish a request that is not running')
 
-    query = ("UPDATE requests SET state='finished' "
+    query = ("UPDATE requests SET state='finished',finished=NOW() "
              "WHERE request_id=%d "
-             "AND state='running'" % requestID)
+             "AND (state='running' OR state='submitted')" % requestID)
 
   try:
     justin.insertUpdate(query)
@@ -1106,7 +1106,8 @@ def failFilesCmd(startResponse, jsonDict, user):
                         'ON scopes.scope_id=requests.scope_id '
                         'LEFT JOIN wlcg_groups '
                         'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                        'WHERE requests.request_id=%d' % requestID)
+                        'WHERE requests.request_id=%d' % requestID, 
+                        justOne = True)
 
     requestUserID = row['user_id']
     wlcgGroupName = row['wlcg_group_name']

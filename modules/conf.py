@@ -30,14 +30,13 @@ mysqlDbName     = None
 cilogonClientID = None
 cilogonSecret   = None
 
-justinUsername  = None
-justinGroup     = None
+agentUsername   = None
 
 proDev          = None
 
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
-         cilogonClientID, cilogonSecret, justinUsername, justinGroup, \
+         cilogonClientID, cilogonSecret, agentUsername,  \
          proDev
 
   parser = configparser.RawConfigParser()
@@ -93,14 +92,9 @@ def readConf():
   # Options for the [agents] section
 
   try:
-    justinUsername = parser.get('agents','user').strip()
+    agentUsername = parser.get('agents','user').strip()
   except:
-    justinUsername = 'dunejustin'
-
-  try:
-    justinGroup = parser.get('agents','group').strip()
-  except:
-    justinGroup = 'dune'
+    agentUsername = 'dunejustin'
 
   try:
     proDev = parser.get('agents','pro_dev').strip()
