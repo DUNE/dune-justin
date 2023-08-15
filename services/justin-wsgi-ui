@@ -1288,7 +1288,7 @@ Check that the Session ID displayed on that page is %s
 
 Once you've followed the instructions on that web page, you can run the justin
 command without needing to authorize this computer again for 7 days.
-''' % (justin.proDev, justinCode, justinSession[:7])
+''' % (justin.conf.proDev, justinCode, justinSession[:7])
    
   return httpError(startResponse, 
                    '401 Authorization Required',

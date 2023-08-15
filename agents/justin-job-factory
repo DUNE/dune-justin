@@ -18,6 +18,7 @@
 #
 
 import os
+import pwd
 import sys
 import stat
 import time
@@ -422,6 +423,9 @@ if __name__ == '__main__':
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
+              p = pwd.getpwnam(justin.conf.agentUsername)
+              os.setgid(p[3])
+              os.setuid(p[2])
               oneCycle()
             except Exception as e:
               print('Cycle fails with exception ' + str(e))
