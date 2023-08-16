@@ -80,8 +80,8 @@ def submitJobs(numberToSubmit,
                forAwt = False):
 
   # If targetting one site, then firstSiteID should be non-zero
-  # desiredSiteNames is a comma separated list of DUNE site names
-  # to match GLIDEIN_DUNESite classads
+  # desiredSiteNames is a comma separated list of jobsub style site names
+  # to match GLIDEIN_Site classads and others used by GlideInWMS
 
   logLine('submitJobs %d %d %s %d-%d %d-%d %d' %
           (numberToSubmit,
@@ -93,50 +93,104 @@ def submitJobs(numberToSubmit,
            maxRssBytes,
            maxWallSeconds))
 
+  try:
+    wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
+  except Exception as e:
+    logLine('Failed loading justin-wrapper-job: ' + str(e))
+    return
+
   justinJobSecret = secrets.token_urlsafe(64)
+
+  wrapperText = \
+   wrapperText.replace('###justin_job_secret###',
+                justinJobSecret).replace('###prodev###', justin.conf.proDev)
+
+
+  try:    
+    wrapperFile = tempfile.NamedTemporaryFile(mode='w+',
+                                 prefix = 'justin-wrapper-job-',
+                                 dir = '/tmp', 
+                                delete = False)  
+
+    wrapperFile.write(wrapperText)
+  except Exception as e:
+    logLine('Failed writing %s: %s'  % (wrapperFile.name, str(e)))
+    return
+  finally:
+    wrapperFile.close()
+
+  submitFile = """
++Desired_Sites          = "%s"
++SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
++Jobsub_Group           = "dune"
++Job_Expected_Max_Lifetime = %d
+universe                = vanilla
+environment = "CLUSTER=$(Cluster) PROCESS=$(Process) JOBSUBJOBID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
+periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
+max_retries             = 0
+retry_until             = True
+notification            = Never
+executable              = %s
+arguments               = 
+accounting_group        = group_dune.prod_mcsim
+#accounting_group        = group_dune.prod_keepup
+accounting_group_user   = dunejustin
+rank                    = Mips / 2 + Memory
+job_lease_duration      = 3600
+request_memory          = %dKB
+request_cpus            = %d
+request_disk            = 1
+getenv                  = False
+output                  = /tmp/justin-wrapper-$(Cluster).$(Process).out
+error                   = /tmp/justin-wrapper-$(Cluster).$(Process).out
+log                     = /tmp/justin-wrapper-$(Cluster).$(Process).log
+transfer_output_files   = ""
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT_OR_EVICT
+requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (stringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
+queue %d
+""" % (desiredSiteNames, 
+       maxWallSeconds,
+       wrapperFile.name,
+       int(maxRssBytes / 1024), 
+       maxProcessors,
+       numberToSubmit)
+
+  lineNumber = 1
+  for line in submitFile.splitlines():
+    print('%03d %s' % (lineNumber, line))
+    lineNumber += 1
 
   try: 
     outcome = subprocess.run(
-               ["/var/lib/justin/justin-submit-wrapper",
-                str(numberToSubmit),
-                desiredSiteNames,
-                str(int(maxRssBytes / 1024)),
-                str(maxProcessors),
-                str(maxWallSeconds),
-                justinJobSecret,
-                justin.conf.proDev
+               ['/usr/bin/condor_submit',
+                '-spool',
+                '-terse'
                ],
-               stdin   = subprocess.DEVNULL,
-               stderr  = subprocess.STDOUT,
-               stdout  = subprocess.PIPE,
-               timeout = 60
+               input    = submitFile,
+               encoding = 'utf-8',
+               stderr   = subprocess.STDOUT,
+               stdout   = subprocess.PIPE,
+               timeout  = 60
                             ) 
   except Exception as e:
-    logLine("justin-submit-wrapper fails with error: " + str(e))
+    logLine("condor_submit fails with error: " + str(e))
     return
+  finally:
+    os.remove(wrapperFile.name)
 
-  logLine(outcome.stdout.decode())
+  logLine('%s' % str(outcome.stdout))
   logLine('justin-submit-wrapper exit code: ' + str(outcome.returncode))
 
-  # Scrape the stdout to find the Jobsub job ID
-  majorJobsubJobID = None
-  jobsubHost       = None
-  
-  for line in outcome.stdout.decode().splitlines():
-    if 'job(s) submitted to cluster' in line:
-      try:
-        jobsubJobID      = line.split()[5]
-        majorJobsubJobID = jobsubJobID.split('.')[0]
-        jobsubHost       = 'justin-prod-sched01.dune.hep.ac.uk'
-        break
-      except:
-        pass
-   
-  if not majorJobsubJobID or not jobsubHost:
-    # What??
-    logLine("Valid job ID not found after submitting job(s)!")
+  try:
+    clusterID = int(outcome.stdout.split('.')[0])
+  except:
+    logLine('Failed to get cluster ID from %s' % outcome.stdout)
     return
 
+  scheddHostname = 'justin-prod-sched01.dune.hep.ac.uk'
+  jobsubJobID = '%d.0@%s' % (clusterID, scheddHostname)
+ 
   logLine("Submitted cluster %s to %s%s" % 
           (jobsubJobID, 
            desiredSiteNames,
@@ -170,7 +224,7 @@ def submitJobs(numberToSubmit,
                      "TRUE" if forAwt else "FALSE",
                      justinJobSecret,
                      secrets.token_urlsafe(64),
-                     majorJobsubJobID, i, jobsubHost)
+                     clusterID, i, scheddHostname)
                  )
 
     except Exception as e:

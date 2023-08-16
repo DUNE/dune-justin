@@ -26,7 +26,6 @@ import time
 import base64
 import urllib.request
 import pathlib
-import tempfile
 import xml.dom.minidom
 
 # Needs MySQL-python RPM

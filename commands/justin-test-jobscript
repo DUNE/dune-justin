@@ -102,11 +102,11 @@ EOF
 # Wrapper to be run inside the Apptainer/Singularity container
 cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 #!/bin/sh
-cd workspace
 export JUSTIN_PATH="\$HOME"
 export X509_USER_PROXY="\$HOME/jobscript-proxy.pem"
+cd workspace
 . ../justin-jobscript-env.sh
-exec ../justin-jobscript.sh
+stdbuf -oL -eL  ../justin-jobscript.sh
 EOF
 chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 
@@ -116,8 +116,7 @@ cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/jobscript-proxy.pem
 chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
 
 echo "====Start of jobscript execution===="
-stdbuf -oL -eL \
-  /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
+/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
   --shell /home/jobscript-wrapper.sh \
   --containall \
   --workdir $JUSTIN_WORKDIR \
