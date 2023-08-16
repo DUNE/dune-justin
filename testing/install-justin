@@ -42,7 +42,7 @@ cp -f $JUSTIN_DIR/modules/__init__.py \
       /usr/lib/python3.6/site-packages/justin/
 
 mkdir -p /var/lib/justin
-cp -f $JUSTIN_DIR/genericjobs/run-jobsub-submit \
-      $JUSTIN_DIR/genericjobs/justin-generic-job \
+cp -f $JUSTIN_DIR/agents/justin-wrapper-job \
+      $JUSTIN_DIR/dashboard/justin-get-output \
       /var/lib/justin/
 

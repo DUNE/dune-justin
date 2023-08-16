@@ -20,6 +20,7 @@
 import os
 import sys
 import stat
+import pwd
 import time
 import ssl
 import json
@@ -756,33 +757,33 @@ def oneCycle():
 
   # Is it time to update storages from Rucio?
   try:
-    lastUpdateJwks = os.stat('/var/run/justin/last-update-jwks').st_mtime
+    lastUpdateJwks = os.stat('/var/run/justin/last-updates/jwks').st_mtime
   except:
     lastUpdateJwks = 0
 
   if lastUpdateJwks + updateJwksInterval < time.time():
-    pathlib.Path('/var/run/justin/last-update-jwks').touch(exist_ok=True)
+    pathlib.Path('/var/run/justin/last-updates/jwks').touch(exist_ok=True)
     updateJwks()
 
   # Is it time to update storages from Rucio?
   try:
-    lastUpdateStorages = os.stat('/var/run/justin/last-update-storages').st_mtime
+    lastUpdateStorages = os.stat('/var/run/justin/last-updates/storages').st_mtime
   except:
     lastUpdateStorages = 0
 
   if lastUpdateStorages + updateStoragesInterval < time.time():
-    pathlib.Path('/var/run/justin/last-update-storages').touch(exist_ok=True)
+    pathlib.Path('/var/run/justin/last-updates/storages').touch(exist_ok=True)
     updateStorages()
     updateScopes()
 
   # It is time to update sites from the OSG pilot factory config?
   try:
-    lastUpdateSites = os.stat('/var/run/justin/last-update-sites').st_mtime
+    lastUpdateSites = os.stat('/var/run/justin/last-updates/sites').st_mtime
   except:
     lastUpdateSites = 0
 
   if lastUpdateSites + updateSitesInterval < time.time():
-    pathlib.Path('/var/run/justin/last-update-sites').touch(exist_ok=True)
+    pathlib.Path('/var/run/justin/last-updates/sites').touch(exist_ok=True)
     updateSites()
     updateSitesStorages()
 
@@ -888,6 +889,9 @@ if __name__ == '__main__':
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
+              p = pwd.getpwnam(justin.conf.agentUsername)
+              os.setgid(p[3])
+              os.setuid(p[2])
               oneCycle()
             except Exception as e:
               print('Cycle fails with exception ' + str(e))

@@ -156,10 +156,10 @@ queue %d
        maxProcessors,
        numberToSubmit)
 
-  lineNumber = 1
-  for line in submitFile.splitlines():
-    print('%03d %s' % (lineNumber, line))
-    lineNumber += 1
+#  lineNumber = 1
+#  for line in submitFile.splitlines():
+#    print('%03d %s' % (lineNumber, line))
+#    lineNumber += 1
 
   try: 
     outcome = subprocess.run(
@@ -288,7 +288,7 @@ def anySiteJobs():
 
     try:    
         # The 1 day limit should match the 1 day periodic remove for idle
-        # jobs in the HTCondor inputfile
+        # jobs in the HTCondor submit file
         query = ('SELECT COUNT(*) AS count FROM jobs '
                        'WHERE allocation_state = "submitted" AND '
                        'min_processors < %d AND '
