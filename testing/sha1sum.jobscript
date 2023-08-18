@@ -4,9 +4,9 @@
 sha1sum jobscript for justIN. 
 By default runs sha1sum on /dev/urandom for 1800 seconds / 30 minutes.
 
-Submit a request like this to run 10 jobs each of 60 seconds:
+Submit a workflow like this to run 10 jobs each of 60 seconds:
 
-justin quick-request --monte-carlo 10 --env SHA1SUM_SECONDS=60 \
+justin simple-workflow --monte-carlo 10 --env SHA1SUM_SECONDS=60 \
  --jobscript sha1sum.jobscript
 
 EOF

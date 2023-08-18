@@ -47,11 +47,11 @@ files.
 
 The scopes are also used to control write access to jobscripts in the 
 [Jobscripts Library](jobscripts_library.md) and the ability to modify 
-requests to process files. Each 
-jobscript in the library must be associated with a scope and each request
-may be assigned to a scope and that must be the case if the request needs
+workflows to process files. Each 
+jobscript in the library must be associated with a scope and each workflow
+may be assigned to a scope and that must be the case if the workflow needs
 to create files within a scope. This allows working group production teams,
-for example, to collaborate on jobscripts and on managing running requests.
+for example, to collaborate on jobscripts and on managing running workflows.
 
 ## Credentials in justIN jobs
 
@@ -63,10 +63,10 @@ each job in the cluster. The wrapper jobs use the secrets to authenticate
 to the justIN allocator service, in the form of HMAC SHA256 hashes of the
 method, time and job ID to prevent replay attacks and reuse of unused hashes.
 
-When the wrapper job starts it sends a `get_stage` request to the allocator 
-to discover what stage within what request to work on. As part of this
-message, the job includes an X.509 certificate signing request which matches
-an RSA key it has created. The allocator signs the request with a VOMS proxy
+When the wrapper job starts it sends a `get_stage` workflow to the allocator 
+to discover what stage within what workflow to work on. As part of this
+message, the job includes an X.509 certificate signing workflow which matches
+an RSA key it has created. The allocator signs the workflow with a VOMS proxy
 it has and returns the certificates chain to the job, which is then able to 
 assemble a valid VOMS proxy includng the private key it created earlier.
 

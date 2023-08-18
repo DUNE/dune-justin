@@ -2,9 +2,9 @@
 #
 # Submit with something like this:
 #
-# ./justin quick-request --monte-carlo 1 --jobscript sleep.jobscript
+# ./justin simple-workflow --monte-carlo 1 --jobscript sleep.jobscript
 #
-# Then monitor with dashboard or ./justin show-jobs --request-id ID
+# Then monitor with dashboard or ./justin show-jobs --workflow-id ID
 # where ID is the value printed by the first command
 #
 

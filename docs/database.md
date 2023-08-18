@@ -2,8 +2,8 @@
 
 The justIN database is the heart of the justIN workflow system. It holds cached
 information about sites, storages, files, and replicas obtained from other
-data sources; it receives requests to process data, and manages the state of
-requests and their stages, the files they need to process, and the jobs
+data sources; it receives workflows to process data, and manages the state of
+workflows and their stages, the files they need to process, and the jobs
 created to do the processing. 
 
 By design the database's copy of all this information is transient, and
@@ -19,15 +19,15 @@ The database is implemented as a MySQL/Mariadb SQL database.
 
 - jobscripts - scripts from users to be executed by wrapper jobs
 - events - a log of fine grained events within the system
-- files - input files associcated with each stage of each request
+- files - input files associcated with each stage of each workflow
 - jobs - jobs created by the justIN Job Factory
 - jobs_logs - logs from the jobscripts that wrapper jobs run 
 - replicas - replica RSEs and PFNs obtained from Rucio
 - replicas_pins - used by the FNAL Finder Agent to manage pins
-- requests - workflows submitted to the system for processing
+- workflows - workflows submitted to the system for processing
 - sites - site info obtained from the OSG Pilot Factory configuration
 - sites_storages - distances between sites and storages
-- stages - stages within each request
+- stages - stages within each workflow
 - stages_output_storages - preferred output RSEs for each stage
 - stages_outputs - wildcards to find output files of jobscripts
 - storages - RSE info obtained from Rucio
@@ -51,7 +51,7 @@ The database is implemented as a MySQL/Mariadb SQL database.
 | principal_names        |
 | replicas               |
 | replicas_pins          |
-| requests               |
+| workflows               |
 | scopes                 |
 | sessions               |
 | sites                  |

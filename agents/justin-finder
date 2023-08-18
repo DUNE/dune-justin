@@ -53,20 +53,20 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
-def addFilesMonteCarlo(requestID, count):
+def addFilesMonteCarlo(workflowID, count):
   # Add dummy files to keep track of Monte Carlo processing
   
   for i in range(1, count + 1):
     try:
       query = ('INSERT INTO files SET state="unallocated",'
-               'request_id=%d,file_did="monte-carlo-%06d-%06d"' 
-               % (requestID, requestID, i)
+               'workflow_id=%d,file_did="monte-carlo-%06d-%06d"' 
+               % (workflowID, workflowID, i)
               )
 
       justin.db.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting dummy Monte Carlo file for request %d: %s' 
-              % (requestID, str(e)))
+      logLine('Failed inserting dummy Monte Carlo file for workflow %d: %s' 
+              % (workflowID, str(e)))
       return
 
     try:
@@ -78,29 +78,29 @@ def addFilesMonteCarlo(requestID, count):
 
       justin.db.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting dummy Monte Carlo replica for request %d: %s' 
-               % (requestID, str(e)))
+      logLine('Failed inserting dummy Monte Carlo replica for workflow %d: %s' 
+               % (workflowID, str(e)))
       return
 
     justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
-                    requestID = requestID,
+                    workflowID = workflowID,
                     stageID = 1,
                     fileID = justin.db.cur.lastrowid)
 
 
   try:
-    query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
-             str(requestID))
+    query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
+             str(workflowID))
 
     justin.db.cur.execute(query)
   except Exception as e:
-    logLine('Failed updating request ' + str(requestID))
+    logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
   justin.db.conn.commit()
 
-def findFilesRucio(didClient, requestID, scope, name):
-  # Find files to be processed for each request in the finding state
+def findFilesRucio(didClient, workflowID, scope, name):
+  # Find files to be processed for each workflow in the finding state
 
   try:
     didsList = didClient.list_files(scope, name)
@@ -111,9 +111,9 @@ def findFilesRucio(didClient, requestID, scope, name):
   for did in didsList:  
     try:
       query = ('INSERT INTO files SET '
-               'request_id=' + str(requestID) + ',' +
+               'workflow_id=' + str(workflowID) + ',' +
                'file_did="' + did['scope'] + ':' + did['name'] + '" '
-               'ON DUPLICATE KEY UPDATE request_id=request_id'
+               'ON DUPLICATE KEY UPDATE workflow_id=workflow_id'
               )
 
       justin.db.cur.execute(query)
@@ -122,23 +122,23 @@ def findFilesRucio(didClient, requestID, scope, name):
       return
 
     justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
-                    requestID = requestID,
+                    workflowID = workflowID,
                     stageID = 1,
                     fileID = justin.db.cur.lastrowid)
 
-  # All files found for this request so update its state
+  # All files found for this workflow so update its state
   try:
-    query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
-             str(requestID))
+    query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
+             str(workflowID))
 
     justin.db.cur.execute(query)
   except Exception as e:
-    logLine('Failed updating request ' + str(requestID))
+    logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
   justin.db.conn.commit()
 
-def findFilesMetaCat(requestID, mql):
+def findFilesMetaCat(workflowID, mql):
   # Find files matching the mql query from MetaCat
 
   for i in range(3,0,-1):
@@ -186,10 +186,10 @@ def findFilesMetaCat(requestID, mql):
 
     try:
       query = ('INSERT INTO files SET '
-               'request_id=' + str(requestID) + ',' +
+               'workflow_id=' + str(workflowID) + ',' +
                'file_did="' + fileDict['namespace'] + ':' 
                 + fileDict['name'] + '" '
-               'ON DUPLICATE KEY UPDATE request_id=request_id'
+               'ON DUPLICATE KEY UPDATE workflow_id=workflow_id'
               )
 
       justin.db.cur.execute(query)
@@ -200,28 +200,28 @@ def findFilesMetaCat(requestID, mql):
       return
 
     justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
-                    requestID = requestID,
+                    workflowID = workflowID,
                     stageID = 1,
                     fileID = justin.db.cur.lastrowid)
 
-  # All files found for this request so update its state
+  # All files found for this workflow so update its state
   try:
-    query = ('UPDATE requests SET refind_last_time=NOW() WHERE request_id=' +
-             str(requestID))
+    query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
+             str(workflowID))
 
     justin.db.cur.execute(query)
   except Exception as e:
-    logLine('Failed updating request ' + str(requestID))
+    logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
   justin.db.conn.commit()
 
 def findFiles():
-  # Find files to be processed for each request in the finding state
+  # Find files to be processed for each workflow in the finding state
   # By default we use MetaCat, but MQLs starting rucio-dataset or monte-carlo 
   # are handled directly.
 
-  query = ('SELECT request_id,mql FROM requests '
+  query = ('SELECT workflow_id,mql FROM workflows '
            'WHERE state="running" AND '
            '((refind_seconds=0 AND refind_last_time="%s")'
            ' OR '
@@ -229,32 +229,32 @@ def findFiles():
            ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
            ' < NOW() AND refind_start_time < NOW() AND '
            'refind_end_time >= NOW())) '
-           'ORDER BY request_id' % justin.db.unixEpoch)
+           'ORDER BY workflow_id' % justin.db.unixEpoch)
 
-  findingRequests = justin.select(query)
-  if not findingRequests:  
+  findingWorkflows = justin.select(query)
+  if not findingWorkflows:  
     # Nothing to do
     return
 
   didClient = None
 
-  for request in findingRequests:
+  for workflow in findingWorkflows:
   
-    logLine('Finding files for Request %d with MQL %s' %
-            (request['request_id'], request['mql']))
+    logLine('Finding files for Workflow %d with MQL %s' %
+            (workflow['workflow_id'], workflow['mql']))
   
-    if request['request_id'] == justin.awtRequestID:
-      # If refinding the AWT request, then reset the existing 
+    if workflow['workflow_id'] == justin.awtWorkflowID:
+      # If refinding the AWT workflow, then reset the existing 
       # files to look for new replicas of theme
       try:
         justin.insertUpdate('UPDATE files SET state="finding" '
-                            'WHERE request_id=%d' % justin.awtRequestID)
+                            'WHERE workflow_id=%d' % justin.awtWorkflowID)
       except Exception as e:
         logLine('Set all existing AWT files to finding fails: ' + str(e))
   
-    mqlSplit = request['mql'].split()
+    mqlSplit = workflow['mql'].split()
 
-    # Request for a Rucio dataset: "rucio-dataset SCOPE:NAME"
+    # Workflow for a Rucio dataset: "rucio-dataset SCOPE:NAME"
     if len(mqlSplit) == 2 and mqlSplit[0] == 'rucio-dataset':
 
       if not didClient:      
@@ -268,11 +268,11 @@ def findFiles():
       datasetSplit = mqlSplit[1].split(':')
       if len(datasetSplit) == 2:
         findFilesRucio(didClient,
-                       request['request_id'], 
+                       workflow['workflow_id'], 
                        datasetSplit[0], 
                        datasetSplit[1])
         
-    # Monte Carlo request with a count
+    # Monte Carlo workflow with a count
     elif len(mqlSplit) == 2 and mqlSplit[0] == 'monte-carlo':
       
       try:
@@ -280,11 +280,11 @@ def findFiles():
       except:
         continue
       
-      addFilesMonteCarlo(request['request_id'], count)
+      addFilesMonteCarlo(workflow['workflow_id'], count)
 
     else:
     
-      findFilesMetaCat(request['request_id'], request['mql'])
+      findFilesMetaCat(workflow['workflow_id'], workflow['mql'])
 
     justin.db.conn.commit()
 
@@ -292,29 +292,29 @@ def findReplicas():
   # Find replicas of files in the finding state
 
   query = (
-    'SELECT requests.request_id,stages.stage_id '
-    'FROM requests '
-    'LEFT JOIN stages ON requests.request_id=stages.request_id '
-    'LEFT JOIN files ON requests.request_id=files.request_id AND '
+    'SELECT workflows.workflow_id,stages.stage_id '
+    'FROM workflows '
+    'LEFT JOIN stages ON workflows.workflow_id=stages.workflow_id '
+    'LEFT JOIN files ON workflows.workflow_id=files.workflow_id AND '
     'stages.stage_id=files.stage_id '
-    'WHERE requests.state="running" AND files.state="finding" '
-    'GROUP BY requests.request_id,stages.stage_id '
+    'WHERE workflows.state="running" AND files.state="finding" '
+    'GROUP BY workflows.workflow_id,stages.stage_id '
     'ORDER BY stage_rank DESC,RAND() LIMIT 1')
 
   try:
     stageRow = justin.db.select(query, justOne = True)
   except Exception as e:
-    logLine('Finding request/stage to find replicas for fails: %s' % str(e))
+    logLine('Finding workflow/stage to find replicas for fails: %s' % str(e))
     return
 
   if not stageRow:
     logLine('No files with replicas to be found')
     return
 
-  requestID = stageRow['request_id']
+  workflowID = stageRow['workflow_id']
   stageID   = stageRow['stage_id']
-  logLine('Looking for replicas in finding state for request=%d stage=%d'
-          % (requestID, stageID))
+  logLine('Looking for replicas in finding state for workflow=%d stage=%d'
+          % (workflowID, stageID))
 
   # Make a list of up to maxFileFindsPerCycle files to work on 
   # but only for Rucio DIDs in scope:name format
@@ -322,16 +322,16 @@ def findReplicas():
 
   try:
     fileRows = justin.db.select(
-           'SELECT files.request_id,files.stage_id,file_id,file_did '
+           'SELECT files.workflow_id,files.stage_id,file_id,file_did '
            'FROM files '
-           'LEFT JOIN requests ON requests.request_id=files.request_id '
-           'WHERE files.request_id=%d '
+           'LEFT JOIN workflows ON workflows.workflow_id=files.workflow_id '
+           'WHERE files.workflow_id=%d '
            'AND files.stage_id=%d '
            'AND files.state="finding" '
-           'AND requests.state="running" '
+           'AND workflows.state="running" '
            'AND file_did LIKE "%%:%%" '
            'ORDER BY file_id LIMIT %d'
-           % (requestID, stageID, maxFileFindsPerCycle))
+           % (workflowID, stageID, maxFileFindsPerCycle))
 
   except Exception as e:
     logLine('Finding list of files to find fails: ' + str(e))
@@ -360,8 +360,8 @@ def findReplicas():
                      'rse_id'    : storageRow['rse_id'],
                      'needs_pin' : bool(storageRow['needs_pin']) }
 
-  # Receives a list of unique (requestID,stageID) combinations
-  requestsStages = set()
+  # Receives a list of unique (workflowID,stageID) combinations
+  workflowsStages = set()
   filesList = []
 
   # Make a list of files we want replicas for, in the Rucio API's format
@@ -449,7 +449,7 @@ def findReplicas():
         else:
           accessibleUntil = ''
         
-        if requestID == justin.awtRequestID:
+        if workflowID == justin.awtWorkflowID:
           try:
             logLine('Try to update AWT file: %s %s' 
                     % (wanPFN, lanPFN))
@@ -459,11 +459,11 @@ def findReplicas():
             query = ('UPDATE replicas SET '
                      'wan_pfn="%s",lan_pfn="%s" '
                      'WHERE ' 
-                     'request_id=%d AND stage_id=%d AND '
+                     'workflow_id=%d AND stage_id=%d AND '
                      'rse_id=%d AND file_id=%s'
                      % (wanPFN,
                         lanPFN,
-                        requestID, stageID,
+                        workflowID, stageID,
                         storagesDict[rse]['rse_id'],
                         fileRow['file_id']))
                         
@@ -477,10 +477,10 @@ def findReplicas():
                     % (wanPFN, lanPFN))
 
             query = ('INSERT INTO replicas SET '              
-                     'request_id=%d,stage_id=%d,'
+                     'workflow_id=%d,stage_id=%d,'
                      'rse_id=%d,file_id=%d,'
                      'wan_pfn="%s",lan_pfn="%s"' %
-                     (requestID, stageID,
+                     (workflowID, stageID,
                       storagesDict[rse]['rse_id'],
                       fileRow['file_id'],
                       wanPFN,
@@ -496,13 +496,13 @@ def findReplicas():
 
         else:
           try:
-            # request_id/stage_id are only recorded with the replicas 
+            # workflow_id/stage_id are only recorded with the replicas 
             # to make it faster to make charts etc in the Dashboard
             query = ('INSERT INTO replicas SET '
-                     'request_id=%d,stage_id=%d,'
+                     'workflow_id=%d,stage_id=%d,'
                      'rse_id=%d,file_id=%d,'
                      'wan_pfn="%s",lan_pfn="%s"%s' %
-                     (requestID, stageID,
+                     (workflowID, stageID,
                       storagesDict[rse]['rse_id'],
                       fileRow['file_id'],
                       wanPFN,
@@ -516,8 +516,8 @@ def findReplicas():
             # We give up if this happens, without the commit
             return
            
-        # Add request/stage to the list to have updated stats at the end
-        requestsStages.add((fileRow['request_id'], fileRow['stage_id']))
+        # Add workflow/stage to the list to have updated stats at the end
+        workflowsStages.add((fileRow['workflow_id'], fileRow['stage_id']))
 
     if replicasInserted:
       # If we got this far, then we found all the replicas for this 
@@ -529,7 +529,7 @@ def findReplicas():
         justin.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (%d,%d,%s): %s' %
-                (fileRow['request_id'],
+                (fileRow['workflow_id'],
                  fileRow['stage_id'],
                  fileRow['file_did'],
                  str(e)))
@@ -543,7 +543,7 @@ def findReplicas():
         justin.db.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (%d,%d,%s): %s' %
-                (fileRow['request_id'], 
+                (fileRow['workflow_id'], 
                  fileRow['stage_id'],
                  fileRow['file_did'],
                  str(e)))
@@ -570,33 +570,33 @@ def executeMetaCatCommand(args):
 
   return ret
 
-def findSubmittedRequests():
-  # Find requests waiting in the submitted state and set them to running
+def findSubmittedWorkflows():
+  # Find workflows waiting in the submitted state and set them to running
 
   datasetsToCreate  = set()
-  requestIDsToStart = []
+  workflowIDsToStart = []
 
   try:
-    requests = justin.select('SELECT requests.request_id,scope_name '
-                             'FROM requests '
+    workflows = justin.select('SELECT workflows.workflow_id,scope_name '
+                             'FROM workflows '
                              'LEFT JOIN scopes '
-                             'ON requests.scope_id=scopes.scope_id '
-                             'WHERE requests.state="submitted" '
-                             'ORDER BY requests.request_id')
+                             'ON workflows.scope_id=scopes.scope_id '
+                             'WHERE workflows.state="submitted" '
+                             'ORDER BY workflows.workflow_id')
   except:
-    logLine('Failed to get list of submitted requests')
+    logLine('Failed to get list of submitted workflows')
     return
 
-  for request in requests:
-    requestIDsToStart.append(str(request['request_id']))
+  for workflow in workflows:
+    workflowIDsToStart.append(str(workflow['workflow_id']))
   
     try:
       stagesOutputs = justin.select(
           'SELECT destination,lifetime_seconds,stage_id '
           'FROM stages_outputs '
-          'WHERE request_id=%d' % request['request_id'])
+          'WHERE workflow_id=%d' % workflow['workflow_id'])
     except Exception as e:
-      logLine('Failed to get list of outputs of submitted requests: '
+      logLine('Failed to get list of outputs of submitted workflows: '
               + str(e))
       return
 
@@ -608,9 +608,9 @@ def findSubmittedRequests():
            'SELECT rse_name FROM stages_output_storages '
            'LEFT JOIN storages '
            'ON storages.rse_id=stages_output_storages.rse_id '
-           'WHERE stages_output_storages.request_id=%d '
+           'WHERE stages_output_storages.workflow_id=%d '
            'AND stages_output_storages.stage_id=%s '
-           % (request['request_id'], 
+           % (workflow['workflow_id'], 
               stageOutput['stage_id']))
         except Exception as e:
           logLine('Failed to get list of output RSE: ' + str(e))
@@ -625,13 +625,13 @@ def findSubmittedRequests():
         else:
           rseExpression = justin.rseDisksExpression
         
-        datasetsToCreate.add( (request['scope_name'],
+        datasetsToCreate.add( (workflow['scope_name'],
                                stageOutput['destination'],
                                stageOutput['lifetime_seconds'],
                                rseExpression) )
 
     datasetsToCreate.add( ('justin-logs', 
-                           'request_%d' % request['request_id'],
+                           'workflow_%d' % workflow['workflow_id'],
                            604800,
                            justin.rseDisksExpression) )
 
@@ -693,75 +693,75 @@ def findSubmittedRequests():
 #        # We assume failures are due to the dataset already being registered
 #        pass
 
-  if requestIDsToStart:
-    # All successful (or not needed) so mark requests as running
+  if workflowIDsToStart:
+    # All successful (or not needed) so mark workflows as running
     try:
-      query = ('UPDATE requests SET started=NOW(),state="running" '
-               'WHERE request_id IN (%s)' % (','.join(requestIDsToStart)))
+      query = ('UPDATE workflows SET started=NOW(),state="running" '
+               'WHERE workflow_id IN (%s)' % (','.join(workflowIDsToStart)))
 
       justin.insertUpdate(query)
     except Exception as e:
-      logLine("Exception setting requests to running: %s" % str(e))
+      logLine("Exception setting workflows to running: %s" % str(e))
       return
 
     justin.db.conn.commit()
 
-def findFinishedRequests():
-  # Find requests with all files in terminal states and set to finished
+def findFinishedWorkflows():
+  # Find workflows with all files in terminal states and set to finished
 
   try:
-    query = ('SELECT request_id FROM requests '
+    query = ('SELECT workflow_id FROM workflows '
              'WHERE state="running" AND '
              '((refind_seconds = 0) OR (refind_end_time < NOW())) '
-             'ORDER BY request_id')
+             'ORDER BY workflow_id')
 
     justin.db.cur.execute(query)
 
-    findingRequests = justin.db.cur.fetchall()
+    findingWorkflows = justin.db.cur.fetchall()
   except:
-    logLine('Failed to get list of running requests')
+    logLine('Failed to get list of running workflows')
     return
     
-  if not findingRequests:
-    logLine('No running requests to check')
+  if not findingWorkflows:
+    logLine('No running workflows to check')
     return
 
-  for request in findingRequests:
+  for workflow in findingWorkflows:
 
     try:
       query = ('SELECT COUNT(*) AS count FROM files '
-               'WHERE request_id=%d AND '
+               'WHERE workflow_id=%d AND '
                'state <> "processed" AND '
                'state <> "notfound" AND '
                'state <> "failed" AND ' 
                'state <> "recorded" AND '
                'state <> "output"' %
-               int(request['request_id']))
+               int(workflow['workflow_id']))
              
       justin.db.cur.execute(query)
       count = int(justin.db.cur.fetchone()['count'])
     except Exception as e:
-      logLine('Failed to count non-terminal files for Request ID %d: %s' % 
-              (request['request_id'], str(e)))
+      logLine('Failed to count non-terminal files for Workflow ID %d: %s' % 
+              (workflow['workflow_id'], str(e)))
       continue
 
     if count > 0:
       # Some files have not reached terminal states
-      logLine('Still non-terminal files for Request ID %d (%d)' % 
-              (request['request_id'], count))
+      logLine('Still non-terminal files for Workflow ID %d (%d)' % 
+              (workflow['workflow_id'], count))
       continue
     
     try:
-      query = ('UPDATE requests SET state="finished",finished=NOW() '
-               'WHERE request_id=%d' % int(request['request_id']))
+      query = ('UPDATE workflows SET state="finished",finished=NOW() '
+               'WHERE workflow_id=%d' % int(workflow['workflow_id']))
     
       justin.db.cur.execute(query)
     except:
-      logLine('Failed to update state to finished for Request ID %d' % 
-              request['request_id'])
+      logLine('Failed to update state to finished for Workflow ID %d' % 
+              workflow['workflow_id'])
       continue
 
-    logLine('Request ID %d set to finished' % request['request_id'])
+    logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
     
   justin.db.conn.commit()
 
@@ -771,7 +771,7 @@ def findStalledAbortedJobs():
   # or which were submitted a day ago
 
   try:
-    query = ('SELECT request_id,stage_id,justin_job_id,jobsub_id,site_id,'
+    query = ('SELECT workflow_id,stage_id,justin_job_id,jobsub_id,site_id,'
              'allocation_state '
              'FROM jobs '
              'WHERE ((allocation_state="started" OR '
@@ -815,7 +815,7 @@ def findStalledAbortedJobs():
                                                  jobRow['allocation_state']))
     
       justin.db.logEvent(eventTypeID = justin.db.event_JOB_STALLED,
-                      requestID = jobRow['request_id'],
+                      workflowID = jobRow['workflow_id'],
                       stageID = jobRow['stage_id'],
                       justinJobID = jobRow['justin_job_id'],
                       siteID = jobRow['site_id'])
@@ -853,14 +853,14 @@ def findStalledAbortedJobs():
           justin.db.cur.execute(query)
         except:
           logLine('Failed to set file %s to failed in '
-                  'request %d, stage %d after job %s' 
-                  % (fileRow['file_did'], jobRow['request_id'], 
+                  'workflow %d, stage %d after job %s' 
+                  % (fileRow['file_did'], jobRow['workflow_id'], 
                      jobRow['stage_id'], jobRow['jobsub_id']))
           # Again, just stop for now on errors
           sys.exit(0)
             
         justin.db.logEvent(eventTypeID = justin.db.event_FILE_SET_TO_FAILED,
-                        requestID = jobRow['request_id'],
+                        workflowID = jobRow['workflow_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
                         justinJobID = jobRow['justin_job_id'],
@@ -874,8 +874,8 @@ def findStalledAbortedJobs():
           justin.db.cur.execute(query)
         except:
           logLine('Failed to set file %s to unallocated in '
-                  'request %d, stage %d after job %s' 
-                  % (fileRow['file_did'], jobRow['request_id'], 
+                  'workflow %d, stage %d after job %s' 
+                  % (fileRow['file_did'], jobRow['workflow_id'], 
                      jobRow['stage_id'], jobRow['jobsub_id']))
           # Again, just stop for now on errors
           sys.exit(0)
@@ -884,21 +884,21 @@ def findStalledAbortedJobs():
                         justin.db.event_FILE_OUTPUTTING_RESET 
                          if fileRow['state'] == 'outputting'
                          else justin.db.event_FILE_ALLOCATED_RESET,
-                        requestID = jobRow['request_id'],
+                        workflowID = jobRow['workflow_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
                         justinJobID = jobRow['justin_job_id'],
                         siteID = jobRow['site_id'])
 
         logLine('Reset file %s in %d,%d to unallocated for job %s' % 
-                (fileRow['file_did'], jobRow['request_id'],
+                (fileRow['file_did'], jobRow['workflow_id'],
                  jobRow['stage_id'], jobRow['jobsub_id']))
 
   # Everything went ok so commit
   justin.db.conn.commit()
 
 def oidcRefreshRequest(refreshToken):
-  # Send an OIDC request to CILogon to refresh tokens for a user
+  # Send an OIDC workflow to CILogon to refresh tokens for a user
 
   postData = urllib.parse.urlencode(
        { 'grant_type'    : 'refresh_token',
@@ -921,7 +921,7 @@ def oidcRefreshRequest(refreshToken):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
   except Exception as e:
-    logLine('OIDC tokens HTTP refresh request fails: ' + str(e))
+    logLine('OIDC tokens HTTP refresh workflow fails: ' + str(e))
     return None
   else:
     if response.status != 200:
@@ -932,7 +932,7 @@ def oidcRefreshRequest(refreshToken):
     responseData = response.read().decode('utf-8')
     responseDict = json.loads(responseData)
   except Exception as e:
-    logLine('OIDC tokens refresh request failed loading json: '+str(e))
+    logLine('OIDC tokens refresh workflow failed loading json: '+str(e))
     return None
 
   logLine('responseDict=' + str(responseDict))
@@ -1017,10 +1017,10 @@ def findTokensToRefresh():
 def oneCycle():
 
   findTokensToRefresh()
-  findSubmittedRequests()
+  findSubmittedWorkflows()
   findFiles()
   findReplicas()
-  findFinishedRequests()
+  findFinishedWorkflows()
   findStalledAbortedJobs()
 
 #

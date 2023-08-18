@@ -21,29 +21,29 @@ computing properties of applications (I/O rate, memory needs, data size)
 and the network connections between Rucio Storage Elements (RSEs) and 
 CPU resources to optimally match processing and data.
 
-## Request Lifecycle
+## Workflow Lifecycle
 
-The central concept of justIN is the request, which 
-describes how some data processing activity is to be carried out. Requests 
+The central concept of justIN is the workflow, which 
+describes how some data processing activity is to be carried out. Workflows 
 are submitted by users (which may include members of a central production 
 team) to the [justIN database](database.md), where it progresses 
 through several states. For example: 
 draft > submitted > running > paused > running > finished. 
 
-As part of its definition, a request may include one or more stages, each 
+As part of its definition, a workflow may include one or more stages, each 
 of which can apply a sequence of processing steps to the input or output 
 files. Each stage specifies a 
 [jobscript](jobscripts.md) used by wrapper jobs to run 
 the relevant applications. The stage definition specifies the requirements on 
 the worker nodes (for example memory and job duration).
 
-The request definition will usually include a MetaCat MQL query 
+The workflow definition will usually include a MetaCat MQL query 
 to generate a list of files to be processed in the first stage. This list of 
 files is cached in the central justIN database, associated with the 
-first stage of that request. All these files are set to the unallocated 
+first stage of that workflow. All these files are set to the unallocated 
 state.
 
-Once the request has moved to the running state the 
+Once the workflow has moved to the running state the 
 [Finder agent](agents.finder.md) builds the list of input files for its first
 stage, and looks up the replicas of each file using Rucio. Once replicas are 
 available, then wrapper jobs submitted by the 

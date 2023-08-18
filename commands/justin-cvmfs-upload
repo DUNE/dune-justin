@@ -29,8 +29,8 @@
 # 3) Upload to cvmfs
 #    INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`
 # 4) Wait until  ls $INPUT_TAR_DIR_LOCAL  works (minutes?)
-# 5) Create and run a request
-#    justin quick-request --monte-carlo 1 \
+# 5) Create and run a workflow
+#    justin quick-workflow --monte-carlo 1 \
 #    --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
 #    --jobscript cvmfs-hello-world.jobscript
 #

@@ -5,12 +5,12 @@
 #
 # Submit with something like this:
 #
-# ./justin quick-request \
+# ./justin simple-workflow \
 #  --mql "rucio-dataset protodune-sp:np04_raw_run_number_5769" \
 #  --scope test --output-pattern 'sha1sum-*.txt:test-01' \
 #  --jobscript simple.jobscript 
 #
-# Then monitor with dashboard or ./justin show-jobs --request-id ID
+# Then monitor with dashboard or ./justin show-jobs --workflow-id ID
 # where ID is the value printed by the first command
 #
 
@@ -29,6 +29,6 @@ sha1sum tmp >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt
 echo "$did" > justin-processed-dids.txt
 
 # Log what we did
-echo "Processed $did at $pfn for Request $JUSTIN_REQUEST_ID, Stage $JUSTIN_STAGE_ID"
+echo "Processed $did at $pfn for Workflow $JUSTIN_WORKFLOW_ID, Stage $JUSTIN_STAGE_ID"
 
 exit 0

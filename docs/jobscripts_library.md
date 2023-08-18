@@ -1,9 +1,9 @@
 # Jobscripts Library
 
-When a stage is created within a request in justIN, a 
+When a stage is created within a workflow in justIN, a 
 [jobscript](jobscripts.md) is cached with the stage definition and executed
 by all jobs that are allocated to that stage. The jobscript can be supplied
-to the create-stage or quick-request command as a local file. Alternatively,
+to the create-stage or simple-workflow command as a local file. Alternatively,
 the jobscript can be taken from the Jobscripts Library. 
 
 You can view the jobscripts currently in the library 
@@ -14,7 +14,7 @@ Each jobscript in the library is referred to by its jobscript identifier
 known to justIN and USER is a user name known to justIN, itself in the form
 NAME@DOMAIN 
 
-In the create-stage and quick-request subcommands of the justin command,
+In the create-stage and simple-workflow subcommands of the justin command,
 jobscripts from the library can be specified using the --jobscript-id JSID
 option. The text of the jobscript at the time the stage is created is cached
 with the stage, and future changes in the library are ignored for that stage.

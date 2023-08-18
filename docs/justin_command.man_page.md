@@ -11,7 +11,7 @@ This man page is distributed along with the
            justin subcommand [options]
     
     DESCRIPTION
-           justin is a command-line utility for managing requests, stages, files,
+           justin is a command-line utility for managing workflows, stages, files,
            and replicas in the justIN workflow system.
     
     
@@ -46,11 +46,11 @@ This man page is distributed along with the
     	      session.
     
     
-           create-request [--description DESC] [--mql QUERY|--monte-carlo COUNT]
+           create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-start-date YYYYMMDD]
     	      [--refind-duration-days DAYS] [--refind-interval-hours HOURS]
-    	      Create a new, empty request in the database, optionally with the
-    	      given short, human-readable description and either a MetaCat
+    	      Create a new, empty workflow in the database, optionally with
+    	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
     	      Carlo instances to run.
     
@@ -58,54 +58,54 @@ This man page is distributed along with the
     	      files to be registered with Rucio and uploaded to Rucio-managed
     	      storage.
     
-    	      Requests are created in the state "draft" and the command
-    	      returns the new request's ID number.  Once the request is in the
-    	      running state, justIN will use the MQL expression to find the
-    	      list of input files from MetaCat. If --refind-interval-hours is
-    	      given, the MQL query will be resubmitted at that interval to add
-    	      any new matching files from the start of the day given by
+    	      Workflows are created in the state "draft" and the command
+    	      returns the new workflow's ID number.  Once the workflow is in
+    	      the running state, justIN will use the MQL expression to find
+    	      the list of input files from MetaCat. If --refind-interval-hours
+    	      is given, the MQL query will be resubmitted at that interval to
+    	      add any new matching files from the start of the day given by
     	      --refind-start-date (default: today in UTC) for the number of
     	      days given by --refind-duration-days (default: 1).
     
     
-           show-requests [--request-id ID]
-    	      Show details of all requests or optionally of a single request.
-    	      Each line of the output gives the request ID, state, creation
-    	      time, description, and MetaCat query of one request.
+           show-workflows [--workflow-id ID]
+    	      Show details of all workflows or optionally of a single
+    	      workflow. Each line of the output gives the workflow ID, state,
+    	      creation time, description, and MetaCat query of one workflow.
     
     
-           submit-request --request-id ID
-    	      Changes the state of the given request from "draft" to
+           submit-workflow --workflow-id ID
+    	      Changes the state of the given workflow from "draft" to
     	      "submitted". The justIN Finder agent will automatically set the
-    	      request to running after any necessary initialisation.
+    	      workflow to running after any necessary initialisation.
     
     
-           restart-request --request-id ID
-    	      Restarts a request in the "paused" stated, and changes its state
-    	      to "running".
+           restart-workflow --workflow-id ID
+    	      Restarts a workflow in the "paused" stated, and changes its
+    	      state to "running".
     
     
-           pause-request --request-id ID
-    	      Changes the state of the given running request to "paused". This
-    	      state temporarily excludes a request from the workflow
+           pause-workflow --workflow-id ID
+    	      Changes the state of the given running workflow to "paused".
+    	      This state temporarily excludes a workflow from the workflow
     	      allocation process.
     
     
-           finish-request --request-id ID
-    	      Changes the state of the given running request to "finished".
-    	      This state excludes a request from the workflow allocation
+           finish-workflow --workflow-id ID
+    	      Changes the state of the given running workflow to "finished".
+    	      This state excludes a workflow from the workflow allocation
     	      process.
     
     
-           create-stage --request-id ID --stage-id ID  --jobscript
+           create-stage --workflow-id ID --stage-id ID  --jobscript
     	      FILENAME|--jobscript-id JSID [--wall-seconds N] [--rss-mb N]
     	      [--processors N] [--max-distance DIST] [--output-pattern
     	      PATTERN:DESTINATION] [--output-pattern-next-stage
     	      PATTERN:DATASET] [--output-rse NAME] [--lifetime-days DAYS]
     	      [--env NAME=VALUE]
-    	      Creates a new stage for the given request ID with the given
+    	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
-    	      request must have at least one stage.
+    	      workflow must have at least one stage.
     
     	      Each stage must have a jobscript shell script associated with
     	      it, given by the --jobscript or --jobscript-id options.  Either
@@ -140,20 +140,20 @@ This man page is distributed along with the
     	      a Bash shell pattern using *, ? and [...] expressions. See the
     	      bash(1) Pattern Matching section for details.  The DESTINATION
     	      component has any of the variables $JUSTIN_SCOPE,
-    	      $JUSTIN_REQUEST_ID, or $JUSTIN_STAGE_ID replaced. The form
+    	      $JUSTIN_WORKFLOW_ID, or $JUSTIN_STAGE_ID replaced. The form
     	      ${JUSTIN_SCOPE} etc may also be used.  If the given DESTINATION
     	      starts with https:// then the matching output files will be
     	      uploaded to WebDAV scratch space, such as dCache at Fermilab.
     	      The DESTINATION must be the URL of a directory accessible via
     	      WebDAV, and given with or without a trailing slash. Nested
-    	      subdirectories for request ID and stage ID will be added, and
+    	      subdirectories for workflow ID and stage ID will be added, and
     	      resulting output files placed there. The user's token from the
     	      justIN dashboard is used for the upload.	If an https:// URL is
     	      not given, DESTINATION is interpreted as a Rucio dataset minus
-    	      the scope component. The overall scope of the request is used
+    	      the scope component. The overall scope of the workflow is used
     	      and the output files are uploaded with Rucio and registered in
     	      that dataset. If the dataset does not already exist then it will
-    	      be created when the request changes state from submitted to
+    	      be created when the workflow changes state from submitted to
     	      running and if the --lifetime-days option is given, then a rule
     	      for the new dataset will be created with that lifetime rather
     	      than the default 1 day.  Furthermore, files for Rucio-managed
@@ -182,25 +182,26 @@ This man page is distributed along with the
     	      environment variables when the stage's jobscript is executed.
     
     
-           quick-request [--description DESC] [--mql QUERY|--monte-carlo COUNT]
+           simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-start-date YYYYMMDD]
     	      [--refind-duration-days DAYS] [--refind-interval-hours HOURS]
     	      --jobscript FILENAME|--jobscript-id JSID [--wall-seconds N]
     	      [--rss-mb N] [--processors N] [--max-distance DIST]
     	      [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
     	      [--lifetime-days DAYS] [--env NAME=VALUE]
-    	      Combines the create-request, create-stage and submit-request
+    	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
-    	      requests. The options are repeated from the first two
+    	      workflows. The options are repeated from the first two
     	      subcommands and are described in their respective sections
     	      above.
     
     
-           show-stages --request-id ID [--stage-id ID]
-    	      Shows details of all stages of the given request or optionally
-    	      of a single stage of that request. Each line of the output gives
-    	      the request ID, stage ID,, min processors, max processors, max
-    	      wallclock seconds, max RSS bytes, and the max distance value.
+           show-stages --workflow-id ID [--stage-id ID]
+    	      Shows details of all stages of the given workflow or optionally
+    	      of a single stage of that workflow. Each line of the output
+    	      gives the workflow ID, stage ID,, min processors, max
+    	      processors, max wallclock seconds, max RSS bytes, and the max
+    	      distance value.
     
     
            create-jobscript [--description DESC] [--scope SCOPE] --name NAME
@@ -215,51 +216,51 @@ This man page is distributed along with the
     	      overwritten.
     
            show-jobscript --jobscript-id JSID
-           show-jobscript --request-id ID --stage-id ID
+           show-jobscript --workflow-id ID --stage-id ID
     	      Show a jobscript, referenced either by a jobscript identifier or
-    	      by request and stage. If an identifier is given, the jobscript
+    	      by workflow and stage. If an identifier is given, the jobscript
     	      is taken from the Jobscripts Library. The JSID identifier
     	      consists of USER:NAME or SCOPE:NAME, where NAME is the jobscript
     	      name, USER is the user name of any user and contains an '@'
     	      character, and SCOPE is a Rucio scope name known to justIN.
-    	      Alternatively, if request and stage are given, then the
-    	      jobscript cached for that request and stage is shown.
+    	      Alternatively, if workflow and stage are given, then the
+    	      jobscript cached for that workflow and stage is shown.
     
-           show-stage-outputs --request-id ID --stage-id ID
+           show-stage-outputs --workflow-id ID --stage-id ID
     	      Shows the datasets to be assigned and the patterns used to find
-    	      output files of the given stage within the given request. Each
+    	      output files of the given stage within the given workflow. Each
     	      line of the response consists of "(next)" or "(  )" depending on
     	      whether the files are passed to the next stage within the
-    	      request, and then the scope, files pattern, and destination.
+    	      workflow, and then the scope, files pattern, and destination.
     
     
-           fail-files --request-id ID [--stage-id ID]
-    	      Set all the files of the given request, and optionally stage, to
-    	      the failed state when they are already in the finding,
+           fail-files --workflow-id ID [--stage-id ID]
+    	      Set all the files of the given workflow, and optionally stage,
+    	      to the failed state when they are already in the finding,
     	      unallocated, allocated, or outputting state. Files in the
     	      processed, failed, or notfound states are unchanged. This allows
-    	      requests with a handful of pathological files to be terminated,
+    	      workflows with a handful of pathological files to be terminated,
     	      as the Finder agent will see all the files are now in terminal
-    	      states and mark the request as finished.
+    	      states and mark the workflow as finished.
     
-           show-files --request-id ID [--stage-id ID] [--file-did DID]
+           show-files --workflow-id ID [--stage-id ID] [--file-did DID]
            show-files --mql QUERY
     	      Show up to 100 files either cached in the justIN Database and
-    	      filtered by request ID and optionally by stage ID and/or file
+    	      filtered by workflow ID and optionally by stage ID and/or file
     	      DID; or found by a query to MetaCat using the given MQL query.
     
-           show-replicas --request-id ID [--stage-id ID] [--file-did DID]
+           show-replicas --workflow-id ID [--stage-id ID] [--file-did DID]
            show-replicas --mql QUERY
     	      Show up to 100 replicas either cached in the justIN Database and
-    	      filtered by request ID and optionally by stage ID and/or file
+    	      filtered by workflow ID and optionally by stage ID and/or file
     	      DID; or found by a query to MetaCat using the given MQL query
     	      and looked up using Rucio.
     
-           show-jobs --jobsub-id ID | --request-id ID [--stage-id ID] [--state
+           show-jobs --jobsub-id ID | --workflow-id ID [--stage-id ID] [--state
     	      STATE]
-    	      Show jobs identified by Jobsub ID or Request ID (and optionally
+    	      Show jobs identified by Jobsub ID or Workflow ID (and optionally
     	      Stage ID). Job state can also be given to further filter the
-    	      jobs listed. For each job, the Jobsub ID, Request ID, Stage ID,
+    	      jobs listed. For each job, the Jobsub ID, Workflow ID, Stage ID,
     	      State, and creation time are shown.
     
     
@@ -268,7 +269,7 @@ This man page is distributed along with the
            which the wrapper jobs execute on the worker nodes matched to that
            stage.  They are started in an empty workspace directory.  Several
            environment variables are made available to the scripts, all prefixed
-           with JUSTIN_, including $JUSTIN_REQUEST_ID, $JUSTIN_STAGE_ID and
+           with JUSTIN_, including $JUSTIN_WORKFLOW_ID, $JUSTIN_STAGE_ID and
            $JUSTIN_SECRET which allows the jobscript to authenticate to justIN's
            allocator service. $JUSTIN_PATH is used to reference files and scripts
            provided by justIN.
@@ -321,12 +322,12 @@ This man page is distributed along with the
            .json is appended to find the corresponding metadata files for MetaCat.
     
     
-    REQUEST PROCESSING
-           Once a request enters the running state, it is processed by justIN's
+    WORKFLOW PROCESSING
+           Once a workflow enters the running state, it is processed by justIN's
            Finder agent to find its input files. Usually this is just done once,
            but it can be repeated if the --refind-interval-hours option is given
-           when creating the request. When the request is processed, the finder
-           uses the requests's MQL expression to create a list of input files for
+           when creating the workflow. When the workflow is processed, the finder
+           uses the workflows's MQL expression to create a list of input files for
            the first stage. Work is only assigned to jobs when a matching file is
            found and so these lists of files are essential.
     
@@ -335,13 +336,13 @@ This man page is distributed along with the
            file DIDs.  However, if the query is of the form "rucio-dataset
            SCOPE:NAME" then the query is sent directly to Rucio to get the list of
            file DIDs contained in the given Rucio dataset. Finally if the
-           --monte-carlo COUNT option is used when creating the request, then an
+           --monte-carlo COUNT option is used when creating the workflow, then an
            MQL of the form "monte-carlo COUNT" is stored. This causes the Finder
            itself to create a series of COUNT placeholder files which can be used
            to keep track of Monte Carlo processing without a distinct input file
            for each of the COUNT jobs.  Each of these placeholder files has a DID
-           of the form monte-carlo-REQUEST_ID-NUMBER where NUMBER is in the range
-           1 to COUNT, and REQUEST_ID is the assigned request ID number.
+           of the form monte-carlo-WORKFLOW_ID-NUMBER where NUMBER is in the range
+           1 to COUNT, and WORKFLOW_ID is the assigned workflow ID number.
     
     
     AUTHENTICATION AND AUTHORIZATION

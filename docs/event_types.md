@@ -3,7 +3,7 @@
 These event types are used by justIN to record state transitions
 and can be viewed in the [Dashboard](dashboard.md). They are especially useful
 for cross
-referencing requests, files, jobs, sites and storages, as the identity of
+referencing workflows, files, jobs, sites and storages, as the identity of
 each component involved in the transition is recorded in the event and visible 
 in the Dashboard.
 
@@ -18,10 +18,10 @@ in the Dashboard.
 |105|CONFIRM_RECEIVED|Confirmation received from job by allocator|
 |201|FILE_ADDED|File added to first stage by finder|
 |202|REPLICA_ADDED|Replica added for file by finder|
-|203|REPLICA_STAGING_REQUESTED|Finder requests replica staging|
-|204|REPLICA_STAGING_DONE|Replica staging requested by finder done|
+|203|REPLICA_STAGING_WORKFLOWED|Finder workflows replica staging|
+|204|REPLICA_STAGING_DONE|Replica staging workflowed by finder done|
 |205|REPLICA_STAGING_CANCELLED|Replica staging cancelled by finder|
-|206|REQUEST_FINISHED|Finder identifies request as finished|
+|206|WORKFLOW_FINISHED|Finder identifies workflow as finished|
 |301|JOB_SUBMITTED|Job submitted by factory|
 |302|JOB_STARTED|Job started running at site|
 |303|JOB_PROCESSING|Job began processing files|

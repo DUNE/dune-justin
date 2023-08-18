@@ -81,7 +81,7 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
              'jobs.allocation_state,'
              'jobs.jobscript_secret,'
              'stages.max_distance,'
-             'jobs.request_id,'
+             'jobs.workflow_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
              'jobs.site_id,'
@@ -97,7 +97,7 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
              'sites.running_jobs,'
              'sites.enabled '
              'FROM jobs '
-             'LEFT JOIN stages ON jobs.request_id=stages.request_id '
+             'LEFT JOIN stages ON jobs.workflow_id=stages.workflow_id '
              'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN sites ON jobs.site_id=sites.site_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
@@ -116,7 +116,7 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
     return { "error_message": "Jobscript secret mismatch" }
 
   return { "error_message"       : None,
-           "request_id"          : job['request_id'],
+           "workflow_id"          : job['workflow_id'],
            "stage_id"            : job['stage_id'],
            "site_id"             : job['site_id'],
            "site_name"           : job['site_name'],
@@ -136,7 +136,7 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
            "has_inner_apptainer" : job['has_inner_apptainer']
          }
 
-# Make a new certificate from the certificate request sent by the 
+# Make a new certificate from the certificate workflow sent by the 
 # generic job, signed by the VOMS proxy loaded from local disk
 # Exceptions must by caught by the caller
 def delegateJobsProxy(newCertRequest, jobsProxyString):
@@ -216,15 +216,15 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
   try:
     query = ("SELECT jobscript,scope_name,principal_name "
              "FROM stages_jobscripts "
-             "LEFT JOIN requests "
-             "ON requests.request_id=stages_jobscripts.request_id "
-             "LEFT JOIN scopes ON scopes.scope_id=requests.scope_id "
-             "LEFT JOIN users ON users.user_id=requests.user_id "
+             "LEFT JOIN workflows "
+             "ON workflows.workflow_id=stages_jobscripts.workflow_id "
+             "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
+             "LEFT JOIN users ON users.user_id=workflows.user_id "
              "LEFT JOIN principal_names "
              "ON principal_names.pn_id=users.main_pn_id "
-             "WHERE stages_jobscripts.request_id=%d "
+             "WHERE stages_jobscripts.workflow_id=%d "
              "AND stages_jobscripts.stage_id=%d" 
-             % (stage['request_id'], stage['stage_id']))
+             % (stage['workflow_id'], stage['stage_id']))
 
     row       = justin.db.select(query, justOne = True)
     jobscript = row['jobscript']
@@ -262,13 +262,13 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              "for_next_stage "
              "FROM stages_outputs "
              "LEFT JOIN stages "
-             "ON stages.request_id=stages_outputs.request_id "
+             "ON stages.workflow_id=stages_outputs.workflow_id "
              "AND stages.stage_id=stages_outputs.stage_id "
-             "LEFT JOIN requests "
-             "ON requests.request_id=stages_outputs.request_id "
-             "WHERE stages_outputs.request_id=%d "
+             "LEFT JOIN workflows "
+             "ON workflows.workflow_id=stages_outputs.workflow_id "
+             "WHERE stages_outputs.workflow_id=%d "
              "AND stages_outputs.stage_id=%d" 
-             % (stage['request_id'], stage['stage_id']))
+             % (stage['workflow_id'], stage['stage_id']))
 
     rows = justin.db.select(query)
   except:
@@ -286,10 +286,10 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
   if jobDict['for_awt']:
     try:
       query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance,'
-               '(SELECT wan_pfn FROM replicas WHERE request_id=%d AND '
+               '(SELECT wan_pfn FROM replicas WHERE workflow_id=%d AND '
                ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
                ' AS wan_pfn,'
-               '(SELECT lan_pfn FROM replicas WHERE request_id=%d AND '
+               '(SELECT lan_pfn FROM replicas WHERE workflow_id=%d AND '
                ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
                ' AS lan_pfn '
                'FROM storages '
@@ -298,8 +298,8 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
                'AND sites_storages.site_id=%d '
                'WHERE rse_name<>"MONTECARLO" '
                'AND NOT storages.decommissioned GROUP BY rse_name' % 
-               (justin.db.awtRequestID,
-                justin.db.awtRequestID,
+               (justin.db.awtWorkflowID,
+                justin.db.awtWorkflowID,
                 jobDict['site_id']) )
 
       rseRows = justin.db.select(query)
@@ -332,7 +332,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              'FROM storages '
              'LEFT JOIN stages_output_storages '
              'ON (storages.rse_id=stages_output_storages.rse_id '
-             'AND stages_output_storages.request_id=%d '
+             'AND stages_output_storages.workflow_id=%d '
              'AND stages_output_storages.stage_id=%d) '
              'LEFT JOIN sites_storages '
              'ON (storages.rse_id=sites_storages.rse_id '
@@ -345,7 +345,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              'NOT storages.decommissioned '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
-             % (stage['request_id'],
+             % (stage['workflow_id'],
                 stage['stage_id'],
                 jobDict['site_id']
                )
@@ -363,7 +363,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
                                          else rseRow['wan_write_scheme']))
       
   jobscriptDict['site_name']        = jobDict['site_name']
-  jobscriptDict['request_id']       = stage['request_id']
+  jobscriptDict['workflow_id']       = stage['workflow_id']
   jobscriptDict['stage_id']         = stage['stage_id']
   jobscriptDict['scope']            = scopeName
   jobscriptDict['jobsub_id']        = jsonDict['jobsub_id']
@@ -378,8 +378,8 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
 
   try:
     query = ('SELECT env_name,env_value FROM stages_environment '
-             'WHERE request_id=%d AND stage_id=%d ORDER BY env_name' 
-             % (stage['request_id'], stage['stage_id']))
+             'WHERE workflow_id=%d AND stage_id=%d ORDER BY env_name' 
+             % (stage['workflow_id'], stage['stage_id']))
 
     envRows = justin.db.select(query)
   except:
@@ -403,13 +403,13 @@ def updateAllocationState(jobsub_id, state):
   except:
     pass
 
-# (Almost) Just in time decision making: identify the best request+stage
+# (Almost) Just in time decision making: identify the best workflow+stage
 # combination based on the immediate situation rather than trying to plan 
 # ahead of time
 def findCachedStage(jobDict):
 
   query = (
- "SELECT request_id,stage_id "
+ "SELECT workflow_id,stage_id "
  "FROM get_stage_cache "
  "WHERE "
  "site_id=%d AND "
@@ -436,7 +436,7 @@ def findCachedStage(jobDict):
     return None
 
   # The dictionary to return, with the highest priority result
-  stage = { 'request_id'  : stageRow['request_id'],
+  stage = { 'workflow_id'  : stageRow['workflow_id'],
             'stage_id'    : stageRow['stage_id']   }
 
   return stage
@@ -550,12 +550,12 @@ def getStageMethod(startResponse, jsonDict, environ):
 
   if jobDict['for_awt']:
     # Special job for Workflow Testing Framework
-    stage = { 'request_id'  : justin.db.awtRequestID,
+    stage = { 'workflow_id'  : justin.db.awtWorkflowID,
               'stage_id'    : 1,
               'scopeName'   : None }
 
   else:
-    # Use the Just In Time decision making: identify the best request+stage 
+    # Use the Just In Time decision making: identify the best workflow+stage 
     # candidate combination at this moment
     try:
       stage = findCachedStage(jobDict)
@@ -591,7 +591,7 @@ def getStageMethod(startResponse, jsonDict, environ):
              'finished_time="' + justin.db.unixEpoch + '",' 
              'allocation_state="started",'
              'allocator_name="' + allocatorName + '",' 
-             'request_id=' + str(stage['request_id']) + ','
+             'workflow_id=' + str(stage['workflow_id']) + ','
              'stage_id=' + str(stage['stage_id']) + ' '
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
@@ -721,7 +721,7 @@ def jobAbortedMethod(startResponse, jsonDict):
     rseName = None
 
   justin.db.logEvent(eventTypeID  = eventTypeID,
-                     requestID    = jobDict['request_id'],
+                     workflowID    = jobDict['workflow_id'],
                      stageID      = jobDict['stage_id'],
                      justinJobID  = jobDict['justin_job_id'],
                      siteID       = jobDict['site_id'],
@@ -744,14 +744,14 @@ def findCachedFile(jobDict):
  "LEFT JOIN storages ON storages.rse_id=find_file_cache.rse_id "
  "WHERE "
  "find_file_cache.site_id=%d AND "
- "find_file_cache.request_id=%d AND "
+ "find_file_cache.workflow_id=%d AND "
  "find_file_cache.stage_id=%d AND "
  "files.state='unallocated' "
  "ORDER BY find_file_cache.cache_time DESC,"
  "find_file_cache.distance,find_file_cache.file_id "
  "LIMIT 1 FOR UPDATE" %
  (jobDict['site_id'],
-  jobDict['request_id'],
+  jobDict['workflow_id'],
   jobDict['stage_id']))
      
   replicaRow = justin.db.select(query, justOne=True)
@@ -774,7 +774,7 @@ def findCachedFile(jobDict):
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
   justin.db.logEvent(eventTypeID = justin.db.event_FILE_ALLOCATED,
-                  requestID   = jobDict['request_id'],
+                  workflowID   = jobDict['workflow_id'],
                   stageID     = jobDict['stage_id'],
                   fileID      = replicaRow['file_id'],
                   justinJobID    = jobDict['justin_job_id'],
@@ -796,7 +796,7 @@ def findCachedFile(jobDict):
 
   return replica
 
-# Get an unallocated file from the given request+stage
+# Get an unallocated file from the given workflow+stage
 def getFileMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
@@ -861,7 +861,7 @@ def getFileMethod(startResponse, jsonDict):
                    'No eligible file found')
 
 def updateFileProcessing(fileIDList,
-                         state, justinJobID, requestID, stageID):
+                         state, justinJobID, workflowID, stageID):
   # Exceptions in this function must by handled by the caller!
 
   testFileIDs = []
@@ -879,14 +879,14 @@ def updateFileProcessing(fileIDList,
                '"unallocated","failed") '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
-               'AND request_id=' + str(requestID) + ' '
+               'AND workflow_id=' + str(workflowID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
     else:
       query = ('UPDATE files SET state="outputting" '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
-               'AND request_id=' + str(requestID) + ' '
+               'AND workflow_id=' + str(workflowID) + ' '
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
 
@@ -894,7 +894,7 @@ def updateFileProcessing(fileIDList,
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
-def processOutputDids(outputDids, requestID, stageID, justinJobID):
+def processOutputDids(outputDids, workflowID, stageID, justinJobID):
 
   for outputDid in outputDids:
       
@@ -904,7 +904,7 @@ def processOutputDids(outputDids, requestID, stageID, justinJobID):
     justin.db.insertUpdate('INSERT INTO files SET state="recorded",'
                         'file_did="'          + str(outputDid) + '",'
                         'creator_justin_job_id=' + str(justinJobID)  + ','
-                        'request_id='         + str(requestID) + ','
+                        'workflow_id='         + str(workflowID) + ','
                         'stage_id='           + str(stageID + 1)
                        )
 
@@ -931,7 +931,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
         justin.logEvent(eventTypeID = 
                           justin.event_AWT_READ_FAIL if int(lineSplitted[3]) 
                           else justin.event_AWT_READ_OK,
-                        requestID = justin.awtRequestID,
+                        workflowID = justin.awtWorkflowID,
                         stageID = 1,
                         justinJobID = justinJobID,
                         siteID = siteID,
@@ -942,7 +942,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
         justin.logEvent(eventTypeID = 
                           justin.event_AWT_WRITE_FAIL if int(lineSplitted[4]) 
                           else justin.event_AWT_WRITE_OK,
-                        requestID = justin.awtRequestID,
+                        workflowID = justin.awtWorkflowID,
                         stageID = 1,
                         justinJobID = justinJobID,
                         siteID = siteID,
@@ -993,18 +993,18 @@ def recordResultsMethod(startResponse, jsonDict):
                          'Invalid DID or PFN in ' + name)
       
   try:
-    query = ('SELECT jobs.justin_job_id, jobs.request_id, jobs.stage_id,'
+    query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'for_awt, jobs.site_id, users.access_token, '
              'jobs.has_inner_apptainer '
              'FROM jobs '
-             'LEFT JOIN requests ON requests.request_id=jobs.request_id '
-             'LEFT JOIN users ON users.user_id=requests.user_id '
+             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
+             'LEFT JOIN users ON users.user_id=workflows.user_id '
              'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.db.select(query, justOne = True)
 
     justinJobID       = int(row['justin_job_id'])
-    requestID         = int(row['request_id'])
+    workflowID         = int(row['workflow_id'])
     stageID           = int(row['stage_id'])
     siteID            = int(row['site_id'])
     forAwt            = row['for_awt']
@@ -1099,7 +1099,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     updateFileProcessing(processedFileIDs,
                          'outputting',
-                         justinJobID, requestID, stageID)
+                         justinJobID, workflowID, stageID)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -1110,7 +1110,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     updateFileProcessing(unprocessedFileIDs,
                          'unprocessed',
-                         justinJobID, requestID, stageID)
+                         justinJobID, workflowID, stageID)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -1118,7 +1118,7 @@ def recordResultsMethod(startResponse, jsonDict):
           
   try:
     processOutputDids(jsonDict['next_stage_dids'],
-                      requestID, stageID, justinJobID)
+                      workflowID, stageID, justinJobID)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -1127,7 +1127,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     # We set stageID=-1 so that when 1 is added, the output only 
     # StageID of 0 is recorded
-    processOutputDids(jsonDict['output_dids'], requestID, -1, justinJobID)
+    processOutputDids(jsonDict['output_dids'], workflowID, -1, justinJobID)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -1214,7 +1214,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
      not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
-                     'Missing jobsub ID in request URI')
+                     'Missing jobsub ID in workflow URI')
 
   try:
    print('==samwebUpdateFileStatusMethod ' + str(jsonDict), file=sys.stderr)
@@ -1239,13 +1239,13 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Valid filename missing')
       
   try:
-    query = ('SELECT justin_job_id,request_id,stage_id '
+    query = ('SELECT justin_job_id,workflow_id,stage_id '
              'FROM jobs WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
 
     row = justin.db.select(query, justOne = True)
 
     justinJobID  = int(row['justin_job_id'])
-    requestID = int(row['request_id'])
+    workflowID = int(row['workflow_id'])
     stageID   = int(row['stage_id'])
   except:
     return httpError(startResponse,
@@ -1255,10 +1255,10 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
   try:
     query = ('SELECT files.file_id FROM files '
              'LEFT JOIN replicas ON replicas.file_id=files.file_id '
-             'WHERE files.request_id=%d AND files.stage_id=%d '
+             'WHERE files.workflow_id=%d AND files.stage_id=%d '
              'AND (wan_pfn="%s" OR lan_pfn="%s") '
              'ORDER BY files.file_id LIMIT 1' 
-             % (requestID, stageID, pfn, pfn))
+             % (workflowID, stageID, pfn, pfn))
 
     fileRow = justin.db.select(query, justOne=True)
     fileID = fileRow['file_id']
@@ -1271,10 +1271,10 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
     query = ('UPDATE files SET state="outputting" '
              'WHERE file_id=%d '
              'AND justin_job_id=%d '
-             'AND request_id=%d '
+             'AND workflow_id=%d '
              'AND stage_id=%d '
              'AND state="allocated"'
-             % (fileID, justinJobID, requestID, stageID))
+             % (fileID, justinJobID, workflowID, stageID))
 
     justin.db.insertUpdate(query)
   except Exception as e:
@@ -1296,13 +1296,13 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Missing jobsub_id in JSON')
 
   try:
-    query = ('SELECT justin_job_id,request_id,stage_id,site_id '
+    query = ('SELECT justin_job_id,workflow_id,stage_id,site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.db.select(query, justOne = True)
 
     justinJobID  = int(row['justin_job_id'])
-    requestID = int(row['request_id'])
+    workflowID = int(row['workflow_id'])
     stageID   = int(row['stage_id'])
     siteID    = int(row['site_id'])
   except:
@@ -1344,7 +1344,7 @@ def confirmResultsMethod(startResponse, jsonDict):
         rseName = None
       
       justin.db.logEvent(eventTypeID = justin.db.event_FILE_CREATED,
-                      requestID = requestID,
+                      workflowID = workflowID,
                       stageID = stageID,
                       fileID = fileRow['file_id'],
                       justinJobID = justinJobID,
@@ -1364,16 +1364,16 @@ def confirmResultsMethod(startResponse, jsonDict):
     try:
       file_id = justin.insertUpdate('INSERT INTO files SET '
                                     'state="output",'
-                                    'request_id=%d,'
+                                    'workflow_id=%d,'
                                     'stage_id=0,'
                                     'file_did="%s",'
                                     'creator_justin_job_id=%d'
-                                    % (requestID, 
+                                    % (workflowID, 
                                        url,
                                        justinJobID))
 
       justin.db.logEvent(eventTypeID = justin.db.event_FILE_UPLOADED,
-                         requestID = requestID,
+                         workflowID = workflowID,
                          stageID = stageID,
                          fileID = file_id,
                          justinJobID = justinJobID,
@@ -1394,7 +1394,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                         % justinJobID)
 
     justin.db.logEvent(eventTypeID = justin.db.event_JOB_FINISHED,
-                    requestID = requestID,
+                    workflowID = workflowID,
                     stageID = stageID,
                     justinJobID = justinJobID,
                     siteID = siteID
@@ -1514,7 +1514,7 @@ def application(environ, startResponse):
     except Exception as e:
       return httpError(startResponse, 
                        '400 Bad Request', 
-                       'Failed to read and parse request: ' + str(e))
+                       'Failed to read and parse workflow: ' + str(e))
   else:
     # Standard justIN API based on JSON
     try:
@@ -1548,7 +1548,7 @@ def application(environ, startResponse):
     return getAllocatedFilesMethod(startResponse, jsonDict)
 
   # Get one or more files to process
-  # This request comes from jobscripts using secrets so we 
+  # This workflow comes from jobscripts using secrets so we 
   # do not run checkSecretHash() as getFileMethod() checks the secret
   if jsonDict['method'] == 'get_file' or \
      jsonDict['method'] == 'samweb_getnextfile':

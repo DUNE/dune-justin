@@ -180,7 +180,7 @@ def webdavPutFile(token, source, destinationDir):
                   method = 'PUT')
 
   # Replace .has_header to prevent the default Content-Type 
-  # IMO dCache should ignore Content-Type rather than reject the request
+  # IMO dCache should ignore Content-Type rather than reject the workflow
   httpRequest.has_header \
    = lambda header_name: (header_name == 'Content-type' or
                 urllib.request.Request.has_header(httpRequest, header_name))

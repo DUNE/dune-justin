@@ -18,7 +18,7 @@ Wrapper jobs are tagged for AWT and targetted at each known
 whether it is enabled for user jobs or not.
 
 The 
-[AWT Request](https://justin.dune.hep.ac.uk/dashboard/?method=show-request&request_id=1)
+[AWT Workflow](https://justin.dune.hep.ac.uk/dashboard/?method=show-workflow&workflow_id=1)
 is used to manage the jobs. It uses the metadata query
 `rucio-dataset testpro:awt` to find files in the testpro:awt Rucio dataset. 
 The [justIN finder agent](/docs/agents.finder.md) looks for new files in
@@ -33,7 +33,7 @@ changed. In either case, the changes will be reflected in new AWT tests
 within about two hours.
 
 When an AWT-tagged wrapper job starts at a site, it contacts the 
-[justIN allocator](/docs/services.allocator.md) and requests a jobscript
+[justIN allocator](/docs/services.allocator.md) and workflows a jobscript
 to execute in the normal way. The allocator recognises that the job is
 tagged for AWT and returns an additional file with a list of RSEs to be
 tested. This file is accessible to the AWT
@@ -47,9 +47,9 @@ The upload protocol choice takes into account whether the site is considered
 to be on the RSE's LAN or WAN, based on distance=0 for LAN. If a storage has
 no replicas of files in testpro:awt then it is ignored.
 
-The jobscript is taken from the single stage of the AWT request and is 
+The jobscript is taken from the single stage of the AWT workflow and is 
 visible at the foot of 
-[that stage's page](https://justin.dune.hep.ac.uk/dashboard/?method=show-stage&request_id=1&stage_id=1).
+[that stage's page](https://justin.dune.hep.ac.uk/dashboard/?method=show-stage&workflow_id=1&stage_id=1).
 
 The production VOMS proxy normally used by the wrapper job for file uploads
 is made available to the AWT jobscript at `$JUSTIN_PATH/awt-proxy.pem` and

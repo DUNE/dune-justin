@@ -45,7 +45,7 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
-def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
+def cacheFindFileResults(siteID, workflowID, stageID, maxDistance):
   # Cache best replicas info for the best stage for a site, relative
   # to that site
 
@@ -60,14 +60,14 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
                    'LEFT JOIN sites_storages ON '
                    'replicas.rse_id=sites_storages.rse_id AND '
                    'sites_storages.site_id=%d '
-                   'WHERE files.request_id=%d AND files.stage_id=%d AND '
+                   'WHERE files.workflow_id=%d AND files.stage_id=%d AND '
                    'files.state="unallocated" AND '
                    'distance<=%f AND '
                    'accessible_until > NOW() AND '
                    'storages.rucio_read AND storages.justin_read AND '
                    'NOT storages.decommissioned '
                    'ORDER by distance,replicas.file_id LIMIT 1000' % 
-                   (siteID, requestID, stageID, maxDistance))
+                   (siteID, workflowID, stageID, maxDistance))
   except Exception as e:
     logLine('Failed getting replica info to cache: %s' % str(e))
     return
@@ -90,7 +90,7 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
     try:
       justin.db.insertUpdate('INSERT INTO find_file_cache SET '
                           'site_id=%d,'
-                          'request_id=%d,'
+                          'workflow_id=%d,'
                           'stage_id=%d,'
                           'distance=%f,'
                           'file_id=%d,'
@@ -98,7 +98,7 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
                           'replica_id=%d,'
                           'cache_time=NOW()' %
                           (siteID,
-                           requestID,
+                           workflowID,
                            stageID,
                            replicaRow['distance'],
                            replicaRow['file_id'],
@@ -110,25 +110,25 @@ def cacheFindFileResults(siteID, requestID, stageID, maxDistance):
       logLine('Failed caching replica info: %s' % str(e))
       continue
 
-# Just in time decision making: identify the best request+stage combination
+# Just in time decision making: identify the best workflow+stage combination
 # based on the immediate situation rather than trying to plan ahead
 def findStage(jobDict):
 
   query = (
- "SELECT stages.request_id,stages.stage_id,stages.max_distance "
+ "SELECT stages.workflow_id,stages.stage_id,stages.max_distance "
  "FROM files "
- "LEFT JOIN stages ON files.request_id=stages.request_id AND "
+ "LEFT JOIN stages ON files.workflow_id=stages.workflow_id AND "
  "files.stage_id=stages.stage_id "
- "LEFT JOIN requests ON requests.request_id=files.request_id "
- "LEFT JOIN scopes ON requests.scope_id=scopes.scope_id "
+ "LEFT JOIN workflows ON workflows.workflow_id=files.workflow_id "
+ "LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id "
  "LEFT JOIN replicas ON files.file_id=replicas.file_id "
  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
  "LEFT JOIN sites_storages ON replicas.rse_id=sites_storages.rse_id AND "
  "sites_storages.site_id=%d "
  "WHERE files.state='unallocated' AND " 
  "replicas.accessible_until > NOW() AND "
- "requests.state='running' AND "
- "requests.request_id<>%d AND "
+ "workflows.state='running' AND "
+ "workflows.workflow_id<>%d AND "
  "((%d < stages.processors AND stages.processors <= %d AND "
  "  stages.rss_bytes <= %d) OR "
  " (%d < stages.rss_bytes AND stages.rss_bytes <= %d AND "
@@ -144,7 +144,7 @@ def findStage(jobDict):
  "LIMIT 1" %
  (
   jobDict["site_id"],
-  justin.awtRequestID,
+  justin.awtWorkflowID,
   jobDict["min_processors"], jobDict["max_processors"], 
   jobDict["max_rss_bytes"],
   jobDict["min_rss_bytes"], jobDict["max_rss_bytes"],
@@ -160,7 +160,7 @@ def findStage(jobDict):
     return None
 
   # The dictionary to return, with the highest priority result
-  stage = { 'request_id'  : fileRows[0]['request_id'],
+  stage = { 'workflow_id'  : fileRows[0]['workflow_id'],
             'stage_id'    : fileRows[0]['stage_id'],
             'max_distance': fileRows[0]['max_distance'],
             'matches'     : len(fileRows) }
@@ -210,14 +210,14 @@ def cacheFindStageResults():
         stage = None
    
       if not stage:
-        requestID = 0
+        workflowID = 0
         stageID   = 0
       else:
-        requestID   = stage['request_id']
+        workflowID   = stage['workflow_id']
         stageID     = stage['stage_id']
         maxDistance = stage['max_distance']
         logLine('Match(es) found (%d,%d) for site %s - caching' % 
-                (requestID, stageID, siteRow['site_name']))
+                (workflowID, stageID, siteRow['site_name']))
 
         try:
           justin.db.insertUpdate('INSERT INTO get_stage_cache SET '
@@ -228,11 +228,11 @@ def cacheFindStageResults():
                                  'max_rss_bytes=%d,'
                                  'max_wall_seconds=%d,'
                                  'job_had_inner_apptainer=%s,'
-                                 'request_id=%d,'
+                                 'workflow_id=%d,'
                                  'stage_id=%d,'
                                  'cache_time=NOW() '
                                  'ON DUPLICATE KEY UPDATE ' 
-                                 'request_id=%d,'
+                                 'workflow_id=%d,'
                                  'stage_id=%d,'
                                  'cache_time=NOW() ' % 
                                  (jobDict['site_id'],
@@ -242,9 +242,9 @@ def cacheFindStageResults():
                                   jobDict['max_rss_bytes'],
                                   jobDict['max_wall_seconds'],
                                   jobHadInnerApptainer,
-                                  requestID,
+                                  workflowID,
                                   stageID,
-                                  requestID,
+                                  workflowID,
                                   stageID
                                  )
                                 )
@@ -253,7 +253,7 @@ def cacheFindStageResults():
           logLine('Record  fails with: ' + str(e))
 
         cacheFindFileResults(jobDict['site_id'], 
-                             requestID, 
+                             workflowID, 
                              stageID, 
                              maxDistance)
    

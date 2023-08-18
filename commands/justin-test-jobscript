@@ -94,7 +94,7 @@ chmod +x $JUSTIN_WORKDIR/home/justin-get-file
 # Fake justin-jobscript-env.sh that allocator would normally provide
 cat <<EOF >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh
 export JUSTIN_SITE_NAME=XX_UNKNOWN
-export JUSTIN_REQUEST_ID=1
+export JUSTIN_WORKFLOW_ID=1
 export JUSTIN_STAGE_ID=1
 export JUSTIN_JOBSUB_ID='1.1@x'
 EOF

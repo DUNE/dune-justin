@@ -1,6 +1,6 @@
 ## justin command
 
-The justin command allows the creation and monitoring of requests, and 
+The justin command allows the creation and monitoring of workflows, and 
 various queries of the [justIN database](database.md)'s knowledge of
 sites, storages etc.
 

@@ -11,14 +11,14 @@ Replicas are prioritized based on whether the worker node and replica are
 at the same site, "nearby", or elsewhere but still eligible.
 
 The [jobscript](jobscripts.md) 
-to be ran and the details of the request and stage are 
-returned to the wrapper job. The script can use these details to request a 
+to be ran and the details of the workflow and stage are 
+returned to the wrapper job. The script can use these details to workflow a 
 series of files to process with the application it invokes. Each input 
 file successfully processed by the application is reported to the allocator
 service so that the input file’s status can be updated from Allocated to 
 Processed. Unprocessed input files are returned to the unallocated state 
 for processing in another job.
 
-If the stage is not the final stage for that request, each output data 
+If the stage is not the final stage for that workflow, each output data 
 file is also inserted into the list of files associated with the next 
-stage for that request, in the unallocated state.
+stage for that workflow, in the unallocated state.

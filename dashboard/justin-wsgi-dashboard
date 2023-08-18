@@ -202,7 +202,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="/dashboard/" style="font-size: 48px; color: #E1703D;">%s</a> &nbsp; &nbsp;
 <a href="/dashboard/"><img src="/jclock50x50.png"></a> &nbsp; &nbsp; &nbsp;
 <a href="/dashboard/">Dashboard</a> &nbsp; &nbsp; &nbsp;
-<a href="/dashboard/?method=list-requests">Requests</a> &nbsp; &nbsp; &nbsp;
+<a href="/dashboard/?method=list-workflows">Workflows</a> &nbsp; &nbsp; &nbsp;
 <a href="/dashboard/?method=list-jobs">Jobs</a> &nbsp; &nbsp; &nbsp;
 <a href="/dashboard/?method=awt-results">AWT</a> &nbsp; &nbsp; &nbsp;
 <a href="/dashboard/?method=list-sites">Sites</a> &nbsp; &nbsp; &nbsp;
@@ -275,8 +275,8 @@ def mainPage(environ, user):
   cells = [
    { 'startRow'  : True,
      'endRow'    : False,
-     'uri'       : '/dashboard/?method=list-requests',
-     'text'      : 'Requests' },
+     'uri'       : '/dashboard/?method=list-workflows',
+     'text'      : 'Workflows' },
    { 'startRow'  : False,
      'endRow'    : True,
      'uri'       : '/dashboard/?method=list-jobs',
@@ -329,7 +329,7 @@ def mainPage(environ, user):
   output += '</table>' + footer()
   return output
 
-def oidcTokensRequest(cilogonCode, environ):
+def oidcTokensWorkflow(cilogonCode, environ):
   # Send an OIDC request to CILogon to get tokens for a user, using an
   # authorization code received from CILogon via the user's browser
 
@@ -418,7 +418,7 @@ def cilogonCallback(startResponse, environ):
     startResponseOK(startResponse, output)
     return output
 
-  tokensDict = oidcTokensRequest(cilogonCode, environ)
+  tokensDict = oidcTokensWorkflow(cilogonCode, environ)
   if not tokensDict:
     output = errorPage(environ, None,
                        'Failed to get your tokens from CILogon')
@@ -879,38 +879,38 @@ def showJobscript(environ, user, cgiValues):
   output += footer()
   return output
 
-def listRequests(environ, user, cgiValues, pageNumber, pageLength):
+def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
 
-  output = header(environ, user, "justIN: Requests")
+  output = header(environ, user, "justIN: Workflows")
 
-  output += "<h1>Requests</h1>"
+  output += "<h1>Workflows</h1>"
   
-  query = ('SELECT request_id,description,principal_name AS user_name,'
+  query = ('SELECT workflow_id,description,principal_name AS user_name,'
            'state,mql,created,submitted,started,finished '
-           'FROM requests '
-           'LEFT JOIN users ON requests.user_id=users.user_id '
+           'FROM workflows '
+           'LEFT JOIN users ON workflows.user_id=users.user_id '
            'LEFT JOIN principal_names '
            'ON principal_names.pn_id=users.main_pn_id '
-           'ORDER BY request_id DESC LIMIT %d,%d' %
+           'ORDER BY workflow_id DESC LIMIT %d,%d' %
            (pageNumber * pageLength, pageLength + 1))
 
   justin.db.cur.execute(query)
   rows = justin.db.cur.fetchall()
 
   output += makePager(pageNumber, pageLength, len(rows), 
-                      "/dashboard/?method=list-requests&page_number=%d&page_length=%d") 
+                      "/dashboard/?method=list-workflows&page_number=%d&page_length=%d") 
              
   output += '<p><table>'
-  output += ('<tr><th>Request ID</th><th>Description</th><th>User</th><th>State</th>'
+  output += ('<tr><th>Workflow ID</th><th>Description</th><th>User</th><th>State</th>'
              '<th>MQL</th><th>Created</th><th>Submitted</th><th>Started</th>'
              '<th>Finished</th><tr>')
 
   for row in rows[:pageLength]:
-    output += ('<tr><td><a href="/dashboard/?method=show-request&request_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-workflow&workflow_id=%s">'
           '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '</tr>' % 
-          (row["request_id"], row["request_id"],
+          (row["workflow_id"], row["workflow_id"],
            html.escape(row["description"], quote=True),
            row["user_name"],
            row["state"],
@@ -925,84 +925,84 @@ def listRequests(environ, user, cgiValues, pageNumber, pageLength):
   output += "</table>"
   
   output += makePager(pageNumber, pageLength, len(rows), 
-                      "/dashboard/?method=list-requests&page_number=%d&page_length=%d")
+                      "/dashboard/?method=list-workflows&page_number=%d&page_length=%d")
   output += footer()
   
   return output
 
-def showRequest(environ, user, cgiValues):
+def showWorkflow(environ, user, cgiValues):
   try:
-    requestID = int(cgiValues['request_id'])
+    workflowID = int(cgiValues['workflow_id'])
   except:
-    return errorPage(environ, user, "request_id must be given")
+    return errorPage(environ, user, "workflow_id must be given")
   
-  output = header(environ, user, "justIN: Request %d" % requestID)
+  output = header(environ, user, "justIN: Workflow %d" % workflowID)
 
-  query = ("SELECT requests.description,requests.state,"
+  query = ("SELECT workflows.description,workflows.state,"
            "principal_name AS user_name,"
-           "requests.created,requests.submitted,requests.started,"
-           "requests.checking,requests.finished,mql,"
-           "requests.refind_seconds,requests.refind_start_time,"
-           "requests.refind_end_time,scopes.scope_name "
-           "FROM requests "
-           "LEFT JOIN scopes ON scopes.scope_id=requests.scope_id "
-           "LEFT JOIN users ON users.user_id=requests.user_id "
+           "workflows.created,workflows.submitted,workflows.started,"
+           "workflows.checking,workflows.finished,mql,"
+           "workflows.refind_seconds,workflows.refind_start_time,"
+           "workflows.refind_end_time,scopes.scope_name "
+           "FROM workflows "
+           "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
+           "LEFT JOIN users ON users.user_id=workflows.user_id "
            "LEFT JOIN principal_names "
            'ON principal_names.pn_id=users.main_pn_id '
-           "WHERE request_id=%d "
-           "ORDER BY request_id" % requestID)
+           "WHERE workflow_id=%d "
+           "ORDER BY workflow_id" % workflowID)
 
   justin.db.cur.execute(query)
-  requestRow = justin.db.cur.fetchone()
+  workflowRow = justin.db.cur.fetchone()
   
-  state = requestRow['state']
+  state = workflowRow['state']
 
-  output += "<h1>Request %d</h1>" % requestID
+  output += "<h1>Workflow %d</h1>" % workflowID
   output += '<table>'
   output += ('<tr><td>Description</td><td>%s</td></tr>' 
-             % html.escape(requestRow['description'], quote=True))
+             % html.escape(workflowRow['description'], quote=True))
 
   output += ('<tr><td>State</td><td>%s</td></tr>' % state)
   output += ('<tr><td>MQL</td><td>%s</td></tr>' 
-             % html.escape(requestRow['mql'], quote=True))
+             % html.escape(workflowRow['mql'], quote=True))
 
-  if requestRow['scope_name']:
-    output += '<tr><td>Scope</td><td>%s</td></tr>' % requestRow['scope_name']
+  if workflowRow['scope_name']:
+    output += '<tr><td>Scope</td><td>%s</td></tr>' % workflowRow['scope_name']
 
-  if requestRow['refind_seconds'] == 0:
+  if workflowRow['refind_seconds'] == 0:
     output += '<tr><td>Finding</td><td>once</td></tr>'
   else:
     output += ('<tr><td>Finding</td><td>every %d hour(s), %s to %s</td></tr>'
-               % (int(requestRow['refind_seconds'] / 3600), 
-                  requestRow['refind_start_time'],
-                  requestRow['refind_end_time'])
+               % (int(workflowRow['refind_seconds'] / 3600), 
+                  workflowRow['refind_start_time'],
+                  workflowRow['refind_end_time'])
               )
       
   output += ('<tr><td>Created by</td><td>%s</td></tr>' 
-             % requestRow['user_name'])
+             % workflowRow['user_name'])
 
   output += ('<tr><td>Created</td><td>%s</td></tr>' 
-             % spaceForUnixEpoch(requestRow['created']))
+             % spaceForUnixEpoch(workflowRow['created']))
 
   output += ('<tr><td>Submitted</td><td>%s</td></tr>' 
-             % spaceForUnixEpoch(requestRow['submitted']))
+             % spaceForUnixEpoch(workflowRow['submitted']))
 
   output += ('<tr><td>Started</td><td>%s</td></tr>' 
-             % spaceForUnixEpoch(requestRow['started']))
+             % spaceForUnixEpoch(workflowRow['started']))
 
 #  output += ('<tr><td>Checking</td><td>%s</td></tr>' 
-#             % spaceForUnixEpoch(requestRow['checking']))
+#             % spaceForUnixEpoch(workflowRow['checking']))
 
   output += ('<tr><td>Finished</td><td>%s</td></tr>' 
-             % spaceForUnixEpoch(requestRow['finished']))
+             % spaceForUnixEpoch(workflowRow['finished']))
   
   output += "</table>"
 
-  # Get the stages of this request
+  # Get the stages of this workflow
   query = ("SELECT * "
            "FROM stages "
-           "WHERE request_id=%d "
-           "ORDER BY stage_id" % requestID)
+           "WHERE workflow_id=%d "
+           "ORDER BY stage_id" % workflowID)
 
   justin.db.cur.execute(query)
   stageRows = justin.db.cur.fetchall()
@@ -1022,8 +1022,8 @@ def showRequest(environ, user, cgiValues):
   
   query = ('SELECT state,stage_id,COUNT(*) AS count '
            'FROM files '
-           'WHERE request_id=%d '
-           'GROUP BY state,stage_id' % requestID)
+           'WHERE workflow_id=%d '
+           'GROUP BY state,stage_id' % workflowID)
              
   stateRows = justin.db.select(query)
   
@@ -1039,20 +1039,20 @@ def showRequest(environ, user, cgiValues):
              "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:
-    output += ('<tr><td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-stage&workflow_id=%s&stage_id=%s">'
           '%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finding">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=allocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processed">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%d</a></td>'
           '</tr>' % 
           (
-           stageRow["request_id"], stageRow["stage_id"], stageRow["stage_id"],
-            stageRow["request_id"], stageRow["stage_id"], 
+           stageRow["workflow_id"], stageRow["stage_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['finding'] +
              stateCounts[stageRow['stage_id']]['unallocated'] +
              stateCounts[stageRow['stage_id']]['allocated'] +
@@ -1060,19 +1060,19 @@ def showRequest(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['processed'] +
              stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
-            stageRow["request_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finding'],
-            stageRow["request_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['unallocated'],
-            stageRow["request_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['allocated'],
-            stageRow["request_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
-            stageRow["request_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['processed'],
-            stageRow["request_id"], stageRow["stage_id"],
+            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['notfound'],
-            stageRow["request_id"], stageRow["stage_id"], 
+            stageRow["workflow_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['failed']))
 
   output += "</table>"
@@ -1090,8 +1090,8 @@ def showRequest(environ, user, cgiValues):
 
   query = ('SELECT allocation_state,stage_id,COUNT(*) AS count '
            'FROM jobs '
-           'WHERE request_id=%d '
-           'GROUP BY allocation_state,stage_id' % requestID)
+           'WHERE workflow_id=%d '
+           'GROUP BY allocation_state,stage_id' % workflowID)
              
   stateRows = justin.db.select(query)
   
@@ -1110,28 +1110,28 @@ def showRequest(environ, user, cgiValues):
 
   for stageRow in stageRows:
     output += ('<tr>'
-        '<td><a href="/dashboard/?method=show-stage&request_id=%s&stage_id=%s">'
+        '<td><a href="/dashboard/?method=show-stage&workflow_id=%s&stage_id=%s">'
         '%d</td>\n'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=processing">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=outputting">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=finished">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=aborted">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=jobscript_error">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=outputting_failed">%d</a></td>'
         '</tr>'
-        % (stageRow["request_id"], stageRow["stage_id"], 
+        % (stageRow["workflow_id"], stageRow["stage_id"], 
             stageRow["stage_id"],
-           stageRow["request_id"], stageRow["stage_id"], 
+           stageRow["workflow_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
              stateCounts[stageRow['stage_id']]['finished'] +
@@ -1139,19 +1139,19 @@ def showRequest(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['stalled'] +
              stateCounts[stageRow['stage_id']]['jobscript_error'] +
              stateCounts[stageRow['stage_id']]['outputting_failed'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['processing'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finished'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['aborted'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['stalled'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['jobscript_error'],
-           stageRow["request_id"], stageRow["stage_id"],
+           stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting_failed']))
 
   output += ('</table>')
@@ -1160,16 +1160,16 @@ def showRequest(environ, user, cgiValues):
 
 def showStage(environ, user, cgiValues):
   try:
-    requestID = int(cgiValues["request_id"])
+    workflowID = int(cgiValues["workflow_id"])
   except:
-    return errorPage(environ, user, "request_id must be given")
+    return errorPage(environ, user, "workflow_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
   except:
     return errorPage(environ, user, "stage_id must be given")
   
-  output = header(environ, user, "justIN: Request %d, Stage %d" % (requestID, stageID))
+  output = header(environ, user, "justIN: Workflow %d, Stage %d" % (workflowID, stageID))
   output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
@@ -1181,15 +1181,15 @@ def showStage(environ, user, cgiValues):
            "stages_jobscripts.jobscript,"
            "jobscript_name,"
            "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
-           "requests_scopes.scope_name AS requests_scope_name,"
+           "workflows_scopes.scope_name AS workflows_scope_name,"
            "principal_name AS user_name "
            "FROM stages "
-           "LEFT JOIN requests "
-           "ON requests.request_id=stages.request_id "
-           "LEFT JOIN scopes AS requests_scopes "
-           "ON requests.scope_id=requests_scopes.scope_id "
+           "LEFT JOIN workflows "
+           "ON workflows.workflow_id=stages.workflow_id "
+           "LEFT JOIN scopes AS workflows_scopes "
+           "ON workflows.scope_id=workflows_scopes.scope_id "
            "LEFT JOIN stages_jobscripts "
-           "ON stages_jobscripts.request_id=stages.request_id "
+           "ON stages_jobscripts.workflow_id=stages.workflow_id "
            "AND stages_jobscripts.stage_id=stages.stage_id "
            "LEFT JOIN jobscripts_library "
            "ON jobscripts_library.jobscript_id=stages.jobscript_id "
@@ -1198,17 +1198,17 @@ def showStage(environ, user, cgiValues):
            "LEFT JOIN users ON users.user_id=jobscripts_library.user_id "
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
-           "WHERE stages.request_id=%d AND stages.stage_id=%d" %
-           (requestID, stageID))
+           "WHERE stages.workflow_id=%d AND stages.stage_id=%d" %
+           (workflowID, stageID))
 
   stageRow = justin.select(query, justOne = True)
 
-  if stageRow['requests_scope_name']:
-    scopeName = stageRow['requests_scope_name']
+  if stageRow['workflows_scope_name']:
+    scopeName = stageRow['workflows_scope_name']
   else:
     scopeName = ''
   
-  output += ("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
+  output += ("<h1>Workflow %d, Stage %d</h1>" % (workflowID, stageID))
   
   output += '<table>'
 
@@ -1236,9 +1236,9 @@ def showStage(environ, user, cgiValues):
            "FROM stages_output_storages "
            "LEFT JOIN storages "
            "ON stages_output_storages.rse_id=storages.rse_id "
-           "WHERE request_id=%d AND stage_id=%d "
+           "WHERE workflow_id=%d AND stage_id=%d "
            "ORDER BY rse_name" %
-           (requestID, stageID))
+           (workflowID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
   justin.db.cur.execute(query)
@@ -1252,9 +1252,9 @@ def showStage(environ, user, cgiValues):
         
   output += ('</td></tr>')
         
-  if stageRow["requests_scope_name"]:
+  if stageRow["workflows_scope_name"]:
     output += ('<tr><td>Scope</td>'
-               '<td>%s</td></tr>' % stageRow["requests_scope_name"])
+               '<td>%s</td></tr>' % stageRow["workflows_scope_name"])
 
   output += ('</table>')
     
@@ -1263,9 +1263,9 @@ def showStage(environ, user, cgiValues):
   query = ("SELECT destination,file_pattern,"
            "for_next_stage,lifetime_seconds "
            "FROM stages_outputs "
-           "WHERE request_id=%d AND stage_id=%d "
+           "WHERE workflow_id=%d AND stage_id=%d "
            "ORDER BY destination,file_pattern" %
-           (requestID, stageID))
+           (workflowID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
   patternRows = justin.db.select(query)
@@ -1284,7 +1284,7 @@ def showStage(environ, user, cgiValues):
       else:
         output += ("<tr><td>Rucio %s:%s</td><td>%s</td>"
                    "<td>%d</td><td>%s</td></tr>" 
-                   % (stageRow["requests_scope_name"],
+                   % (stageRow["workflows_scope_name"],
                       patternRow["destination"],
                       html.escape(patternRow["file_pattern"], quote=True),
                       patternRow["lifetime_seconds"],
@@ -1296,9 +1296,9 @@ def showStage(environ, user, cgiValues):
 
   query = ("SELECT env_name,env_value "
            "FROM stages_environment "
-           "WHERE request_id=%d AND stage_id=%d "
+           "WHERE workflow_id=%d AND stage_id=%d "
            "ORDER BY env_name" %
-           (requestID, stageID))
+           (workflowID, stageID))
 
   envRows = justin.db.select(query)
 
@@ -1327,8 +1327,8 @@ def showStage(environ, user, cgiValues):
   
   query = ('SELECT state,COUNT(*) AS count '
            'FROM files '
-           'WHERE request_id=%d AND stage_id=%d '
-           'GROUP BY state' % (requestID, stageID))
+           'WHERE workflow_id=%d AND stage_id=%d '
+           'GROUP BY state' % (workflowID, stageID))
   
   stateRows = justin.db.select(query)
   
@@ -1341,63 +1341,63 @@ def showStage(environ, user, cgiValues):
         "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
         "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
 
-  output += ('<tr><td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=finding">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=allocated">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=outputting">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=processed">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=notfound">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&request_id=%s&stage_id=%s&state=failed">%s</a></td>'
+  output += ('<tr><td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finding">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=allocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processed">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%s</a></td>'
         '</tr>' % 
-          ( requestID, stageID, stateCounts['finding']
+          ( workflowID, stageID, stateCounts['finding']
                                         + stateCounts['unallocated']
                                         + stateCounts['allocated'] 
                                         + stateCounts['outputting']
                                         + stateCounts['processed']
                                         + stateCounts['notfound']
                                         + stateCounts['failed'],
-            requestID, stageID, stateCounts['finding'], 
-            requestID, stageID, stateCounts['unallocated'], 
-            requestID, stageID, stateCounts['allocated'], 
-            requestID, stageID, stateCounts['outputting'],
-            requestID, stageID, stateCounts['processed'],
-            requestID, stageID, stateCounts['notfound'],
-            requestID, stageID, stateCounts['failed']))
+            workflowID, stageID, stateCounts['finding'], 
+            workflowID, stageID, stateCounts['unallocated'], 
+            workflowID, stageID, stateCounts['allocated'], 
+            workflowID, stageID, stateCounts['outputting'],
+            workflowID, stageID, stateCounts['processed'],
+            workflowID, stageID, stateCounts['notfound'],
+            workflowID, stageID, stateCounts['failed']))
 
   output += ("</table>")
 
   # Job states
 
   query = ('SELECT '
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="processing") '
            ' AS number_processing,'
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="outputting") '
            ' AS number_outputting,'
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="finished") '
            ' AS number_finished,'
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="aborted") '
            ' AS number_aborted,'
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="stalled") '
            ' AS number_stalled,'
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="jobscript_error") '
            ' AS number_jobscript_error,'
-           '(SELECT COUNT(*) FROM jobs WHERE request_id=%d AND '
+           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
            ' stage_id=%d AND allocation_state="outputting_failed") '
            ' AS number_outputting_failed'
-           % (requestID, stageID, 
-              requestID, stageID,
-              requestID, stageID,
-              requestID, stageID,
-              requestID, stageID,
-              requestID, stageID,
-              requestID, stageID))
+           % (workflowID, stageID, 
+              workflowID, stageID,
+              workflowID, stageID,
+              workflowID, stageID,
+              workflowID, stageID,
+              workflowID, stageID,
+              workflowID, stageID))
 
   output += '<!-- %s SELECT (SELECT -->\n' % str(time.time())
   justin.db.cur.execute(query)
@@ -1410,28 +1410,28 @@ def showStage(environ, user, cgiValues):
         '<th>Outputting failed</th></tr>')
 
   output += ('<tr>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=processing">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=outputting">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=finished">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=aborted">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=stalled">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=jobscript_error">%d</a></td>'
-        '<td><a href="/dashboard/?method=list-jobs&request_id=%d'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&allocation_state=outputting_failed">%d</a></td>'
         '</tr>'
-        % (requestID, stageID, jobNumberRow['number_processing'],
-           requestID, stageID, jobNumberRow['number_outputting'],
-           requestID, stageID, jobNumberRow['number_finished'],
-           requestID, stageID, jobNumberRow['number_aborted'],
-           requestID, stageID, jobNumberRow['number_stalled'],
-           requestID, stageID, jobNumberRow['number_jobscript_error'],
-           requestID, stageID, jobNumberRow['number_outputting_failed']
+        % (workflowID, stageID, jobNumberRow['number_processing'],
+           workflowID, stageID, jobNumberRow['number_outputting'],
+           workflowID, stageID, jobNumberRow['number_finished'],
+           workflowID, stageID, jobNumberRow['number_aborted'],
+           workflowID, stageID, jobNumberRow['number_stalled'],
+           workflowID, stageID, jobNumberRow['number_jobscript_error'],
+           workflowID, stageID, jobNumberRow['number_outputting_failed']
           ))
 
   output += ('</table>')
@@ -1442,10 +1442,10 @@ def showStage(environ, user, cgiValues):
            'count(*) AS processed_count '
            'FROM files '
            'LEFT JOIN sites ON sites.site_id=files.processed_site_id '
-           'WHERE request_id=%d AND stage_id=%d AND '
+           'WHERE workflow_id=%d AND stage_id=%d AND '
            'state="processed" GROUP BY processed_hour,processed_site_id '
            'ORDER BY processed_hour'
-           % (requestID, stageID))
+           % (workflowID, stageID))
 
   binRows = justin.db.select(query)
 
@@ -1492,9 +1492,9 @@ def showStage(environ, user, cgiValues):
 
   query = ('SELECT rse_name,COUNT(*) AS replica_count FROM replicas '
            'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
-           'WHERE request_id=%d AND stage_id=%d '
+           'WHERE workflow_id=%d AND stage_id=%d '
            'GROUP BY replicas.rse_id ORDER BY replica_count DESC'
-           % (requestID, stageID))
+           % (workflowID, stageID))
 
   justin.db.select(query)
   replicaRows = justin.db.select(query)
@@ -1529,9 +1529,9 @@ def showStage(environ, user, cgiValues):
 
   query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
-           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_ALLOCATED))
+           (workflowID, stageID, justin.db.event_FILE_ALLOCATED))
 
   output += '<!-- %s SELECT ALLOCATED -->\n' % str(time.time())
   justin.db.cur.execute(query)
@@ -1546,9 +1546,9 @@ def showStage(environ, user, cgiValues):
 
   query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
-           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_CREATED))
+           (workflowID, stageID, justin.db.event_FILE_CREATED))
 
   output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
   justin.db.cur.execute(query)
@@ -1580,9 +1580,9 @@ def showStage(environ, user, cgiValues):
 
   query = ('SELECT site_name,COUNT(*) AS site_count FROM events '
            'LEFT JOIN sites ON sites.site_id=events.site_id '
-           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
+           (workflowID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
 
   output += '<!-- %s -->\n' % str(time.time())
   justin.db.cur.execute(query)
@@ -1597,9 +1597,9 @@ def showStage(environ, user, cgiValues):
 
   query = ('SELECT site_name,COUNT(*) AS site_count FROM events '
            'LEFT JOIN sites ON sites.site_id=events.site_id '
-           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
+           (workflowID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
 
   output += '<!-- %s -->\n' % str(time.time())
   justin.db.cur.execute(query)
@@ -1654,9 +1654,9 @@ def showStage(environ, user, cgiValues):
 def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
-    requestID = int(cgiValues["request_id"])
+    workflowID = int(cgiValues["workflow_id"])
   except:
-    return errorPage(environ, user, "request_id must be given")
+    return errorPage(environ, user, "workflow_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
@@ -1677,11 +1677,11 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
     
-  output = header(environ, user, "justIN: Files for Request %d, Stage %d%s" 
-                  % (requestID, stageID, stateText))
+  output = header(environ, user, "justIN: Files for Workflow %d, Stage %d%s" 
+                  % (workflowID, stageID, stateText))
 
-  output += ("<h1>Files  for Request %d, Stage %d%s</h1>" 
-             % (requestID, stageID, stateText))
+  output += ("<h1>Files  for Workflow %d, Stage %d%s</h1>" 
+             % (workflowID, stageID, stateText))
   
   query = ("SELECT files.file_did,files.state,event_time,"
            "storages.rse_name,jobs.jobsub_id,sites.site_name,"
@@ -1692,9 +1692,9 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN storages ON events.rse_id=storages.rse_id "
            "LEFT JOIN jobs ON jobs.justin_job_id=files.justin_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
-           "WHERE files.request_id=%d AND files.stage_id=%d %s "
+           "WHERE files.workflow_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id DESC LIMIT %d,%d" % 
-           (justin.db.event_FILE_ALLOCATED, requestID, stageID, stateFilter,
+           (justin.db.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
             pageNumber * pageLength, pageLength + 1))
 
   output += '<!-- %s -->\n' % query
@@ -1704,7 +1704,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
-             '&request_id=' + str(requestID) + 
+             '&workflow_id=' + str(workflowID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
@@ -1714,9 +1714,9 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows[:pageLength]:
-    output += ('<tr><td><a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%d</td><td>%s</td>' % 
-          (requestID, 
+          (workflowID, 
            stageID, 
            urllib.parse.quote(fileRow["file_did"], safe=''),
            html.escape(fileRow["file_did"], quote=True),
@@ -1742,7 +1742,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   
   output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
-             '&request_id=' + str(requestID) + 
+             '&workflow_id=' + str(workflowID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
@@ -1760,9 +1760,9 @@ def showFile(environ, user, cgiValues):
     return errorPage(environ, user, "Bad format of file_did")
       
   try:
-    requestID = int(cgiValues["request_id"])
+    workflowID = int(cgiValues["workflow_id"])
   except:
-    return errorPage(environ, user, "request_id must be given")
+    return errorPage(environ, user, "workflow_id must be given")
   
   try:
     stageID = int(cgiValues["stage_id"])
@@ -1777,8 +1777,8 @@ def showFile(environ, user, cgiValues):
   
   query = ('SELECT file_id,state,processed_time '
            'FROM files '
-           'WHERE request_id=%d AND stage_id=%d and file_did="%s"' %
-           (requestID, stageID, fileDID))
+           'WHERE workflow_id=%d AND stage_id=%d and file_did="%s"' %
+           (workflowID, stageID, fileDID))
 
   fileRow = justin.db.select(query, justOne = True)
 
@@ -1787,7 +1787,7 @@ def showFile(environ, user, cgiValues):
 
   except Exception as e:
     return errorPage(environ, user, "invalid file_id (%d,%d,%s): %s\n%s" 
-                     % (requestID, stageID, fileDID, str(e), query))
+                     % (workflowID, stageID, fileDID, str(e), query))
 
   query = ("SELECT allocation_state,jobsub_id,event_time,"
            "site_name,rse_name FROM events "
@@ -1810,13 +1810,13 @@ def showFile(environ, user, cgiValues):
 
   output += ('<p><table>')
   
-  output += ('<tr><td>Request ID</td>'
-             '<td><a href="/dashboard/?method=show-request&request_id=%d">%d</a></td></tr>'
-             % (requestID, requestID))
+  output += ('<tr><td>Workflow ID</td>'
+             '<td><a href="/dashboard/?method=show-workflow&workflow_id=%d">%d</a></td></tr>'
+             % (workflowID, workflowID))
         
   output += ('<tr><td>Stage ID</td>'
-             '<td><a href="/dashboard/?method=show-stage&request_id=%d&stage_id=%d">%d</a></td></tr>'
-             % (requestID, stageID, stageID))
+             '<td><a href="/dashboard/?method=show-stage&workflow_id=%d&stage_id=%d">%d</a></td></tr>'
+             % (workflowID, stageID, stageID))
         
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
@@ -1861,7 +1861,7 @@ def showFile(environ, user, cgiValues):
   output += '</td></tr>'
 
   # THIS IS A BIT OF HACK WHILE HAVE OLD DATASETS AROUND
-  if requestID > 400 and ':' in fileDID:
+  if workflowID > 400 and ':' in fileDID:
     output += ('<tr><td colspan=2><a href="'
      'https://metacat.fnal.gov:9443/dune_meta_prod/app/gui/show_file?did=%s">'
      'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
@@ -1916,7 +1916,7 @@ def showJob(environ, user, cgiValues):
 
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
-  query = ("SELECT jobs.justin_job_id,jobs.request_id,jobs.stage_id,"
+  query = ("SELECT jobs.justin_job_id,jobs.workflow_id,jobs.stage_id,"
            "sites.site_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,"
            "principal_name AS user_name,"
@@ -1931,8 +1931,8 @@ def showJob(environ, user, cgiValues):
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes "
            "FROM jobs "
-           "LEFT JOIN requests ON requests.request_id=jobs.request_id "
-           "LEFT JOIN users ON requests.user_id=users.user_id "
+           "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
+           "LEFT JOIN users ON workflows.user_id=users.user_id "
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
@@ -2037,26 +2037,26 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % html.escape(jobRow["allocator_name"], quote=True))
 
-  output += '<tr><td>Request ID</td>'
+  output += '<tr><td>Workflow ID</td>'
   
-  if jobRow['request_id']:
-    output += ('<td colspan="2"><a href="/dashboard/?method=show-request&request_id=%s">'
+  if jobRow['workflow_id']:
+    output += ('<td colspan="2"><a href="/dashboard/?method=show-workflow&workflow_id=%s">'
                '%s</a></td></tr>'
-               % (jobRow["request_id"], jobRow["request_id"]))
+               % (jobRow["workflow_id"], jobRow["workflow_id"]))
   else:
     output += '<td colspan="2">&nbsp;</td></tr>'
         
   output += '<tr><td>Stage ID</td>'
   
   if jobRow['stage_id']:
-    output += ('<td colspan="2"><a href="/dashboard/?method=show-stage&request_id=%s&'
+    output += ('<td colspan="2"><a href="/dashboard/?method=show-stage&workflow_id=%s&'
                'stage_id=%s">%s</a></td></tr>'
-               % (jobRow["request_id"], jobRow["stage_id"],
+               % (jobRow["workflow_id"], jobRow["stage_id"],
                   jobRow["stage_id"]))
   else:
     output += '<td colspan="2">&nbsp;</td></tr>'
         
-  output += '<tr><td>Request by</td>'
+  output += '<tr><td>Workflow by</td>'
   
   if jobRow['user_name']:
     output += '<td colspan="2">%s</td></tr>' % jobRow['user_name']
@@ -2071,9 +2071,9 @@ def showJob(environ, user, cgiValues):
   
   for inputFileRow in inputFilesRows:
     try:
-      output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+      output += ('<a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>' 
-                 % (jobRow["request_id"], 
+                 % (jobRow["workflow_id"], 
                     jobRow["stage_id"],
                     urllib.parse.quote(str(inputFileRow["file_did"]), safe=''),
                     html.escape(inputFileRow["file_did"], quote=True)
@@ -2116,9 +2116,9 @@ def showJob(environ, user, cgiValues):
                    % outputFileRow["file_did"])
 
       else:
-        output += ('<a href="/dashboard/?method=show-file&request_id=%d&stage_id=%d&file_did=%s">'
+        output += ('<a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
                  '%s</a><br>'  
-                 % (jobRow["request_id"], 
+                 % (jobRow["workflow_id"], 
                     outputFileRow["stage_id"],
                     urllib.parse.quote(str(outputFileRow["file_did"]), safe=''),
                     html.escape(outputFileRow["file_did"], quote=True)
@@ -2166,10 +2166,10 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   titleSuffixes = []
 
   try:
-    requestID    = int(cgiValues["request_id"])
-    urlTemplate += ('&request_id=%d' % requestID)
-    titleSuffixes.append('Request %d' % requestID) 
-    filters.append('jobs.request_id=%d' % requestID)
+    workflowID    = int(cgiValues["workflow_id"])
+    urlTemplate += ('&workflow_id=%d' % workflowID)
+    titleSuffixes.append('Workflow %d' % workflowID) 
+    filters.append('jobs.workflow_id=%d' % workflowID)
   except:
     pass
   
@@ -2240,13 +2240,13 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     except Exception as e:
       output += str(e)
   
-  query = ("SELECT jobs.jobsub_id,jobs.request_id,jobs.stage_id,sites.site_name,"
+  query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,sites.site_name,"
            "jobs.allocation_state,jobs.allocation_time,jobs.submitted_time,"
            "jobs.finished_time,jobs.jobsub_state,"
            "principal_names.principal_name AS user_name,jobs.for_awt "
            "FROM jobs "
-           "LEFT JOIN requests ON requests.request_id=jobs.request_id "
-           "LEFT JOIN users ON requests.user_id=users.user_id "
+           "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
+           "LEFT JOIN users ON workflows.user_id=users.user_id "
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
@@ -2267,7 +2267,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
         '<th>Allocation state</th>'
         '<th>Site</th>'
         '<th>User</th>'
-        '<th>Request</th>'
+        '<th>Workflow</th>'
         '<th>Stage</th>'
         '<th>Submitted</th>'
         '<th>Started</th>'
@@ -2281,25 +2281,25 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       userNameStr = ' '
 
     if jobRow['for_awt']:
-      requestStageStr = '<td colspan=2>Workflow Testing</td>'
+      workflowStageStr = '<td colspan=2>Workflow Testing</td>'
       
     else:
-      if jobRow['request_id']:
-        requestStageStr = ('<td><a href="/dashboard/?method=show-request&'
-                           'request_id=%s">%s</a></td>' 
-                           % (jobRow["request_id"],
-                              jobRow["request_id"]))
+      if jobRow['workflow_id']:
+        workflowStageStr = ('<td><a href="/dashboard/?method=show-workflow&'
+                           'workflow_id=%s">%s</a></td>' 
+                           % (jobRow["workflow_id"],
+                              jobRow["workflow_id"]))
       else:
-        requestStageStr = '<td> </td>'
+        workflowStageStr = '<td> </td>'
       
       if jobRow['stage_id']:
-        requestStageStr += (
-             '<td><a href="/dashboard/?method=show-stage&request_id=%s&'
+        workflowStageStr += (
+             '<td><a href="/dashboard/?method=show-stage&workflow_id=%s&'
              'stage_id=%s">%s</a></td>' 
-             % (jobRow["request_id"], 
+             % (jobRow["workflow_id"], 
                 jobRow["stage_id"], jobRow["stage_id"]))
       else:
-        requestStageStr += '<td> </td>'
+        workflowStageStr += '<td> </td>'
   
     if jobRow['site_name']:
       siteNameStr = ('<td><a href="/dashboard/?method=show-site&site_name=%s">'
@@ -2322,7 +2322,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
              jobRow['allocation_state'],
              siteNameStr,
              userNameStr,
-             requestStageStr,
+             workflowStageStr,
              spaceForUnixEpoch(jobRow["submitted_time"]),
              spaceForUnixEpoch(jobRow["allocation_time"]),
              spaceForUnixEpoch(jobRow["finished_time"])
@@ -2975,7 +2975,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   output += ("<h1>Events</h1>")
   
-  query = ('SELECT event_id,event_type_id,events.request_id,events.stage_id,'
+  query = ('SELECT event_id,event_type_id,events.workflow_id,events.stage_id,'
            'file_did,jobsub_id,site_name,rse_name,event_time '
            'FROM events '
            'LEFT JOIN files ON events.file_id=files.file_id '
@@ -2997,7 +2997,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 """<p><table class="center">
 <tr>
 <th>Event</th><th>Type</th><th>Time</th>
-<th>Request</th><th>Stage</th>
+<th>Workflow</th><th>Stage</th>
 <th>File DID</th>
 <th>Jobsub ID</th>
 <th>Site</th>
@@ -3018,18 +3018,18 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
                )          
               )
 
-    if eventRow['request_id']: 
-      output += ('<td><a href="/dashboard/?method=show-request&request_id=%d">'
+    if eventRow['workflow_id']: 
+      output += ('<td><a href="/dashboard/?method=show-workflow&workflow_id=%d">'
             '%d</a></td>' 
-            % (eventRow['request_id'], 
-               eventRow['request_id']))
+            % (eventRow['workflow_id'], 
+               eventRow['workflow_id']))
     else:
       output += ('<td>&nbsp;</td>')
          
     if eventRow['stage_id']: 
-      output += ('<td><a href="/dashboard/?method=show-stage&request_id=%d'
+      output += ('<td><a href="/dashboard/?method=show-stage&workflow_id=%d'
             '&stage_id=%d">%d</a></td>' 
-            % (eventRow['request_id'], 
+            % (eventRow['workflow_id'], 
                eventRow['stage_id'], 
                eventRow['stage_id']))
     else:
@@ -3038,9 +3038,9 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     if eventRow['file_did'] and eventRow['file_did'].startswith('https://'):
       output += '<td style="font-size: 0.8em">%s</td>' % eventRow['file_did']
     elif eventRow['file_did']:
-      output += ('<td><a href="/dashboard/?method=show-file&request_id=%d'
+      output += ('<td><a href="/dashboard/?method=show-file&workflow_id=%d'
             '&stage_id=%d&file_did=%s">%s</td>' 
-            % (eventRow['request_id'], 
+            % (eventRow['workflow_id'], 
                eventRow['stage_id'], 
                eventRow['file_did'], 
                eventRow['file_did']))
@@ -3447,11 +3447,11 @@ def application(environ, startResponse):
   elif method == "show-jobscript":
     output = showJobscript(environ, user, cgiValues)
 
-  elif method == "list-requests":
-    output = listRequests(environ, user, cgiValues, pageNumber, pageLength)
+  elif method == "list-workflows":
+    output = listWorkflows(environ, user, cgiValues, pageNumber, pageLength)
 
-  elif method == "show-request":
-    output = showRequest(environ, user, cgiValues)
+  elif method == "show-workflow":
+    output = showWorkflow(environ, user, cgiValues)
 
   elif method == "show-stage":
     output = showStage(environ, user, cgiValues)

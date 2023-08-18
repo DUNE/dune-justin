@@ -63,7 +63,7 @@ rseCountriesRegions = {
                         'US'  : 'North_America'
                       }
 
-awtRequestID = 1
+awtWorkflowID = 1
 awtFileID    = 1
 
 maxAllocations = 6
@@ -86,7 +86,7 @@ event_REPLICA_ADDED             = 202
 event_REPLICA_STAGING_REQUESTED = 203
 event_REPLICA_STAGING_DONE      = 204
 event_REPLICA_STAGING_CANCELLED = 205
-event_REQUEST_FINISHED          = 206
+event_WORKFLOW_FINISHED         = 206
 
 # Job events
 event_JOB_SUBMITTED		= 301
@@ -138,13 +138,13 @@ eventTypes = {
  event_REPLICA_ADDED             : ['REPLICA_ADDED',
                                     'Replica added for file by finder'],
  event_REPLICA_STAGING_REQUESTED : ['REPLICA_STAGING_REQUESTED',
-                                    'Finder requests replica staging'],
+                                    'Finder workflows replica staging'],
  event_REPLICA_STAGING_DONE      : ['REPLICA_STAGING_DONE',
-                                    'Replica staging requested by finder done'],
+                                    'Replica staging workflowed by finder done'],
  event_REPLICA_STAGING_CANCELLED : ['REPLICA_STAGING_CANCELLED',
                                     'Replica staging cancelled by finder'],
- event_REQUEST_FINISHED          : ['REQUEST_FINISHED',
-                                    'Finder identifies request as finished'],
+ event_WORKFLOW_FINISHED         : ['WORKFLOW_FINISHED',
+                                    'Finder identifies workflow as finished'],
 
  # Job events               
  event_JOB_SUBMITTED    : ['JOB_SUBMITTED',
@@ -236,7 +236,7 @@ def expandEnvVars(s, envs):
 # errors. You must ensure events are committed along with anything else
 # you are writing to the database!!!
 def logEvent(eventTypeID = event_UNDEFINED,
-             requestID = 0,
+             workflowID = 0,
              stageID = 0,
              fileID = 0,
              justinJobID = 0,
@@ -260,7 +260,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
   try:
     query = ('INSERT INTO events SET '
              'event_type_id=%d,'
-             'request_id=%d,'
+             'workflow_id=%d,'
              'stage_id=%d,'
              'file_id=%d,'
              'justin_job_id=%d,'
@@ -268,7 +268,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'rse_id=%s,'
              'event_time=NOW()' %
              (eventTypeID,
-              requestID,
+              workflowID,
               stageID,
               fileID,
               justinJobID,

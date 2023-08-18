@@ -65,10 +65,10 @@ set up.
 
 ## Run some hello world jobs
 
-justIN allows requests to consist of multiple stages, but you can create
-single stage requests with the quick-request subcommand:
+justIN allows workflows to consist of multiple stages, but you can create
+single stage workflows with the simple-workflow subcommand:
 
-    justin quick-request --monte-carlo 10 --jobscript-id testpro:hello-world
+    justin simple-workflow --monte-carlo 10 --jobscript-id testpro:hello-world
 
 If you execute this command now, justIN will take the jobscript
 testpro:hello-world from justIN's Jobscripts Library
@@ -79,7 +79,7 @@ where we want to run a certain number of jobs without inputs from storage,
 justIN creates virtual counter files for you, and allocates these to jobs
 one by one until they are "used up" when sufficient jobs have run. 
 
-`justin quick-request` will have shown you the request ID which is needed to 
+`justin simple-workflow` will have shown you the workflow ID which is needed to 
 find logs, jobs status etc. Please take note of that ID now.
 
 You can use
@@ -88,21 +88,21 @@ You can use
 
 to display the script these 10 jobs are running for you. And 
 
-    justin show-jobs --request-id REQUEST_ID
+    justin show-jobs --workflow-id WORKFLOW_ID
 
-will show you any jobs associated with the request. You need to replace 
-REQUEST_ID with the number displayed by quick-request.
+will show you any jobs associated with the workflow. You need to replace 
+WORKFLOW_ID with the number displayed by simple-workflow.
 
-## View your request on the justIN web dashboard
+## View your workflow on the justIN web dashboard
 
-The two show subcommands are useful for quick checks, but to look at requests
+The two show subcommands are useful for simple checks, but to look at workflows
 and jobs in detail you need to use the 
 [justIN dashboard](https://justin.dune.hep.ac.uk/dashboard/). Go there
-and look for the Requests link in the blue navigation the strip at the top of
-the page. The request you launched will be listed there, with the REQUEST_ID
-shown by the quick-request subcommand when you ran it.
+and look for the Workflows link in the blue navigation the strip at the top of
+the page. The workflow you launched will be listed there, with the WORKFLOW_ID
+shown by the simple-workflow subcommand when you ran it.
 
-The page for that request shows interesting things about it, and the tables
+The page for that workflow shows interesting things about it, and the tables
 near the bottom of the page have information about the states of the 
 counter files and the jobs which are being run for them. The
 stage is to process 10 counter files, and they can be in various states from
@@ -110,7 +110,7 @@ Finding to Unallocated through to Processed. Clicking on the numbers takes
 you to pages with lists of files or jobs in each state. 
 
 For each file, you see where it was processed and which Rucio Storage
-Element it came from. In the case of our Monte Carlo request, our virtual
+Element it came from. In the case of our Monte Carlo workflow, our virtual
 MC counter files come from a virtual RSE called MONTECARLO. 
 
 The Jobsub ID at the end of the line is the ID of the HTCondor job in 
@@ -144,7 +144,7 @@ VD coldbox files. For this tutorial though, please use these commands:
     "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
     "and dune.campaign='dc4' limit 10" 
     
-    justin quick-request \
+    justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
@@ -152,7 +152,7 @@ VD coldbox files. For this tutorial though, please use these commands:
     
 What is this doing?
 
-1. `justin quick-request` as before creates a request with one stage, in one
+1. `justin simple-workflow` as before creates a workflow with one stage, in one
 go.
 2. `--mql "files from ... limit 10"` tells justIN to send the MQL query in
 quotes to MetaCat and get a list of matching files. In this case, only the
@@ -164,7 +164,7 @@ command line itself.
 30 from where the job is running will be considered. In practice, 30 means 
 within North America or within Europe, but not from one to the other. 
 5. `--rss-mb 4000` asks for 4000 MiB of memory. Since `--processors` is not
-given, the default of 1 processor is requested.
+given, the default of 1 processor is workflowed.
 6. `--env NUM_EVENTS=1` sets the environment variable NUM_EVENTS. If you
 look back at the jobscript you will see this variable causes LArSoft to
 process just 1 event from the input file it is given.  
@@ -183,13 +183,13 @@ the example command above they will be written to the closest accessible
 storage, based on where the job is running. The outputs are all registered
 in Rucio, so it's still easy to find them wherever they are written. 
 
-Go ahead and do the `justin quick-request` command shown above, and then
-watch its progress via the justIN dashboard. Find the request's page and 
+Go ahead and do the `justin simple-workflow` command shown above, and then
+watch its progress via the justIN dashboard. Find the workflow's page and 
 look at the states of the input files and the jobs being created in the 
 tables on that page.
 
 Once all the files get to terminal states (processed, failed etc) then
-justIN sets the state of the request itself to finished and stops allocating
+justIN sets the state of the workflow itself to finished and stops allocating
 any more jobs to it.
 
 ## Jobs writing to scratch ##
@@ -215,20 +215,20 @@ Fermilab username.
     "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
     "and dune.campaign='dc4' limit 10" 
     
-    justin quick-request \
+    justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
 
 If you are on a dunegpvm machine, you can view the output directory
-by just using ls, after replacing 00000 with the ID number of your request
+by just using ls, after replacing 00000 with the ID number of your workflow
 including leading zeros:
 
     ls /pnfs/dune/scratch/users/$USER/000000/1/
 
 From anywhere you have GFAL commands and an X.509 proxy, this should work,
-again after replacing 00000 with the ID number of your request
+again after replacing 00000 with the ID number of your workflow
 including leading zeros:
 
     gfal-ls https://fndcadoor.fnal.gov:2880/dune/scratch/users/$USERF/00000/1
@@ -308,13 +308,13 @@ you created. If you produced any large files, please
 delete the directory in /tmp when you're finished.
 
 If you want to test your jobscript running in real jobs, you can repeat the
-quick-request with these options:
+simple-workflow with these options:
 
     MQL_QUERY=\
     "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
     "and dune.campaign='dc4' limit 10" 
     
-    justin quick-request \
+    justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
@@ -396,7 +396,7 @@ It may take a bit longer for the cvmfs files to propogate to remote sites,
 and you should bear that in mind if you see errors in the jobs. 
 These files are likely to last about a month in cvmfs before they
 expire, but you should rerun the commands shown above to upload the tar file
-each day you submit requests that rely on it. Keep the same tar file and 
+each day you submit workflows that rely on it. Keep the same tar file and 
 reupload that, as RCDS records a hash of it and does not unpack a tar file
 it already has. 
 
@@ -418,9 +418,9 @@ You can see it will use a local copy of the environment variable
 `$INPUT_TAR_DIR_LOCAL` to find the
 `hello_world.txt` file in cvmfs and print it out. 
 
-This command creates a request to run it:
+This command creates a workflow to run it:
 
-    justin quick-request --monte-carlo 1 \
+    justin simple-workflow --monte-carlo 1 \
      --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
      --jobscript-id testpro:cvmfs-hello-world
 

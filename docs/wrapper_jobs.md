@@ -12,9 +12,9 @@ Within justIN, a wrapper job is in one of several allocation
 states given here:
 
 - **submitted** - the job has been submitted by the 
-  [justIN Job Factory](agents.job_factory.md) but not yet allocated a request/stage
+  [justIN Job Factory](agents.job_factory.md) but not yet allocated a workflow/stage
 - **started** - the job has succesfully been allocated a stage within a 
-  request to work on by the [allocator service](services.allocator.md) and 
+  workflow to work on by the [allocator service](services.allocator.md) and 
   the supplied jobscript should be running
 - **processing** - the jobscript has successfully been allocated at 
   least one input file to process by the allocator service.
@@ -24,7 +24,7 @@ states given here:
   register with MetaCat and Rucio and to upload 
 - **finished** - the wrapper job has successfully registered and uploaded
   the output files and confirmed this to the allocator service.
-- **notused** - the wrapper job was unable to find a suitable request/stage
+- **notused** - the wrapper job was unable to find a suitable workflow/stage
   to work on and exited.
 - **aborted** - the wrapper job failed in some way and reported this to the
   allocator service.

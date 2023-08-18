@@ -62,7 +62,7 @@ def getJsonURL(url):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
   except Exception as e:
-    logLine('Get JSON URL request fails: ' + str(e))
+    logLine('Get JSON URL workflow fails: ' + str(e))
     return None
   else:
     if response.status != 200:

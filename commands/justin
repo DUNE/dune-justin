@@ -44,15 +44,15 @@ def body(buf):
 #parser = argparse.ArgumentParser(prog='justin', usage='justin COMMAND OPTIONS')
 parser = argparse.ArgumentParser(usage='justin COMMAND OPTIONS')
 
-commands = [ "create-request", 
-             "submit-request", 
-             "restart-request",
-             "pause-request",
-             "finish-request",
+commands = [ "create-workflow", 
+             "submit-workflow", 
+             "restart-workflow",
+             "pause-workflow",
+             "finish-workflow",
              "create-stage", 
              "create-jobscript",
-             "quick-request", 
-             "show-requests", "show-stages", "show-jobscript",
+             "simple-workflow", 
+             "show-workflows", "show-stages", "show-jobscript",
              "show-stage-outputs",
              "show-files",
              "fail-files",
@@ -70,9 +70,9 @@ parser.add_argument("-v",
                     action = "store_true",
                     help = "Verbose logging")
 
-parser.add_argument("--request-id",
+parser.add_argument("--workflow-id",
                     type = int,
-                    help = "Request ID number")
+                    help = "Workflow ID number")
 
 parser.add_argument("--stage-id",
                     type = int,
@@ -222,7 +222,7 @@ if args.command not in commands:
 if jsonDict['verbose']:
   print(jsonDict)
 
-# Set up request contexts to send the command to justIN 
+# Set up workflow contexts to send the command to justIN 
 
 if jsonDict['url']:
   url = jsonDict['url']

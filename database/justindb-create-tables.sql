@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
-  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `jobscript` text NOT NULL,
-  UNIQUE KEY `request_id` (`request_id`,`stage_id`)
+  UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jobscripts_library` (
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `outputting_time` datetime NOT NULL DEFAULT '1970-01-01',
   `finished_time` datetime NOT NULL DEFAULT '1970-01-01',
   `heartbeat_time` datetime NOT NULL DEFAULT '1970-01-01',
-  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `hostname` varchar(255) NOT NULL DEFAULT '',
   `cpuinfo` varchar(255) NOT NULL DEFAULT '',
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
     `submitted_time`),
   INDEX `allocation_state_site_id` (`allocation_state`,`site_id`,
     `submitted_time`),
-  INDEX `request_stage_allocation` (`request_id`,`stage_id`,`allocation_state`)
+  INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`allocation_state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `jobs_logs` (
 CREATE TABLE IF NOT EXISTS `events` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `event_type_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `milliseconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`event_id`),
   INDEX `awt` (`event_type_id`,`rse_id`,`site_id`,`event_time`),
-  INDEX `request_id` (`request_id`,`stage_id`,`event_type_id`,`rse_id`),
+  INDEX `workflow_id` (`workflow_id`,`stage_id`,`event_type_id`,`rse_id`),
   INDEX `file_id` (`file_id`,`event_id`),
   INDEX `justin_job_id` (`justin_job_id`,`event_id`),
   INDEX `site_id` (`site_id`,`event_id`),
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS `events` (
 
 CREATE TABLE IF NOT EXISTS `files` (
   `file_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
   `state` enum('finding','unallocated','allocated',
@@ -130,13 +130,13 @@ CREATE TABLE IF NOT EXISTS `files` (
   `creator_justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `allocations` tinyint(1) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
-  UNIQUE KEY `request_id` (`request_id`,`stage_id`,`file_did`),
-  INDEX `justin_job_id` (`justin_job_id`,`request_id`,`stage_id`),
+  UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`,`file_did`),
+  INDEX `justin_job_id` (`justin_job_id`,`workflow_id`,`stage_id`),
   KEY `state_file_id` (`state`,`file_id`),
-  INDEX `request_stage_state_file` (`request_id`,`stage_id`,`state`,`file_id`),
-  INDEX `request_stage_file_id` (`request_id`,`stage_id`,`file_id`),
+  INDEX `workflow_stage_state_file` (`workflow_id`,`stage_id`,`state`,`file_id`),
+  INDEX `workflow_stage_file_id` (`workflow_id`,`stage_id`,`file_id`),
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
-  INDEX `request_stage_state_processed_site` (`request_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
+  INDEX `workflow_stage_state_processed_site` (`workflow_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `replicas` (
@@ -146,13 +146,13 @@ CREATE TABLE IF NOT EXISTS `replicas` (
   `wan_pfn` varchar(255) NOT NULL,
   `lan_pfn` varchar(255) NOT NULL,
   `accessible_until` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
-  `request_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY(`replica_id`),
   UNIQUE KEY `rse_id` (`rse_id`,`file_id`),
   UNIQUE KEY `pfn` (`wan_pfn`,`file_id`),
   INDEX `file_id` (`file_id`),
-  INDEX `request_stage_rse` (`request_id`,`stage_id`,`rse_id`)
+  INDEX `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `replicas_pins` (
@@ -164,8 +164,8 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
   PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `requests` (
-  `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS `workflows` (
+  `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL DEFAULT '',
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS `requests` (
   `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT '0',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
-  PRIMARY KEY (`request_id`),
+  PRIMARY KEY (`workflow_id`),
   INDEX `state` (`state`,`refind_last_time`,`refind_seconds`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
@@ -233,7 +233,7 @@ CREATE TABLE IF NOT EXISTS `sites_storages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages` (
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL,
@@ -241,11 +241,11 @@ CREATE TABLE IF NOT EXISTS `stages` (
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `max_distance` float NOT NULL DEFAULT 0.0,
-  UNIQUE KEY `request_stage_id` (`request_id`,`stage_id`)
+  UNIQUE KEY `workflow_stage_id` (`workflow_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_outputs` (
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
@@ -254,17 +254,17 @@ CREATE TABLE IF NOT EXISTS `stages_outputs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_output_storages` (
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_environment` (
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `env_name` varchar(255) NOT NULL,
   `env_value` text NOT NULL DEFAULT '',
-  UNIQUE KEY `multiple` (`request_id`,`stage_id`,`env_name`)
+  UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`env_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `get_stage_cache` (
@@ -275,24 +275,24 @@ CREATE TABLE IF NOT EXISTS `get_stage_cache` (
   `max_rss_bytes` bigint(20) unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint(8) unsigned NOT NULL DEFAULT 86400,
   `job_had_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `cache_time` datetime NOT NULL,
   UNIQUE KEY `multiple` (`site_id`,
    `min_processors`,`max_processors`,`min_rss_bytes`,`max_rss_bytes`,
-   `max_wall_seconds`,`job_had_inner_apptainer`,`request_id`,`stage_id`)
+   `max_wall_seconds`,`job_had_inner_apptainer`,`workflow_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `find_file_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `request_id` mediumint(8) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `replica_id` int(10) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,
   `distance` float NOT NULL DEFAULT 100.0,
   `cache_time` datetime NOT NULL,
-  INDEX `multiple` (`site_id`, `request_id`, `stage_id`,
+  INDEX `multiple` (`site_id`, `workflow_id`, `stage_id`,
                     `cache_time`, `distance`, `file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 

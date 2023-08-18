@@ -71,19 +71,19 @@ Session expires : %s UTC
 
   return httpOK(startResponse, outputString)
 
-def showRequestsCmd(startResponse, jsonDict):
+def showWorkflowsCmd(startResponse, jsonDict):
 
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    requestID    = None
-    requestFilter = ""
+    workflowID    = None
+    workflowFilter = ""
   else:
-    requestFilter = "WHERE request_id=" + str(requestID)
+    workflowFilter = "WHERE workflow_id=" + str(workflowID)
 
   try:
-    rows = justin.db.select("SELECT * FROM requests %s ORDER BY created" 
-                         % requestFilter)
+    rows = justin.db.select("SELECT * FROM workflows %s ORDER BY created" 
+                         % workflowFilter)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -92,7 +92,7 @@ def showRequestsCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     outputString += ("%5d %-9s %s %s %s\n" % 
-                     (row['request_id'], row['state'],
+                     (row['workflow_id'], row['state'],
                       row['created'], row['description'], row['mql']))
 
   return httpOK(startResponse, outputString)
@@ -100,9 +100,9 @@ def showRequestsCmd(startResponse, jsonDict):
 def showStagesCmd(startResponse, jsonDict):
 
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    return httpError(startResponse, '400 Bad Request', 'Request ID not given')
+    return httpError(startResponse, '400 Bad Request', 'Workflow ID not given')
 
   try:
     stageID = int(jsonDict['stage_id'])
@@ -113,9 +113,9 @@ def showStagesCmd(startResponse, jsonDict):
     stageFilter = "AND stage_id=" + str(stageID)
 
   try:
-    rows = justin.db.select("SELECT * FROM stages WHERE request_id=%d %s "
-                         "ORDER BY request_id,stage_id" 
-                         % (requestID, stageFilter))
+    rows = justin.db.select("SELECT * FROM stages WHERE workflow_id=%d %s "
+                         "ORDER BY workflow_id,stage_id" 
+                         % (workflowID, stageFilter))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -124,7 +124,7 @@ def showStagesCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     outputString += ("%5d %2d %d %d %d %.1f\n" % 
-                     (row['request_id'], 
+                     (row['workflow_id'], 
                       row['stage_id'], 
                       row['processors'],
                       row['wall_seconds'],
@@ -142,20 +142,20 @@ def showJobscriptCmd(startResponse, jsonDict):
     jsid = None
 
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    requestID = 0
+    workflowID = 0
 
   try:
     stageID = int(jsonDict['stage_id'])
   except:
     stageID = 0
 
-  if (jsid and (requestID or stageID)) or \
-     (not jsid and (not requestID or not stageID)):
+  if (jsid and (workflowID or stageID)) or \
+     (not jsid and (not workflowID or not stageID)):
     return httpError(startResponse,
                      '400 Bad Request', 
-          '--jobscript-id OR --request-id/--stage-id must be given')
+          '--jobscript-id OR --workflow-id/--stage-id must be given')
 
   if jsid:
     # From Jobscripts Library with JSID
@@ -169,10 +169,10 @@ def showJobscriptCmd(startResponse, jsonDict):
     jobscript = response['jobscript']
 
   else:
-    # From stage with requestID and stageID
+    # From stage with workflowID and stageID
     query = ('SELECT jobscript FROM stages_jobscripts '
-             'WHERE request_id=%d AND stage_id=%d'
-             % (requestID, stageID))
+             'WHERE workflow_id=%d AND stage_id=%d'
+             % (workflowID, stageID))
   
     try:
       row = justin.db.select(query, justOne = True)
@@ -190,9 +190,9 @@ def showJobscriptCmd(startResponse, jsonDict):
 def showStageOutputsCmd(startResponse, jsonDict):
 
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    return httpError(startResponse, '400 Bad Request', 'Request ID not given')
+    return httpError(startResponse, '400 Bad Request', 'Workflow ID not given')
 
   try:
     stageID = int(jsonDict['stage_id'])
@@ -205,14 +205,14 @@ def showStageOutputsCmd(startResponse, jsonDict):
                             "file_pattern,"
                             "destination "
                             "FROM stages_outputs "
-                            "LEFT JOIN requests "
-                            "ON requests.request_id=stages_outputs.request_id "
+                            "LEFT JOIN workflows "
+                            "ON workflows.workflow_id=stages_outputs.workflow_id "
                             "LEFT JOIN scopes "
-                            "ON requests.scope_id=scopes.scope_id "
-                            "WHERE stages_outputs.request_id=%d "
+                            "ON workflows.scope_id=scopes.scope_id "
+                            "WHERE stages_outputs.workflow_id=%d "
                             "AND stages_outputs.stage_id=%d "
                             "ORDER BY destination,file_scope,file_pattern" 
-                            % (requestID, stageID))
+                            % (workflowID, stageID))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -312,14 +312,14 @@ def showFilesCmd(startResponse, jsonDict):
     mql = None
   
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    requestID = None
+    workflowID = None
 
-  if (mql and requestID) or (not mql and not requestID):
+  if (mql and workflowID) or (not mql and not workflowID):
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Request ID or MQL must be given (but not both)')
+                     'Workflow ID or MQL must be given (but not both)')
 
   if mql:
     fileDIDs = queryMetaCat(mql)
@@ -352,10 +352,10 @@ def showFilesCmd(startResponse, jsonDict):
 
   try:
     rows = justin.db.select("SELECT * FROM files "
-                            "WHERE request_id=%d %s "
+                            "WHERE workflow_id=%d %s "
                             "AND files.stage_id > 0 "
-                            "ORDER BY request_id,stage_id,file_did LIMIT 100"
-                            % (requestID, filter))
+                            "ORDER BY workflow_id,stage_id,file_did LIMIT 100"
+                            % (workflowID, filter))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -364,7 +364,7 @@ def showFilesCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     outputString += ("%5d %2d %-11s %s\n" % 
-                     (row['request_id'],
+                     (row['workflow_id'],
                       row['stage_id'],
                       row['state'],
                       row['file_did'],
@@ -381,14 +381,14 @@ def showReplicasCmd(startResponse, jsonDict):
     mql = None
   
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    requestID = None
+    workflowID = None
 
-  if (mql and requestID) or (not mql and not requestID):
+  if (mql and workflowID) or (not mql and not workflowID):
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Request ID or MQL must be given (but not both)')
+                     'Workflow ID or MQL must be given (but not both)')
 
   if mql and mql.strip().startswith('monte-carlo '):
     try:
@@ -449,15 +449,15 @@ def showReplicasCmd(startResponse, jsonDict):
     pass
 
   try:
-    rows = justin.db.select("SELECT replicas.request_id,replicas.stage_id,"
+    rows = justin.db.select("SELECT replicas.workflow_id,replicas.stage_id,"
                  "files.state,"
                  "storages.rse_name,files.file_did,replicas.wan_pfn "
                  "FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
                  "LEFT JOIN files ON replicas.file_id=files.file_id "
-                 "WHERE request_id=%d %s AND replicas.stage_id > 0 ORDER BY "
-                 "files.request_id,files.stage_id,files.file_did LIMIT 100"
-                 % (requestID, filter))
+                 "WHERE workflow_id=%d %s AND replicas.stage_id > 0 ORDER BY "
+                 "files.workflow_id,files.stage_id,files.file_did LIMIT 100"
+                 % (workflowID, filter))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -466,7 +466,7 @@ def showReplicasCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     outputString += ("%5d %2d %-11s %s %s %s\n" %
-                     (row['request_id'],
+                     (row['workflow_id'],
                       row['stage_id'],
                       row['state'],
                       row['file_did'],
@@ -477,7 +477,7 @@ def showReplicasCmd(startResponse, jsonDict):
    
   return httpOK(startResponse, outputString)
 
-def createRequest(jsonDict, user, quick = False):
+def createWorkflow(jsonDict, user, simple = False):
 
   if 'description' in jsonDict and jsonDict['description']:
     description = jsonDict['description']
@@ -569,7 +569,7 @@ def createRequest(jsonDict, user, quick = False):
     refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
 
   try:
-    requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
+    workflowID = justin.db.insertUpdate('INSERT INTO workflows SET created=NOW(),'
           'state="%s",'
           '%s'
           'description="%s",'
@@ -579,8 +579,8 @@ def createRequest(jsonDict, user, quick = False):
           'refind_seconds=%d,'
           'refind_start_time="%s",'
           'refind_end_time="%s"' %
-          ('submitted' if quick else 'draft',
-           'submitted=NOW(),' if quick else '',
+          ('submitted' if simple else 'draft',
+           'submitted=NOW(),' if simple else '',
            description,
            mql,
            scopeID,
@@ -592,114 +592,114 @@ def createRequest(jsonDict, user, quick = False):
     return ('500 Internal Server Error', 
             'Error updating justIN database ' + str(e))
 
-  return ('200 OK', requestID)
+  return ('200 OK', workflowID)
 
-def createRequestCmd(startResponse, jsonDict, user):
+def createWorkflowCmd(startResponse, jsonDict, user):
 
-  (code, message) = createRequest(jsonDict, user)
+  (code, message) = createWorkflow(jsonDict, user)
 
   if code == '200 OK':
     return httpOK(startResponse, str(message) + '\n')
 
   return httpError(startResponse, code, message)
 
-def quickRequestCmd(startResponse, jsonDict, user):
+def simpleWorkflowCmd(startResponse, jsonDict, user):
 
   if 'monte_carlo' in jsonDict and jsonDict['monte_carlo']:
     jsonDict['max_distance'] = 100
 
-  # First create the request
-  (code, requestMessage) = createRequest(jsonDict, user, quick = True)
+  # First create the workflow
+  (code, workflowMessage) = createWorkflow(jsonDict, user, simple = True)
 
   if code != '200 OK':
-    return httpError(startResponse, code, requestMessage)
+    return httpError(startResponse, code, workflowMessage)
 
   # Then create its single stage
-  jsonDict['request_id'] = int(requestMessage)
+  jsonDict['workflow_id'] = int(workflowMessage)
   jsonDict['stage_id']   = 1
-  (code, stageMessage) = createStage(jsonDict, user, quick = True, 
+  (code, stageMessage) = createStage(jsonDict, user, simple = True, 
                                      scopeName = jsonDict['scope'])
 
   if code != '200 OK':
     return httpError(startResponse, code, stageMessage)
 
-  # We output the message from the request creation
-  return httpOK(startResponse, str(requestMessage) + '\n')
+  # We output the message from the workflow creation
+  return httpOK(startResponse, str(workflowMessage) + '\n')
 
-def modifyRequestCmds(startResponse, jsonDict, user):
-  # Generic handler for restart-request, submit-request, pause-request and
-  # finish-request
+def modifyWorkflowCmds(startResponse, jsonDict, user):
+  # Generic handler for restart-workflow, submit-workflow, pause-workflow and
+  # finish-workflow
 
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Request ID must be given')
+                     'Workflow ID must be given')
 
   try:
-    row = justin.select('SELECT requests.user_id,requests.state,'
-                        'wlcg_group_name FROM requests '
+    row = justin.select('SELECT workflows.user_id,workflows.state,'
+                        'wlcg_group_name FROM workflows '
                         'LEFT JOIN scopes '
-                        'ON scopes.scope_id=requests.scope_id '
+                        'ON scopes.scope_id=workflows.scope_id '
                         'LEFT JOIN wlcg_groups '
                         'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                        'WHERE requests.request_id=%d' % requestID,
+                        'WHERE workflows.workflow_id=%d' % workflowID,
                         justOne = True)
 
-    requestUserID = int(row['user_id'])
-    requestState  = row['state']
+    workflowUserID = int(row['user_id'])
+    workflowState  = row['state']
     wlcgGroupName = row['wlcg_group_name']
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'Database error: ' + str(e))
   
-  if requestUserID != user['user_id'] and \
+  if workflowUserID != user['user_id'] and \
      wlcgGroupName not in user['wlcg_groups']:
     return httpError(startResponse,
                      '403 Forbidden',
-                     'You do not have permission to update that request')
+                     'You do not have permission to update that workflow')
   
-  if jsonDict['command'] == 'submit-request':
-    if requestState != 'draft':
+  if jsonDict['command'] == 'submit-workflow':
+    if workflowState != 'draft':
       return httpError(startResponse,
                        '403 Forbidden',
-                       'You cannot submit a request that was already submitted')
+                       'You cannot submit a workflow that was already submitted')
 
-    query = ("UPDATE requests SET "
+    query = ("UPDATE workflows SET "
              "state='submitted',submitted=NOW() "
-             "WHERE request_id=%d AND state='draft'" % requestID)
+             "WHERE workflow_id=%d AND state='draft'" % workflowID)
 
-  elif jsonDict['command'] == 'restart-request':
-    if requestState != 'paused':
+  elif jsonDict['command'] == 'restart-workflow':
+    if workflowState != 'paused':
       return httpError(startResponse,
                        '403 Forbidden',
-                       'You cannot restart a request that is not paused')
+                       'You cannot restart a workflow that is not paused')
 
-    query = ("UPDATE requests SET state='running' "
-             "WHERE request_id=%d AND state='paused'"
-             % requestID)
+    query = ("UPDATE workflows SET state='running' "
+             "WHERE workflow_id=%d AND state='paused'"
+             % workflowID)
 
-  elif jsonDict['command'] == 'pause-request':
-    if requestState != 'running':
+  elif jsonDict['command'] == 'pause-workflow':
+    if workflowState != 'running':
       return httpError(startResponse,
                        '403 Forbidden',
-                       'You cannot pause a request that is not running')
+                       'You cannot pause a workflow that is not running')
 
-    query = ("UPDATE requests SET state='paused' "
-             "WHERE request_id=%d "
-             "AND state='running'" % requestID)
+    query = ("UPDATE workflows SET state='paused' "
+             "WHERE workflow_id=%d "
+             "AND state='running'" % workflowID)
 
-  elif jsonDict['command'] == 'finish-request':
-    if requestState != 'running' and requestState != 'submitted':
+  elif jsonDict['command'] == 'finish-workflow':
+    if workflowState != 'running' and workflowState != 'submitted':
       return httpError(startResponse,
                        '403 Forbidden',
-                       'You cannot finish a request that is not running')
+                       'You cannot finish a workflow that is not running')
 
-    query = ("UPDATE requests SET state='finished',finished=NOW() "
-             "WHERE request_id=%d "
-             "AND (state='running' OR state='submitted')" % requestID)
+    query = ("UPDATE workflows SET state='finished',finished=NOW() "
+             "WHERE workflow_id=%d "
+             "AND (state='running' OR state='submitted')" % workflowID)
 
   try:
     justin.insertUpdate(query)
@@ -710,35 +710,35 @@ def modifyRequestCmds(startResponse, jsonDict, user):
 
   return httpOK(startResponse, '')
 
-def createStage(jsonDict, user, quick = False, scopeName = None):
+def createStage(jsonDict, user, simple = False, scopeName = None):
 
   try:
-    requestID  = int(jsonDict['request_id'])
+    workflowID  = int(jsonDict['workflow_id'])
   except:
-    return ('400 Bad Request', 'Request ID must be given')
+    return ('400 Bad Request', 'Workflow ID must be given')
 
-  if not quick:
-    # Check reference is to a valid existing request
+  if not simple:
+    # Check reference is to a valid existing workflow
     try:
-      requestRow = justin.select('SELECT requests.scope_id,scope_name,'
-                           'wlcg_group_name,requests.user_id FROM requests '
+      workflowRow = justin.select('SELECT workflows.scope_id,scope_name,'
+                           'wlcg_group_name,workflows.user_id FROM workflows '
                            'LEFT JOIN scopes '
-                           'ON scopes.scope_id=requests.scope_id '
+                           'ON scopes.scope_id=workflows.scope_id '
                            'LEFT JOIN wlcg_groups '
                            'ON wlcg_group.wlcg_group_id=scopes.wlcg_group_id '
-                           'WHERE request_id=%d' % requestID, 
+                           'WHERE workflow_id=%d' % workflowID, 
                            justOne = True)
-      requestUserID = int(requestRow['user_id'])
-      scopeID       = int(requestRow['scope_id'])
-      scopeName     = requestRow['scope_name']
-      wlcgGroupName = requestRow['wlcg_group_name']
+      workflowUserID = int(workflowRow['user_id'])
+      scopeID       = int(workflowRow['scope_id'])
+      scopeName     = workflowRow['scope_name']
+      wlcgGroupName = workflowRow['wlcg_group_name']
     except:
-      return ('400 Bad Request', 'Valid request ID must be given')
+      return ('400 Bad Request', 'Valid workflow ID must be given')
 
-    if requestUserID != user['user_id'] and \
+    if workflowUserID != user['user_id'] and \
        wlcgGroupName not in user['wlcg_groups']:
       return ('403 Forbidden', 
-              'You do not have permission to add a stage to that request')
+              'You do not have permission to add a stage to that workflow')
 
   try:
     stageID = int(jsonDict['stage_id'])
@@ -795,22 +795,22 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
   try:
     justin.db.insertUpdate("INSERT INTO stages SET "
                         "stage_rank=0,"
-                        "request_id=%d,"
+                        "workflow_id=%d,"
                         "stage_id=%d,"
                         "jobscript_id=%d,"
                         "processors=%d,"
                         "wall_seconds=%d,"
                         "rss_bytes=%d,"
                         "max_distance=%f" 
-                        % (requestID, stageID, 
+                        % (workflowID, stageID, 
                            jobscriptID, processors,
                            wallSeconds, rssBytes, maxDistance))
           
     justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
-                           'request_id=%d,'
+                           'workflow_id=%d,'
                            'stage_id=%d,'
                            'jobscript="%s"' 
-                           % (requestID, stageID, 
+                           % (workflowID, stageID, 
                          jobscript.replace('\\','\\\\').replace('"','\\"')))
 
   except Exception as e:
@@ -822,7 +822,7 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
   except:
     lifetimeDays = 1
 
-  justinEnvVars = { 'JUSTIN_REQUEST_ID' : str(requestID),
+  justinEnvVars = { 'JUSTIN_WORKFLOW_ID' : str(workflowID),
                     'JUSTIN_STAGE_ID'   : str(stageID)    }
 
   if scopeName:
@@ -841,14 +841,14 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
       if not destination.startswith('https://') and not scopeName:
         return ('400 Bad Request', 
-                'A scope must be specified when creating the request if '
+                'A scope must be specified when creating the workflow if '
                 '--output-pattern is given for this stage '
                 'and a Rucio dataset is given.')
 
       destination = justin.expandEnvVars(destination, justinEnvVars)
       outputPatterns.append((False, pattern, destination))
 
-  if not quick:
+  if not simple:
     # check output_pattern is not None then proceed
     if jsonDict['output_pattern_next_stage']:
       for i in jsonDict['output_pattern_next_stage']:
@@ -860,7 +860,7 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
         if not destination.startswith('https://') and not scopeName:
           return ('400 Bad Request', 
-                  'A scope must be specified when creating the request if '
+                  'A scope must be specified when creating the workflow if '
                   '--output-pattern-next-stage is given for this stage '
                   'and a Rucio dataset is given.')
 
@@ -885,8 +885,8 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
         if destination[-1] == '/':
           destination = destination[:-1]
 
-        # Add Request ID and Stage ID to URL
-        destination = destination + '/%05d/%d' % (requestID, stageID)
+        # Add Workflow ID and Stage ID to URL
+        destination = destination + '/%05d/%d' % (workflowID, stageID)
     else:
         # Rucio dataset name
         if not justin.stringIsDID(destination) or ':' in destination:
@@ -894,13 +894,13 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
     try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
-              'request_id=%d,'
+              'workflow_id=%d,'
               'stage_id=%d,'
               'destination="%s",'
               'file_pattern="%s",'
               'lifetime_seconds=%d,'
               'for_next_stage=%s' % 
-              (requestID, stageID,
+              (workflowID, stageID,
                destination,
                pattern,
                lifetimeDays * 86400,
@@ -920,10 +920,10 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
       try:        
         justin.db.insertUpdate('INSERT INTO stages_output_storages SET '
-              'request_id=%d,'
+              'workflow_id=%d,'
               'stage_id=%d,'
               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
-              (requestID, stageID, rseName))
+              (workflowID, stageID, rseName))
 
       except Exception as e:
         return ('500 Internal Server Error', 'Error updating justIN database ' + str(e))
@@ -940,11 +940,11 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
 
       try:
         justin.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
-              'request_id=%d,'
+              'workflow_id=%d,'
               'stage_id=%d,'
               'env_name="%s",'
               'env_value="%s"' % 
-              (requestID, 
+              (workflowID, 
                stageID, 
                envName, 
                envValue.replace('\\','\\\\').replace('"','\\"')
@@ -1093,34 +1093,34 @@ def createJobscriptCmd(startResponse, jsonDict, user):
 def failFilesCmd(startResponse, jsonDict, user):
 
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Request ID must be given')
+                     'Workflow ID must be given')
 
   try:
-    row = justin.select('SELECT requests.user_id,wlcg_group_name '
-                        'FROM requests '
+    row = justin.select('SELECT workflows.user_id,wlcg_group_name '
+                        'FROM workflows '
                         'LEFT JOIN scopes '
-                        'ON scopes.scope_id=requests.scope_id '
+                        'ON scopes.scope_id=workflows.scope_id '
                         'LEFT JOIN wlcg_groups '
                         'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                        'WHERE requests.request_id=%d' % requestID, 
+                        'WHERE workflows.workflow_id=%d' % workflowID, 
                         justOne = True)
 
-    requestUserID = row['user_id']
+    workflowUserID = row['user_id']
     wlcgGroupName = row['wlcg_group_name']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'Database error')
   
-  if requestUserID != user['user_id'] and \
+  if workflowUserID != user['user_id'] and \
      wlcgGroupName not in user['wlcg_groups']:
     return httpError(startResponse,
                      '403 Forbidden',
-                     'You do not have permission to update that request')
+                     'You do not have permission to update that workflow')
 
   try:
     stageID  = int(jsonDict['stage_id'])
@@ -1130,9 +1130,9 @@ def failFilesCmd(startResponse, jsonDict, user):
 
   try:
     justin.db.insertUpdate('UPDATE files SET state="failed" '
-          'WHERE request_id=%d %s '
+          'WHERE workflow_id=%d %s '
           'AND state IN ("finding", "unallocated", "allocated", "outputting")'
-          % (requestID, stageStr))
+          % (workflowID, stageStr))
 
   except Exception as e:
     return httpError(startResponse, 
@@ -1149,9 +1149,9 @@ def showJobsCmd(startResponse, jsonDict):
     jobsubID = None
   
   try:
-    requestID = int(jsonDict['request_id'])
+    workflowID = int(jsonDict['workflow_id'])
   except:
-    requestID = None
+    workflowID = None
   
   try:
     stageID = int(jsonDict['stage_id'])
@@ -1160,12 +1160,12 @@ def showJobsCmd(startResponse, jsonDict):
   
   if jobsubID:
     filter = "WHERE jobsub_id='%s'" % jobsubID 
-  elif requestID:
-    filter = "WHERE request_id=%d AND stage_id=%d" % (requestID, stageID)
+  elif workflowID:
+    filter = "WHERE workflow_id=%d AND stage_id=%d" % (workflowID, stageID)
   else:
     return httpError(startResponse, 
                      '400 Bad Request', 
-                     'Either Jobsub ID or Request ID must be given')
+                     'Either Jobsub ID or Workflow ID must be given')
 
   if jsonDict['state']:
     try:  
@@ -1177,7 +1177,7 @@ def showJobsCmd(startResponse, jsonDict):
       pass
 
   try:
-    rows = justin.db.select("SELECT jobsub_id,request_id,stage_id,"
+    rows = justin.db.select("SELECT jobsub_id,workflow_id,stage_id,"
                          "allocation_state,allocation_time "
                          "FROM jobs "
                          + filter +
@@ -1190,7 +1190,7 @@ def showJobsCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     outputString += ("%30s %5s %2s %10s  %s\n" % 
-                     (row['jobsub_id'], row['request_id'], row['stage_id'], 
+                     (row['jobsub_id'], row['workflow_id'], row['stage_id'], 
                       row['allocation_state'], row['allocation_time']))
    
   return httpOK(startResponse, outputString)
@@ -1434,8 +1434,8 @@ def application(environ, startResponse):
   if jsonDict['command'] == 'whoami':
     return whoamiCmd(startResponse, user)
 
-  if jsonDict['command'] == 'show-requests':
-    return showRequestsCmd(startResponse, jsonDict)
+  if jsonDict['command'] == 'show-workflows':
+    return showWorkflowsCmd(startResponse, jsonDict)
 
   if jsonDict['command'] == 'show-stages':
     return showStagesCmd(startResponse, jsonDict)
@@ -1455,15 +1455,15 @@ def application(environ, startResponse):
   if jsonDict['command'] == 'show-replicas':
     return showReplicasCmd(startResponse, jsonDict)
 
-  if jsonDict['command'] == 'create-request':
-    return createRequestCmd(startResponse, jsonDict, user)
+  if jsonDict['command'] == 'create-workflow':
+    return createWorkflowCmd(startResponse, jsonDict, user)
 
-  if jsonDict['command'] == 'quick-request':
-    return quickRequestCmd(startResponse, jsonDict, user)
+  if jsonDict['command'] == 'simple-workflow':
+    return simpleWorkflowCmd(startResponse, jsonDict, user)
 
-  if jsonDict['command'] in ['submit-request', 'restart-request',
-                             'pause-request', 'finish-request']:
-    return modifyRequestCmds(startResponse, jsonDict, user)
+  if jsonDict['command'] in ['submit-workflow', 'restart-workflow',
+                             'pause-workflow', 'finish-workflow']:
+    return modifyWorkflowCmds(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'create-stage':
     return createStageCmd(startResponse, jsonDict, user)

@@ -36,7 +36,7 @@ jobsNoRolesProxyString = None
 jobsNoRolesProxyFile   = '/var/lib/justin/justin-jobs-no-roles.proxy.pem'
 
 # Populate the list unallocatedCounts with tuples for the number of
-# unallocated files for any running request or stage for each processor
+# unallocated files for any running workflow or stage for each processor
 # memory and inner apptainer combination
 def getUnallocatedCounts():
 
@@ -59,20 +59,20 @@ def getUnallocatedCounts():
       
         try:
           matches = justin.select('SELECT COUNT(*) AS count FROM files '
-                                'LEFT JOIN requests '
-                                'ON requests.request_id = files.request_id '
+                                'LEFT JOIN workflows '
+                                'ON workflows.workflow_id = files.workflow_id '
                                 'LEFT JOIN stages '
-                                'ON stages.request_id = files.request_id AND '
+                                'ON stages.workflow_id = files.workflow_id AND '
                                 'stages.stage_id = files.stage_id '
                                 'LEFT JOIN scopes '
-                                'ON requests.scope_id=scopes.scope_id '
-                                'WHERE files.request_id <> %d AND '
+                                'ON workflows.scope_id=scopes.scope_id '
+                                'WHERE files.workflow_id <> %d AND '
                                 'files.state = "unallocated" AND '
-                                'requests.state="running" AND '
+                                'workflows.state="running" AND '
                                 'stages.processors = %d AND '
                                 'stages.rss_bytes > %d AND '
                                 'stages.rss_bytes <= %d %s' %
-                                (justin.awtRequestID,
+                                (justin.awtWorkflowID,
                                  processors,
                                  bytesPerProcessor * (processors - 1),
                                  bytesPerProcessor * processors,
