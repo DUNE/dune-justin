@@ -137,7 +137,7 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
          }
 
 # Make a new certificate from the certificate workflow sent by the 
-# generic job, signed by the VOMS proxy loaded from local disk
+# wrapper job, signed by the VOMS proxy loaded from local disk
 # Exceptions must by caught by the caller
 def delegateJobsProxy(newCertRequest, jobsProxyString):
 
@@ -627,7 +627,7 @@ def getStageMethod(startResponse, jsonDict, environ):
 
   return [s]
    
-# Record heartbeats from generic jobs
+# Record heartbeats from wrapper jobs
 def sendHeartbeatMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
@@ -680,7 +680,7 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   # All ok, now process the message
 
-# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON GENERIC JOBS!
+# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON WRAPPER JOBS!
   if httpCode == 404 and jsonDict['aborted_method'].startswith('get_stage'):
     state = 'notused'
     eventTypeID = justin.db.event_JOB_NOTUSED
@@ -774,12 +774,12 @@ def findCachedFile(jobDict):
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
   justin.db.logEvent(eventTypeID = justin.db.event_FILE_ALLOCATED,
-                  workflowID   = jobDict['workflow_id'],
-                  stageID     = jobDict['stage_id'],
-                  fileID      = replicaRow['file_id'],
-                  justinJobID    = jobDict['justin_job_id'],
-                  siteID      = jobDict['site_id'],
-                  rseID       = replicaRow['rse_id'])
+                     workflowID     = jobDict['workflow_id'],
+                     stageID        = jobDict['stage_id'],
+                     fileID         = replicaRow['file_id'],
+                     justinJobID    = jobDict['justin_job_id'],
+                     siteID         = jobDict['site_id'],
+                     rseID          = replicaRow['rse_id'])
 
   # If storage is at the same site and a lan PFN is given, use it
   if replicaRow['distance'] == 0 and replicaRow['lan_pfn']:
@@ -968,7 +968,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
     print('Update awt last time fails with %s' % str(e), 
           file=sys.stderr)
 
-# Before uploading output files the generic jobs record any results from 
+# Before uploading output files the wrapper jobs record any results from 
 # the jobscript, but just puts them in the "outputting" state
 def recordResultsMethod(startResponse, jsonDict):
 
@@ -1284,7 +1284,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-# After the output files have been successfully uploaded, the generic job
+# After the output files have been successfully uploaded, the wrapper job
 # comes back with this method which changes the state of input files from
 # outputting to processed, and of output files from recorded to finding.
 def confirmResultsMethod(startResponse, jsonDict):
@@ -1554,7 +1554,7 @@ def application(environ, startResponse):
      jsonDict['method'] == 'samweb_getnextfile':
     return getFileMethod(startResponse, jsonDict)
 
-  # All other methods are called by the generic job using its secret hash
+  # All other methods are called by the wrapper job using its secret hash
   # which is checked with checkSecretHash()
   try:
     checkSecretHash(environ, jsonDict)
@@ -1562,11 +1562,11 @@ def application(environ, startResponse):
     return httpError(startResponse, '403 Forbidden', str(e))
 
   # Get the stage for the job to work on
-# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON GENERIC JOBS!
+# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON WRAPPER JOBS!
   if jsonDict['method'].startswith('get_stage'):
     return getStageMethod(startResponse, jsonDict, environ)
 
-  # Record heartbeats from the generic jobs
+  # Record heartbeats from the wrapper jobs
   if jsonDict['method'] == 'send_heartbeat':
     return sendHeartbeatMethod(startResponse, jsonDict)
 

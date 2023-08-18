@@ -876,7 +876,7 @@ def updateScopes():
         continue
         
     if rucioScopeName in duneproScopeNames:
-      # A dunepro scope, that generic jobs can write to
+      # A dunepro scope, that wrapper jobs can write to
       if rucioScopeName == 'usertests':
         # Any /dune member can write to usertests via justIN
         wlcgGroupID = duneWLCGGroupID
@@ -884,7 +884,7 @@ def updateScopes():
         # Everything else requires /dune/production group membership
         wlcgGroupID = productionWLCGGroupID
     else:
-      # If not writeable via generic jobs as dunepro, then no groups
+      # If not writeable via wrapper jobs as dunepro, then no groups
       wlcgGroupID = 0
 
     logLine('Update scope %s with wlcg_group_id=%d' 

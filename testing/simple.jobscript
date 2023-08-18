@@ -20,7 +20,7 @@ did=`echo $did_pfn_rse | cut -f1 -d' '`
 pfn=`echo $did_pfn_rse | cut -f2 -d' '`
 rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-# These files are found by the generic job using the --output-pattern
+# These files are found by the wrapper job using the --output-pattern
 # form given on the justin command line (see above).
 xrdcp --nopbar --debug 1 $pfn tmp
 sha1sum tmp >sha1sum-$(date -u +%Y%m%dT%H%M%SZ).txt

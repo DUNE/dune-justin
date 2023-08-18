@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# justin-generic-job-py - HTCondor job submitted by justin-job-factory agent
+# justin-wrapper-job - HTCondor job submitted by justin-job-factory agent
 #
 # Copyright 2013-23, Andrew McNab for the University of Manchester
 # 
@@ -52,7 +52,7 @@ def sendJsonURL(url, sendDict):
                                      hashlib.sha256).hexdigest()
 
   httpRequest = urllib.request.Request(url,
-                   headers = { 'User-Agent'       : 'justin-generic-job',
+                   headers = { 'User-Agent'       : 'justin-wrapper-job',
                                'X-Jobid'          : jobsubJobID,
                                'X-DUNE-Site-Name' : siteName,
                                'Expect'           : ''
@@ -155,7 +155,7 @@ def executeJustinRucioUpload(args):
 
 #
 # Start of WebDAV uploads: this code is shared between justin-webdav-upload 
-# and justin-generic-job-py to make them both self contained
+# and justin-wrapper-job to make them both self contained
 #
 
 def webdavCheckRemoteDirectories(sslContext, token, dirSplit):
@@ -396,7 +396,7 @@ def updateMetadataTmp(fileScope, fileName,
     f.write(json.dumps(metadata, indent = 4, sort_keys = True))
   
 ########################################################################
-logLine('====Start of justin-generic-job====')
+logLine('====Start of justin-wrapper-job====')
 
 for i in os.environ:
  print('%s=%s' % (i, os.environ[i]))
@@ -575,7 +575,7 @@ with open('home/justin-jobs-no-roles.proxy.pem', 'w') as f:
 
 os.chmod('home/justin-jobs-no-roles.proxy.pem', 0o400)
 
-# Assemble proxy to be used by generic job itself
+# Assemble proxy to be used by wrapper job itself
 with open('justin-jobs-production.proxy.pem', 'w') as f:
   f.write(receivedDict['justin-jobs-production.cert.pem'])
   f.write(justinJobsProductionKeyPem)
@@ -643,7 +643,7 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
 
   os.chmod('home/jobscript-wrapper.sh', 0o755)
 
-  logLine('Inner apptainer not available. Run jobscript in generic job context')
+  logLine('Inner apptainer not available. Run jobscript in wrapper job context')
   logLine('====Start of jobscript execution====')
   jobscriptStartTime=int(time.time())
 
@@ -879,7 +879,7 @@ logLine('confirm_results returns HTTP code %d' % confirmDict['status'])
 if confirmDict['status'] != 200:
   jobAborted(900, 'confirm_results', '')
 
-logLine('====End of justin-generic-job====')
+logLine('====End of justin-wrapper-job====')
 time.sleep(10)
 sys.exit(0)
 ########################################################################

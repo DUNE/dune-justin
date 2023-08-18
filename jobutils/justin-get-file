@@ -28,6 +28,7 @@ ${JUSTIN_ALLOCATOR}get_file 2>/dev/null`
 
 if [ "$http_code" = 200 ] ; then
  cat $GET_FILE_TMP
+ head -1 $GET_FILE_TMP | cut -f1 -d' ' >>all-input-dids.txt
  retcode=0
 elif [ "$http_code" = 404 ] ; then 
  echo "No files available from this stage" >&2
