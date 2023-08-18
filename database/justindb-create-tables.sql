@@ -184,11 +184,27 @@ CREATE TABLE IF NOT EXISTS `requests` (
   INDEX `state` (`state`,`refind_last_time`,`refind_seconds`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `entries` (
+  `entry_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `site_id` smallint(5) unsigned NOT NULL,
+  `entry_name` varchar(255) NOT NULL,
+  `gatekeeper` varchar(255) NOT NULL,
+  `max_processors` tinyint unsigned NOT NULL DEFAULT 1,
+  `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
+  `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
+  `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
+  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  PRIMARY KEY (`entry_id`),
+  UNIQUE KEY `entry_name` (`entry_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `sites` (
   `site_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `site_name` varchar(255) NOT NULL,
   `jobsub_site_name` varchar(255) NOT NULL,
   `wlcg_site_name` varchar(255) NOT NULL,
+  `site_region` varchar(255) NOT NULL DEFAULT '',
+  `site_country` varchar(4) NOT NULL DEFAULT '',
   `max_processors` tinyint unsigned NOT NULL DEFAULT 1,
   `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
@@ -285,9 +301,9 @@ CREATE TABLE IF NOT EXISTS `storages` (
   `rse_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `decommissioned` tinyint(1) NOT NULL DEFAULT FALSE,
   `occupancy` float NOT NULL DEFAULT 0,
-  `rse_region` varchar(255) NOT NULL DEFAULT '',
-  `rse_country` varchar(255) NOT NULL DEFAULT '',
-  `rse_site` varchar(255) NOT NULL DEFAULT '',
+  `region` varchar(255) NOT NULL DEFAULT '',
+  `country` varchar(4) NOT NULL DEFAULT '',
+  `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `rucio_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `rucio_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_write` tinyint(1) NOT NULL DEFAULT TRUE,

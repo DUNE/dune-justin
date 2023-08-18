@@ -130,7 +130,6 @@ def cleanupNodeXML(node):
 def processOneFileXML(sitesDict, fileName):
 
   try:
-#    xmlStr = open(fileName).read()
 # NASTY HACKY FIX FOR BAD XML FROM OSG!!!
     xmlStr = open(fileName).read().replace('comment"','comment="')
     xmlDocument = xml.dom.minidom.parseString(xmlStr)
@@ -145,6 +144,7 @@ def processOneFileXML(sitesDict, fileName):
 
   for xmlEntry in xmlEntries.childNodes:
 
+    # Find an entry and process it
     if xmlEntry.nodeType == xml.dom.Node.ELEMENT_NODE and \
        xmlEntry.tagName == 'entry':
 
@@ -152,6 +152,11 @@ def processOneFileXML(sitesDict, fileName):
         entryName = xmlEntry.getAttribute('name')
       except:
         continue
+
+      try:
+        gatekeeper = xmlEntry.getAttribute('gatekeeper').split(' ')[0]
+      except:
+        gatekeeper = entryName
 
       try:
         entryEnabled = xmlEntry.getAttribute('enabled')
@@ -169,6 +174,7 @@ def processOneFileXML(sitesDict, fileName):
       rssBytes        = 2000 * 1024 * 1024
       wallSeconds     = 86400            
 
+      # Assemble the GLIDEIN values for this entry
       for xmlEntryChild in xmlEntry.childNodes:
         if xmlEntryChild.nodeType == xml.dom.Node.ELEMENT_NODE and \
            xmlEntryChild.tagName == 'attrs':
@@ -211,6 +217,7 @@ def processOneFileXML(sitesDict, fileName):
               elif name == 'GLIDEIN_Supported_VOs':
                 voList = xmlAttr.getAttribute('value').split(',')
 
+      # If we found the necessary GLIDEIN values, then carry on
       if (siteName and jobsubSiteName and processors and rssBytes and
           wallSeconds and ('DUNE' in voList)):
 
@@ -222,8 +229,16 @@ def processOneFileXML(sitesDict, fileName):
                                   'wlcg_site_name'        : wlcgSiteName,
                                   'largest_rss_bytes'     : rssBytes,
                                   'largest_processors'    : processors,
-                                  'smallest_wall_seconds' : wallSeconds
+                                  'smallest_wall_seconds' : wallSeconds,
+                                  'entries'               : []
                                 }
+
+        sitesDict[siteName]['entries'].append({ 'entry_name'  : entryName,
+                                                'gatekeeper'  : gatekeeper,
+                                                'max_rss_bytes'   : rssBytes,
+                                                'max_wall_seconds': wallSeconds,
+                                                'max_processors'  : processors
+                                              })
 
         if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
           logLine("Update maxima for %s:%s to %d bytes, %d processors from %s"
@@ -245,29 +260,29 @@ def processOneFileYAML(sitesDict, fileName):
   logLine('Parsing YAML file %s' % fileName)
 
   for osgSiteName in yamlDict:
-    for osgSiteDomain in yamlDict[osgSiteName]:
-      if osgSiteDomain == 'common_entry_fields':
+    for osgGatekeeper in yamlDict[osgSiteName]:
+      if osgGatekeeper == 'common_entry_fields':
         logLine('Skipping common_entry_fields of %s' % osgSiteName)
         continue
     
-      if 'BEST_FIT' not in yamlDict[osgSiteName][osgSiteDomain]:
+      if 'BEST_FIT' not in yamlDict[osgSiteName][osgGatekeeper]:
         logLine('%s:%s has no BEST_FIT - ignoring' 
-                % (osgSiteName,osgSiteDomain))
+                % (osgSiteName,osgGatekeeper))
         continue
 
-#      print(osgSiteDomain)
-#      print(yamlDict[osgSiteName][osgSiteDomain])
+#      print(osgGatekeeper)
+#      print(yamlDict[osgSiteName][osgGatekeeper])
     
-      for entryName in yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']:
-        if (not yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT'][entryName] 
+      for entryName in yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']:
+        if (not yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT'][entryName] 
             or 'attrs' not in 
-            yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT'][entryName]):
+            yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT'][entryName]):
           logLine('%s has no attrs! - ignoring' % entryName)
           continue
 
         # Check if this entry even supports DUNE
         try:
-          voList = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+          voList = yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']\
                            [entryName]['attrs']['GLIDEIN_Supported_VOs']\
                            ['value'].split(',')
         except:
@@ -284,7 +299,7 @@ def processOneFileYAML(sitesDict, fileName):
 
         # GLIDEIN_Site = justIN jobsubSiteName
         try:
-          jobsubSiteName = yamlDict[osgSiteName][osgSiteDomain]\
+          jobsubSiteName = yamlDict[osgSiteName][osgGatekeeper]\
                      ['BEST_FIT'][entryName]['attrs']['GLIDEIN_Site']['value']
         except:
           try:
@@ -299,7 +314,7 @@ def processOneFileYAML(sitesDict, fileName):
 
         # GLIDEIN_DUNESite = justIN siteName
         try:
-          siteName = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+          siteName = yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']\
                        [entryName]['attrs']['GLIDEIN_DUNESite']['value']
         except:
           try:
@@ -314,7 +329,7 @@ def processOneFileYAML(sitesDict, fileName):
 
         # GLIDEIN_ResourceName = justIN wlcgSiteName
         try:
-          wlcgSiteName = yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+          wlcgSiteName = yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']\
                           [entryName]['attrs']['GLIDEIN_ResourceName']['value']
         except:
           try:
@@ -325,7 +340,7 @@ def processOneFileYAML(sitesDict, fileName):
 
         # GLIDEIN_CPUS = justIN processors
         try:
-          processors = int(yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+          processors = int(yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']\
                             [entryName]['attrs']['GLIDEIN_CPUS']['value'])
         except:
           try:
@@ -336,7 +351,7 @@ def processOneFileYAML(sitesDict, fileName):
 
         # GLIDEIN_MaxMemMBs = justIN rssBytes        
         try:
-          rssBytes = 1024 * 1024 * int(yamlDict[osgSiteName][osgSiteDomain]\
+          rssBytes = 1024 * 1024 * int(yamlDict[osgSiteName][osgGatekeeper]\
                 ['BEST_FIT'][entryName]['attrs']['GLIDEIN_MaxMemMBs']['value'])
         except:
           try:
@@ -348,7 +363,7 @@ def processOneFileYAML(sitesDict, fileName):
 
         # GLIDEIN_Max_Walltime = justIN wallSeconds
         try:
-          wallSeconds = int(yamlDict[osgSiteName][osgSiteDomain]['BEST_FIT']\
+          wallSeconds = int(yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']\
                 [entryName]['attrs']['GLIDEIN_Max_Walltime']['value'])
         except:
           try:
@@ -366,8 +381,16 @@ def processOneFileYAML(sitesDict, fileName):
                                   'wlcg_site_name'        : wlcgSiteName,
                                   'largest_rss_bytes'     : rssBytes,
                                   'largest_processors'    : processors,
-                                  'smallest_wall_seconds' : wallSeconds
+                                  'smallest_wall_seconds' : wallSeconds,
+                                  'entries'               : []
                                 }
+
+        sitesDict[siteName]['entries'].append({ 'entry_name'  : entryName,
+                                                'gatekeeper'  : osgGatekeeper,
+                                                'max_rss_bytes'   : rssBytes,
+                                                'max_wall_seconds': wallSeconds,
+                                                'max_processors'  : processors
+                                              })
 
         # Add as maximas for rss_bytes and processors
         if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
@@ -403,36 +426,61 @@ def updateSites():
   sitesDict = {}
   buildSites(sitesDict)
 
-  justinSiteNames = []
   try:
-    justinSiteRows = justin.db.select('SELECT site_name FROM sites')
+    justinSiteRows = justin.db.select('SELECT site_name,sites.site_id,'
+                                      'entry_name,entry_id FROM sites '
+                                      'LEFT JOIN entries '
+                                      'ON entries.site_id=sites.site_id '
+                                      'ORDER BY site_name,entry_name')
   except Exception as e:
     logLine('Failed to get list of existing sites from justIN: ' + str(e))
     return
-    
+
+  justinSiteIDs  = {}
+  justinEntryIDs = {}
+  lastSiteName = ''
   for justinSiteRow in justinSiteRows:
-    justinSiteNames.append(justinSiteRow['site_name'])
+    if justinSiteRow['site_name'] != lastSiteName:
+      justinSiteIDs[justinSiteRow['site_name']] = justinSiteRow['site_id']
+      lastSiteName = justinSiteRow['site_name']
+    justinEntryIDs[justinSiteRow['entry_name']] = \
+      justinSiteRow['entry_id']
 
   for siteName in sitesDict:
     maxProcessors  = sitesDict[siteName]['largest_processors']
     maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
     maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
 
-    # Ensure the sites exist
-    if siteName not in justinSiteNames:
-      query = ('INSERT INTO sites SET site_name="%s",'
+    if siteName == 'CERN':
+      country = 'CERN'
+    else:
+      country = siteName[:2]
+
+    if country in justin.rseCountriesRegions:
+      region = justin.rseCountriesRegions[country]
+    else:
+      region = ''
+
+    # Ensure the site exists
+    if siteName not in justinSiteIDs:
+      query = ('INSERT INTO sites SET '
+               'site_name="%s",'
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
                'max_processors=%d,'
                'max_rss_bytes=%d,'
                'max_wall_seconds=%d,'
+               'country="%s",'
+               'region="%s",'
                'last_seen_time=NOW() '
                % (siteName, 
                   sitesDict[siteName]['jobsub_site_name'], 
                   sitesDict[siteName]['wlcg_site_name'],
                   maxProcessors,
                   maxRssBytes,
-                  maxWallSeconds)
+                  maxWallSeconds,
+                  country,
+                  region)
               )
     else:
       query = ('UPDATE sites SET '
@@ -441,6 +489,8 @@ def updateSites():
                'max_processors=%d,'
                'max_rss_bytes=%d,'
                'max_wall_seconds=%d,'
+               'country="%s",'
+               'region="%s",'
                'last_seen_time=NOW() '
                'WHERE site_name="%s"'
                % (sitesDict[siteName]['jobsub_site_name'],
@@ -448,6 +498,8 @@ def updateSites():
                   maxProcessors,
                   maxRssBytes,
                   maxWallSeconds,
+                  country,
+                  region,
                   siteName
                  )
               )
@@ -455,7 +507,52 @@ def updateSites():
       justin.db.insertUpdate(query)
     except Exception as e:
       logLine('Failed inserting/updating %s: %s' % (siteName, str(e)))
-    
+    else:
+      for entryDict in sitesDict[siteName]['entries']:
+        
+        if entryDict['entry_name'] not in justinEntryIDs:
+          query = ('INSERT INTO entries SET '
+                   'entry_name="%s",'
+                   'gatekeeper="%s",'
+                   'site_id=%d,'
+                   'max_processors=%d,'
+                   'max_rss_bytes=%d,'
+                   'max_wall_seconds=%d,'
+                   'last_seen_time=NOW() '
+                   % (entryDict['entry_name'], 
+                      entryDict['gatekeeper'],
+                      justinSiteIDs[siteName],
+                      maxProcessors,
+                      maxRssBytes,
+                      maxWallSeconds)
+                  )
+        else:
+          query = ('UPDATE entries SET '
+                   'gatekeeper="%s",'
+                   'site_id=%d,'
+                   'max_processors=%d,'
+                   'max_rss_bytes=%d,'
+                   'max_wall_seconds=%d,'
+                   'last_seen_time=NOW() '
+                   'WHERE entry_name="%s"'
+                   % (entryDict['gatekeeper'],
+                      justinSiteIDs[siteName],
+                      maxProcessors,
+                      maxRssBytes,
+                      maxWallSeconds,
+                      entryDict['entry_name']
+                     )
+                  )
+        try:
+          justin.db.insertUpdate(query)
+        except Exception as e:
+          logLine('Failed inserting/updating %s: %s' 
+                  % (entryDict['entry_name'], str(e)))
+
+        logLine('Entry: %s, %d processors, %d bytes, %s seconds' %
+            (entryDict['entry_name'], maxProcessors, maxRssBytes, 
+             maxWallSeconds))
+
     logLine('Site: %s, %d processors, %d bytes, %s seconds' %
             (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
 
@@ -466,20 +563,53 @@ def updateSitesStorages():
   # Ensure there is an entry for each combination
   logLine('---- Start updateSitesStorages ----')
 
-  justin.db.cur.execute('SELECT site_id FROM sites')
+  justin.db.cur.execute('SELECT site_id,site_name,country,region FROM sites')
   siteRows = justin.db.cur.fetchall()
   
-  justin.db.cur.execute('SELECT rse_id FROM storages')
+  justin.db.cur.execute('SELECT rse_id,rse_name,storages.country,'
+                        'storages.region,site_name FROM storages '
+                        'LEFT JOIN sites '
+                        'ON sites.site_id=storages.site_id')
   storageRows = justin.db.cur.fetchall()
   
   for siteRow in siteRows:
     for storageRow in storageRows:
-      query = ('INSERT IGNORE INTO sites_storages SET '
-               'distance=100.0,site_id=%d,rse_id=%d'
-               % (siteRow['site_id'], storageRow['rse_id']))
-              
-      justin.db.cur.execute(query)
 
+      logLine('%s %s' % 
+              (storageRow['rse_name'], str(storageRow['site_name'])))
+
+      sitePrefix = siteRow['site_name'].split('-')[0]
+      if storageRow['site_name']:
+        rseSitePrefix = storageRow['site_name'].split('-')[0]
+      else:
+        rseSitePrefix = ''
+    
+      if siteRow['site_name'] == storageRow['site_name']:
+        # RSEs at sites have zero distance
+        distance = 0
+      elif sitePrefix and rseSitePrefix \
+           and sitePrefix == rseSitePrefix:
+        # Same prefix on RSE and site name 
+        distance = 10
+      elif siteRow['country'] and \
+           siteRow['country'] == storageRow['country']:
+        # Same country as just 20
+        distance = 20
+      elif siteRow['region'] and \
+           siteRow['region'] == storageRow['region']:
+        # Same region, so distance 30
+        distance = 30
+      elif storageRow['site_name'] in ['CERN', 'US_FNAL-FermiGrid']:
+        # Catchall if RSE at CERN/FNAL then 90
+        distance = 90
+      else:
+        # Catchall if nothing chosen above.
+        distance = 100
+
+      justin.db.insertUpdate('REPLACE sites_storages SET '
+               'distance=%d,site_id=%d,rse_id=%d'
+               % (distance, siteRow['site_id'], storageRow['rse_id']))
+              
   justin.db.conn.commit()
 
 def updateStorages():
@@ -595,20 +725,19 @@ def updateStorages():
           bestWanWriteScheme   = scheme
           bestWanWritePriority = priority
 
+    rseCountry = ''
+    rseRegion  = ''
     if 'country' in attributes:
       rseCountry = attributes['country']
       if rseCountry in justin.rseCountriesRegions:
         rseRegion = justin.rseCountriesRegions[rseCountry]
-      else:
-        rseRegion = ''
-    else:
-      rseCountry = ''
-      rseRegion  = ''
   
-    if 'site' in attributes:
-      rseSite = attributes['site']
-    else:
-      rseSite = ''
+    try:
+      row = justin.select('SELECT site_id FROM sites WHERE site_name="%s"' 
+                          % attributes['site'], justOne=True)
+      rseSiteID = int(row['site_id'])
+    except:
+      rseSiteID = 0
       
     try:
       usageList = rseClient.get_rse_usage(rse['rse'],
@@ -644,9 +773,9 @@ def updateStorages():
                'occupancy=%f,'
                'rucio_write=%s,rucio_read=%s,'
                'decommissioned=%s,'
-               'rse_region="%s",'
-               'rse_country="%s",'
-               'rse_site="%s",'
+               'region="%s",'
+               'country="%s",'
+               'site_id=%d,'
                'lan_write_scheme="%s",wan_write_scheme="%s" '
                'WHERE rse_name="%s"'
                % (occupancy,
@@ -655,7 +784,7 @@ def updateStorages():
                   rseDecommissioned,
                   rseRegion,
                   rseCountry,
-                  rseSite,
+                  rseSiteID,
                   bestLanWriteScheme, bestWanWriteScheme,
                   rse['rse']
                  )
@@ -891,7 +1020,7 @@ if __name__ == '__main__':
             try:
               p = pwd.getpwnam(justin.conf.agentUsername)
               os.setgid(p[3])
-              os.setuid(p[2])
+              os.setuid(p[2])              
               oneCycle()
             except Exception as e:
               print('Cycle fails with exception ' + str(e))

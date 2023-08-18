@@ -180,7 +180,7 @@ queue %d
     os.remove(wrapperFile.name)
 
   logLine('%s' % str(outcome.stdout))
-  logLine('justin-submit-wrapper exit code: ' + str(outcome.returncode))
+  logLine('condor_submit exit code: ' + str(outcome.returncode))
 
   try:
     clusterID = int(outcome.stdout.split('.')[0])

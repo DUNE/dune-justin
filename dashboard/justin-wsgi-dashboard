@@ -2447,8 +2447,11 @@ def listStorages(environ, user, cgiValues):
   query = ("SELECT rse_id,rse_name,occupancy,decommissioned,"
            "rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,"
            "rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,"
-           "lan_write_scheme,wan_write_scheme,rse_region,rse_country,rse_site "
-           "FROM storages ORDER BY rse_name")
+           "lan_write_scheme,wan_write_scheme,storages.region,"
+           "storages.country,site_name "
+           "FROM storages "
+           "LEFT JOIN sites ON storages.site_id=sites.site_id "
+           "ORDER BY rse_name")
   justin.db.cur.execute(query)
   storageRows = justin.db.cur.fetchall()
 
@@ -2493,9 +2496,9 @@ def listStorages(environ, user, cgiValues):
               str(bool(storageRow['justin_write']))[0],
              storageRow['lan_write_scheme'],
              storageRow['wan_write_scheme'],
-             storageRow['rse_region'],
-             storageRow['rse_country'],
-             storageRow['rse_site']
+             storageRow['region'],
+             storageRow['country'],
+             storageRow['site_name'] if storageRow['site_name'] else ''
             )
          )    
 
@@ -2521,6 +2524,8 @@ def showSite(environ, user, cgiValues):
            'last_get_stage_time,'
            'site_name,jobsub_site_name,wlcg_site_name,'
            'sites.enabled,'
+           'sites.country,'
+           'sites.region,'
            'sites.last_submitted_time,'
            'sites.last_get_stage_time,'
            'sites.last_awt_time,'
@@ -2543,6 +2548,9 @@ def showSite(environ, user, cgiValues):
 
   output += ('<tr><td colspan="2">WLCG site name</td><td>%s</td></tr>' 
              % siteRow['wlcg_site_name'])
+
+  output += ('<tr><td colspan="2">Region</td><td>%s</td></tr>' 
+             % siteRow['region'])
 
   output += ('<tr><td colspan="2">Seen in OSG config</td><td>%s</td></tr>'
              % siteRow['osg_date'])
@@ -2596,6 +2604,50 @@ def showSite(environ, user, cgiValues):
           '<input type="submit" value="GOCDB"></form></td>'
           '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name']))
 
+  output += ("</table>")
+
+  output += ("<h2>Entries for this site</h2>")
+
+  query = ('SELECT entry_name,gatekeeper,max_processors,max_rss_bytes,'
+           'max_wall_seconds,always_inner_apptainer,last_seen_time '
+           'FROM entries '
+           'WHERE entries.site_id=%d '
+           'ORDER BY entry_name' % siteRow['site_id'])
+
+  entryRows = justin.select(query)
+
+  output += ('<table>')
+  
+  output += ('<tr>'
+        '<th>Entry</th>'
+        '<th>Gatekeeper</th>'
+        '<th>Processors, RSS bytes</th>'
+        '<th>Wall seconds limit</th>'
+        '<th>Inner Apptainer</th>'
+        '<th>Last seen</th>'
+        '</tr>')
+  
+  for entryRow in entryRows:  
+    output += ('<tr>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%d, %d (%d MB)</td>'
+          '<td>%d (%d hours)</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '</tr>\n'
+          % (entryRow['entry_name'],
+             entryRow['gatekeeper'],
+             entryRow['max_processors'],
+             entryRow['max_rss_bytes'], 
+               int(entryRow["max_rss_bytes"] / 1048576),
+             entryRow['max_wall_seconds'],
+               int(entryRow["max_wall_seconds"] / 3600),
+             bool(entryRow['always_inner_apptainer']),
+             entryRow['last_seen_time']
+            )
+         )    
+         
   output += ("</table>")
 
   output += ("<h2>Storages by distance</h2>")
@@ -2755,8 +2807,11 @@ def showStorage(environ, user, cgiValues):
   query = ('SELECT occupancy,rse_id,decommissioned,'
            'rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,'
            'rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,'
-           'lan_write_scheme,wan_write_scheme '
-           'FROM storages WHERE rse_name="%s"' % rseName)
+           'lan_write_scheme,wan_write_scheme,'
+           'storages.country,storages.region,site_name '
+           'FROM storages '
+           'LEFT JOIN sites ON sites.site_id=storages.site_id '
+           'WHERE rse_name="%s"' % rseName)
 
   justin.db.cur.execute(query)
   storageRow = justin.db.cur.fetchone()
@@ -2768,6 +2823,10 @@ def showStorage(environ, user, cgiValues):
   output += ('<table>')
 
   output += ('<tr><td>RSE name</td><td>%s</td></tr>' % rseName)
+  output += ('<tr><td>Country</td><td>%s</td></tr>' % storageRow['country'])
+  output += ('<tr><td>Region</td><td>%s</td></tr>' % storageRow['region'])
+  output += ('<tr><td>Site name</td><td>%s</td></tr>' 
+            % (storageRow['site_name'] if storageRow['site_name'] else ''))
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
