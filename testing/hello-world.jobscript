@@ -11,7 +11,7 @@ justin quick-request --monte-carlo 10 --jobscript hello-world.jobscript
 Or like this to run jobs and put the output file into Rucio-managed storage:
 
 justin quick-request \
-     --monte-carlo 1 \
+     --monte-carlo 10 \
      --jobscript hello-world.jobscript \
      --description 'Hello World!!!' \
      --scope usertests \

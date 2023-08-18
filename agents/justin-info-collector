@@ -482,6 +482,15 @@ def updateSites():
                   country,
                   region)
               )
+
+      try:
+        newID = justin.db.insertUpdate(query)
+      except Exception as e:
+        logLine('Failed inserting %s: %s' % (siteName, str(e)))
+        continue
+      else:
+        justinSiteIDs[siteName] = newID
+
     else:
       query = ('UPDATE sites SET '
                'jobsub_site_name="%s",'
@@ -503,14 +512,14 @@ def updateSites():
                   siteName
                  )
               )
-    try:
-      justin.db.insertUpdate(query)
-    except Exception as e:
-      logLine('Failed inserting/updating %s: %s' % (siteName, str(e)))
-    else:
-      for entryDict in sitesDict[siteName]['entries']:
-        
-        if entryDict['entry_name'] not in justinEntryIDs:
+      try:
+        justin.db.insertUpdate(query)
+      except Exception as e:
+        logLine('Failed updating %s: %s' % (siteName, str(e)))
+        continue
+
+    for entryDict in sitesDict[siteName]['entries']:
+       if entryDict['entry_name'] not in justinEntryIDs:
           query = ('INSERT INTO entries SET '
                    'entry_name="%s",'
                    'gatekeeper="%s",'
@@ -526,7 +535,16 @@ def updateSites():
                       maxRssBytes,
                       maxWallSeconds)
                   )
-        else:
+          try:
+            newID = justin.db.insertUpdate(query)
+          except Exception as e:
+            logLine('Failed inserting %s: %s' 
+                  % (entryDict['entry_name'], str(e)))
+            continue
+          else:
+            justinEntryIDs[entryDict['entry_name']] = newID
+
+       else:
           query = ('UPDATE entries SET '
                    'gatekeeper="%s",'
                    'site_id=%d,'
@@ -543,13 +561,14 @@ def updateSites():
                       entryDict['entry_name']
                      )
                   )
-        try:
-          justin.db.insertUpdate(query)
-        except Exception as e:
-          logLine('Failed inserting/updating %s: %s' 
+          try:
+            justin.db.insertUpdate(query)
+          except Exception as e:
+            logLine('Failed inserting/updating %s: %s' 
                   % (entryDict['entry_name'], str(e)))
+            continue
 
-        logLine('Entry: %s, %d processors, %d bytes, %s seconds' %
+       logLine('Entry: %s, %d processors, %d bytes, %s seconds' %
             (entryDict['entry_name'], maxProcessors, maxRssBytes, 
              maxWallSeconds))
 
@@ -574,9 +593,6 @@ def updateSitesStorages():
   
   for siteRow in siteRows:
     for storageRow in storageRows:
-
-      logLine('%s %s' % 
-              (storageRow['rse_name'], str(storageRow['site_name'])))
 
       sitePrefix = siteRow['site_name'].split('-')[0]
       if storageRow['site_name']:
@@ -776,7 +792,8 @@ def updateStorages():
                'region="%s",'
                'country="%s",'
                'site_id=%d,'
-               'lan_write_scheme="%s",wan_write_scheme="%s" '
+               'lan_write_scheme="%s",wan_write_scheme="%s",'
+               'needs_pin=%s '
                'WHERE rse_name="%s"'
                % (occupancy,
                   availabilityWrite,
@@ -786,6 +803,7 @@ def updateStorages():
                   rseCountry,
                   rseSiteID,
                   bestLanWriteScheme, bestWanWriteScheme,
+                  'TRUE' if 'FNAL_DCACHE' in rse['rse'] else 'FALSE',
                   rse['rse']
                  )
               )
