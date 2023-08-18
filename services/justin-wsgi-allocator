@@ -95,11 +95,14 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
              'sites.site_name,'
              'sites.max_jobs,'
              'sites.running_jobs,'
-             'sites.enabled '
+             'sites.enabled,'
+             'entries.entry_name,'
+             'entries.entry_id '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.workflow_id=stages.workflow_id '
              'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN sites ON jobs.site_id=sites.site_id '
+             'LEFT JOIN entries ON jobs.entry_id=entries.entry_id '
              'WHERE jobs.jobsub_id="' + jobsubID + '"')
 
     justin.db.cur.execute(query)
@@ -116,10 +119,12 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
     return { "error_message": "Jobscript secret mismatch" }
 
   return { "error_message"       : None,
-           "workflow_id"          : job['workflow_id'],
+           "workflow_id"         : job['workflow_id'],
            "stage_id"            : job['stage_id'],
            "site_id"             : job['site_id'],
            "site_name"           : job['site_name'],
+           "entry_id"            : job['entry_id'],
+           "entry_name"          : job['entry_name'],
            "running_jobs"        : job['running_jobs'],
            "max_jobs"            : job['max_jobs'],
            "site_enabled"        : job['enabled'],
@@ -461,8 +466,8 @@ def getStageMethod(startResponse, jsonDict, environ):
                        'Missing/invalid integer value(s) in JSON')
 
   # Check jsonDict contains required string values
-  for name in ['site_name', 'cpuinfo', 'os_release', 'hostname', 
-               'site_job_id']:
+  for name in ['site_name', 'entry_name', 'cpuinfo', 'os_release', 
+               'hostname', 'site_job_id']:
     if name not in jsonDict or not justin.db.stringNoQuotes(jsonDict[name]) \
        or not jsonDict[name]:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -470,8 +475,9 @@ def getStageMethod(startResponse, jsonDict, environ):
                        '400 Bad Request', 
                        'Missing/invalid value for %s in JSON' % name)
 
-  if jsonDict['site_name'] == 'XX_UNKNOWN':
-    print('Job %s has site_name = XX_UNKNOWN - aborting' 
+  if jsonDict['site_name'] == 'XX_UNKNOWN' or \
+     jsonDict['entry_name'] == 'UNKNOWN':
+    print('Job %s has unknown site_name or entry_name - aborting' 
           % jsonDict['jobsub_id'], file=sys.stderr)
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
@@ -483,6 +489,8 @@ def getStageMethod(startResponse, jsonDict, environ):
     justin.db.insertUpdate('UPDATE jobs SET '
                         'site_id=(SELECT site_id FROM sites '
                         'WHERE site_name="%s"),'
+                        'entry_id=(SELECT entry_id FROM entries '
+                        'WHERE entry_name="%s"),'
                         'cpuinfo="%s",' 
                         'os_release="%s",' 
                         'hostname="%s",' 
@@ -493,6 +501,7 @@ def getStageMethod(startResponse, jsonDict, environ):
                         'WHERE jobsub_id="%s" AND '
                         'allocation_state="submitted"' % 
                         (jsonDict['site_name'], 
+                         jsonDict['entry_name'], 
                          jsonDict['cpuinfo'],
                          jsonDict['os_release'],
                          jsonDict['hostname'],
@@ -510,7 +519,6 @@ def getStageMethod(startResponse, jsonDict, environ):
                      '(site_name=%s): %s' %
                      (str(jsonDict['site_name']), str(e)))
     
-#  print('Before makeJobDict()', file=sys.stderr)
   # Find details of the job
   jobDict = makeJobDict(jsonDict['jobsub_id'])
 

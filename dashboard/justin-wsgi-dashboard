@@ -1917,7 +1917,7 @@ def showJob(environ, user, cgiValues):
   output += "<h1>Jobsub ID %s</h1>" % jobsubID
   
   query = ("SELECT jobs.justin_job_id,jobs.workflow_id,jobs.stage_id,"
-           "sites.site_name,"
+           "sites.site_name,entries.entry_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,"
            "principal_name AS user_name,"
            "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
@@ -1936,6 +1936,7 @@ def showJob(environ, user, cgiValues):
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
@@ -1984,6 +1985,13 @@ def showJob(environ, user, cgiValues):
                % (jobRow["site_name"], jobRow["site_name"]))
   else:
     output += '<tr><td>Site</td><td colspan="2"> </td></tr>'
+
+  if jobRow["entry_name"]:
+    output += ('<tr><td>Entry</td>'
+               '<td colspan="2">%s</td></tr>'
+               % jobRow["entry_name"])
+  else:
+    output += '<tr><td>Entry</td><td colspan="2"> </td></tr>'
 
   output += ('<tr><td>Slot</td><td colspan="2">'
              '%d &lt; processors &le; %d<br>'

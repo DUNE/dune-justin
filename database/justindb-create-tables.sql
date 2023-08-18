@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobsub_id` varchar(255) NOT NULL,
   `site_job_id` varchar(255) NOT NULL DEFAULT '',
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `entry_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `allocation_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','jobscript_error',

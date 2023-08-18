@@ -403,6 +403,7 @@ for i in os.environ:
 
 jobsubJobID = os.environ['JOBSUBJOBID']
 siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
+entryName   = os.environ.get('GLIDEIN_Entry_Name', 'UNKNOWN')
 jobPID      = os.getpid()
 
 # Start of subprocess to send regular heartbeats
@@ -447,6 +448,7 @@ getStageDict['os_release'] \
   = open('/etc/redhat-release','r').readlines()[0].strip()
 getStageDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
 getStageDict['site_name']   = siteName
+getStageDict['entry_name']  = entryName
 
 getStageDict['site_job_id'] = 'XXX'
 ##  "site_job_id"     : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
