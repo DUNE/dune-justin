@@ -2637,14 +2637,14 @@ def showSite(environ, user, cgiValues):
   
   for entryRow in entryRows:  
     output += ('<tr>'
-          '<td>%s</td>'
+          '<td><a href="http://gfactory-2.opensciencegrid.org/factory/monitor/factoryEntryStatusNow.html?entry=%s">%s</a></td>'
           '<td>%s</td>'
           '<td>%d; %d (%d MB)</td>'
           '<td>%d (%d hours)</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>\n'
-          % (entryRow['entry_name'],
+          % (entryRow['entry_name'], entryRow['entry_name'],
              entryRow['gatekeeper'],
              entryRow['max_processors'],
              entryRow['max_rss_bytes'], 

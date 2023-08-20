@@ -738,43 +738,223 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   return httpOK(startResponse, '')
 
-# (Almost) Just in time decision making: identify the best file 
-# based on the immediate situation rather than trying to plan 
-# ahead of time
-def findCachedFile(jobDict):
+def cacheFiles(siteID, workflowID, stageID, maxDistance):
+  # Cache best replicas info for the best stage for a site, 
+  # relative to that site
 
-  query = (
- "SELECT file_did,find_file_cache.file_id,lan_pfn,wan_pfn,"
- "rse_name,find_file_cache.rse_id,distance "
- "FROM find_file_cache "
- "LEFT JOIN files ON files.file_id=find_file_cache.file_id "
- "LEFT JOIN replicas ON replicas.replica_id=find_file_cache.replica_id "
- "LEFT JOIN storages ON storages.rse_id=find_file_cache.rse_id "
- "WHERE "
- "find_file_cache.site_id=%d AND "
- "find_file_cache.workflow_id=%d AND "
- "find_file_cache.stage_id=%d AND "
- "files.state='unallocated' "
- "ORDER BY find_file_cache.cache_time DESC,"
- "find_file_cache.distance,find_file_cache.file_id "
- "LIMIT 1 FOR UPDATE" %
- (jobDict['site_id'],
-  jobDict['workflow_id'],
-  jobDict['stage_id']))
+  # We use this time to remove previous cache entries
+  cutoffTime = int(time.time())
+
+  try:
+    replicaRows = justin.select('SELECT files.file_id,'
+                   'replicas.replica_id,'
+                   'replicas.rse_id,'
+                   'distance '
+                   'FROM files '
+                   'LEFT JOIN replicas ON files.file_id=replicas.file_id '
+                   'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
+                   'LEFT JOIN sites_storages ON '
+                   'replicas.rse_id=sites_storages.rse_id AND '
+                   'sites_storages.site_id=%d '
+                   'WHERE files.workflow_id=%d AND files.stage_id=%d AND '
+                   'files.state="unallocated" AND '
+                   'distance<=%f AND '
+                   'accessible_until > NOW() AND '
+                   'storages.rucio_read AND storages.justin_read AND '
+                   'NOT storages.decommissioned '
+                   'ORDER by distance,replicas.file_id LIMIT 1000' % 
+                   (siteID, workflowID, stageID, maxDistance))
+  except Exception as e:
+    print('Failed getting replica info to cache: %s' % str(e), file=sys.stderr)
+    return
+
+  if len(replicaRows) == 0:
+    # Failed to get any cacheable files: record this in the cache
+    # by creating a file with file_id=0 and replica_id=cutoffTime
+    print('Failed getting any cacheable files', file=sys.stderr)
+    try:
+      justin.insertUpdate('INSERT INTO find_file_cache SET '
+                          'site_id=%d,'
+                          'workflow_id=%d,'
+                          'stage_id=%d,'
+                          'distance=0,'
+                          'file_id=0,'
+                          'rse_id=0,'
+                          'replica_id=%d,'
+                          'cache_time=FROM_UNIXTIME(%d)' %
+                          (siteID,
+                           workflowID,
+                           stageID,
+                           cutoffTime,
+                           cutoffTime
+                          )
+                         )
+    except Exception as e:
+      print('Failed creating no-cacheable-files entry: %s' % str(e),
+            file=sys.stderr)
+
+  else:
+    filesSeen = set()
+
+    for replicaRow in replicaRows:
+      # Go through the replicas, caching them.
+      # Do not add more distant replicas of files already seen.
+      # This deduplication in the Python agent reduces the big scans of
+      # the database which block other services.
+      if len(filesSeen) >= 500:
+        break
      
-  replicaRow = justin.db.select(query, justOne=True)
+      if replicaRow['file_id'] in filesSeen:
+        continue
+      
+      filesSeen.add(replicaRow['file_id'])
+   
+      try:
+        justin.db.insertUpdate('INSERT INTO find_file_cache SET '
+                               'site_id=%d,'
+                               'workflow_id=%d,'
+                               'stage_id=%d,'
+                               'distance=%f,'
+                               'file_id=%d,'
+                               'rse_id=%d,'
+                               'replica_id=%d,'
+                               'cache_time=FROM_UNIXTIME(%d)' %
+                               (siteID,
+                                workflowID,
+                                stageID,
+                                replicaRow['distance'],
+                                replicaRow['file_id'],
+                                replicaRow['rse_id'],
+                                replicaRow['replica_id'],
+                                cutoffTime
+                               )
+                              )
+      except Exception as e:
+        print('Failed caching replica info: %s' % str(e), file=sys.stderr)
+        continue
+
+  # Whatever else happened we clear out any old cache entries
+  # for this site/workflow/stage
+  try:
+    justin.insertUpdate('DELETE FROM find_file_cache '
+                        'WHERE site_id=%d AND workflow_id=%d AND stage_id=%d '
+                        'AND cache_time < FROM_UNIXTIME(%d)'
+                        % (siteID, workflowID, stageID, cutoffTime))
+  except Exception as e:
+    print('Delete previous find_file_cache entries fails with: ' + str(e),
+          file=sys.stderr)
+ 
+  justin.db.conn.commit()
+
+# Try to get the file cache service lock or raise an exception if
+# unable to do this for any reason, including a timeout
+# No try here since we expose exceptions to the caller!
+def getFileCacheLock(timeoutSeconds):
+  row = justin.select(
+          'SELECT GET_LOCK("justin_allocator_file_cache", %d) '
+          'AS result' % timeoutSeconds, justOne = True)
+
+  if not row or 'result' not in row:
+    # Something went wrong!
+    raise RuntimeError('justin_allocator lock query failure')
   
-  if not replicaRow:
+  if row['result'] == 0:
+    # Failed to get lock in time so raise exception
+    raise RuntimeError('justin_allocator lock timeout')
+
+  # Success!  
+  return
+
+# Release the file cache lock if we can
+def releaseFileCacheLock():
+  try:
+    justin.select('SELECT RELEASE_LOCK("justin_allocator_file_cache")')
+  except Exception as e:
+# REMOVE THIS print FOR PROD
+    print('Exception releasing lock: ' + str(e))
+    pass
+
+# Get a list of cached files for this workflow/stage at this site
+# Special treatment of file_id=0 which records if no-cacheable-files
+def findCachedFiles(siteID, workflowID, stageID, maxFiles):
+  query = (
+    "SELECT file_did,find_file_cache.file_id,lan_pfn,wan_pfn,"
+    "rse_name,find_file_cache.rse_id,distance "
+    "FROM find_file_cache "
+    "LEFT JOIN files ON files.file_id=find_file_cache.file_id "
+    "LEFT JOIN replicas ON replicas.replica_id=find_file_cache.replica_id "
+    "LEFT JOIN storages ON storages.rse_id=find_file_cache.rse_id "
+    "WHERE "
+    "find_file_cache.site_id=%d AND "
+    "find_file_cache.workflow_id=%d AND "
+    "find_file_cache.stage_id=%d AND "
+    "(find_file_cache.file_id=0 OR files.state='unallocated') "
+    "ORDER BY find_file_cache.cache_time DESC,"
+    "find_file_cache.distance,find_file_cache.file_id "
+    "LIMIT %d FOR UPDATE" %
+    (siteID, workflowID, stageID, maxFiles))
+
+  return justin.db.select(query)
+  
+def findBestFile(jobDict):
+
+# DEBUGGING print() STATEMENTS BELOW NEED TO BE REMOVED
+
+  # When there are less cached files than this we update the cache
+  minCacheSize = 20
+
+  replicaRows = findCachedFiles(jobDict['site_id'], jobDict['workflow_id'], 
+                                jobDict['stage_id'], minCacheSize)
+
+  print('For %d/%d/%d got %d rows' 
+        % (jobDict['site_id'], jobDict['workflow_id'], jobDict['stage_id'], 
+           len(replicaRows)))
+
+  if len(replicaRows) > 0 and replicaRows[0]['file_id'] == 0:
+    print('Got the no-cacheable-files entry', file=sys.stderr)
+    # We got the no-cacheable-files entry
+    if replicaRows[0]['replica_id'] < int(time.time()) - 300:
+      # The no-cacheable-files entry has expired, 
+      # so we reset replicaRows and see what happens below
+      replicaRows = []
+    else:
+      # The no-cacheable-files entry is still valid, 
+      # so nothing to return and cache update is not yet possible
+      return { 'error_message' : None,
+               'file_did'      : None  }
+
+  if len(replicaRows) < minCacheSize:
+    print('Cache needs to be updated', file=sys.stderr)
+    # Cache needs to be updated
+    try:
+      getFileCacheLock(0)
+    except Exception as e:
+# THIS EXCEPTION WILL HAPPEN ALL THE TIME NORMALLY SO print() NOT FOR PROD
+      # We didn't get the cache lock so we carry on with what was returned
+      print('Did not get file cache lock: ' + str(e), file=sys.stderr)
+    else:
+      print('Got cache lock, update cache', file=sys.stderr)
+      cacheFiles(jobDict['site_id'], jobDict['workflow_id'], 
+                 jobDict['stage_id'], jobDict['max_distance'])
+      releaseFileCacheLock()
+
+      # If we had zero results before, rerun the query
+      if len(replicaRows) == 0:
+        print('Rerun findCachedFiles()', file=sys.stderr)
+        replicaRows = findCachedFiles(jobDict['site_id'], 
+                                      jobDict['workflow_id'], 
+                                      jobDict['stage_id'], 1)
+  if len(replicaRows) == 0:
     # No matches found
+    print('No matches found', file=sys.stderr)
     return { 'error_message': None,
-             'file_did'     : None
-           }
+             'file_did'     : None  }
 
   try: 
     query = ("UPDATE files SET state='allocated',"
              "allocations=allocations+1,"
              "justin_job_id=" + str(jobDict['justin_job_id']) + " "
-             "WHERE file_id=" + str(replicaRow['file_id'])
+             "WHERE file_id=" + str(replicaRows[0]['file_id'])
             )
     justin.db.cur.execute(query)
   except Exception as e:
@@ -784,22 +964,22 @@ def findCachedFile(jobDict):
   justin.db.logEvent(eventTypeID = justin.db.event_FILE_ALLOCATED,
                      workflowID     = jobDict['workflow_id'],
                      stageID        = jobDict['stage_id'],
-                     fileID         = replicaRow['file_id'],
+                     fileID         = replicaRows[0]['file_id'],
                      justinJobID    = jobDict['justin_job_id'],
                      siteID         = jobDict['site_id'],
-                     rseID          = replicaRow['rse_id'])
+                     rseID          = replicaRows[0]['rse_id'])
 
   # If storage is at the same site and a lan PFN is given, use it
-  if replicaRow['distance'] == 0 and replicaRow['lan_pfn']:
-    pfn = replicaRow['lan_pfn']
+  if replicaRows[0]['distance'] == 0 and replicaRows[0]['lan_pfn']:
+    pfn = replicaRows[0]['lan_pfn']
   else:
-    pfn = replicaRow['wan_pfn']
+    pfn = replicaRows[0]['wan_pfn']
 
   # The dictionary to return, with the highest priority result
   replica = { 'error_message' : None,
-              'file_did'      : replicaRow['file_did'],
+              'file_did'      : replicaRows[0]['file_did'],
               'pfn'           : pfn,
-              'rse_name'      : replicaRow['rse_name']
+              'rse_name'      : replicaRows[0]['rse_name']
             }
 
   return replica
@@ -835,7 +1015,7 @@ def getFileMethod(startResponse, jsonDict):
                      jobDict['allocation_state'])
 
   # Create a stage dictionary with the next file in this stage  
-  oneFile = findCachedFile(jobDict)
+  oneFile = findBestFile(jobDict)
 
   if oneFile['error_message']:
     return httpError(startResponse, 

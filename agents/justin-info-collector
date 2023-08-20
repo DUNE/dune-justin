@@ -163,7 +163,12 @@ def processOneFileXML(sitesDict, fileName):
       except:
         entryEnabled = 'True'
 
-      if entryEnabled == 'False':
+      try:
+        gridType = xmlEntry.getAttribute('gridtype')
+      except:
+        gridType = ''
+
+      if entryEnabled == 'False' or gridType == 'cream':
         continue
 
       siteName        = None

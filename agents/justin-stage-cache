@@ -252,10 +252,10 @@ def cacheFindStageResults():
         except Exception as e:
           logLine('Record  fails with: ' + str(e))
 
-        cacheFindFileResults(jobDict['site_id'], 
-                             workflowID, 
-                             stageID, 
-                             maxDistance)
+#        cacheFindFileResults(jobDict['site_id'], 
+#                             workflowID, 
+#                             stageID, 
+#                             maxDistance)
    
   try:
     justin.db.insertUpdate('DELETE FROM get_stage_cache '
