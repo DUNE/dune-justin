@@ -146,8 +146,8 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
 # Exceptions must by caught by the caller
 def delegateJobsProxy(newCertRequest, jobsProxyString):
 
-  print('newCertRequest: ' + newCertRequest, file=sys.stderr)
-  print('jobsProxyString: ' + str(jobsProxyString), file=sys.stderr)
+#  print('newCertRequest: ' + newCertRequest, file=sys.stderr)
+#  print('jobsProxyString: ' + str(jobsProxyString), file=sys.stderr)
   if not jobsProxyString:
     print('Failed to read proxy file from disk?', file=sys.stderr)
 
@@ -768,35 +768,9 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
     print('Failed getting replica info to cache: %s' % str(e), file=sys.stderr)
     return
 
-  if len(replicaRows) == 0:
-    # Failed to get any cacheable files: record this in the cache
-    # by creating a file with file_id=0 and replica_id=cutoffTime
-    print('Failed getting any cacheable files', file=sys.stderr)
-    try:
-      justin.insertUpdate('INSERT INTO find_file_cache SET '
-                          'site_id=%d,'
-                          'workflow_id=%d,'
-                          'stage_id=%d,'
-                          'distance=0,'
-                          'file_id=0,'
-                          'rse_id=0,'
-                          'replica_id=%d,'
-                          'cache_time=FROM_UNIXTIME(%d)' %
-                          (siteID,
-                           workflowID,
-                           stageID,
-                           cutoffTime,
-                           cutoffTime
-                          )
-                         )
-    except Exception as e:
-      print('Failed creating no-cacheable-files entry: %s' % str(e),
-            file=sys.stderr)
+  filesSeen = set()
 
-  else:
-    filesSeen = set()
-
-    for replicaRow in replicaRows:
+  for replicaRow in replicaRows:
       # Go through the replicas, caching them.
       # Do not add more distant replicas of files already seen.
       # This deduplication in the Python agent reduces the big scans of
@@ -810,7 +784,7 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
       filesSeen.add(replicaRow['file_id'])
    
       try:
-        justin.db.insertUpdate('INSERT INTO find_file_cache SET '
+        justin.db.insertUpdate('INSERT INTO sites_files_cache SET '
                                'site_id=%d,'
                                'workflow_id=%d,'
                                'stage_id=%d,'
@@ -833,15 +807,42 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
         print('Failed caching replica info: %s' % str(e), file=sys.stderr)
         continue
 
+  try:
+    justin.insertUpdate('INSERT INTO sites_files_cache_state SET '
+                          'site_id=%d,'
+                          'workflow_id=%d,'
+                          'stage_id=%d,'
+                          'number_found=%d,'
+                          'cache_time=FROM_UNIXTIME(%d)' %
+                          (siteID,
+                           workflowID,
+                           stageID,
+                           len(filesSeen),
+                           cutoffTime
+                          )
+                         )
+  except Exception as e:
+    print('Failed creating new sites_files_cache_state row: %s' % str(e),
+          file=sys.stderr)
+
   # Whatever else happened we clear out any old cache entries
   # for this site/workflow/stage
   try:
-    justin.insertUpdate('DELETE FROM find_file_cache '
+    justin.insertUpdate('DELETE FROM sites_files_cache '
                         'WHERE site_id=%d AND workflow_id=%d AND stage_id=%d '
                         'AND cache_time < FROM_UNIXTIME(%d)'
                         % (siteID, workflowID, stageID, cutoffTime))
   except Exception as e:
-    print('Delete previous find_file_cache entries fails with: ' + str(e),
+    print('Delete previous sites_files_cache fails with: ' + str(e), 
+          file=sys.stderr)
+ 
+  try:
+    justin.insertUpdate('DELETE FROM sites_files_cache_state '
+                        'WHERE site_id=%d AND workflow_id=%d AND stage_id=%d '
+                        'AND cache_time < FROM_UNIXTIME(%d)'
+                        % (siteID, workflowID, stageID, cutoffTime))
+  except Exception as e:
+    print('Delete previous sites_files_cache_state fails with: ' + str(e), 
           file=sys.stderr)
  
   justin.db.conn.commit()
@@ -878,19 +879,19 @@ def releaseFileCacheLock():
 # Special treatment of file_id=0 which records if no-cacheable-files
 def findCachedFiles(siteID, workflowID, stageID, maxFiles):
   query = (
-    "SELECT file_did,find_file_cache.file_id,lan_pfn,wan_pfn,"
-    "rse_name,find_file_cache.rse_id,distance "
-    "FROM find_file_cache "
-    "LEFT JOIN files ON files.file_id=find_file_cache.file_id "
-    "LEFT JOIN replicas ON replicas.replica_id=find_file_cache.replica_id "
-    "LEFT JOIN storages ON storages.rse_id=find_file_cache.rse_id "
+    "SELECT file_did,sites_files_cache.file_id,lan_pfn,wan_pfn,"
+    "rse_name,sites_files_cache.rse_id,distance "
+    "FROM sites_files_cache "
+    "LEFT JOIN files ON files.file_id=sites_files_cache.file_id "
+    "LEFT JOIN replicas ON replicas.replica_id=sites_files_cache.replica_id "
+    "LEFT JOIN storages ON storages.rse_id=sites_files_cache.rse_id "
     "WHERE "
-    "find_file_cache.site_id=%d AND "
-    "find_file_cache.workflow_id=%d AND "
-    "find_file_cache.stage_id=%d AND "
-    "(find_file_cache.file_id=0 OR files.state='unallocated') "
-    "ORDER BY find_file_cache.cache_time DESC,"
-    "find_file_cache.distance,find_file_cache.file_id "
+    "sites_files_cache.site_id=%d AND "
+    "sites_files_cache.workflow_id=%d AND "
+    "sites_files_cache.stage_id=%d AND "
+    "files.state='unallocated' "
+    "ORDER BY sites_files_cache.cache_time DESC,"
+    "sites_files_cache.distance,sites_files_cache.file_id "
     "LIMIT %d FOR UPDATE" %
     (siteID, workflowID, stageID, maxFiles))
 
@@ -906,44 +907,66 @@ def findBestFile(jobDict):
   replicaRows = findCachedFiles(jobDict['site_id'], jobDict['workflow_id'], 
                                 jobDict['stage_id'], minCacheSize)
 
-  print('For %d/%d/%d got %d rows' 
-        % (jobDict['site_id'], jobDict['workflow_id'], jobDict['stage_id'], 
+  print('For %s/%d/%d got %d rows' 
+        % (jobDict['site_name'], jobDict['workflow_id'], jobDict['stage_id'], 
            len(replicaRows)))
 
-  if len(replicaRows) > 0 and replicaRows[0]['file_id'] == 0:
-    print('Got the no-cacheable-files entry', file=sys.stderr)
-    # We got the no-cacheable-files entry
-    if replicaRows[0]['replica_id'] < int(time.time()) - 300:
-      # The no-cacheable-files entry has expired, 
-      # so we reset replicaRows and see what happens below
-      replicaRows = []
-    else:
-      # The no-cacheable-files entry is still valid, 
-      # so nothing to return and cache update is not yet possible
-      return { 'error_message' : None,
-               'file_did'      : None  }
-
-  if len(replicaRows) < minCacheSize:
-    print('Cache needs to be updated', file=sys.stderr)
-    # Cache needs to be updated
+  if len(replicaRows) < minCacheSize:    
+    # Too few returned: might be time to update the cache?
     try:
-      getFileCacheLock(0)
+      # Check if there just weren't enough available to be cached
+      cacheStateRow = justin.select(
+        'SELECT number_found,'
+        'TIMESTAMPDIFF(SECOND, cache_time, NOW()) AS seconds '
+        'FROM sites_files_cache_state '
+        'WHERE site_id=%d AND workflow_id=%d and stage_id=%d'
+        % (jobDict['site_id'], jobDict['workflow_id'], jobDict['stage_id']),
+        justOne = True)
     except Exception as e:
-# THIS EXCEPTION WILL HAPPEN ALL THE TIME NORMALLY SO print() NOT FOR PROD
-      # We didn't get the cache lock so we carry on with what was returned
-      print('Did not get file cache lock: ' + str(e), file=sys.stderr)
-    else:
-      print('Got cache lock, update cache', file=sys.stderr)
-      cacheFiles(jobDict['site_id'], jobDict['workflow_id'], 
-                 jobDict['stage_id'], jobDict['max_distance'])
-      releaseFileCacheLock()
+      print('Failed to get number_found: ' + str(e), file=sys.stderr)
+      cacheStateRow = None
 
-      # If we had zero results before, rerun the query
-      if len(replicaRows) == 0:
-        print('Rerun findCachedFiles()', file=sys.stderr)
-        replicaRows = findCachedFiles(jobDict['site_id'], 
-                                      jobDict['workflow_id'], 
-                                      jobDict['stage_id'], 1)
+    print('%s/%d/%d cacheStateRow=%s, len(replicaRows)=%d'
+          % (jobDict['site_name'],
+             jobDict['workflow_id'],
+             jobDict['stage_id'],
+             str(cacheStateRow), len(replicaRows)), file=sys.stderr)
+    if cacheStateRow is None or \
+       cacheStateRow['seconds'] > 300 or \
+       cacheStateRow['number_found'] >= minCacheSize:
+      # If there are no cache state entries yet,
+      # or plenty of files were found, then we update the cache
+      # Cache needs to be updated
+      print('%s/%d/%d cache needs to be updated'
+            % (jobDict['site_name'],
+               jobDict['workflow_id'],
+               jobDict['stage_id']), file=sys.stderr)
+      try:
+        getFileCacheLock(0)
+      except Exception as e:
+# THIS EXCEPTION WILL HAPPEN ALL THE TIME NORMALLY SO print() NOT FOR PROD
+        # We didn't get the cache lock so we carry on with what was returned
+        print('%s/%d/%d Did not get file cache lock: %s'
+              % (jobDict['site_name'],
+                 jobDict['workflow_id'],
+                 jobDict['stage_id'], str(e)), file=sys.stderr)
+      else:
+        print('%s/%d/%d Got cache lock, update cache'
+              % (jobDict['site_name'],
+                 jobDict['workflow_id'],
+                 jobDict['stage_id']),
+              file=sys.stderr)
+        cacheFiles(jobDict['site_id'], jobDict['workflow_id'], 
+                   jobDict['stage_id'], jobDict['max_distance'])
+        releaseFileCacheLock()
+
+        # If we had zero results before, rerun the query
+        if len(replicaRows) == 0:
+          print('Rerun findCachedFiles()', file=sys.stderr)
+          replicaRows = findCachedFiles(jobDict['site_id'], 
+                                        jobDict['workflow_id'], 
+                                        jobDict['stage_id'], 1)
+
   if len(replicaRows) == 0:
     # No matches found
     print('No matches found', file=sys.stderr)

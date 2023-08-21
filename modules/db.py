@@ -303,6 +303,7 @@ def select(query, justOne = False, tries = 10):
     else:
       # Success! Return the results!
       if justOne:
+        # fetchone() returns None of no matching rows were found
         return cur.fetchone()
       else:
         return cur.fetchall()

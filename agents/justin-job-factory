@@ -125,7 +125,7 @@ def submitJobs(numberToSubmit,
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
 universe                = vanilla
-environment = "CLUSTER=$(Cluster) PROCESS=$(Process) JOBSUBJOBID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
+environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
 max_retries             = 0
 retry_until             = True

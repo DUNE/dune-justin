@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
 
 CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
+  `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL DEFAULT '',
@@ -268,7 +269,7 @@ CREATE TABLE IF NOT EXISTS `stages_environment` (
   UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`env_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `get_stage_cache` (
+CREATE TABLE IF NOT EXISTS `sites_stages_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
   `min_processors` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `max_processors` tinyint(3) unsigned NOT NULL DEFAULT 1,
@@ -284,7 +285,7 @@ CREATE TABLE IF NOT EXISTS `get_stage_cache` (
    `max_wall_seconds`,`job_had_inner_apptainer`,`workflow_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `find_file_cache` (
+CREATE TABLE IF NOT EXISTS `sites_files_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
   `workflow_id` mediumint(8) unsigned NOT NULL,
@@ -295,6 +296,16 @@ CREATE TABLE IF NOT EXISTS `find_file_cache` (
   `cache_time` datetime NOT NULL,
   INDEX `multiple` (`site_id`, `workflow_id`, `stage_id`,
                     `cache_time`, `distance`, `file_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `sites_files_cache_state` (
+  `site_id` smallint(5) unsigned NOT NULL,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `number_found` smallint(5)unsigned NOT NULL DEFAULT 0,
+  `cache_time` datetime NOT NULL,
+  INDEX `multiple` (`site_id`, `workflow_id`, `stage_id`,
+                    `cache_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `storages` (

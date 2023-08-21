@@ -401,7 +401,7 @@ logLine('====Start of justin-wrapper-job====')
 for i in os.environ:
  print('%s=%s' % (i, os.environ[i]))
 
-jobsubJobID = os.environ['JOBSUBJOBID']
+jobsubJobID = os.environ['JUSTIN_JOBSUB_ID']
 siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
 entryName   = os.environ.get('GLIDEIN_Entry_Name', 'UNKNOWN')
 jobPID      = os.getpid()
@@ -537,8 +537,7 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_WORKFLOW_ID=%d\n' % receivedDict['workflow_id'])
   f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])
   f.write('export JUSTIN_SCOPE=%s\n' % receivedDict['scope'])
-  f.write('export JUSTIN_JOBSUB_ID=%s\n' % receivedDict['jobsub_id'])
-  f.write('unset JOBSUBJOBID\n')
+  f.write('export JUSTIN_JOBSUB_ID=%s\n' % jobsubJobID)
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % receivedDict['jobscript_secret'])
   f.write('export JUSTIN_SAM_WEB_URI='
