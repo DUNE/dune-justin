@@ -20,7 +20,7 @@
 (
 #. /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
 
-HTTPD_USER_GROUP=apache.apache
+HTTPD_USER_GROUP=dunejustin.dunejustin
 
 echo
 echo '======= Create justin-jobs-production.proxy.pem'

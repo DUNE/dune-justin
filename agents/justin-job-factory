@@ -108,9 +108,9 @@ def submitJobs(numberToSubmit,
 
   try:    
     wrapperFile = tempfile.NamedTemporaryFile(mode='w+',
-                                 prefix = 'justin-wrapper-job-',
-                                 dir = '/tmp', 
-                                delete = False)  
+                                              prefix = 'justin-wrapper-job-',
+                                              dir = '/tmp', 
+                                              delete = False)
 
     wrapperFile.write(wrapperText)
   except Exception as e:

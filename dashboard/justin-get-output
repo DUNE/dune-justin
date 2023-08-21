@@ -27,3 +27,4 @@ if [ -r "/tmp/justin-wrapper-$JOB.out" ] ; then
 else
  echo '(missing - deleted?)'
 fi
+rm -f "/tmp/justin-wrapper-$JOB.log" "/tmp/justin-wrapper-$JOB.out"

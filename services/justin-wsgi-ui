@@ -890,8 +890,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     else:
         # Rucio dataset name
         if not justin.stringIsDID(destination) or ':' in destination:
-          return ('400 Bad Request', 'Invalid Rucio dataset name')
-
+          return ('400 Bad Request',
+                  'Invalid Rucio dataset name: ' + str(destination))
     try:
         justin.db.insertUpdate('INSERT INTO stages_outputs SET '
               'workflow_id=%d,'
