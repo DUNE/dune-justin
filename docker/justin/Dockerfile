@@ -22,6 +22,7 @@ RUN python3 -m pip install mysqlclient
 RUN python3 -m pip install wheel
 RUN python3 -m pip install setuptools_rust
 RUN python3 -m pip install rust
+RUN python3 -m pip install pyyaml
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install rucio
 
@@ -39,8 +40,9 @@ COPY agents/justin-stage-cache.service    /usr/lib/systemd/system/
 
 COPY agents/justin.logrotate /etc/logrotate.d/justin.logrotate
 
-COPY  genericjobs/run-jobsub-submit  /var/lib/justin/
 COPY  genericjobs/justin-generic-job /var/lib/justin/
+COPY  genericjobs/execute-generic-job /var/lib/justin/
+COPY  genericjobs/justin-submit-wrapper /var/lib/justin/
 
 RUN mkdir /usr/lib/python3.6/site-packages/justin
 COPY modules/allocator.py /usr/lib/python3.6/site-packages/justin/
