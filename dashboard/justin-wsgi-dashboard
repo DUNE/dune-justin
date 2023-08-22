@@ -1888,7 +1888,6 @@ def outputWrapperLog(startResponse, environ, user):
     filename = environ['REQUEST_URI'].split('/')[2]
     cluster = int(filename.split('.')[0])
     proc    = int(filename.split('.')[1])
-#    output = os.popen('sudo -u dunejustin '
     output = os.popen('/var/lib/justin/justin-get-output %d.%d'
                       % (cluster, proc), 'r').read()
   except Exception as e:
@@ -1925,9 +1924,9 @@ def showJob(environ, user, cgiValues):
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
            "jobs.for_awt,jobs.site_job_id,"
-           "jobs.max_processors,jobs.min_processors,"
-           "jobs.max_rss_bytes,jobs.min_rss_bytes,"
-           "jobs.max_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
+           "jobs.requested_processors,"
+           "jobs.requested_rss_bytes,"
+           "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes "
            "FROM jobs "
@@ -1993,13 +1992,13 @@ def showJob(environ, user, cgiValues):
   else:
     output += '<tr><td>Entry</td><td colspan="2"> </td></tr>'
 
-  output += ('<tr><td>Slot</td><td colspan="2">'
-             '%d &lt; processors &le; %d<br>'
-             '%d &lt; rss bytes &le; %d<br>'
-             'wall seconds &le; %d</td></tr>'
-             % (jobRow["min_processors"], jobRow["max_processors"],
-                jobRow["min_rss_bytes"], jobRow["max_rss_bytes"],
-                jobRow["max_wall_seconds"]
+  output += ('<tr><td>Requested</td><td colspan="2">'
+             'processors = %d<br>'
+             'rss bytes = %d<br>'
+             'wall seconds = %d</td></tr>'
+             % (jobRow["requested_processors"],
+                jobRow["requested_rss_bytes"],
+                jobRow["requested_wall_seconds"]
                )
             )
 

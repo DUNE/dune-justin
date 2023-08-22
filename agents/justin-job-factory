@@ -50,49 +50,49 @@ def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
   sys.stdout.flush()
 
-def updateSiteCounts():
-
-  try:
-    justin.db.cur.execute('UPDATE sites SET '
-        'submitted_jobs='
-        '(SELECT COUNT(*) FROM jobs WHERE '
-         '(sites.site_id = jobs.site_id) AND '
-         '(jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 24 HOUR)) AND '
-         '(allocation_state = "submitted")),'
-        'running_jobs='
-        '(SELECT COUNT(*) FROM jobs WHERE '
-         'sites.site_id=jobs.site_id AND allocation_state '
-         'IN ("started","processing","outputting"))')
-  except Exception as e:
-    logLine('Update site counts fails with: ' + str(e))
-  else:
-    justin.db.conn.commit()
-    logLine('Updated site job counts')
+#def updateSiteCounts():
+#
+#  try:
+#    justin.db.cur.execute('UPDATE sites SET '
+#        'submitted_jobs='
+#        '(SELECT COUNT(*) FROM jobs WHERE '
+#         '(sites.site_id = jobs.site_id) AND '
+#         '(jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 24 HOUR)) AND '
+#         '(allocation_state = "submitted")),'
+#        'running_jobs='
+#        '(SELECT COUNT(*) FROM jobs WHERE '
+#         'sites.site_id=jobs.site_id AND allocation_state '
+#         'IN ("started","processing","outputting"))')
+#  except Exception as e:
+#    logLine('Update site counts fails with: ' + str(e))
+#  else:
+#    justin.db.conn.commit()
+#    logLine('Updated site job counts')
    
 def submitJobs(numberToSubmit, 
+               workflowID,
+               stageID,
                firstSiteID,
                desiredSiteNames,
-               minProcessors,
-               maxProcessors,
-               minRssBytes,
-               maxRssBytes,
-               maxWallSeconds,
-               forAwt = False):
+               desiredEntryNames,
+               requestedProcessors,
+               requestedRssBytes,
+               requestedWallSeconds):
 
   # If targetting one site, then firstSiteID should be non-zero
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and others used by GlideInWMS
 
-  logLine('submitJobs %d %d %s %d-%d %d-%d %d' %
+  logLine('submitJobs %d w%ds%s %s %s %s %d %d %d' %
           (numberToSubmit,
-           firstSiteID,
-           desiredSiteNames,
-           minProcessors,
-           maxProcessors,
-           minRssBytes,
-           maxRssBytes,
-           maxWallSeconds))
-
+               workflowID,
+               stageID,
+               firstSiteID,
+               desiredSiteNames,
+               desiredEntryNames,
+               requestedProcessors,
+               requestedRssBytes,
+               requestedWallSeconds))
   try:
     wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
   except Exception as e:
@@ -101,10 +101,12 @@ def submitJobs(numberToSubmit,
 
   justinJobSecret = secrets.token_urlsafe(64)
 
-  wrapperText = \
-   wrapperText.replace('###justin_job_secret###',
-                justinJobSecret).replace('###prodev###', justin.conf.proDev)
-
+  for (p, s) in (('###justin_job_secret###',  justinJobSecret),
+                 ('###justin_prodev###',      justin.conf.proDev),
+                 ('###justin_workflow_id###', str(workflowID)),
+                 ('###justin_stage_id###',    str(stageID))
+                ):
+    wrapperText = wrapperText.replace(p,s)
 
   try:    
     wrapperFile = tempfile.NamedTemporaryFile(mode='w+',
@@ -121,9 +123,11 @@ def submitJobs(numberToSubmit,
 
   submitFile = """
 +Desired_Sites          = "%s"
++Desired_Entries        = "%s"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
++JUSTIN_%s_Stage        = w%ds%d
 universe                = vanilla
 environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
@@ -148,18 +152,24 @@ transfer_output_files   = ""
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
 requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (stringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
+#requirements = ((isUndefined(target.GLIDEIN_Entry_Name) == FALSE) && (stringListIMember(target.GLIDEIN_Entry_Name,my.Desired_Entries)))
 queue %d
 """ % (desiredSiteNames, 
-       maxWallSeconds,
+       desiredEntryNames, 
+       requestedWallSeconds,
+       justin.conf.proDev.upper(),
+       workflowID, stageID,
        wrapperFile.name,
-       int(maxRssBytes / 1024), 
-       maxProcessors,
+       int(requestedRssBytes / 1024), 
+       requestedProcessors,
        numberToSubmit)
-
-#  lineNumber = 1
-#  for line in submitFile.splitlines():
-#    print('%03d %s' % (lineNumber, line))
-#    lineNumber += 1
+  
+  # For debugging the submit file
+  if False:
+    lineNumber = 1
+    for line in submitFile.splitlines():
+      print('%03d %s' % (lineNumber, line))
+      lineNumber += 1
 
   try: 
     outcome = subprocess.run(
@@ -194,19 +204,19 @@ queue %d
   logLine("Submitted cluster %s to %s%s" % 
           (jobsubJobID, 
            desiredSiteNames,
-           ' (AWT job)' if forAwt else ''))
+           ' (AWT job)' if workflowID == justin.awtWorkflowID else ''))
 
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
       justin.db.cur.execute('INSERT INTO jobs '
                   'SET factory_name="%s",'
+                  'workflow_id=%d,'
+                  'stage_id=%d,'
                   'site_id=%d,'
-                  'min_processors=%d,'
-                  'max_processors=%d,'
-                  'min_rss_bytes=%d,'
-                  'max_rss_bytes=%d,'
-                  'max_wall_seconds=%d,'
+                  'requested_processors=%d,'
+                  'requested_rss_bytes=%d,'
+                  'requested_wall_seconds=%d,'
                   'submitted_time=NOW(),'
                   'need_to_fetch_jobsub_log=%s,'
                   'for_awt=%s,'
@@ -214,14 +224,14 @@ queue %d
                   'jobscript_secret="%s",'
                   'jobsub_id="%s.%d@%s"'
                   % (os.uname()[1],
+                     workflowID,
+                     stageID,
                      firstSiteID,
-                     minProcessors,
-                     maxProcessors,
-                     minRssBytes,
-                     maxRssBytes,
-                     maxWallSeconds,
+                     requestedProcessors,
+                     requestedRssBytes,
+                     requestedWallSeconds,
                      "TRUE" if i == 0 else "FALSE",
-                     "TRUE" if forAwt else "FALSE",
+                     "TRUE" if workflowID == justin.awtWorkflowID else "FALSE",
                      justinJobSecret,
                      secrets.token_urlsafe(64),
                      clusterID, i, scheddHostname)
@@ -244,97 +254,131 @@ queue %d
   # Commit it all to the DB
   justin.db.conn.commit()
 
-def anySiteJobs():
+# Submit jobs for highest priority workflows/stages 
+def workflowJobs():
+
+  # Find stages of running workflows  
+  try:
+    stagesRows = justin.select(
+     'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
+     'wlcg_group_name,stages.processors,stages.wall_seconds,stages.rss_bytes '
+     'FROM workflows '
+     'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
+     'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
+     'LEFT JOIN wlcg_groups ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+     'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
+     'ORDER BY workflows.workflow_id'
+     % justin.awtWorkflowID
+                              )
   
-  for (processors, bytesPerProcessor, jobHadInnerApptainer, numberUnallocated) \
-   in justin.getUnallocatedCounts():
-    logLine('---- %d processor(s) %d MB (App=%s) has %d unallocated files ----' % 
-            (processors, 
-            int((bytesPerProcessor * processors) / (1024 * 1024)),
-            jobHadInnerApptainer,
-            numberUnallocated))
+  except Exception as e:
+    logLine('Failed to get list of stages of running workflows: ' + str(e))
+    return             
 
+  for stageRow in stagesRows:
+  
+    logLine('Processing ' + str(stageRow))
+
+    # Count unallocated files for this stage    
     try:
-      desiredRows = justin.db.select('SELECT jobsub_site_name '
-                     'FROM sites '
-                     'LEFT JOIN get_stage_cache '
-                     'ON get_stage_cache.site_id=sites.site_id '
-                     'AND get_stage_cache.min_processors=%d '
-                     'AND get_stage_cache.max_processors=%d '
-                     'AND get_stage_cache.min_rss_bytes=%d '
-                     'AND get_stage_cache.max_rss_bytes=%d '
-                     'AND get_stage_cache.max_wall_seconds=%d '
-                     'WHERE get_stage_cache.site_id IS NOT NULL '
-                     'AND sites.enabled '
-                     'AND sites.has_inner_apptainer=%s '
-                     'ORDER by jobsub_site_name' % 
-                     (processors - 1, 
-                      processors, 
-                      bytesPerProcessor * (processors - 1),
-                      bytesPerProcessor * processors,
-                      86400,
-                      jobHadInnerApptainer))
-    except Exception as e:
-      logLine('Failed getting list of desired sites for get_stage_cache: ' + 
-              str(e))
-      return
+      row = justin.select('SELECT COUNT(*) AS count FROM files '
+                          'WHERE workflow_id=%d AND stage_id=%d '
+                          'AND state="unallocated"'
+                          % (stageRow['workflow_id'],
+                             stageRow['stage_id']), justOne = True)
+   
+      unallocatedCount = int(row['count'])
+    except:
+      unallocatedCount = 0
 
-# SOME DOUBLE COUNTING HERE FOR COUNTS WITH AND WITHOUT INNER SINGULARITY?
-# WILL GO AWAY WHEN REDONE FOR CLASSAD MATCHING OF INNER SINGULARITY?
-    desiredSites = set() # use a set to remove duplicates
-    for desiredRow in desiredRows:
-      if desiredRow['jobsub_site_name'] not in alwaysIgnoreSitesList:
-        desiredSites.add(desiredRow['jobsub_site_name'])
+    # Count submitted jobs for this stage    
+    try:
+      row = justin.select('SELECT COUNT(*) AS count FROM jobs '
+                          'WHERE workflow_id=%d AND stage_id=%d AND '
+                          'allocation_state="submitted" AND '
+                          'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY)',
+                          justOne = True)
+   
+      submittedCount = int(row['count'])
+    except:
+      submittedCount = 0
 
-    try:    
-        # The 1 day limit should match the 1 day periodic remove for idle
-        # jobs in the HTCondor submit file
-        query = ('SELECT COUNT(*) AS count FROM jobs '
-                       'WHERE allocation_state = "submitted" AND '
-                       'min_processors < %d AND '
-                       'max_processors >= %d AND '
-                       'min_rss_bytes < %d AND '
-                       'max_rss_bytes >= %d AND '
-                       'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY) AND '
-                       'NOT for_awt' %
-                       (processors,
-                        processors,
-                        bytesPerProcessor * processors,
-                        bytesPerProcessor * processors
-                       ))
-        logLine('numberSubmitted query: ' + query)
-        submitted = justin.db.select(query, justOne = True)
-        numberSubmitted = submitted['count']
-    except Exception as e:
-        logLine('Failed getting count of submitted jobs: ' + str(e))
+    logLine('unallocatedCount=%d  submittedCount=%d  maxSubmitted=%d' 
+            % (unallocatedCount, submittedCount, maxSubmitted))
+
+    if unallocatedCount > submittedCount:
+      # Need to submit more jobs: find suitable entries and sites
+      try:
+        entriesRows = justin.select(
+   "SELECT entries.entry_name,sites.site_name "
+   "FROM files "
+   "LEFT JOIN replicas ON files.file_id=replicas.file_id "
+   "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
+   "LEFT JOIN sites_storages ON replicas.rse_id=sites_storages.rse_id "
+   "AND sites_storages.distance <= %f "
+   "LEFT JOIN entries ON entries.site_id=sites_storages.site_id "
+   "LEFT JOIN sites ON sites.site_id=entries.site_id "
+   "WHERE files.workflow_id=%d "
+   "AND files.stage_id=%d "
+   "AND files.state='unallocated' " 
+   "AND replicas.accessible_until > NOW() "
+   "AND storages.rucio_read "
+   "AND storages.justin_read "
+   "AND NOT storages.decommissioned "
+   "AND sites.site_id IS NOT NULL "
+   "%s "
+   "ORDER BY sites_storages.distance,files.file_id "
+   "LIMIT 1000 "
+         % (stageRow['max_distance'],
+            stageRow['workflow_id'],
+            stageRow['stage_id'],            
+            '' if (stageRow['wlcg_group_name'] == '/dune/production') 
+            else 'AND entries.always_inner_apptainer'))
+
+      except Exception as e:
+        logLine('Failed to get list of entries/sites: ' + str(e))
         continue
         
-    logLine('%d processors %d MB has %d submitted and %d unallocated' % 
-            (processors, 
-             int((bytesPerProcessor * processors) / (1024 * 1024)),
-             numberSubmitted, numberUnallocated))
-            
-    if numberSubmitted > maxSubmitted:
-      logLine('Skipping due to number already submitted > %d' % maxSubmitted)
-      continue
-          
-    if desiredSites and (numberUnallocated > numberSubmitted):
-      desiredSitesStr = ','.join(desiredSites)
+      logLine('entriesRows %s' % str(entriesRows))
+ 
+      if submittedCount > maxSubmitted:
+        logLine('Skipping due to number already submitted > %d' % maxSubmitted)
+        continue
 
-      numberToSubmit = numberUnallocated - numberSubmitted
-      if numberToSubmit > jobsPerCluster:
-        numberToSubmit = jobsPerCluster
+      desiredSites   = set()
+      desiredEntries = set()
+    
+      # Submit clusters of jobs
+      for entryRow in entriesRows:
+        desiredSites.add(  entryRow['site_name'])
+        desiredEntries.add(entryRow['entry_name'])
 
-      logLine('Submit %d jobs with desired sites: %s' % (numberToSubmit, desiredSitesStr))
-      submitJobs(numberToSubmit = numberToSubmit,
-               firstSiteID      = 0,
-               desiredSiteNames = desiredSitesStr,
-               minProcessors    = processors - 1,
-               maxProcessors    = processors,
-               minRssBytes      = bytesPerProcessor * (processors - 1),
-               maxRssBytes      = bytesPerProcessor * processors,
-               maxWallSeconds   = 86400,
-               forAwt           = False)
+      if desiredSites and desiredEntries \
+         and (unallocatedCount > submittedCount):
+        desiredSiteNames  = ','.join(desiredSites)
+        desiredEntryNames = ','.join(desiredEntries)
+
+        numberToSubmit = unallocatedCount - submittedCount
+        if numberToSubmit > jobsPerCluster:
+         numberToSubmit = jobsPerCluster
+
+        logLine('Submit %d jobs with desired sites: %s'
+               % (numberToSubmit, desiredSiteNames))
+
+        submitJobs(numberToSubmit       = numberToSubmit,
+                   workflowID           = stageRow['workflow_id'],
+                   stageID              = stageRow['stage_id'],
+                   firstSiteID          = 0,
+                   desiredSiteNames     = desiredSiteNames,
+                   desiredEntryNames    = desiredEntryNames,
+                   requestedProcessors  = stageRow['processors'],
+                   requestedRssBytes    = stageRow['rss_bytes'],
+                   requestedWallSeconds = stageRow['wall_seconds'])
+
+#       logLine('%d processors %d MB has %d submitted and %d unallocated' % 
+#            (processors, 
+#             int((bytesPerProcessor * processors) / (1024 * 1024)),
+#             numberSubmitted, numberUnallocated))
 
 def awtJobsToSites():
   # Go through the sites deciding where to submit AWT jobs
@@ -358,15 +402,15 @@ def awtJobsToSites():
     return
   
   for row in rows:
-      submitJobs(numberToSubmit = 1,
-                 firstSiteID      = row['site_id'],
-                 desiredSiteNames = row['jobsub_site_name'],
-                 minProcessors    = 0,
-                 maxProcessors    = 1,
-                 minRssBytes      = 0,
-                 maxRssBytes      = 1024 * 1024 * 1024,
-                 maxWallSeconds   = 3600,
-                 forAwt           = True)
+      submitJobs(numberToSubmit       = 1,
+                 workflowID           = justin.awtWorkflowID,
+                 stageID              = 1,
+                 firstSiteID          = row['site_id'],
+                 desiredSiteNames     = row['jobsub_site_name'],
+                 desiredEntryNames    = '',
+                 requestedProcessors  = 1,
+                 requestedRssBytes    = 1024 * 1024 * 1024,
+                 requestedWallSeconds = 3600)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
@@ -377,8 +421,11 @@ def oneCycle():
   logLine("awtJobsToSites()")
   awtJobsToSites()
 
-  logLine("anySiteJobs()")
-  anySiteJobs()
+#  logLine("anySiteJobs()")
+#  anySiteJobs()
+
+  logLine("workflowJobs()")
+  workflowJobs()
 
 #
 # PROGRAM MAIN

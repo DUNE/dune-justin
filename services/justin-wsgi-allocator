@@ -86,11 +86,9 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
              'jobs.justin_job_id,'
              'jobs.site_id,'
              'jobs.for_awt,'
-             'jobs.min_processors,'
-             'jobs.max_processors,'
-             'jobs.min_rss_bytes,'
-             'jobs.max_rss_bytes,'
-             'jobs.max_wall_seconds,'
+             'jobs.requested_processors,'
+             'jobs.requested_rss_bytes,'
+             'jobs.requested_wall_seconds,'
              'jobs.has_inner_apptainer,'
              'sites.site_name,'
              'sites.max_jobs,'
@@ -118,27 +116,25 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
      job['jobscript_secret'] != jobscriptSecret:
     return { "error_message": "Jobscript secret mismatch" }
 
-  return { "error_message"       : None,
-           "workflow_id"         : job['workflow_id'],
-           "stage_id"            : job['stage_id'],
-           "site_id"             : job['site_id'],
-           "site_name"           : job['site_name'],
-           "entry_id"            : job['entry_id'],
-           "entry_name"          : job['entry_name'],
-           "running_jobs"        : job['running_jobs'],
-           "max_jobs"            : job['max_jobs'],
-           "site_enabled"        : job['enabled'],
-           "justin_job_id"       : job['justin_job_id'],
-           "allocation_state"    : job['allocation_state'],
-           "jobscript_secret"    : job['jobscript_secret'],
-           "for_awt"             : job['for_awt'],
-           "max_distance"        : job['max_distance'],
-           "min_processors"      : job['min_processors'],
-           "max_processors"      : job['max_processors'],
-           "min_rss_bytes"       : job['min_rss_bytes'],
-           "max_rss_bytes"       : job['max_rss_bytes'],
-           "max_wall_seconds"    : job['max_wall_seconds'],
-           "has_inner_apptainer" : job['has_inner_apptainer']
+  return { "error_message"          : None,
+           "workflow_id"            : job['workflow_id'],
+           "stage_id"               : job['stage_id'],
+           "site_id"                : job['site_id'],
+           "site_name"              : job['site_name'],
+           "entry_id"               : job['entry_id'],
+           "entry_name"             : job['entry_name'],
+           "running_jobs"           : job['running_jobs'],
+           "max_jobs"               : job['max_jobs'],
+           "site_enabled"           : job['enabled'],
+           "justin_job_id"          : job['justin_job_id'],
+           "allocation_state"       : job['allocation_state'],
+           "jobscript_secret"       : job['jobscript_secret'],
+           "for_awt"                : job['for_awt'],
+           "max_distance"           : job['max_distance'],
+           "requested_processors"   : job['requested_processors'],
+           "requested_rss_bytes"    : job['requested_rss_bytes'],
+           "requested_wall_seconds" : job['requested_wall_seconds'],
+           "has_inner_apptainer"    : job['has_inner_apptainer']
          }
 
 # Make a new certificate from the certificate workflow sent by the 
