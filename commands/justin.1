@@ -107,7 +107,7 @@ excludes a workflow from the workflow allocation process.
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
 .B [--output-pattern PATTERN:DESTINATION]
 .B [--output-pattern-next-stage PATTERN:DATASET] [--output-rse NAME] 
-.B [--lifetime-days DAYS] [--env NAME=VALUE]
+.B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
 .br
 Creates a new stage for the given workflow ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each workflow must have at least
@@ -193,6 +193,10 @@ then the default algorithm for choosing the closest available RSE is used.
 .B --env NAME=VALUE
 can be used one or more times to set environment variables when the stage's
 jobscript is executed.
+
+.B --classad NAME=VALUE
+can be used one or more times to add ClassAds to the jobs submitted for
+this stage.
 
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 

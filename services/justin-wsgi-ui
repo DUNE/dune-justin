@@ -954,6 +954,32 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         return ('500 Internal Server Error', 
                 'Error updating justIN database ' + str(e))
 
+  if jsonDict['classad']:
+    for classadNameValue in jsonDict['classad']:    
+      try:        
+        (classadName,classadValue) = classadNameValue.split('=',1)
+      except:
+        return ('400 Bad Request', 'Failed to parse --classad option')
+
+      if not justin.stringIsEnvName(classadName):
+        return ('400 Bad Request', 'Invalid ClassAd name')
+
+      try:
+        justin.insertUpdate('INSERT IGNORE INTO stages_classads SET '
+              'workflow_id=%d,'
+              'stage_id=%d,'
+              'classad_name="%s",'
+              'classad_value="%s"' % 
+              (workflowID, 
+               stageID, 
+               classadName, 
+               classadValue.replace('\\','\\\\').replace('"','\\"')
+              ))
+
+      except Exception as e:
+        return ('500 Internal Server Error', 
+                'Error updating justIN database ' + str(e))
+
   return ('200 OK', '')
 
 def createStageCmd(startResponse, jsonDict, user):

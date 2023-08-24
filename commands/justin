@@ -167,6 +167,11 @@ parser.add_argument("--env",
                     action = "append",
                     help   = "Environment variables for the jobscript")
 
+parser.add_argument("--classad",
+                    type   = str,
+                    action = "append",
+                    help   = "Additional ClassAds for jobs")
+
 parser.add_argument("--lifetime-days",
                     type = int,
                     help = "Rucio lifetime for output files")

@@ -2339,12 +2339,12 @@ def listScopes(environ, user, cgiValues):
 
   output += ("<h1>Scopes</h1>")
   
-  query = ('SELECT scope_name,wlcg_group_name,accounting_group_name '
+  query = ('SELECT scope_name,wlcg_group_name,condor_group_name '
         'FROM scopes '
         'LEFT JOIN wlcg_groups '
         'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
-        'LEFT JOIN accounting_groups '
-        'ON accounting_groups.accounting_group_id=scopes.accounting_group_id '
+        'LEFT JOIN condor_groups '
+        'ON condor_groups.condor_group_id=scopes.condor_group_id '
         'ORDER BY scope_name')
   scopeRows = justin.select(query)
 
@@ -2362,8 +2362,8 @@ def listScopes(environ, user, cgiValues):
                % (scopeRow['scope_name'],
                   scopeRow['wlcg_group_name'] 
                   if scopeRow['wlcg_group_name'] else ' ',
-                  scopeRow['accounting_group_name'] 
-                  if scopeRow['accounting_group_name'] else ' '))
+                  scopeRow['condor_group_name'] 
+                  if scopeRow['condor_group_name'] else ' '))
 
   output += ("</table>")
   output += footer()

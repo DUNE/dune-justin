@@ -75,6 +75,7 @@ def submitJobs(numberToSubmit,
                workflowID,
                stageID,
                firstSiteID,
+               classads,
                desiredSiteNames,
                desiredEntryNames,
                requestedProcessors,
@@ -83,15 +84,16 @@ def submitJobs(numberToSubmit,
 
   # If targetting one site, then firstSiteID should be non-zero
   # desiredSiteNames is a comma separated list of jobsub style site names
-  # to match GLIDEIN_Site classads and others used by GlideInWMS
+  # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s w%ds%s %s %s %s %d %d %d' %
+  logLine('submitJobs %d %s %s w%ds%d %d %s %s %s %d %d %d' %
           (numberToSubmit,
                userName,
                accountingGroup,
                workflowID,
                stageID,
                firstSiteID,
+               classads,
                desiredSiteNames,
                desiredEntryNames,
                requestedProcessors,
@@ -125,7 +127,14 @@ def submitJobs(numberToSubmit,
   finally:
     wrapperFile.close()
 
-  submitFile = """
+  submitFile = ''
+  
+  # Add any user defined ClassAds for this stage 
+  # but justIN's ClassAds go second so they cannot be ovewridden.
+  for (name, value) in classads:
+    submitFile += '+%s = "%s"' % (name, value)
+
+  submitFile += """
 +Desired_Sites          = "%s"
 +Desired_Entries        = "%s"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
@@ -266,7 +275,7 @@ def workflowJobs():
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
      'wlcg_group_name,stages.processors,stages.wall_seconds,stages.rss_bytes,'
-     'principal_names.principal_name '
+     'principal_names.principal_name,condor_group_name '
      'FROM workflows '
      'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
      'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
@@ -274,6 +283,8 @@ def workflowJobs():
      'LEFT JOIN users ON users.user_id=workflows.user_id '
      'LEFT JOIN principal_names '
      'ON principal_names.user_id=users.main_pn_id '
+     'LEFT JOIN condor_groups '
+     'ON condor_groups.condor_group_id=scopes.condor_group_id '
      'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
      'ORDER BY workflows.workflow_id'
      % justin.awtWorkflowID
@@ -373,11 +384,32 @@ def workflowJobs():
         logLine('Submit %d jobs with desired sites: %s'
                % (numberToSubmit, desiredSiteNames))
 
+        condorGroupName = stageRow['condor_group_name']
+        if not condorGroupName:
+          condorGroupName = 'group_dune'
+
+        try:
+           query = ('SELECT classad_name,classad_value '
+                   'FROM stages_classads '
+                   'WHERE workflow_id=%d AND stage_id=%d ORDER BY classad_name'
+                   % (stageRow['workflow_id'], stageRow['stage_id']))
+
+          classadRows = justin.select(query)
+        except Exception as e:
+          logLine('Get stage classads fails: ' + str(e))
+          continue
+          
+        classads = []
+        for classadRow in classadRows:
+           classads.append((classadRow['classad_name'],
+                            classadRow['classad_value']))
+ 
         submitJobs(numberToSubmit       = numberToSubmit,
                    userName             = stageRow['principal_name'],
-                   accountingGroup      = 'prod_mcsim',
+                   accountingGroup      = condorGroupName,
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
+                   classads             = classads,
                    firstSiteID          = 0,
                    desiredSiteNames     = desiredSiteNames,
                    desiredEntryNames    = desiredEntryNames,
@@ -415,10 +447,11 @@ def awtJobsToSites():
   for row in rows:
       submitJobs(numberToSubmit       = 1,
                  userName             = 'dunepro',
-                 accountingGroup      = 'prod_mcsim',
+                 accountingGroup      = 'group_dune.prod_mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
                  firstSiteID          = row['site_id'],
+                 classads             = [],
                  desiredSiteNames     = row['jobsub_site_name'],
                  desiredEntryNames    = '',
                  requestedProcessors  = 1,

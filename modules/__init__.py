@@ -38,8 +38,7 @@ jobsNoRolesProxyString = None
 jobsNoRolesProxyFile   = '/var/lib/justin/justin-jobs-no-roles.proxy.pem'
 
 # Constants
-MonteCarloRseID       = 1
-productionWLCGGroupID = 2
+MonteCarloRseID = 1
 
 justinRunDir    = '/var/run/justin'
 
@@ -48,8 +47,10 @@ mysqlPassword   = None
 mysqlHostname   = None
 mysqlDbName     = None
 
-cilogonClientID = None
-cilogonSecret   = None
+cilogonClientID     = None
+cilogonSecret       = None
+wlcgGroups          = None
+rucioProductionUser = None
 
 agentUsername   = None
 
@@ -98,7 +99,6 @@ awtFileID     = 1
 
 maxAllocations = 6
 
-### EVENT DEFINITIONS BELOW ARE NOW IN events.py !!!!!
 # Catch all events
 event_UNDEFINED = 0
 
@@ -222,7 +222,7 @@ eventTypes = {
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
-         proDev
+         proDev, wlcgGroups, rucioProductionUser
 
   parser = configparser.RawConfigParser()
 
@@ -262,17 +262,32 @@ def readConf():
   except:
     mysqlDbName = 'justindb'
 
-  # Options for the [cilogon] section
+  # Options for the [users] section
 
   try:
-    cilogonClientID = parser.get('cilogon','client_id').strip()
+    cilogonClientID = parser.get('users','cilogon_client_id').strip()
   except:
     cilogonClientID = None
 
   try:
-    cilogonSecret = parser.get('cilogon','secret').strip()
+    cilogonSecret = parser.get('users','cilogon_secret').strip()
   except:
     cilogonSecret = None
+
+  try:
+    g = parser.get('users','wlcg_groups').strip()
+    wlcgGroups = []
+    for w in g.split():
+      if not stringNoQuotes(w):
+        raise 
+      wlcgGroups.append(w.strip().lower())
+  except:
+    wlcgGroups = []
+
+  try:
+    rucioProductionUser = parser.get('users','rucio_production_user').strip()
+  except:
+    rucioProductionUser = 'dunepro'
 
   # Options for the [agents] section
 

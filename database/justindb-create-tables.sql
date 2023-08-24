@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
   `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `accounting_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -33,10 +33,10 @@ CREATE TABLE IF NOT EXISTS `wlcg_groups` (
   PRIMARY KEY `wlcg_group_id` (`wlcg_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `accounting_groups` (
-  `accounting_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `accounting_group_name` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY `accounting_group_id` (`accounting_group_id`)
+CREATE TABLE IF NOT EXISTS `condor_groups` (
+  `condor_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `condor_group_name` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY `condor_group_id` (`condor_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jobs` (
@@ -265,6 +265,14 @@ CREATE TABLE IF NOT EXISTS `stages_environment` (
   `env_name` varchar(255) NOT NULL,
   `env_value` text NOT NULL DEFAULT '',
   UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`env_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `stages_classads` (
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `classad_name` varchar(255) NOT NULL,
+  `classad_value` text NOT NULL DEFAULT '',
+  UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`classad_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `sites_stages_cache` (
