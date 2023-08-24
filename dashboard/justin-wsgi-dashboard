@@ -232,7 +232,7 @@ def startResponseOK(startResponse, output):
                 ])
 
 def spaceForUnixEpoch(s):
-  if str(s) == justin.db.unixEpoch:
+  if str(s) == justin.unixEpoch:
     return '&nbsp;'
   else:
     return str(s)
@@ -335,8 +335,8 @@ def oidcTokensWorkflow(cilogonCode, environ):
 
   postData = urllib.parse.urlencode(
        { 'grant_type'    : 'authorization_code',
-         'client_id'     : justin.conf.cilogonClientID,
-         'client_secret' : justin.conf.cilogonSecret,
+         'client_id'     : justin.cilogonClientID,
+         'client_secret' : justin.cilogonSecret,
          'code'          : cilogonCode,
          'redirect_uri'  : 'https://%s/login/cilogon/login' % environ['SERVER_NAME']
        })
@@ -513,7 +513,7 @@ def cilogonCallback(startResponse, environ):
       print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
   else:
       # This is where the created user gets committed too
-      justin.db.conn.commit()
+      justin.conn.commit()
 
   if not savedURI:
     savedURI = '/dashboard/'
@@ -578,7 +578,7 @@ def loginPage(startResponse, environ, authorize=False):
                            userAgent.replace('\\','\\\\').replace('"','\\"'),
                            savedURI,
                            ip))
-    justin.db.conn.commit()
+    justin.conn.commit()
   except:
     output = errorPage(environ, '', "Session creation fails")
     startResponseOK(startResponse, output)
@@ -632,7 +632,7 @@ your user name.
   output += '<p><form style="text-align: center" method="GET" ' \
             'action="https://cilogon.org/authorize">\n'
   output += ('<input type="hidden" name="client_id" value="%s">\n'
-             % justin.conf.cilogonClientID)
+             % justin.cilogonClientID)
   output += '<input type="hidden" name="state" value="%s">\n' % justinSession
   output += '<input type="hidden" name="response_type" value="code">\n'
 
@@ -894,8 +894,8 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
            'ORDER BY workflow_id DESC LIMIT %d,%d' %
            (pageNumber * pageLength, pageLength + 1))
 
-  justin.db.cur.execute(query)
-  rows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  rows = justin.cur.fetchall()
 
   output += makePager(pageNumber, pageLength, len(rows), 
                       "/dashboard/?method=list-workflows&page_number=%d&page_length=%d") 
@@ -952,8 +952,8 @@ def showWorkflow(environ, user, cgiValues):
            "WHERE workflow_id=%d "
            "ORDER BY workflow_id" % workflowID)
 
-  justin.db.cur.execute(query)
-  workflowRow = justin.db.cur.fetchone()
+  justin.cur.execute(query)
+  workflowRow = justin.cur.fetchone()
   
   state = workflowRow['state']
 
@@ -1004,8 +1004,8 @@ def showWorkflow(environ, user, cgiValues):
            "WHERE workflow_id=%d "
            "ORDER BY stage_id" % workflowID)
 
-  justin.db.cur.execute(query)
-  stageRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  stageRows = justin.cur.fetchall()
 
   # Get counts of file states for all stages
   stateCounts = []
@@ -1025,7 +1025,7 @@ def showWorkflow(environ, user, cgiValues):
            'WHERE workflow_id=%d '
            'GROUP BY state,stage_id' % workflowID)
              
-  stateRows = justin.db.select(query)
+  stateRows = justin.select(query)
   
   for stateRow in stateRows:
     stateCounts[stateRow['stage_id']][stateRow['state']] = stateRow['count']
@@ -1093,7 +1093,7 @@ def showWorkflow(environ, user, cgiValues):
            'WHERE workflow_id=%d '
            'GROUP BY job_state,stage_id' % workflowID)
              
-  stateRows = justin.db.select(query)
+  stateRows = justin.select(query)
   
   for stateRow in stateRows:
     stateCounts[stateRow['stage_id']][stateRow['job_state']] \
@@ -1241,8 +1241,8 @@ def showStage(environ, user, cgiValues):
            (workflowID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  rseRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  rseRows = justin.cur.fetchall()
   
   if (len(rseRows) == 0):
     output += ("(any)")
@@ -1268,7 +1268,7 @@ def showStage(environ, user, cgiValues):
            (workflowID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
-  patternRows = justin.db.select(query)
+  patternRows = justin.select(query)
 
   if patternRows:
     output += ("<h2>Output patterns</h2>")
@@ -1300,7 +1300,7 @@ def showStage(environ, user, cgiValues):
            "ORDER BY env_name" %
            (workflowID, stageID))
 
-  envRows = justin.db.select(query)
+  envRows = justin.select(query)
 
   if envRows:
     output += '<!-- %s -->\n' % str(time.time())
@@ -1330,7 +1330,7 @@ def showStage(environ, user, cgiValues):
            'WHERE workflow_id=%d AND stage_id=%d '
            'GROUP BY state' % (workflowID, stageID))
   
-  stateRows = justin.db.select(query)
+  stateRows = justin.select(query)
   
   for stateRow in stateRows:
     stateCounts[stateRow['state']] = stateRow['count']    
@@ -1400,8 +1400,8 @@ def showStage(environ, user, cgiValues):
               workflowID, stageID))
 
   output += '<!-- %s SELECT (SELECT -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  jobNumberRow = justin.db.cur.fetchone()
+  justin.cur.execute(query)
+  jobNumberRow = justin.cur.fetchone()
 
   output += ('<h2>Job states</h2>')
   output += ('<table>')
@@ -1447,7 +1447,7 @@ def showStage(environ, user, cgiValues):
            'ORDER BY processed_hour'
            % (workflowID, stageID))
 
-  binRows = justin.db.select(query)
+  binRows = justin.select(query)
 
   if binRows:
     firstHour   = binRows[0]['processed_hour']
@@ -1496,8 +1496,8 @@ def showStage(environ, user, cgiValues):
            'GROUP BY replicas.rse_id ORDER BY replica_count DESC'
            % (workflowID, stageID))
 
-  justin.db.select(query)
-  replicaRows = justin.db.select(query)
+  justin.select(query)
+  replicaRows = justin.select(query)
 
   if replicaRows:
 
@@ -1531,11 +1531,11 @@ def showStage(environ, user, cgiValues):
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (workflowID, stageID, justin.db.event_FILE_ALLOCATED))
+           (workflowID, stageID, justin.event_FILE_ALLOCATED))
 
   output += '<!-- %s SELECT ALLOCATED -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  rseRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  rseRows = justin.cur.fetchall()
 
   for rseRow in rseRows:
 
@@ -1548,11 +1548,11 @@ def showStage(environ, user, cgiValues):
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (workflowID, stageID, justin.db.event_FILE_CREATED))
+           (workflowID, stageID, justin.event_FILE_CREATED))
 
   output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  rseRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  rseRows = justin.cur.fetchall()
   
   for rseRow in rseRows:
   
@@ -1582,11 +1582,11 @@ def showStage(environ, user, cgiValues):
            'LEFT JOIN sites ON sites.site_id=events.site_id '
            'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (workflowID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
+           (workflowID, stageID, justin.event_FILE_ALLOCATED_RESET))
 
   output += '<!-- %s -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  resetRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  resetRows = justin.cur.fetchall()
   
   for resetRow in resetRows:
   
@@ -1599,11 +1599,11 @@ def showStage(environ, user, cgiValues):
            'LEFT JOIN sites ON sites.site_id=events.site_id '
            'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (workflowID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
+           (workflowID, stageID, justin.event_FILE_OUTPUTTING_RESET))
 
   output += '<!-- %s -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  resetRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  resetRows = justin.cur.fetchall()
   
   for resetRow in resetRows:
   
@@ -1694,13 +1694,13 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "WHERE files.workflow_id=%d AND files.stage_id=%d %s "
            "ORDER BY files.file_id DESC LIMIT %d,%d" % 
-           (justin.db.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
+           (justin.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
             pageNumber * pageLength, pageLength + 1))
 
   output += '<!-- %s -->\n' % query
 
-  justin.db.cur.execute(query)
-  filesRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  filesRows = justin.cur.fetchall()
 
   output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
@@ -1780,7 +1780,7 @@ def showFile(environ, user, cgiValues):
            'WHERE workflow_id=%d AND stage_id=%d and file_did="%s"' %
            (workflowID, stageID, fileDID))
 
-  fileRow = justin.db.select(query, justOne = True)
+  fileRow = justin.select(query, justOne = True)
 
   try:
     fileID = int(fileRow["file_id"])
@@ -1795,18 +1795,18 @@ def showFile(environ, user, cgiValues):
            "LEFT JOIN sites ON sites.site_id=events.site_id "
            "LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id "
            "WHERE event_type_id=%d AND file_id=%d ORDER BY event_id" 
-           % (justin.db.event_FILE_ALLOCATED, fileID))
+           % (justin.event_FILE_ALLOCATED, fileID))
 
-  justin.db.cur.execute(query)
-  jobsRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  jobsRows = justin.cur.fetchall()
 
   query = ('SELECT wan_pfn,lan_pfn,rse_name '
            'FROM replicas '
            'LEFT JOIN storages ON storages.rse_id=replicas.rse_id '
            'WHERE file_id=%d' % fileID)
 
-  justin.db.cur.execute(query)
-  replicaRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  replicaRows = justin.cur.fetchall()
 
   output += ('<p><table>')
   
@@ -1939,7 +1939,7 @@ def showJob(environ, user, cgiValues):
            "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
-  jobRow = justin.db.select(query, justOne = True)
+  jobRow = justin.select(query, justOne = True)
 
   if not jobRow:
     return errorPage(environ, user, "Job not found in database")
@@ -1948,7 +1948,7 @@ def showJob(environ, user, cgiValues):
            "LEFT JOIN files ON events.file_id=files.file_id "
            "WHERE events.justin_job_id=%d AND event_type_id=%d "
            "ORDER BY event_id" % 
-           (jobRow['justin_job_id'], justin.db.event_FILE_ALLOCATED))
+           (jobRow['justin_job_id'], justin.event_FILE_ALLOCATED))
 
   inputFilesRows = justin.select(query)
 
@@ -1958,8 +1958,8 @@ def showJob(environ, user, cgiValues):
            "(event_type_id=%d OR event_type_id=%d) "
            "ORDER BY event_id" % 
            (jobRow['justin_job_id'],
-            justin.db.event_FILE_CREATED,
-            justin.db.event_FILE_UPLOADED))
+            justin.event_FILE_CREATED,
+            justin.event_FILE_UPLOADED))
 
   outputFilesRows = justin.select(query)
 
@@ -2197,7 +2197,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   except:
     pass
   else:
-    if siteName and justin.db.stringIsSite(siteName):
+    if siteName and justin.stringIsSite(siteName):
       filters.append('sites.site_name="%s"' % siteName)
       urlTemplate += '&site_name=' + siteName
       titleSuffixes.append('Site %s' % siteName)
@@ -2228,7 +2228,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
                ' (SELECT COUNT(*) FROM jobs '
                ' WHERE job_state="outputting") AS number_outputting')
                
-      row = justin.db.select(query, justOne = True)
+      row = justin.select(query, justOne = True)
 
       output += ('<p>%d job(s) in submitted state, %d in processing state, '
             '%d in outputting state</p>' %
@@ -2254,8 +2254,8 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
            (filter, pageNumber * pageLength, pageLength + 1)
           )
 
-  justin.db.cur.execute(query)
-  jobRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  jobRows = justin.cur.fetchall()
 
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
@@ -2339,24 +2339,31 @@ def listScopes(environ, user, cgiValues):
 
   output += ("<h1>Scopes</h1>")
   
-  query = ('SELECT scope_name,wlcg_group_name FROM scopes '
-           'LEFT JOIN wlcg_groups '
-           'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
-           'ORDER BY scope_name')
+  query = ('SELECT scope_name,wlcg_group_name,accounting_group_name '
+        'FROM scopes '
+        'LEFT JOIN wlcg_groups '
+        'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN accounting_groups '
+        'ON accounting_groups.accounting_group_id=scopes.accounting_group_id '
+        'ORDER BY scope_name')
   scopeRows = justin.select(query)
 
   output += ('<table class="center">')
   
   output += ('<tr>'
-        '<th>Scope</th>'
-        '<th>Write if in group</th>')
+             '<th>Scope</th>'
+             '<th>Write if in group</th>'
+             '<th>Accounting group</th></tr>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
+               '<td>%s</td>' 
                '<td>%s</td></tr>' 
                % (scopeRow['scope_name'],
                   scopeRow['wlcg_group_name'] 
-                  if scopeRow['wlcg_group_name'] else ' '))
+                  if scopeRow['wlcg_group_name'] else ' ',
+                  scopeRow['accounting_group_name'] 
+                  if scopeRow['accounting_group_name'] else ' '))
 
   output += ("</table>")
   output += footer()
@@ -2375,8 +2382,8 @@ def listSites(environ, user, cgiValues):
            "FROM sites "
            "LEFT JOIN jobs ON sites.last_awt_job_id=jobs.justin_job_id "
            "WHERE sites.site_id > 0 ORDER BY site_name")
-  justin.db.cur.execute(query)
-  siteRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  siteRows = justin.cur.fetchall()
 
   output += ('<table class="center">')
   
@@ -2393,7 +2400,7 @@ def listSites(environ, user, cgiValues):
         '</tr>')
   
   for siteRow in siteRows:  
-    if str(siteRow['last_get_jobscript_time']) == justin.db.unixEpoch:
+    if str(siteRow['last_get_jobscript_time']) == justin.unixEpoch:
       lastGetStageStr = '&nbsp;'
     else:
       lastGetStageStr = str(siteRow['last_get_jobscript_time'])
@@ -2451,8 +2458,8 @@ def listStorages(environ, user, cgiValues):
            "FROM storages "
            "LEFT JOIN sites ON storages.site_id=sites.site_id "
            "ORDER BY rse_name")
-  justin.db.cur.execute(query)
-  storageRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  storageRows = justin.cur.fetchall()
 
   output += ('<table class="center">')
   
@@ -2512,7 +2519,7 @@ def showSite(environ, user, cgiValues):
   except:
     return errorPage(environ, user, "site_name must be given")
     
-  if not justin.db.stringIsSite(siteName):
+  if not justin.stringIsSite(siteName):
     return errorPage(environ, user, "Invalid site name!")
         
   output = header(environ, user, "justIN: Site " + siteName)
@@ -2535,8 +2542,8 @@ def showSite(environ, user, cgiValues):
            'LEFT JOIN jobs ON sites.last_awt_job_id=jobs.justin_job_id '
            'WHERE site_name="%s"' % siteName)
 
-  justin.db.cur.execute(query)
-  siteRow = justin.db.cur.fetchone()
+  justin.cur.execute(query)
+  siteRow = justin.cur.fetchone()
 
   output += ('<table>')
   
@@ -2560,7 +2567,7 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Last submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])
 
-  if str(siteRow['last_get_jobscript_time']) == justin.db.unixEpoch:
+  if str(siteRow['last_get_jobscript_time']) == justin.unixEpoch:
     lastGetJobscriptStr = '&nbsp;'
   else:
     lastGetJobscriptStr = str(siteRow['last_get_jobscript_time'])
@@ -2662,8 +2669,8 @@ def showSite(environ, user, cgiValues):
            'WHERE sites_storages.site_id=%d AND NOT storages.decommissioned '
            'ORDER BY distance,rse_name' % siteRow['site_id'])
 
-  justin.db.cur.execute(query)
-  storageRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  storageRows = justin.cur.fetchall()
 
   output += ("<p>Values are xrdcp read and rucio upload exit codes for jobs "
         "contacting each RSE. 0 = success. Decommissioned storages "
@@ -2731,7 +2738,7 @@ def showUser(environ, user, cgiValues):
   except:
     return errorPage(environ, user, "user_name must be given")
 
-  if not justin.db.stringIsUsername(userName):
+  if not justin.stringIsUsername(userName):
     return errorPage(environ, user, "Invalid user name!")
 
   output = header(environ, user, "justIN: User " + userName)
@@ -2799,7 +2806,7 @@ def showStorage(environ, user, cgiValues):
   except:
     return errorPage(environ, user, "rse_name must be given")
     
-  if not justin.db.stringIsSite(rseName):
+  if not justin.stringIsSite(rseName):
     return errorPage(environ, user, "Invalid RSE name!")
         
   output = header(environ, user, "justIN: Storage " + rseName)
@@ -2813,8 +2820,8 @@ def showStorage(environ, user, cgiValues):
            'LEFT JOIN sites ON sites.site_id=storages.site_id '
            'WHERE rse_name="%s"' % rseName)
 
-  justin.db.cur.execute(query)
-  storageRow = justin.db.cur.fetchone()
+  justin.cur.execute(query)
+  storageRow = justin.cur.fetchone()
 
   output += ("<h1>Storage %s%s</h1>" 
              % (rseName, 
@@ -2866,8 +2873,8 @@ def showStorage(environ, user, cgiValues):
            'ORDER BY distance,site_name' 
            % (storageRow['rse_id'], justin.unseenSitesExpireDays))
 
-  justin.db.cur.execute(query)
-  siteRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  siteRows = justin.cur.fetchall()
 
   output += ("<p>Test values are xrdcp read and rucio upload exit codes for "
              "jobs at each site contacting this RSE. 0 = success.</p>")
@@ -2986,8 +2993,8 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
            'ORDER BY event_id DESC LIMIT %d,%d' % 
            (whereString, pageNumber * pageLength, pageLength + 1))
 
-  justin.db.cur.execute(query)
-  eventsRows = justin.db.cur.fetchall()
+  justin.cur.execute(query)
+  eventsRows = justin.cur.fetchall()
 
   output += makePager(pageNumber, pageLength, len(eventsRows),
              '/dashboard/?method=list-events&page_number=%d&page_length=%d'
@@ -3005,7 +3012,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 </tr>""")
 
   for eventRow in eventsRows[:pageLength]:
-    eventType = justin.db.eventTypes[eventRow['event_type_id']][0]
+    eventType = justin.eventTypes[eventRow['event_type_id']][0]
     cellColor = '#FFDDDD' if ('FAIL' in eventType) else \
                 ('#DDFFDD' if 'OK' in eventType else 'white')
 
@@ -3350,15 +3357,15 @@ def application(environ, startResponse):
   global timeNow
   timeNow = time.time()
 
-  justin.db.wsgiCallsCount += 1
-  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
+  justin.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.wsgiCallsCount), 
         file=sys.stderr)
 
   try:
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    justin.db.conn.ping(True)
+    justin.conn.ping(True)
   except Exception as e:
     message = 'DB connection lost and cannot reconnect: ' + str(e)
 
@@ -3373,7 +3380,7 @@ def application(environ, startResponse):
     return [message.encode('UTF-8')]
 
   # Avoid leftovers from partial, failed transactions in this instance
-  justin.db.conn.rollback()  
+  justin.conn.rollback()  
   
   if environ['REQUEST_URI'].startswith('/login/cilogon/login?'):
     output = cilogonCallback(startResponse, environ)

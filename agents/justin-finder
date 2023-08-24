@@ -63,7 +63,7 @@ def addFilesMonteCarlo(workflowID, count):
                % (workflowID, workflowID, i)
               )
 
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting dummy Monte Carlo file for workflow %d: %s' 
               % (workflowID, str(e)))
@@ -72,32 +72,32 @@ def addFilesMonteCarlo(workflowID, count):
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
                'wan_pfn="%06d",lan_pfn=""'
-               % (justin.conf.MonteCarloRseID, 
-                  justin.db.cur.lastrowid,
+               % (justin.MonteCarloRseID, 
+                  justin.cur.lastrowid,
                   i))
 
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting dummy Monte Carlo replica for workflow %d: %s' 
                % (workflowID, str(e)))
       return
 
-    justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
+    justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
                     stageID = 1,
-                    fileID = justin.db.cur.lastrowid)
+                    fileID = justin.cur.lastrowid)
 
 
   try:
     query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
              str(workflowID))
 
-    justin.db.cur.execute(query)
+    justin.cur.execute(query)
   except Exception as e:
     logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def findFilesRucio(didClient, workflowID, scope, name):
   # Find files to be processed for each workflow in the finding state
@@ -116,27 +116,27 @@ def findFilesRucio(didClient, workflowID, scope, name):
                'ON DUPLICATE KEY UPDATE workflow_id=workflow_id'
               )
 
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
     except Exception as e:
       logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
       return
 
-    justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
+    justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
                     stageID = 1,
-                    fileID = justin.db.cur.lastrowid)
+                    fileID = justin.cur.lastrowid)
 
   # All files found for this workflow so update its state
   try:
     query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
              str(workflowID))
 
-    justin.db.cur.execute(query)
+    justin.cur.execute(query)
   except Exception as e:
     logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def findFilesMetaCat(workflowID, mql):
   # Find files matching the mql query from MetaCat
@@ -192,29 +192,29 @@ def findFilesMetaCat(workflowID, mql):
                'ON DUPLICATE KEY UPDATE workflow_id=workflow_id'
               )
 
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
       
     except Exception as e:
       logLine('Failed inserting DID %:%s' % 
               ( fileDict['namespace'], fileDict['name'] ))
       return
 
-    justin.db.logEvent(eventTypeID = justin.db.event_FILE_ADDED,
+    justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
                     stageID = 1,
-                    fileID = justin.db.cur.lastrowid)
+                    fileID = justin.cur.lastrowid)
 
   # All files found for this workflow so update its state
   try:
     query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
              str(workflowID))
 
-    justin.db.cur.execute(query)
+    justin.cur.execute(query)
   except Exception as e:
     logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def findFiles():
   # Find files to be processed for each workflow in the finding state
@@ -229,7 +229,7 @@ def findFiles():
            ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
            ' < NOW() AND refind_start_time < NOW() AND '
            'refind_end_time >= NOW())) '
-           'ORDER BY workflow_id' % justin.db.unixEpoch)
+           'ORDER BY workflow_id' % justin.unixEpoch)
 
   findingWorkflows = justin.select(query)
   if not findingWorkflows:  
@@ -286,7 +286,7 @@ def findFiles():
     
       findFilesMetaCat(workflow['workflow_id'], workflow['mql'])
 
-    justin.db.conn.commit()
+    justin.conn.commit()
 
 def findReplicas():
   # Find replicas of files in the finding state
@@ -302,7 +302,7 @@ def findReplicas():
     'ORDER BY stage_rank DESC,RAND() LIMIT 1')
 
   try:
-    stageRow = justin.db.select(query, justOne = True)
+    stageRow = justin.select(query, justOne = True)
   except Exception as e:
     logLine('Finding workflow/stage to find replicas for fails: %s' % str(e))
     return
@@ -321,7 +321,7 @@ def findReplicas():
   didsList = []
 
   try:
-    fileRows = justin.db.select(
+    fileRows = justin.select(
            'SELECT files.workflow_id,files.stage_id,file_id,file_did '
            'FROM files '
            'LEFT JOIN workflows ON workflows.workflow_id=files.workflow_id '
@@ -418,9 +418,9 @@ def findReplicas():
             rses[pfnDict['rse']] = {}
       
         if pfnDict['domain'] == 'lan':
-            rses[pfnDict['rse']]['lan_pfn'] = justin.db.fixPfn(pfnDict['pfn'])
+            rses[pfnDict['rse']]['lan_pfn'] = justin.fixPfn(pfnDict['pfn'])
         else:
-            rses[pfnDict['rse']]['wan_pfn'] = justin.db.fixPfn(pfnDict['pfn'])
+            rses[pfnDict['rse']]['wan_pfn'] = justin.fixPfn(pfnDict['pfn'])
 
     replicasInserted = 0
     # Now go through the replicas for this file, RSE by RSE
@@ -445,7 +445,7 @@ def findReplicas():
           lanPFN = ''       
   
         if storagesDict[rse]['needs_pin']:
-          accessibleUntil = ',accessible_until="%s" ' % justin.db.unixEpoch
+          accessibleUntil = ',accessible_until="%s" ' % justin.unixEpoch
         else:
           accessibleUntil = ''
         
@@ -526,7 +526,7 @@ def findReplicas():
         query = ('UPDATE files SET state="unallocated" WHERE file_id=%d' %
                  fileRow['file_id'])
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (%d,%d,%s): %s' %
                 (fileRow['workflow_id'],
@@ -540,7 +540,7 @@ def findReplicas():
         query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
                  fileRow['file_id'])
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating file (%d,%d,%s): %s' %
                 (fileRow['workflow_id'], 
@@ -551,7 +551,7 @@ def findReplicas():
         return
     
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def executeMetaCatCommand(args):
 
@@ -704,7 +704,7 @@ def findSubmittedWorkflows():
       logLine("Exception setting workflows to running: %s" % str(e))
       return
 
-    justin.db.conn.commit()
+    justin.conn.commit()
 
 def findFinishedWorkflows():
   # Find workflows with all files in terminal states and set to finished
@@ -715,9 +715,9 @@ def findFinishedWorkflows():
              '((refind_seconds = 0) OR (refind_end_time < NOW())) '
              'ORDER BY workflow_id')
 
-    justin.db.cur.execute(query)
+    justin.cur.execute(query)
 
-    findingWorkflows = justin.db.cur.fetchall()
+    findingWorkflows = justin.cur.fetchall()
   except:
     logLine('Failed to get list of running workflows')
     return
@@ -738,8 +738,8 @@ def findFinishedWorkflows():
                'state <> "output"' %
                int(workflow['workflow_id']))
              
-      justin.db.cur.execute(query)
-      count = int(justin.db.cur.fetchone()['count'])
+      justin.cur.execute(query)
+      count = int(justin.cur.fetchone()['count'])
     except Exception as e:
       logLine('Failed to count non-terminal files for Workflow ID %d: %s' % 
               (workflow['workflow_id'], str(e)))
@@ -755,7 +755,7 @@ def findFinishedWorkflows():
       query = ('UPDATE workflows SET state="finished",finished=NOW() '
                'WHERE workflow_id=%d' % int(workflow['workflow_id']))
     
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
     except:
       logLine('Failed to update state to finished for Workflow ID %d' % 
               workflow['workflow_id'])
@@ -763,7 +763,7 @@ def findFinishedWorkflows():
 
     logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
     
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
@@ -783,11 +783,11 @@ def findStalledAbortedJobs():
              'OR job_state="outputting_failed" '
              'OR (job_state="submitted" AND '
              'submitted_time < DATE_SUB(NOW(),INTERVAL 1 DAY)) '
-             'ORDER BY justin_job_id' % justin.db.jobStallSeconds)
+             'ORDER BY justin_job_id' % justin.jobStallSeconds)
 
-    justin.db.cur.execute(query)
+    justin.cur.execute(query)
 
-    jobRows = justin.db.cur.fetchall()
+    jobRows = justin.cur.fetchall()
   except Exception as e:
     logLine('Failed to get list of stalled or aborted jobs: ' + str(e))
     return
@@ -805,7 +805,7 @@ def findStalledAbortedJobs():
         query = ('UPDATE jobs SET job_state="stalled",finished_time=NOW() '
                  'WHERE justin_job_id=%d' % jobRow['justin_job_id'])
     
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
       except Exception as e: 
         logLine('Failed to set job %s to stalled: %s' 
               % (jobRow['jobsub_id'], str(e)))
@@ -814,7 +814,7 @@ def findStalledAbortedJobs():
       logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
                                                  jobRow['job_state']))
     
-      justin.db.logEvent(eventTypeID = justin.db.event_JOB_STALLED,
+      justin.logEvent(eventTypeID = justin.event_JOB_STALLED,
                       workflowID = jobRow['workflow_id'],
                       stageID = jobRow['stage_id'],
                       justinJobID = jobRow['justin_job_id'],
@@ -830,9 +830,9 @@ def findStalledAbortedJobs():
                'AND justin_job_id=%d '
                'ORDER BY file_id' % jobRow['justin_job_id'])
 
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
 
-      fileRows = justin.db.cur.fetchall()
+      fileRows = justin.cur.fetchall()
     except:
       logLine('Failed to get list of files of the stalled or aborted job')
       # We should give up at this point rather than commit a mess?
@@ -840,7 +840,7 @@ def findStalledAbortedJobs():
     
     for fileRow in fileRows: 
     
-      if fileRow['allocations'] >= justin.db.maxAllocations:
+      if fileRow['allocations'] >= justin.maxAllocations:
         # Reached max allocations allowed per file
         # Mark file as failed in case it is the file causing the problem
         # (eg pathological file causes memory to balloon leading to the site
@@ -850,7 +850,7 @@ def findStalledAbortedJobs():
           query = ('UPDATE files SET state="failed" '
                    'WHERE file_id=%d' % fileRow['file_id'])
 
-          justin.db.cur.execute(query)
+          justin.cur.execute(query)
         except:
           logLine('Failed to set file %s to failed in '
                   'workflow %d, stage %d after job %s' 
@@ -859,7 +859,7 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
             
-        justin.db.logEvent(eventTypeID = justin.db.event_FILE_SET_TO_FAILED,
+        justin.logEvent(eventTypeID = justin.event_FILE_SET_TO_FAILED,
                         workflowID = jobRow['workflow_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
@@ -871,7 +871,7 @@ def findStalledAbortedJobs():
           query = ('UPDATE files SET state="unallocated" '
                    'WHERE file_id=%d' % fileRow['file_id'])
 
-          justin.db.cur.execute(query)
+          justin.cur.execute(query)
         except:
           logLine('Failed to set file %s to unallocated in '
                   'workflow %d, stage %d after job %s' 
@@ -880,10 +880,10 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
 
-        justin.db.logEvent(eventTypeID = 
-                        justin.db.event_FILE_OUTPUTTING_RESET 
+        justin.logEvent(eventTypeID = 
+                        justin.event_FILE_OUTPUTTING_RESET 
                          if fileRow['state'] == 'outputting'
-                         else justin.db.event_FILE_ALLOCATED_RESET,
+                         else justin.event_FILE_ALLOCATED_RESET,
                         workflowID = jobRow['workflow_id'],
                         stageID = jobRow['stage_id'],
                         fileID = fileRow['file_id'],
@@ -895,15 +895,15 @@ def findStalledAbortedJobs():
                  jobRow['stage_id'], jobRow['jobsub_id']))
 
   # Everything went ok so commit
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def oidcRefreshRequest(refreshToken):
   # Send an OIDC workflow to CILogon to refresh tokens for a user
 
   postData = urllib.parse.urlencode(
        { 'grant_type'    : 'refresh_token',
-         'client_id'     : justin.conf.cilogonClientID,
-         'client_secret' : justin.conf.cilogonSecret,
+         'client_id'     : justin.cilogonClientID,
+         'client_secret' : justin.cilogonSecret,
          'refresh_token' : refreshToken
 #         ,
 #         'scope'         : 'scope=openid profile org.cilogon.userinfo '
@@ -1043,18 +1043,18 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs(justin.conf.justinRunDir,         
+        os.makedirs(justin.justinRunDir,         
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
         pass
         
       try:
-        f = open(justin.conf.justinRunDir + '/finder.pid', 'w')
+        f = open(justin.justinRunDir + '/finder.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create '+justin.conf.justinRunDir+'/finder.pid - exiting')
+        print('Failed to create '+justin.justinRunDir+'/finder.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -1089,16 +1089,16 @@ if __name__ == '__main__':
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open(justin.conf.justinRunDir + '/finder.pid', 'r')
+          pf = open(justin.justinRunDir + '/finder.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new ' + justin.conf.justinRunDir + '/finder.pid - exiting')
+            print('new ' + justin.justinRunDir + '/finder.pid - exiting')
             break
 
         except:
-          print('no ' + justin.conf.justinRunDir + '/finder.pid - exiting')
+          print('no ' + justin.justinRunDir + '/finder.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
@@ -1107,20 +1107,20 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          justin.conf.readConf()
+          justin.readConf()
           
           try:
-            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
-                                  user=justin.conf.mysqlUsername,
-                                  passwd=justin.conf.mysqlPassword, 
-                                  db=justin.conf.mysqlDbName)
-            justin.db.conn.autocommit(False)
-            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.conn = MySQLdb.connect(host=justin.mysqlHostname, 
+                                  user=justin.mysqlUsername,
+                                  passwd=justin.mysqlPassword, 
+                                  db=justin.mysqlDbName)
+            justin.conn.autocommit(False)
+            justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
-              p = pwd.getpwnam(justin.conf.agentUsername)
+              p = pwd.getpwnam(justin.agentUsername)
               os.setgid(p[3])
               os.setuid(p[2])
               oneCycle()

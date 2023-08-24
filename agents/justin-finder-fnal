@@ -73,8 +73,8 @@ def createReplicasPins(rseID):
            'ORDER BY replicas.replica_id LIMIT ' + str(maxFileFindsPerCycle))
 
   try:
-    justin.db.cur.execute(query)
-    replicas = justin.db.cur.fetchall()
+    justin.cur.execute(query)
+    replicas = justin.cur.fetchall()
   except Exception as e:
     logLine('Reading list of replica_pins rows to create fails: '  + str(e))
     return
@@ -85,7 +85,7 @@ def createReplicasPins(rseID):
              replica['replica_id'])
              
     try:
-      justin.db.cur.execute(query)
+      justin.cur.execute(query)
     except Exception as e:
       logLine('Insert into replicas_pins fails: '  + str(e))
       continue
@@ -93,7 +93,7 @@ def createReplicasPins(rseID):
     logLine('Created %s entry in replicas_pins' % replica['pfn'])
 
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def sendPinRequest(pfnsPath):
   # Send a pin workflow to FNAL dCache using the bulk API
@@ -163,8 +163,8 @@ def countPins(rseID):
            'AND pin_ref<>""')
 
   try:
-    justin.db.cur.execute(query)
-    row = justin.db.cur.fetchone()
+    justin.cur.execute(query)
+    row = justin.cur.fetchone()
     return int(row['count'])
 
   except Exception as e:
@@ -208,8 +208,8 @@ def pinReplicas(rseID):
            str(maxFileFindsPerCycle))
 
   try:
-    justin.db.cur.execute(query)
-    needsPinReplicas = justin.db.cur.fetchall()
+    justin.cur.execute(query)
+    needsPinReplicas = justin.cur.fetchall()
   except Exception as e:
     logLine('Reading list of FNAL replicas needing pinning fails with: ' 
             + str(e))
@@ -246,7 +246,7 @@ def pinReplicas(rseID):
                   sleepSeconds,
                   replica['replica_id']))
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas_pins for %s: %s' %
                 (replica['pfn'], str(e)))
@@ -255,13 +255,13 @@ def pinReplicas(rseID):
       logLine('Requested pin for %s and receive workflow URL %s' % 
               (replica['pfn'], pinURL))
 
-      justin.db.logEvent(eventTypeID = justin.db.event_REPLICA_STAGING_REQUESTED,
+      justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_REQUESTED,
                       workflowID = replica['workflow_id'],
                       stageID = replica['stage_id'],
                       fileID = replica['file_id'],
                       rseID = rseID)
     
-      justin.db.conn.commit()
+      justin.conn.commit()
 
 def checkPinRequest(pinURL):
   # Send a pin workflow to FNAL dCache using the bulk API
@@ -315,8 +315,8 @@ def checkPinWorkflows(rseID):
            str(maxFileFindsPerCycle))
 
   try:
-    justin.db.cur.execute(query)
-    waitingPins = justin.db.cur.fetchall()
+    justin.cur.execute(query)
+    waitingPins = justin.cur.fetchall()
   except Exception as e:
     logLine('Reading list of FNAL replicas waiting for pins fails with: ' 
             + str(e))
@@ -345,16 +345,16 @@ def checkPinWorkflows(rseID):
                  'pin_retry_time="%s",'
                  'pin_recheck_time="%s" '
                  'WHERE replica_id=%d' % 
-                 (justin.db.unixEpoch, justin.db.unixEpoch, pin['replica_id']))
+                 (justin.unixEpoch, justin.unixEpoch, pin['replica_id']))
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
 
         query = ('UPDATE replicas SET '
                  'accessible_until=FROM_UNIXTIME(%d) '
                  'WHERE replica_id=%d' % 
                  (pin['pin_expire_unixtime'], pin['replica_id']))
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas and pins for %s: %s' %
                 (pin['pfn'], str(e)))
@@ -363,7 +363,7 @@ def checkPinWorkflows(rseID):
       logLine('Updated replica %s to be pinned and accessible until %s' %
               (pin['pfn'], pin['pin_expire_time']))
 
-      justin.db.logEvent(eventTypeID = justin.db.event_REPLICA_STAGING_DONE,
+      justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_DONE,
                       workflowID = pin['workflow_id'],
                       stageID = pin['stage_id'],
                       fileID = pin['file_id'],
@@ -381,14 +381,14 @@ def checkPinWorkflows(rseID):
                (pinRecheckSeconds, 
                 pin['replica_id']))
         
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
 
       except Exception as e:
         logLine('Failed updating recheck time for %s: %s' %
                 (pin['pfn'], str(e)))
        
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def deletePin(pinURL):
   # Send a delete pin workflow to FNAL dCache using the bulk API
@@ -439,11 +439,11 @@ def releasePins(rseID):
            'AND pin_expire_time > "%s" '
            'AND (pin_expire_time < NOW() OR files.state="processed" OR '
            'files.state="failed")'
-           'ORDER BY replicas_pins.replica_id' % justin.db.unixEpoch)
+           'ORDER BY replicas_pins.replica_id' % justin.unixEpoch)
 
   try:
-    justin.db.cur.execute(query)
-    unwantedPins = justin.db.cur.fetchall()
+    justin.cur.execute(query)
+    unwantedPins = justin.cur.fetchall()
   except Exception as e:
     logLine('Reading list of unwanted FNAL replica pins fails with: ' 
             + str(e))
@@ -465,14 +465,14 @@ def releasePins(rseID):
         query = ('DELETE FROM replicas_pins WHERE replica_id=%d' %
                  pin['replica_id'])
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
 
         query = ('UPDATE replicas SET '
                  'accessible_until="%s" '
                  'WHERE replica_id=%d' % 
-                 (justin.db.unixEpoch, pin['replica_id']))
+                 (justin.unixEpoch, pin['replica_id']))
 
-        justin.db.cur.execute(query)
+        justin.cur.execute(query)
     except Exception as e:
         logLine('Failed delete pin and updating replica info for %s: %s' %
                 (pin['pfn'], str(e)))
@@ -480,22 +480,22 @@ def releasePins(rseID):
     
     logLine('Deleted pin of %s' % pin['pfn'])
 
-    justin.db.logEvent(eventTypeID = justin.db.event_REPLICA_STAGING_CANCELLED,
+    justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_CANCELLED,
                     workflowID = pin['workflow_id'],
                     stageID = pin['stage_id'],
                     fileID = pin['file_id'],
                     rseID = rseID)
 
   # All ok, so commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def getRseID(rseName):
 
   query = 'SELECT rse_id FROM storages WHERE rse_name="' + rseName + '"'
   
   try:
-    justin.db.cur.execute(query)
-    row = justin.db.cur.fetchone()
+    justin.cur.execute(query)
+    row = justin.cur.fetchone()
     rseID = int(row['rse_id'])
   except Exception as e:
     logLine('Finding rse_id of ' + rseName + ' fails with : ' + str(e))
@@ -603,20 +603,20 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
 
-          justin.conf.readConf()
+          justin.readConf()
           
           try:
-            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
-                                  user=justin.conf.mysqlUsername,
-                                  passwd=justin.conf.mysqlPassword, 
-                                  db=justin.conf.mysqlDbName)
-            justin.db.conn.autocommit(False)
-            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.conn = MySQLdb.connect(host=justin.mysqlHostname, 
+                                  user=justin.mysqlUsername,
+                                  passwd=justin.mysqlPassword, 
+                                  db=justin.mysqlDbName)
+            justin.conn.autocommit(False)
+            justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
-              p = pwd.getpwnam(justin.conf.agentUsername)
+              p = pwd.getpwnam(justin.agentUsername)
               os.setgid(p[3])
               os.setuid(p[2])
               oneCycle()

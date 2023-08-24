@@ -50,7 +50,7 @@ def cacheFindFileResults(siteID, workflowID, stageID, maxDistance):
   # to that site
 
   try:
-    replicaRows = justin.db.select('SELECT files.file_id,'
+    replicaRows = justin.select('SELECT files.file_id,'
                    'replicas.replica_id,'
                    'replicas.rse_id,'
                    'distance '
@@ -88,7 +88,7 @@ def cacheFindFileResults(siteID, workflowID, stageID, maxDistance):
     filesSeen.add(replicaRow['file_id'])
   
     try:
-      justin.db.insertUpdate('INSERT INTO find_file_cache SET '
+      justin.insertUpdate('INSERT INTO find_file_cache SET '
                           'site_id=%d,'
                           'workflow_id=%d,'
                           'stage_id=%d,'
@@ -154,7 +154,7 @@ def findStage(jobDict):
   else ("AND scopes.wlcg_group_id=%d" % justin.productionWLCGGroupID)
  ))
     
-  fileRows = justin.db.select(query)
+  fileRows = justin.select(query)
   
   if not fileRows:
     return None
@@ -175,7 +175,7 @@ def cacheFindStageResults():
   cutoffTime = int(time.time())
 
   try:
-    siteRows = justin.db.select('SELECT site_id,site_name,'
+    siteRows = justin.select('SELECT site_id,site_name,'
                                 'enabled,jobsub_site_name,has_inner_apptainer '
                                 'FROM sites ORDER by site_name')
   except Exception as e:
@@ -220,7 +220,7 @@ def cacheFindStageResults():
                 (workflowID, stageID, siteRow['site_name']))
 
         try:
-          justin.db.insertUpdate('INSERT INTO get_stage_cache SET '
+          justin.insertUpdate('INSERT INTO get_stage_cache SET '
                                  'site_id=%d,'
                                  'min_processors=%d,'
                                  'max_processors=%d,'
@@ -258,19 +258,19 @@ def cacheFindStageResults():
 #                             maxDistance)
    
   try:
-    justin.db.insertUpdate('DELETE FROM get_stage_cache '
+    justin.insertUpdate('DELETE FROM get_stage_cache '
                         'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
   except Exception as e:
     logLine('Delete previous get_stage_cache entries fails with: ' + str(e))
 
   try:
-    justin.db.insertUpdate('DELETE FROM find_file_cache '
+    justin.insertUpdate('DELETE FROM find_file_cache '
                         'WHERE UNIX_TIMESTAMP(cache_time) < %d' % cutoffTime)
   except Exception as e:
     logLine('Delete previous find_file_cache entries fails with: ' + str(e))
 
   # Commit what we did    
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
@@ -362,20 +362,20 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          justin.conf.readConf()
+          justin.readConf()
           
           try:
-            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
-                                  user=justin.conf.mysqlUsername,
-                                  passwd=justin.conf.mysqlPassword, 
-                                  db=justin.conf.mysqlDbName)
-            justin.db.conn.autocommit(False)
-            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.conn = MySQLdb.connect(host=justin.mysqlHostname, 
+                                  user=justin.mysqlUsername,
+                                  passwd=justin.mysqlPassword, 
+                                  db=justin.mysqlDbName)
+            justin.conn.autocommit(False)
+            justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
-              p = pwd.getpwnam(justin.conf.agentUsername)
+              p = pwd.getpwnam(justin.agentUsername)
               os.setgid(p[3])
               os.setuid(p[2])
               oneCycle()

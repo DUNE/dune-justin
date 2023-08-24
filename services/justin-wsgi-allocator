@@ -39,7 +39,7 @@ import justin
 def httpError(startResponse, code, message):
 
   try:
-    justin.db.conn.rollback()
+    justin.conn.rollback()
   except:
     pass
 
@@ -56,7 +56,7 @@ def httpError(startResponse, code, message):
 def httpOK(startResponse, outputString):
 
   try:
-    justin.db.conn.commit()
+    justin.conn.commit()
   except Exception as e:
     code = '500 Internal Server Error'
     outputString = 'Database commit fails: ' + str(e)
@@ -101,8 +101,8 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'WHERE jobs.jobsub_id="%s"'
              % jsonDict['jobsub_id'])
 
-    justin.db.cur.execute(query)
-    job = justin.db.cur.fetchone()
+    justin.cur.execute(query)
+    job = justin.cur.fetchone()
   except Exception as e:
     return { "error_message": "Error finding job from jobsubID " + 
              jobsubID + ": " + str(e) }
@@ -224,7 +224,7 @@ def makeJobscriptDict(jsonDict, jobDict):
              "AND stages_jobscripts.stage_id=%d" 
              % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
-    row       = justin.db.select(query, justOne = True)
+    row       = justin.select(query, justOne = True)
     jobscript = row['jobscript']
     scopeName = row['scope_name'] if row['scope_name'] else ''
     jobscriptDict['principal_name'] = row['principal_name']
@@ -238,11 +238,11 @@ def makeJobscriptDict(jsonDict, jobDict):
   try:
     (newCertNoRoles, newChainNoRoles) = \
                  delegateJobsProxy(jsonDict['csr-no-roles'],
-                                   justin.allocator.jobsNoRolesProxyString)
+                                   justin.jobsNoRolesProxyString)
 
     (newCertProduction, newChainProduction) = \
                  delegateJobsProxy(jsonDict['csr-production'],
-                                   justin.allocator.jobsProductionProxyString)
+                                   justin.jobsProductionProxyString)
 
   except Exception as e:
     print('Failed to create certs for delegated proxies: ' + str(e), 
@@ -268,7 +268,7 @@ def makeJobscriptDict(jsonDict, jobDict):
              "AND stages_outputs.stage_id=%d" 
              % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
-    rows = justin.db.select(query)
+    rows = justin.select(query)
   except:
     return None
 
@@ -281,7 +281,7 @@ def makeJobscriptDict(jsonDict, jobDict):
                                       row['file_pattern']))
 
   # Create a list of RSEs for Workflow Test jobs
-  if jobDict['workflow_id'] == justin.db.awtWorkflowID:
+  if jobDict['workflow_id'] == justin.awtWorkflowID:
     try:
       query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance,'
                '(SELECT wan_pfn FROM replicas WHERE workflow_id=%d AND '
@@ -296,11 +296,11 @@ def makeJobscriptDict(jsonDict, jobDict):
                'AND sites_storages.site_id=%d '
                'WHERE rse_name<>"MONTECARLO" '
                'AND NOT storages.decommissioned GROUP BY rse_name' % 
-               (justin.db.awtWorkflowID,
-                justin.db.awtWorkflowID,
+               (justin.awtWorkflowID,
+                justin.awtWorkflowID,
                 jobDict['site_id']) )
 
-      rseRows = justin.db.select(query)
+      rseRows = justin.select(query)
     except Exception as e:
       print('AWT list of RSEs query fails with: ' + str(e), file=sys.stderr)
       return None
@@ -349,7 +349,7 @@ def makeJobscriptDict(jsonDict, jobDict):
                )
             )
 
-    rseRows = justin.db.select(query)
+    rseRows = justin.select(query)
   except:
     return None
 
@@ -378,7 +378,7 @@ def makeJobscriptDict(jsonDict, jobDict):
              'WHERE workflow_id=%d AND stage_id=%d ORDER BY env_name' 
              % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
-    envRows = justin.db.select(query)
+    envRows = justin.select(query)
   except:
     return None
   else:
@@ -391,12 +391,12 @@ def makeJobscriptDict(jsonDict, jobDict):
 
 def updateAllocationState(jobsub_id, state):
   try:
-    justin.db.insertUpdate(
+    justin.insertUpdate(
              'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' % (state, jobsub_id))
-    justin.db.conn.commit()
+    justin.conn.commit()
   except:
     pass
 
@@ -404,7 +404,7 @@ def updateAllocationState(jobsub_id, state):
 def getJobscriptMethod(startResponse, jsonDict, environ):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Missing jobsub_id in JSON')
@@ -423,7 +423,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
   # Check jsonDict contains required string values
   for name in ['site_name', 'entry_name', 'cpuinfo', 'os_release', 
                'hostname', 'site_job_id']:
-    if name not in jsonDict or not justin.db.stringNoQuotes(jsonDict[name]) \
+    if name not in jsonDict or not justin.stringNoQuotes(jsonDict[name]) \
        or not jsonDict[name]:
       updateAllocationState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
@@ -441,7 +441,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
   # If not in submitted, then some mismatch which we catch and return 
   # 410 below
   try:
-    justin.db.insertUpdate('UPDATE jobs SET '
+    justin.insertUpdate('UPDATE jobs SET '
                            'site_id=(SELECT site_id FROM sites '
                            'WHERE site_name="%s"),'
                            'entry_id=(SELECT entry_id FROM entries '
@@ -469,7 +469,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                             jsonDict['workflow_id'],
                             jsonDict['stage_id']
                            ))
-    justin.db.conn.commit()
+    justin.conn.commit()
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
@@ -505,7 +505,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 
   # Site not enabled so no matches allowed 
   if not jobDict['site_enabled'] and \
-     jsonDict['workflow_id'] != justin.db.awtWorkflowID:
+     jsonDict['workflow_id'] != justin.awtWorkflowID:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
     return httpError(startResponse, 
                      '404 Not Found',
@@ -514,7 +514,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 
 #  print('Before UPDATE sites last_get_jobscript_time', file=sys.stderr)
   try:
-    justin.db.insertUpdate('UPDATE sites SET last_get_jobscript_time=NOW() '
+    justin.insertUpdate('UPDATE sites SET last_get_jobscript_time=NOW() '
                         'WHERE site_id=%d' % jobDict['site_id'])
   except:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -533,12 +533,12 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     # Unique ID string for this instance that may also help in debugging
     allocatorName = environ['SERVER_NAME']
 
-    justin.db.insertUpdate(
+    justin.insertUpdate(
              'UPDATE jobs SET '
              'site_job_id="' + str(jsonDict['site_job_id']) + '",'
              'allocation_time=NOW(),' 
              'heartbeat_time=NOW(),'
-             'finished_time="' + justin.db.unixEpoch + '",' 
+             'finished_time="' + justin.unixEpoch + '",' 
              'job_state="started",'
              'allocator_name="' + allocatorName + '",' 
              'workflow_id=' + str(jsonDict['workflow_id']) + ','
@@ -563,7 +563,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 #    print('schedd.edit() fails with %s' % str(e), file=sys.stderr)
 
   try:
-    justin.db.conn.commit()
+    justin.conn.commit()
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -581,13 +581,13 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 def sendHeartbeatMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Missing jobsub_id in JSON')
 
   try:
-    justin.db.insertUpdate('UPDATE jobs SET heartbeat_time=NOW() ' 
+    justin.insertUpdate('UPDATE jobs SET heartbeat_time=NOW() ' 
                         'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
@@ -609,7 +609,7 @@ def jobAbortedMethod(startResponse, jsonDict):
                      'Missing/invalid http_code in JSON')
 
   if 'aborted_method' not in jsonDict or \
-     not justin.db.stringNoQuotes(jsonDict['aborted_method']):
+     not justin.stringNoQuotes(jsonDict['aborted_method']):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Missing/invalid aborted_method in JSON')
@@ -632,20 +632,20 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   if httpCode == 404 and jsonDict['aborted_method'] == 'get_jobscript':
     state = 'notused'
-    eventTypeID = justin.db.event_JOB_NOTUSED
+    eventTypeID = justin.event_JOB_NOTUSED
   elif jsonDict['aborted_method'] == 'jobscript_error':
     state = 'jobscript_error'
 ##### NEEDS CHANGING TO A jobscript error EVENT!!!
-    eventTypeID = justin.db.event_JOB_ABORTED
+    eventTypeID = justin.event_JOB_ABORTED
   elif jsonDict['aborted_method'] in [ 'rucio_attach', 'rucio_upload',
                                        'metacat_declare' ]:
 # WANT TO RESET FILE ALLOCATIONS TOO?
     state = 'outputting_failed'
 ##### NEEDS CHANGING TO AN outputting error EVENT!!!
-    eventTypeID = justin.db.event_JOB_ABORTED
+    eventTypeID = justin.event_JOB_ABORTED
   else:
     state = 'aborted'
-    eventTypeID = justin.db.event_JOB_ABORTED
+    eventTypeID = justin.event_JOB_ABORTED
 
   print('Job %s aborted: %d %s' % (str(jsonDict['jobsub_id']),
                                    eventTypeID,
@@ -653,7 +653,7 @@ def jobAbortedMethod(startResponse, jsonDict):
         file=sys.stderr)
  
   try:
-    justin.db.insertUpdate(
+    justin.insertUpdate(
              'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
@@ -669,7 +669,7 @@ def jobAbortedMethod(startResponse, jsonDict):
   else:
     rseName = None
 
-  justin.db.logEvent(eventTypeID  = eventTypeID,
+  justin.logEvent(eventTypeID  = eventTypeID,
                      workflowID   = jobDict['workflow_id'],
                      stageID      = jobDict['stage_id'],
                      justinJobID  = jobDict['justin_job_id'],
@@ -725,7 +725,7 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
       filesSeen.add(replicaRow['file_id'])
    
       try:
-        justin.db.insertUpdate('INSERT INTO sites_files_cache SET '
+        justin.insertUpdate('INSERT INTO sites_files_cache SET '
                                'site_id=%d,'
                                'workflow_id=%d,'
                                'stage_id=%d,'
@@ -786,7 +786,7 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
     print('Delete previous sites_files_cache_state fails with: ' + str(e), 
           file=sys.stderr)
  
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 # Try to get the file cache service lock or raise an exception if
 # unable to do this for any reason, including a timeout
@@ -836,7 +836,7 @@ def findCachedFiles(siteID, workflowID, stageID, maxFiles):
     "LIMIT %d FOR UPDATE" %
     (siteID, workflowID, stageID, maxFiles))
 
-  return justin.db.select(query)
+  return justin.select(query)
   
 def findBestFile(jobDict):
 
@@ -920,12 +920,12 @@ def findBestFile(jobDict):
              "justin_job_id=" + str(jobDict['justin_job_id']) + " "
              "WHERE file_id=" + str(replicaRows[0]['file_id'])
             )
-    justin.db.cur.execute(query)
+    justin.cur.execute(query)
   except Exception as e:
     # If anything goes wrong, we stop straightaway
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
-  justin.db.logEvent(eventTypeID = justin.db.event_FILE_ALLOCATED,
+  justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED,
                      workflowID     = jobDict['workflow_id'],
                      stageID        = jobDict['stage_id'],
                      fileID         = replicaRows[0]['file_id'],
@@ -952,13 +952,13 @@ def findBestFile(jobDict):
 def getFileMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing/invalid jobsub_id in JSON')
 
   if 'jobscript_secret' not in jsonDict or \
-     not justin.db.stringNoQuotes(jsonDict['jobscript_secret']):
+     not justin.stringNoQuotes(jsonDict['jobscript_secret']):
     return httpError(startResponse,
                      '400 Bad Request',
                      'Missing/invalid jobscript secret in JSON')
@@ -988,7 +988,7 @@ def getFileMethod(startResponse, jsonDict):
   
   if oneFile['file_did']:
     try:
-      justin.db.insertUpdate(
+      justin.insertUpdate(
                    'UPDATE jobs SET job_state="processing",'
                    'heartbeat_time=NOW() '
                    'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
@@ -1027,7 +1027,7 @@ def updateFileProcessing(fileIDList,
     if state == 'unprocessed':
       # If already at max allocations, go to failed rather than unallocated!
       query = ('UPDATE files SET '
-               'state=IF(allocations < ' + str(justin.db.maxAllocations) + ','
+               'state=IF(allocations < ' + str(justin.maxAllocations) + ','
                '"unallocated","failed") '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
@@ -1042,7 +1042,7 @@ def updateFileProcessing(fileIDList,
                'AND stage_id=' + str(stageID) + ' '
                'AND state="allocated"')
 
-    justin.db.insertUpdate(query)
+    justin.insertUpdate(query)
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
@@ -1053,7 +1053,7 @@ def processOutputDids(outputDids, workflowID, stageID, justinJobID):
     if '"' in outputDid or "'" in outputDid:
       continue
 
-    justin.db.insertUpdate('INSERT INTO files SET state="recorded",'
+    justin.insertUpdate('INSERT INTO files SET state="recorded",'
                         'file_did="'          + str(outputDid) + '",'
                         'creator_justin_job_id=' + str(justinJobID)  + ','
                         'workflow_id='         + str(workflowID) + ','
@@ -1109,7 +1109,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
     # If AWT job found no inner apptainer support, then set site to false
     # else leave site as it is, thus recording the low water mark
 
-    justin.db.insertUpdate('UPDATE sites SET '
+    justin.insertUpdate('UPDATE sites SET '
                            'last_awt_time=NOW(), last_awt_job_id=%d %s '
                            'WHERE site_id=%d' 
                   % (justinJobID, 
@@ -1125,7 +1125,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
 def recordResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing jobsub_id in JSON')
@@ -1139,7 +1139,7 @@ def recordResultsMethod(startResponse, jsonDict):
                        'Missing value (%s) in JSON' % name)
 
     for fileDID in jsonDict[name]:
-      if not justin.db.stringNoQuotes(fileDID):
+      if not justin.stringNoQuotes(fileDID):
         return httpError(startResponse,
                          '400 Bad Request',
                          'Invalid DID or PFN in ' + name)
@@ -1153,7 +1153,7 @@ def recordResultsMethod(startResponse, jsonDict):
              'LEFT JOIN users ON users.user_id=workflows.user_id '
              'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    row = justin.db.select(query, justOne = True)
+    row = justin.select(query, justOne = True)
 
     justinJobID       = int(row['justin_job_id'])
     workflowID        = int(row['workflow_id'])
@@ -1167,7 +1167,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Failed finding job')
 
   try:
-    justin.db.insertUpdate(
+    justin.insertUpdate(
         'INSERT INTO jobs_logs SET justin_job_id=' + str(justinJobID) + ','
         'jobscript_log="%s"' %
         jsonDict['jobscript_log'].replace('\\','\\\\').replace('"','\\"')
@@ -1177,7 +1177,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed saving job log: ' + str(e))
 
-  if workflowID == justin.db.awtWorkflowID:
+  if workflowID == justin.awtWorkflowID:
     saveAwtResults(justinJobID, 
                    siteID, 
                    jsonDict['jobscript_log'],
@@ -1188,7 +1188,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
     # Record job as finished due to jobscript_error
     try:
-      justin.db.insertUpdate('UPDATE jobs SET '
+      justin.insertUpdate('UPDATE jobs SET '
                              'job_state="jobscript_error",'
                              'heartbeat_time=NOW(),'
                              'finished_time=NOW() '
@@ -1200,9 +1200,9 @@ def recordResultsMethod(startResponse, jsonDict):
      
     # Do file allocation resets
     try:
-      justin.db.insertUpdate('UPDATE files SET '
+      justin.insertUpdate('UPDATE files SET '
                           'state=IF(allocations < ' + 
-                          str(justin.db.maxAllocations) + ','
+                          str(justin.maxAllocations) + ','
                           '"unallocated","failed") '
                           'WHERE justin_job_id=%d' % justinJobID)
     except Exception as e:
@@ -1220,9 +1220,9 @@ def recordResultsMethod(startResponse, jsonDict):
              'replicas.rse_id=events.rse_id) '
              'LEFT JOIN files ON events.file_id=files.file_id '
              'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
-             % (justinJobID, justin.db.event_FILE_ALLOCATED))
+             % (justinJobID, justin.event_FILE_ALLOCATED))
              
-    jobFiles = justin.db.select(query)
+    jobFiles = justin.select(query)
 
   except Exception as e:
     return httpError(startResponse,
@@ -1296,7 +1296,7 @@ def recordResultsMethod(startResponse, jsonDict):
     jobscriptMaxRssBytes = 0
 
   try:
-    justin.db.insertUpdate('UPDATE jobs SET job_state="outputting",'
+    justin.insertUpdate('UPDATE jobs SET job_state="outputting",'
                            'heartbeat_time=NOW(),'
                            'outputting_time=NOW(),'
                            'jobscript_real_seconds=%d,'
@@ -1321,7 +1321,7 @@ def recordResultsMethod(startResponse, jsonDict):
 def getAllocatedFilesMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing jobsub_id in JSON')
@@ -1330,7 +1330,7 @@ def getAllocatedFilesMethod(startResponse, jsonDict):
     query = ('SELECT justin_job_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    row = justin.db.select(query, justOne = True)
+    row = justin.select(query, justOne = True)
     justinJobID  = int(row['justin_job_id'])
   except Exception as e:
     return httpError(startResponse,
@@ -1342,9 +1342,9 @@ def getAllocatedFilesMethod(startResponse, jsonDict):
     query = ('SELECT file_did FROM events '
              'LEFT JOIN files ON events.file_id=files.file_id '
              'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
-             % (justinJobID, justin.db.event_FILE_ALLOCATED))
+             % (justinJobID, justin.event_FILE_ALLOCATED))
              
-    jobFiles = justin.db.select(query)
+    jobFiles = justin.select(query)
 
   except Exception as e:
     return httpError(startResponse,
@@ -1362,7 +1362,7 @@ def getAllocatedFilesMethod(startResponse, jsonDict):
 def samwebUpdateFileStatusMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse, 
                      '400 Bad Request',
                      'Missing jobsub ID in workflow URI')
@@ -1384,7 +1384,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
   try:
     pfn = jsonDict['filename'][0]
 
-    if not justin.db.stringNoQuotes(pfn):
+    if not justin.stringNoQuotes(pfn):
       raise
   except:
     return httpError(startResponse, '400 Bad Request', 'Valid filename missing')
@@ -1393,7 +1393,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
     query = ('SELECT justin_job_id,workflow_id,stage_id '
              'FROM jobs WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
 
-    row = justin.db.select(query, justOne = True)
+    row = justin.select(query, justOne = True)
 
     justinJobID  = int(row['justin_job_id'])
     workflowID = int(row['workflow_id'])
@@ -1411,7 +1411,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
              'ORDER BY files.file_id LIMIT 1' 
              % (workflowID, stageID, pfn, pfn))
 
-    fileRow = justin.db.select(query, justOne=True)
+    fileRow = justin.select(query, justOne=True)
     fileID = fileRow['file_id']
   except Exception as e:
     return httpError(startResponse,
@@ -1427,7 +1427,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
              'AND state="allocated"'
              % (fileID, justinJobID, workflowID, stageID))
 
-    justin.db.insertUpdate(query)
+    justin.insertUpdate(query)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error', 
@@ -1441,7 +1441,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
 def confirmResultsMethod(startResponse, jsonDict):
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse,
                      '400 Bad Request',
                      'Missing jobsub_id in JSON')
@@ -1450,7 +1450,7 @@ def confirmResultsMethod(startResponse, jsonDict):
     query = ('SELECT justin_job_id,workflow_id,stage_id,site_id '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
-    row = justin.db.select(query, justOne = True)
+    row = justin.select(query, justOne = True)
 
     justinJobID  = int(row['justin_job_id'])
     workflowID = int(row['workflow_id'])
@@ -1462,7 +1462,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Failed finding job')
 
   try:
-    justin.db.insertUpdate('UPDATE files '
+    justin.insertUpdate('UPDATE files '
                         'SET state="processed",processed_time=NOW(),'
                         'processed_hour=FLOOR(UNIX_TIMESTAMP()/3600),'
                         'processed_site_id=%d '
@@ -1474,7 +1474,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Updating processed input files')
 
   try:
-    fileRows = justin.db.select('SELECT file_did,file_id,stage_id FROM files '
+    fileRows = justin.select('SELECT file_did,file_id,stage_id FROM files '
                              'WHERE state="recorded" AND '
                              'creator_justin_job_id=%d' % justinJobID)
   except:
@@ -1485,7 +1485,7 @@ def confirmResultsMethod(startResponse, jsonDict):
   for fileRow in fileRows:
   
     try:
-      justin.db.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
+      justin.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
                           ('finding' if (fileRow['stage_id'] > 0) else 'output', 
                           fileRow['file_id']))
 
@@ -1494,7 +1494,7 @@ def confirmResultsMethod(startResponse, jsonDict):
       except:
         rseName = None
       
-      justin.db.logEvent(eventTypeID = justin.db.event_FILE_CREATED,
+      justin.logEvent(eventTypeID = justin.event_FILE_CREATED,
                       workflowID = workflowID,
                       stageID = stageID,
                       fileID = fileRow['file_id'],
@@ -1523,7 +1523,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                                        url,
                                        justinJobID))
 
-      justin.db.logEvent(eventTypeID = justin.db.event_FILE_UPLOADED,
+      justin.logEvent(eventTypeID = justin.event_FILE_UPLOADED,
                          workflowID = workflowID,
                          stageID = stageID,
                          fileID = file_id,
@@ -1538,13 +1538,13 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   # Finish up and update job status
   try:
-    justin.db.insertUpdate('UPDATE jobs SET job_state="finished",'
+    justin.insertUpdate('UPDATE jobs SET job_state="finished",'
                         'heartbeat_time=NOW(),'
                         'finished_time=NOW() '
                         'WHERE justin_job_id=%d AND job_state="outputting"'
                         % justinJobID)
 
-    justin.db.logEvent(eventTypeID = justin.db.event_JOB_FINISHED,
+    justin.logEvent(eventTypeID = justin.event_JOB_FINISHED,
                     workflowID = workflowID,
                     stageID = stageID,
                     justinJobID = justinJobID,
@@ -1604,10 +1604,10 @@ def checkSecretHash(environ, jsonDict):
 #  # Try to get the workflow allocator service lock or raise an exception if
 #  # unable to do this for any reason, including a timeout
 #  # No try here since we expose exceptions to the caller!
-#  justin.db.cur.execute('SELECT GET_LOCK("justin_allocator", %d) AS result' %
+#  justin.cur.execute('SELECT GET_LOCK("justin_allocator", %d) AS result' %
 #                     timeoutSeconds)
 #
-#  row =  justin.db.cur.fetchone()
+#  row =  justin.cur.fetchone()
 #
 #  if not row or 'result' not in row:
 #    # Something went wrong!
@@ -1625,8 +1625,8 @@ def checkSecretHash(environ, jsonDict):
 #
 def application(environ, startResponse):
 
-  justin.db.wsgiCallsCount += 1
-  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
+  justin.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.wsgiCallsCount), 
         file=sys.stderr)
 
   # Quickly reject random GETs etc (if not handled by Apache already)
@@ -1639,14 +1639,14 @@ def application(environ, startResponse):
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    justin.db.conn.ping(True)
+    justin.conn.ping(True)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'DB connection lost and cannot reconnect: ' + str(e))
 
   # Avoid leftovers from partial, failed transactions in this instance
-  justin.db.conn.rollback()
+  justin.conn.rollback()
 
   if environ['REQUEST_URI'].startswith('/api/samweb/'):
     # Legacy samweb support: put values into dictionary
@@ -1678,7 +1678,7 @@ def application(environ, startResponse):
                        'Failed to read and parse JSON')
 
   if 'jobsub_id' not in jsonDict or \
-     not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
+     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
     return httpError(startResponse,
               '400 Bad Request', 
               'Missing jobsub_id in JSON')

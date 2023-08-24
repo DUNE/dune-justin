@@ -24,15 +24,15 @@ import sys
 import MySQLdb
 import justin
 
-justin.conf.readConf()
+justin.readConf()
 
 try:
-  justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname,
-                                user=justin.conf.mysqlUsername,
-                                passwd=justin.conf.mysqlPassword,
-                                db=justin.conf.mysqlDbName)
-  justin.db.conn.autocommit(False)
-  justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+  justin.conn = MySQLdb.connect(host=justin.mysqlHostname,
+                                user=justin.mysqlUsername,
+                                passwd=justin.mysqlPassword,
+                                db=justin.mysqlDbName)
+  justin.conn.autocommit(False)
+  justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
 
 except Exception as e:
   print('Connect to database fails: ' + str(e), file=sys.stderr)
@@ -40,7 +40,7 @@ except Exception as e:
   sys.exit(1)
 
 else:
-  print('Connected to %s database' % justin.conf.mysqlDbName, file=sys.stderr)
+  print('Connected to %s database' % justin.mysqlDbName, file=sys.stderr)
 
 
 #
@@ -48,17 +48,17 @@ else:
 #
 
 try:
-  with open(justin.allocator.jobsNoRolesProxyFile, 'rb') as f:
-    justin.allocator.jobsNoRolesProxyString = f.read()
+  with open(justin.jobsNoRolesProxyFile, 'rb') as f:
+    justin.jobsNoRolesProxyString = f.read()
 except:
   print('Failed loading X.509 proxy from %s : %s'
-        % (justin.allocator.jobsNoRolesProxyFile, str(e)), file=sys.stderr)
+        % (justin.jobsNoRolesProxyFile, str(e)), file=sys.stderr)
 
 try:
-  with open(justin.allocator.jobsProductionProxyFile, 'rb') as f:
-    justin.allocator.jobsProductionProxyString = f.read()
+  with open(justin.jobsProductionProxyFile, 'rb') as f:
+    justin.jobsProductionProxyString = f.read()
 except:
   print('Failed loading X.509 proxy from %s : %s'
-        % (justin.allocator.jobsProductionProxyFile, str(e)), file=sys.stderr)
+        % (justin.jobsProductionProxyFile, str(e)), file=sys.stderr)
   
 

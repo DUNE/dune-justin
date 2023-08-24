@@ -35,7 +35,7 @@ import justin
 
 def httpError(startResponse, code, message):
 
-  justin.db.conn.rollback()
+  justin.conn.rollback()
   print('justin-wsgi-commands fails with %s (%s)' % 
         (code, str(message)), file=sys.stderr)
 
@@ -48,7 +48,7 @@ def httpError(startResponse, code, message):
   
 def httpOK(startResponse, message):
 
-  justin.db.conn.commit()
+  justin.conn.commit()
   startResponse('200 OK',
                 [('Content-type',   'text/plain'),
                  ('Content-length', str(len(message)))
@@ -82,7 +82,7 @@ def showWorkflowsCmd(startResponse, jsonDict):
     workflowFilter = "WHERE workflow_id=" + str(workflowID)
 
   try:
-    rows = justin.db.select("SELECT * FROM workflows %s ORDER BY created" 
+    rows = justin.select("SELECT * FROM workflows %s ORDER BY created" 
                          % workflowFilter)
   except Exception as e:
     return httpError(startResponse, 
@@ -113,7 +113,7 @@ def showStagesCmd(startResponse, jsonDict):
     stageFilter = "AND stage_id=" + str(stageID)
 
   try:
-    rows = justin.db.select("SELECT * FROM stages WHERE workflow_id=%d %s "
+    rows = justin.select("SELECT * FROM stages WHERE workflow_id=%d %s "
                          "ORDER BY workflow_id,stage_id" 
                          % (workflowID, stageFilter))
   except Exception as e:
@@ -175,7 +175,7 @@ def showJobscriptCmd(startResponse, jsonDict):
              % (workflowID, stageID))
   
     try:
-      row = justin.db.select(query, justOne = True)
+      row = justin.select(query, justOne = True)
       jobscript = row['jobscript']
     except Exception as e:
       return httpError(startResponse, 
@@ -200,7 +200,7 @@ def showStageOutputsCmd(startResponse, jsonDict):
     return httpError(startResponse, '400 Bad Request', 'Stage ID not given')
 
   try:
-    rows = justin.db.select("SELECT for_next_stage,"
+    rows = justin.select("SELECT for_next_stage,"
                             "scopes.scope_name,"
                             "file_pattern,"
                             "destination "
@@ -351,7 +351,7 @@ def showFilesCmd(startResponse, jsonDict):
     pass
 
   try:
-    rows = justin.db.select("SELECT * FROM files "
+    rows = justin.select("SELECT * FROM files "
                             "WHERE workflow_id=%d %s "
                             "AND files.stage_id > 0 "
                             "ORDER BY workflow_id,stage_id,file_did LIMIT 100"
@@ -449,7 +449,7 @@ def showReplicasCmd(startResponse, jsonDict):
     pass
 
   try:
-    rows = justin.db.select("SELECT replicas.workflow_id,replicas.stage_id,"
+    rows = justin.select("SELECT replicas.workflow_id,replicas.stage_id,"
                  "files.state,"
                  "storages.rse_name,files.file_did,replicas.wan_pfn "
                  "FROM replicas "
@@ -500,7 +500,7 @@ def createWorkflow(jsonDict, user, simple = False):
     # --scope option given, so check the scope is known
     scopeName = jsonDict['scope'].lower()
 
-    if not justin.db.stringIsDomain(scopeName):
+    if not justin.stringIsDomain(scopeName):
       return ('400 Bad Request', 
               'Scope name can only be characters a-z 0-9 - _ .')
 
@@ -569,7 +569,7 @@ def createWorkflow(jsonDict, user, simple = False):
     refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
 
   try:
-    workflowID = justin.db.insertUpdate('INSERT INTO workflows SET created=NOW(),'
+    workflowID = justin.insertUpdate('INSERT INTO workflows SET created=NOW(),'
           'state="%s",'
           '%s'
           'description="%s",'
@@ -793,7 +793,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     jobscriptID = response['jobscript_id']
 
   try:
-    justin.db.insertUpdate("INSERT INTO stages SET "
+    justin.insertUpdate("INSERT INTO stages SET "
                         "stage_rank=0,"
                         "workflow_id=%d,"
                         "stage_id=%d,"
@@ -806,7 +806,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                            jobscriptID, processors,
                            wallSeconds, rssBytes, maxDistance))
           
-    justin.db.insertUpdate('INSERT INTO stages_jobscripts SET '
+    justin.insertUpdate('INSERT INTO stages_jobscripts SET '
                            'workflow_id=%d,'
                            'stage_id=%d,'
                            'jobscript="%s"' 
@@ -893,7 +893,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
           return ('400 Bad Request',
                   'Invalid Rucio dataset name: ' + str(destination))
     try:
-        justin.db.insertUpdate('INSERT INTO stages_outputs SET '
+        justin.insertUpdate('INSERT INTO stages_outputs SET '
               'workflow_id=%d,'
               'stage_id=%d,'
               'destination="%s",'
@@ -915,11 +915,11 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   if jsonDict['output_rse']:
     for rseName in jsonDict['output_rse']:
     
-      if not justin.db.stringIsSite(rseName):
+      if not justin.stringIsSite(rseName):
         return ('400 Bad Request', 'Invalid RSE name')
 
       try:        
-        justin.db.insertUpdate('INSERT INTO stages_output_storages SET '
+        justin.insertUpdate('INSERT INTO stages_output_storages SET '
               'workflow_id=%d,'
               'stage_id=%d,'
               'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
@@ -935,11 +935,11 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       except:
         return ('400 Bad Request', 'Failed to parse --env option')
 
-      if not justin.db.stringIsEnvName(envName):
+      if not justin.stringIsEnvName(envName):
         return ('400 Bad Request', 'Invalid environment variable name')
 
       try:
-        justin.db.insertUpdate('INSERT IGNORE INTO stages_environment SET '
+        justin.insertUpdate('INSERT IGNORE INTO stages_environment SET '
               'workflow_id=%d,'
               'stage_id=%d,'
               'env_name="%s",'
@@ -982,7 +982,7 @@ def createJobscriptCmd(startResponse, jsonDict, user):
                      '400 Bad Request', 
                      'You must give a name for the jobscript')
 
-  if not justin.db.stringIsDomain(name):
+  if not justin.stringIsDomain(name):
     return httpError(startResponse,
                      '400 Bad Request', 
                      'Jobscript name can only be characters a-z 0-9 - _ .')
@@ -996,7 +996,7 @@ def createJobscriptCmd(startResponse, jsonDict, user):
     # --scope option given, so find the scope
     scopeName = jsonDict['scope'].lower()
 
-    if not justin.db.stringIsDomain(scopeName):
+    if not justin.stringIsDomain(scopeName):
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Scope name can only be characters a-z 0-9 - _ .')
@@ -1038,7 +1038,7 @@ def createJobscriptCmd(startResponse, jsonDict, user):
 
   try:
     # Check if jobscript with this user/scope and name exists already
-    row = justin.db.select('SELECT jobscript_id FROM jobscripts_library '
+    row = justin.select('SELECT jobscript_id FROM jobscripts_library '
                            'WHERE user_id=%d AND scope_id=%d AND '
                            'jobscript_name="%s"'
                            % (jobscriptUserID, scopeID, name), justOne = True)
@@ -1049,7 +1049,7 @@ def createJobscriptCmd(startResponse, jsonDict, user):
     print(str(e), file=sys.stderr)
     # If not present, create one from scratch
     try:
-      justin.db.insertUpdate('INSERT INTO jobscripts_library SET '
+      justin.insertUpdate('INSERT INTO jobscripts_library SET '
                              'scope_id=%d,'
                              'user_id=%d,'
                              'author_id=%d,'
@@ -1072,7 +1072,7 @@ def createJobscriptCmd(startResponse, jsonDict, user):
   else:
     # Already there, so update it with the new values
     try:
-      justin.db.insertUpdate('UPDATE jobscripts_library SET '
+      justin.insertUpdate('UPDATE jobscripts_library SET '
                              'jobscript="%s",'
                              'author_id=%d,'
                              'description="%s",'
@@ -1129,7 +1129,7 @@ def failFilesCmd(startResponse, jsonDict, user):
     stageStr = ''
 
   try:
-    justin.db.insertUpdate('UPDATE files SET state="failed" '
+    justin.insertUpdate('UPDATE files SET state="failed" '
           'WHERE workflow_id=%d %s '
           'AND state IN ("finding", "unallocated", "allocated", "outputting")'
           % (workflowID, stageStr))
@@ -1177,7 +1177,7 @@ def showJobsCmd(startResponse, jsonDict):
       pass
 
   try:
-    rows = justin.db.select("SELECT jobsub_id,workflow_id,stage_id,"
+    rows = justin.select("SELECT jobsub_id,workflow_id,stage_id,"
                          "job_state,allocation_time "
                          "FROM jobs "
                          + filter +
@@ -1270,7 +1270,7 @@ def newSession(startResponse, environ, jsonDict):
                            savedURI,
                            ip, hostname,
               jsonDict['os_release'].replace('\\','\\\\').replace('"','\\"') ))
-    justin.db.conn.commit()
+    justin.conn.commit()
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -1288,7 +1288,7 @@ Check that the Session ID displayed on that page is %s
 
 Once you've followed the instructions on that web page, you can run the justin
 command without needing to authorize this computer again for 7 days.
-''' % (justin.conf.proDev, justinCode, justinSession[:7])
+''' % (justin.proDev, justinCode, justinSession[:7])
    
   return httpError(startResponse, 
                    '401 Authorization Required',
@@ -1370,22 +1370,22 @@ def sitesStoragesInfo(startResponse):
 #
 def application(environ, startResponse):
 
-  justin.db.wsgiCallsCount += 1
-  print('Call count (pid=%d): %d' % (os.getpid(), justin.db.wsgiCallsCount), 
+  justin.wsgiCallsCount += 1
+  print('Call count (pid=%d): %d' % (os.getpid(), justin.wsgiCallsCount), 
         file=sys.stderr)
 
   try:
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    justin.db.conn.ping(True)
+    justin.conn.ping(True)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'DB connection lost and cannot reconnect: ' + str(e))
 
   # Avoid leftovers from partial, failed transactions in this instance
-  justin.db.conn.rollback()
+  justin.conn.rollback()
 
   if environ['REQUEST_URI'] == '/api/info/scopes.csv':
     return scopesInfo(startResponse)

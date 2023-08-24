@@ -53,7 +53,7 @@ def logLine(text):
 #def updateSiteCounts():
 #
 #  try:
-#    justin.db.cur.execute('UPDATE sites SET '
+#    justin.cur.execute('UPDATE sites SET '
 #        'submitted_jobs='
 #        '(SELECT COUNT(*) FROM jobs WHERE '
 #         '(sites.site_id = jobs.site_id) AND '
@@ -66,11 +66,12 @@ def logLine(text):
 #  except Exception as e:
 #    logLine('Update site counts fails with: ' + str(e))
 #  else:
-#    justin.db.conn.commit()
+#    justin.conn.commit()
 #    logLine('Updated site job counts')
    
 def submitJobs(numberToSubmit,
                userName,
+               accountingGroup,
                workflowID,
                stageID,
                firstSiteID,
@@ -84,9 +85,10 @@ def submitJobs(numberToSubmit,
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and others used by GlideInWMS
 
-  logLine('submitJobs %d %s w%ds%s %s %s %s %d %d %d' %
+  logLine('submitJobs %d %s %s w%ds%s %s %s %s %d %d %d' %
           (numberToSubmit,
                userName,
+               accountingGroup,
                workflowID,
                stageID,
                firstSiteID,
@@ -104,7 +106,7 @@ def submitJobs(numberToSubmit,
   justinJobSecret = secrets.token_urlsafe(64)
 
   for (p, s) in (('###justin_job_secret###',  justinJobSecret),
-                 ('###justin_prodev###',      justin.conf.proDev),
+                 ('###justin_prodev###',      justin.proDev),
                  ('###justin_workflow_id###', str(workflowID)),
                  ('###justin_stage_id###',    str(stageID))
                 ):
@@ -138,10 +140,11 @@ retry_until             = True
 notification            = Never
 executable              = %s
 arguments               = 
-accounting_group        = group_dune.prod_mcsim
+accounting_group        = %s
+#accounting_group        = group_dune.prod_mcsim
 #accounting_group        = group_dune.prod_keepup
 accounting_group_user   = %s
-rank                    = Mips / 2 + Memory
+rank                    = 1
 job_lease_duration      = 3600
 request_memory          = %dKB
 request_cpus            = %d
@@ -159,8 +162,9 @@ queue %d
 """ % (desiredSiteNames, 
        desiredEntryNames, 
        requestedWallSeconds,
-       justin.conf.proDev.upper(), workflowID, stageID,
+       justin.proDev.upper(), workflowID, stageID,
        wrapperFile.name,
+       accountingGroup,
        userName.split('@')[0],
        int(requestedRssBytes / 1024), 
        requestedProcessors,
@@ -211,7 +215,7 @@ queue %d
   # Record the job(s) in the database
   for i in range(0, numberToSubmit):
     try:
-      justin.db.cur.execute('INSERT INTO jobs '
+      justin.cur.execute('INSERT INTO jobs '
                   'SET factory_name="%s",'
                   'workflow_id=%d,'
                   'stage_id=%d,'
@@ -244,7 +248,7 @@ queue %d
   # Record that we've done a submission if just for one site
   if firstSiteID:
     try:
-      justin.db.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
+      justin.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
                             'WHERE site_id=%d' % firstSiteID)
 
     except Exception as e:
@@ -252,7 +256,7 @@ queue %d
       logLine('Update last_submitted_time fails with: ' + str(e))
 
   # Commit it all to the DB
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 # Submit jobs for highest priority workflows/stages 
 def workflowJobs():
@@ -371,6 +375,7 @@ def workflowJobs():
 
         submitJobs(numberToSubmit       = numberToSubmit,
                    userName             = stageRow['principal_name'],
+                   accountingGroup      = 'prod_mcsim',
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
                    firstSiteID          = 0,
@@ -389,7 +394,7 @@ def awtJobsToSites():
   # Go through the sites deciding where to submit AWT jobs
 
   try:
-    rows = justin.db.select('SELECT site_id,'
+    rows = justin.select('SELECT site_id,'
       'site_name,'
       'jobsub_site_name '
       'FROM sites '
@@ -399,7 +404,7 @@ def awtJobsToSites():
       '  submitted_time > DATE_SUB(NOW(),INTERVAL 6 HOUR)) = 0) AND '
       '(last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY)) '
       'ORDER BY site_name' 
-      % (justin.db.awtWorkflowID, justin.unseenSitesExpireDays)
+      % (justin.awtWorkflowID, justin.unseenSitesExpireDays)
       # Should change this to random order?
                )
 
@@ -410,6 +415,7 @@ def awtJobsToSites():
   for row in rows:
       submitJobs(numberToSubmit       = 1,
                  userName             = 'dunepro',
+                 accountingGroup      = 'prod_mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
                  firstSiteID          = row['site_id'],
@@ -518,20 +524,20 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          justin.conf.readConf()
+          justin.readConf()
           
           try:
-            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
-                                  user=justin.conf.mysqlUsername,
-                                  passwd=justin.conf.mysqlPassword, 
-                                  db=justin.conf.mysqlDbName)
-            justin.db.conn.autocommit(False)
-            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.conn = MySQLdb.connect(host=justin.mysqlHostname, 
+                                  user=justin.mysqlUsername,
+                                  passwd=justin.mysqlPassword, 
+                                  db=justin.mysqlDbName)
+            justin.conn.autocommit(False)
+            justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
-              p = pwd.getpwnam(justin.conf.agentUsername)
+              p = pwd.getpwnam(justin.agentUsername)
               os.setgid(p[3])
               os.setuid(p[2])
               oneCycle()

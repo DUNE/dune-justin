@@ -114,7 +114,7 @@ def updateJwks():
         else:
           logLine('Updating JWT key kid=%s' % jwtKey['kid'])
  
-      justin.db.conn.commit()
+      justin.conn.commit()
       return
       
   logLine('Failed updating CILogon JWT keys')
@@ -432,7 +432,7 @@ def updateSites():
   buildSites(sitesDict)
 
   try:
-    justinSiteRows = justin.db.select('SELECT site_name,sites.site_id,'
+    justinSiteRows = justin.select('SELECT site_name,sites.site_id,'
                                       'entry_name,entry_id FROM sites '
                                       'LEFT JOIN entries '
                                       'ON entries.site_id=sites.site_id '
@@ -489,7 +489,7 @@ def updateSites():
               )
 
       try:
-        newID = justin.db.insertUpdate(query)
+        newID = justin.insertUpdate(query)
       except Exception as e:
         logLine('Failed inserting %s: %s' % (siteName, str(e)))
         continue
@@ -518,7 +518,7 @@ def updateSites():
                  )
               )
       try:
-        justin.db.insertUpdate(query)
+        justin.insertUpdate(query)
       except Exception as e:
         logLine('Failed updating %s: %s' % (siteName, str(e)))
         continue
@@ -541,7 +541,7 @@ def updateSites():
                       maxWallSeconds)
                   )
           try:
-            newID = justin.db.insertUpdate(query)
+            newID = justin.insertUpdate(query)
           except Exception as e:
             logLine('Failed inserting %s: %s' 
                   % (entryDict['entry_name'], str(e)))
@@ -567,7 +567,7 @@ def updateSites():
                      )
                   )
           try:
-            justin.db.insertUpdate(query)
+            justin.insertUpdate(query)
           except Exception as e:
             logLine('Failed inserting/updating %s: %s' 
                   % (entryDict['entry_name'], str(e)))
@@ -580,21 +580,21 @@ def updateSites():
     logLine('Site: %s, %d processors, %d bytes, %s seconds' %
             (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
 
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def updateSitesStorages(): 
   # Update the matrix of sites to storage mappings
   # Ensure there is an entry for each combination
   logLine('---- Start updateSitesStorages ----')
 
-  justin.db.cur.execute('SELECT site_id,site_name,country,region FROM sites')
-  siteRows = justin.db.cur.fetchall()
+  justin.cur.execute('SELECT site_id,site_name,country,region FROM sites')
+  siteRows = justin.cur.fetchall()
   
-  justin.db.cur.execute('SELECT rse_id,rse_name,storages.country,'
+  justin.cur.execute('SELECT rse_id,rse_name,storages.country,'
                         'storages.region,site_name FROM storages '
                         'LEFT JOIN sites '
                         'ON sites.site_id=storages.site_id')
-  storageRows = justin.db.cur.fetchall()
+  storageRows = justin.cur.fetchall()
   
   for siteRow in siteRows:
     for storageRow in storageRows:
@@ -627,25 +627,25 @@ def updateSitesStorages():
         # Catchall if nothing chosen above.
         distance = 100
 
-      justin.db.insertUpdate('REPLACE sites_storages SET '
+      justin.insertUpdate('REPLACE sites_storages SET '
                'distance=%d,site_id=%d,rse_id=%d'
                % (distance, siteRow['site_id'], storageRow['rse_id']))
               
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def updateStorages():
   # Get info about storages Rucio knows about
   logLine('---- Start updateStorages ----')
   
   # Ensure the dummy MONTECARLO RSE exists, with rse_id 1
-  justin.db.cur.execute('INSERT IGNORE INTO storages SET rse_id=%d,'
+  justin.cur.execute('INSERT IGNORE INTO storages SET rse_id=%d,'
     'rse_name="MONTECARLO",occupancy=1,rucio_write=FALSE,'
     'rucio_read=TRUE,justin_write=FALSE,justin_read=TRUE'
-    % justin.conf.MonteCarloRseID)
+    % justin.MonteCarloRseID)
 
   justinStorageNames = []
   try:
-    justinStorageRows = justin.db.select('SELECT rse_name FROM storages')
+    justinStorageRows = justin.select('SELECT rse_name FROM storages')
   except Exception as e:
     logLine('Failed to get names of existing justIN storages')
     return
@@ -819,7 +819,7 @@ def updateStorages():
       logLine('Failed inserting RSE %s into database: %s' % 
               (rse['rse'], str(e)))
 
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def updateScopes():
   # Get info about scopes Rucio knows about
@@ -903,7 +903,7 @@ def updateScopes():
               % (wlcgGroupID, rucioScopeName, str(e)))
       continue
 
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 def oneCycle():
 
@@ -939,7 +939,7 @@ def oneCycle():
     updateSites()
     updateSitesStorages()
 
-  justin.db.conn.commit()
+  justin.conn.commit()
 
 #
 # PROGRAM MAIN
@@ -1025,15 +1025,15 @@ if __name__ == '__main__':
         if cyclePid == 0:
           logLine('=============== Start cycle ===============')
           
-          justin.conf.readConf()
+          justin.readConf()
           
           try:
-            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
-                                  user=justin.conf.mysqlUsername,
-                                  passwd=justin.conf.mysqlPassword, 
-                                  db=justin.conf.mysqlDbName)
-            justin.db.conn.autocommit(False)
-            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+            justin.conn = MySQLdb.connect(host=justin.mysqlHostname, 
+                                  user=justin.mysqlUsername,
+                                  passwd=justin.mysqlPassword, 
+                                  db=justin.mysqlDbName)
+            justin.conn.autocommit(False)
+            justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
             
             # Do not bother us with such trifles!
             warnings.filterwarnings('ignore', category=MySQLdb.Warning)
@@ -1041,7 +1041,7 @@ if __name__ == '__main__':
             logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
           else:
             try:
-              p = pwd.getpwnam(justin.conf.agentUsername)
+              p = pwd.getpwnam(justin.agentUsername)
               os.setgid(p[3])
               os.setuid(p[2])              
               oneCycle()
