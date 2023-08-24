@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `entry_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
-  `allocation_state` enum('submitted','started','processing','outputting',
+  `job_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','jobscript_error',
                   'outputting_failed') 
                   NOT NULL DEFAULT 'submitted',
@@ -80,12 +80,12 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `jobsub_state` (`jobsub_state`,
-    `allocation_state`,`site_id`),
-  INDEX `site_id_allocation_state` (`site_id`,`allocation_state`,
+    `job_state`,`site_id`),
+  INDEX `site_id_job_state` (`site_id`,`job_state`,
     `submitted_time`),
-  INDEX `allocation_state_site_id` (`allocation_state`,`site_id`,
+  INDEX `job_state_site_id` (`job_state`,`site_id`,
     `submitted_time`),
-  INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`allocation_state`)
+  INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`job_state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
@@ -215,7 +215,7 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `running_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `last_get_stage_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_get_jobscript_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_awt_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_awt_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`site_id`),

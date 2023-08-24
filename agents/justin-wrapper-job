@@ -32,6 +32,8 @@ import urllib
 import urllib.request
 import subprocess
 
+awtWorkflowID   = 1
+
 # Three globals used again and again
 siteName        = 'XX_UNKNOWN'
 jobsubJobID     = None
@@ -45,6 +47,8 @@ def logLine(text):
 def sendJsonURL(url, sendDict):
 
   sendDict['jobsub_id']   = jobsubJobID
+  sendDict['workflow_id'] = workflowID
+  sendDict['stage_id']    = stageID
   sendDict['secret_time'] = str(int(time.time()))
   sendDict['secret_hash'] = hmac.new(bytes(justinJobSecret, 'UTF-8'),
                                      (sendDict['method'] +
@@ -346,7 +350,7 @@ def calculateAdler32(fileName):
   return ("%08x" % checksum)
 
 def updateMetadataTmp(fileScope, fileName, 
-                      getStageDict, receivedDict, recordResultsDict):
+                      getJobscriptDict, jobscriptDict, recordResultsDict):
   try:
     metadata = json.load(open('home/workspace/' + fileName + '.json', 'r'))
   except FileNotFoundError:
@@ -361,15 +365,15 @@ def updateMetadataTmp(fileScope, fileName,
   metadata['metadata']['dune.workflow'] = {}
 
   metadata['metadata']['dune.workflow']['site_name'] \
-   = getStageDict['site_name'] 
+   = getJobscriptDict['site_name'] 
   metadata['metadata']['dune.workflow']['workflow_id'] \
-   = receivedDict['workflow_id']
+   = workflowID
   metadata['metadata']['dune.workflow']['stage_id'] \
-   = receivedDict['stage_id']
+   = stageID
   metadata['metadata']['dune.workflow']['user'] \
-   = receivedDict['principal_name']
+   = jobscriptDict['principal_name']
   metadata['metadata']['dune.workflow']['hostname'] \
-   = getStageDict['hostname']
+   = getJobscriptDict['hostname']
 
   metadata['metadata']['dune.workflow']['jobscript_start'] \
    = recordResultsDict['jobscript_start']
@@ -383,9 +387,9 @@ def updateMetadataTmp(fileScope, fileName,
      recordResultsDict['jobscript_sys_seconds']
 
   metadata['metadata']['dune.workflow']['cpuinfo'] \
-   = getStageDict['cpuinfo']
+   = getJobscriptDict['cpuinfo']
   metadata['metadata']['dune.workflow']['os_release'] \
-   = getStageDict['os_release']
+   = getJobscriptDict['os_release']
   metadata['metadata']['dune.workflow']['job_id'] \
    = jobsubJobID
 
@@ -401,7 +405,7 @@ def updateMetadataTmp(fileScope, fileName,
 logLine('====Start of justin-wrapper-job====')
 
 for i in os.environ:
- print('%s=%s' % (i, os.environ[i]))
+  print('%s=%s' % (i, os.environ[i]))
 
 jobsubJobID = os.environ['JUSTIN_JOBSUB_ID']
 siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
@@ -439,36 +443,36 @@ for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
              '###justin_prodev###/NULL/jobutils/' + i, 'home/' + i)
 
 # Assemble values to send to allocator
-getStageDict = { 'method' : 'get_stage_json' }
+getJobscriptDict = { 'method' : 'get_jobscript' }
 
 for line in open('/proc/cpuinfo','r').readlines():
   if line.startswith('model name'):
-    getStageDict['cpuinfo'] = line.split(':')[1].strip()
+    getJobscriptDict['cpuinfo'] = line.split(':')[1].strip()
     break
 
-getStageDict['os_release'] \
+getJobscriptDict['os_release'] \
   = open('/etc/redhat-release','r').readlines()[0].strip()
-getStageDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
-getStageDict['site_name']   = siteName
-getStageDict['entry_name']  = entryName
+getJobscriptDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
+getJobscriptDict['site_name']   = siteName
+getJobscriptDict['entry_name']  = entryName
 
-getStageDict['site_job_id'] = 'XXX'
+getJobscriptDict['site_job_id'] = 'XXX'
 ##  "site_job_id"     : "${JOB_GLIDEIN_SiteWMS_JobId:-unknown}",
 
 for line in open(os.environ['_CONDOR_JOB_AD'],'r').readlines():
   if line.startswith('RequestCpus = '):
-    getStageDict['processors'] = int(line.split('=')[1].strip())
+    getJobscriptDict['processors'] = int(line.split('=')[1].strip())
 
   if line.startswith('RequestMemory = '):
-    getStageDict['rss_bytes'] = 1048576 * int(line.split('=')[1].strip())
+    getJobscriptDict['rss_bytes'] = 1048576 * int(line.split('=')[1].strip())
 
 for line in open(os.environ['_CONDOR_MACHINE_AD'],'r').readlines():
   if line.startswith('GLIDEIN_Max_Walltime = '):
-    getStageDict['wall_seconds'] = int(line.split('=')[1].strip())
+    getJobscriptDict['wall_seconds'] = int(line.split('=')[1].strip())
     break
 
 logLine('==== Before try apptainer ====')
-getStageDict['has_inner_apptainer'] = (0 == os.system(
+getJobscriptDict['has_inner_apptainer'] = (0 == os.system(
    '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer '
    'shell --shell /usr/bin/hostname '
    '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6'
@@ -480,7 +484,7 @@ os.system('openssl req -batch -nodes -newkey rsa:2048 '
           '-keyout justin-jobs-no-roles.key.pem '
           '-out justin-jobs-no-roles.csr.pem')
 
-getStageDict['csr-no-roles'] = \
+getJobscriptDict['csr-no-roles'] = \
   open('justin-jobs-no-roles.csr.pem', 'r').read()
 
 justinJobsNoRolesKeyPem = \
@@ -491,7 +495,7 @@ os.system('openssl req -batch -nodes -newkey rsa:2048 '
           '-keyout justin-jobs-production.key.pem '
           '-out justin-jobs-production.csr.pem')
 
-getStageDict['csr-production'] = \
+getJobscriptDict['csr-production'] = \
   open('justin-jobs-production.csr.pem', 'r').read()
 
 justinJobsProductionKeyPem = \
@@ -505,28 +509,28 @@ for i in range(1,6):
   ##time.sleep(random.randrange(61))
 
   logLine('====start justin-get-stage.json====')
-  print(json.dumps(getStageDict))
+  print(json.dumps(getJobscriptDict))
   logLine('====end justin-get-stage.json====')
 
-  receivedDict = sendJsonURL(
+  jobscriptDict = sendJsonURL(
     'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
-    '/api/allocator/get_stage',
-    getStageDict)
+    '/api/allocator/get_jobscript',
+    getJobscriptDict)
 
-  logLine('get_stage returns HTTP code %d' % receivedDict['status'])
+  logLine('get_jobscript returns HTTP code %d' % jobscriptDict['status'])
 
-  if receivedDict['status'] != 503 and receivedDict['status'] != 0:
+  if jobscriptDict['status'] != 503 and jobscriptDict['status'] != 0:
     break
     
-if receivedDict['status'] != 200:
+if jobscriptDict['status'] != 200:
   logLine('Exiting due to code %d. Received: \n%s'
-          % (receivedDict['status'], receivedDict['response']))
+          % (jobscriptDict['status'], jobscriptDict['response']))
   time.sleep(10)
   sys.exit(0)
 
 # Stage-defined and standard environment variables for the jobscript
 with open('home/justin-jobscript-env.sh','w') as f:
-  for (n,v) in receivedDict['stage_env']:
+  for (n,v) in jobscriptDict['stage_env']:
     f.write('export %s="%s"\n' % (n,v))
 
 # REMOVE THIS
@@ -535,22 +539,22 @@ with open('home/justin-jobscript-env.sh','w') as f:
 
   f.write('export JUSTIN_ALLOCATOR='
    'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk/api/allocator/\n')
-  f.write('export JUSTIN_SITE_NAME=%s\n' % receivedDict['site_name'])
-  f.write('export JUSTIN_WORKFLOW_ID=%d\n' % receivedDict['workflow_id'])
-  f.write('export JUSTIN_STAGE_ID=%d\n' % receivedDict['stage_id'])
-  f.write('export JUSTIN_SCOPE=%s\n' % receivedDict['scope'])
+  f.write('export JUSTIN_SITE_NAME=%s\n' % jobscriptDict['site_name'])
+  f.write('export JUSTIN_WORKFLOW_ID=%d\n' % workflowID)
+  f.write('export JUSTIN_STAGE_ID=%d\n' % stageID)
+  f.write('export JUSTIN_SCOPE=%s\n' % jobscriptDict['scope'])
   f.write('export JUSTIN_JOBSUB_ID=%s\n' % jobsubJobID)
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
-          % receivedDict['jobscript_secret'])
+          % jobscriptDict['jobscript_secret'])
   f.write('export JUSTIN_SAM_WEB_URI='
           '"https://justin.dune.hep.ac.uk/api/samweb/%s/%s"\n' 
-          % (receivedDict['jobsub_id'], receivedDict['jobscript_secret']))
+          % (jobscriptDict['jobsub_id'], jobscriptDict['jobscript_secret']))
 
 # JSON for justin-get-file command to use
 with open('home/justin-get-file.json', 'w') as f:
   f.write(json.dumps({ 'method' : 'get_file',
-                       'jobsub_id' : receivedDict['jobsub_id'],
-                       'jobscript_secret' : receivedDict['jobscript_secret']
+                       'jobsub_id' : jobscriptDict['jobsub_id'],
+                       'jobscript_secret' : jobscriptDict['jobscript_secret']
                      }
                     )
          )
@@ -558,49 +562,49 @@ with open('home/justin-get-file.json', 'w') as f:
 # JSON for justin-allocated-files command to use
 with open('home/justin-allocated-files.json', 'w') as f:
   f.write(json.dumps({ 'method' : 'get_allocated_files',
-                       'jobsub_id' : receivedDict['jobsub_id'],
-                       'jobscript_secret' : receivedDict['jobscript_secret']
+                       'jobsub_id' : jobscriptDict['jobsub_id'],
+                       'jobscript_secret' : jobscriptDict['jobscript_secret']
                      }
                     )
          )
 
 # The jobscript in any scripting language supported by the container
 with open('home/justin-jobscript','wb') as f:
-  f.write(receivedDict['jobscript'].encode())
+  f.write(jobscriptDict['jobscript'].encode())
 
 os.chmod('home/justin-jobscript', 0o755)
 
 # Assemble proxy to be used by jobscript
 with open('home/justin-jobs-no-roles.proxy.pem', 'w') as f:
-  f.write(receivedDict['justin-jobs-no-roles.cert.pem'])
+  f.write(jobscriptDict['justin-jobs-no-roles.cert.pem'])
   f.write(justinJobsNoRolesKeyPem)
-  f.write(receivedDict['justin-jobs-no-roles.chain.pem'])
+  f.write(jobscriptDict['justin-jobs-no-roles.chain.pem'])
 
 os.chmod('home/justin-jobs-no-roles.proxy.pem', 0o400)
 
 # Assemble proxy to be used by wrapper job itself
 with open('justin-jobs-production.proxy.pem', 'w') as f:
-  f.write(receivedDict['justin-jobs-production.cert.pem'])
+  f.write(jobscriptDict['justin-jobs-production.cert.pem'])
   f.write(justinJobsProductionKeyPem)
-  f.write(receivedDict['justin-jobs-production.chain.pem'])
+  f.write(jobscriptDict['justin-jobs-production.chain.pem'])
 
 os.chmod('justin-jobs-production.proxy.pem', 0o400)
 
 # AWT jobs get production proxy too
-if receivedDict['for_awt']:
+if workflowID == awtWorkflowID:
 
   with open('home/justin-awt-rse-list.txt', 'w') as f:
-    for (rseName, scheme, pfn) in receivedDict['awt_rses']:
+    for (rseName, scheme, pfn) in jobscriptDict['awt_rses']:
       f.write('%s %s %s\n' % (rseName, scheme, pfn))
 
   with open('home/awt-proxy.pem', 'w') as f:
-    f.write(receivedDict['justin-jobs-production.cert.pem'])
+    f.write(jobscriptDict['justin-jobs-production.cert.pem'])
     f.write(justinJobsProductionKeyPem)
-    f.write(receivedDict['justin-jobs-production.chain.pem'])
+    f.write(jobscriptDict['justin-jobs-production.chain.pem'])
 
   os.chmod('home/awt-proxy.pem', 0o400)
 
-if getStageDict['has_inner_apptainer']:
+if getJobscriptDict['has_inner_apptainer']:
   # Wrapper to be run inside the container
   with open('home/jobscript-wrapper.sh','w') as f:
     f.write('''#!/bin/sh
@@ -703,7 +707,7 @@ outputFiles = []
 
 # Find files matching output patterns specified for this stage
 for (forNextStage, destination, scope, pattern) in \
-    receivedDict['patterns']:
+    jobscriptDict['patterns']:
   
   matches = glob.glob('home/workspace/' + pattern)
   for match in matches:
@@ -756,7 +760,7 @@ except Exception as e:
 if ret:
   jobAborted(900, 'create_logs_tgz', '')
 
-for (rse,scheme) in receivedDict['output_rses'][:3]:
+for (rse,scheme) in jobscriptDict['output_rses'][:3]:
   logLine('Try justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
 
   ret = executeJustinRucioUpload('--rse %s '
@@ -767,7 +771,7 @@ for (rse,scheme) in receivedDict['output_rses'][:3]:
                                  '%s' 
                                  % (rse, 
                                     scheme, 
-                                    receivedDict['workflow_id'], 
+                                    workflowID, 
                                     tgzName))
   if ret == 0:
     break
@@ -783,7 +787,7 @@ if jobscriptOutcome.returncode != 0:
   jobAborted(900, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
-logLine('Output RSEs: ' + str(receivedDict['output_rses']))
+logLine('Output RSEs: ' + str(jobscriptDict['output_rses']))
 
 # TO DO: DROP THIS FILE WRITE?
 # Write out the token for uploading to user's scratch
@@ -808,13 +812,13 @@ for (destination, fileScope, fileName) in outputFiles:
       jobAborted(900, 'webdav_upload', '')
     
     confirmResultsDict['output_urls'].append(destination + '/' + fileName)
-  elif receivedDict['output_rses']:
+  elif jobscriptDict['output_rses']:
     # Uploading to Rucio managed storage
     
     # Create tmp.json metadata file for this output file
     try:
       updateMetadataTmp(fileScope, fileName, 
-                        getStageDict, receivedDict, justinRecordResultsDict)
+                     getJobscriptDict, jobscriptDict, justinRecordResultsDict)
 
       fileAdler32 = calculateAdler32('home/workspace/' + fileName)
       fileSize    = os.path.getsize('home/workspace/' + fileName)
@@ -842,7 +846,7 @@ for (destination, fileScope, fileName) in outputFiles:
       jobAborted(900, 'metacat_registration', '')
 
     # If that succeeds, then try to register/upload with rucio    
-    for (rse,scheme) in receivedDict['output_rses'][:3]:
+    for (rse,scheme) in jobscriptDict['output_rses'][:3]:
       logLine('Try %s:%s to %s/%s' 
               % (fileScope, fileName, rse, scheme))
 

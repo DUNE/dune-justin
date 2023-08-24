@@ -772,16 +772,16 @@ def findStalledAbortedJobs():
 
   try:
     query = ('SELECT workflow_id,stage_id,justin_job_id,jobsub_id,site_id,'
-             'allocation_state '
+             'job_state '
              'FROM jobs '
-             'WHERE ((allocation_state="started" OR '
-             'allocation_state="processing" OR '
-             'allocation_state="outputting") AND '
+             'WHERE ((job_state="started" OR '
+             'job_state="processing" OR '
+             'job_state="outputting") AND '
              '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) '
-             'OR allocation_state="aborted" '
-             'OR allocation_state="jobscript_error" '
-             'OR allocation_state="outputting_failed" '
-             'OR (allocation_state="submitted" AND '
+             'OR job_state="aborted" '
+             'OR job_state="jobscript_error" '
+             'OR job_state="outputting_failed" '
+             'OR (job_state="submitted" AND '
              'submitted_time < DATE_SUB(NOW(),INTERVAL 1 DAY)) '
              'ORDER BY justin_job_id' % justin.db.jobStallSeconds)
 
@@ -798,11 +798,11 @@ def findStalledAbortedJobs():
 
   for jobRow in jobRows:
 
-    if jobRow['allocation_state'] not in ['aborted', 'jobscript_error', 
+    if jobRow['job_state'] not in ['aborted', 'jobscript_error', 
                                                      'outputting_failed']:
       # If not here due to an abort, we mark the job as stalled
       try:
-        query = ('UPDATE jobs SET allocation_state="stalled",finished_time=NOW() '
+        query = ('UPDATE jobs SET job_state="stalled",finished_time=NOW() '
                  'WHERE justin_job_id=%d' % jobRow['justin_job_id'])
     
         justin.db.cur.execute(query)
@@ -812,7 +812,7 @@ def findStalledAbortedJobs():
         continue
 
       logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
-                                                 jobRow['allocation_state']))
+                                                 jobRow['job_state']))
     
       justin.db.logEvent(eventTypeID = justin.db.event_JOB_STALLED,
                       workflowID = jobRow['workflow_id'],

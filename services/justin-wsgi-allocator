@@ -36,8 +36,6 @@ import M2Crypto
 
 import justin
 
-#callsCount = 0
-
 def httpError(startResponse, code, message):
 
   try:
@@ -73,19 +71,18 @@ def httpOK(startResponse, outputString):
   return [outputString.encode('UTF-8')]
 
 # Return information about the job from the jobsubID
-def makeJobDict(jobsubID, jobscriptSecret = None):
+def makeJobDict(jsonDict, jobscriptSecret = None):
 
   # Find the job info and the stage's max_distance value
   try:
     query = ('SELECT '
-             'jobs.allocation_state,'
+             'jobs.job_state,'
              'jobs.jobscript_secret,'
              'stages.max_distance,'
              'jobs.workflow_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
              'jobs.site_id,'
-             'jobs.for_awt,'
              'jobs.requested_processors,'
              'jobs.requested_rss_bytes,'
              'jobs.requested_wall_seconds,'
@@ -101,7 +98,8 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
              'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN sites ON jobs.site_id=sites.site_id '
              'LEFT JOIN entries ON jobs.entry_id=entries.entry_id '
-             'WHERE jobs.jobsub_id="' + jobsubID + '"')
+             'WHERE jobs.jobsub_id="%s"'
+             % jsonDict['jobsub_id'])
 
     justin.db.cur.execute(query)
     job = justin.db.cur.fetchone()
@@ -127,9 +125,8 @@ def makeJobDict(jobsubID, jobscriptSecret = None):
            "max_jobs"               : job['max_jobs'],
            "site_enabled"           : job['enabled'],
            "justin_job_id"          : job['justin_job_id'],
-           "allocation_state"       : job['allocation_state'],
+           "job_state"       : job['job_state'],
            "jobscript_secret"       : job['jobscript_secret'],
-           "for_awt"                : job['for_awt'],
            "max_distance"           : job['max_distance'],
            "requested_processors"   : job['requested_processors'],
            "requested_rss_bytes"    : job['requested_rss_bytes'],
@@ -209,7 +206,7 @@ def delegateJobsProxy(newCertRequest, jobsProxyString):
 
   return (newCert.as_pem().decode(), jobsProxyCertsChain)
 
-def makeJobscriptDict(jsonDict, jobDict, stage):
+def makeJobscriptDict(jsonDict, jobDict):
   # Collect values to be transmitted to the user jobscript
 
   jobscriptDict = {}
@@ -225,7 +222,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              "ON principal_names.pn_id=users.main_pn_id "
              "WHERE stages_jobscripts.workflow_id=%d "
              "AND stages_jobscripts.stage_id=%d" 
-             % (stage['workflow_id'], stage['stage_id']))
+             % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
     row       = justin.db.select(query, justOne = True)
     jobscript = row['jobscript']
@@ -269,7 +266,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              "ON workflows.workflow_id=stages_outputs.workflow_id "
              "WHERE stages_outputs.workflow_id=%d "
              "AND stages_outputs.stage_id=%d" 
-             % (stage['workflow_id'], stage['stage_id']))
+             % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
     rows = justin.db.select(query)
   except:
@@ -284,7 +281,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
                                       row['file_pattern']))
 
   # Create a list of RSEs for Workflow Test jobs
-  if jobDict['for_awt']:
+  if jobDict['workflow_id'] == justin.db.awtWorkflowID:
     try:
       query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance,'
                '(SELECT wan_pfn FROM replicas WHERE workflow_id=%d AND '
@@ -346,8 +343,8 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
              'NOT storages.decommissioned '
              'ORDER BY (stages_output_storages.rse_id IS NULL),'
              'distance,RAND()' 
-             % (stage['workflow_id'],
-                stage['stage_id'],
+             % (jsonDict['workflow_id'],
+                jsonDict['stage_id'],
                 jobDict['site_id']
                )
             )
@@ -364,12 +361,11 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
                                          else rseRow['wan_write_scheme']))
       
   jobscriptDict['site_name']        = jobDict['site_name']
-  jobscriptDict['workflow_id']       = stage['workflow_id']
-  jobscriptDict['stage_id']         = stage['stage_id']
+  jobscriptDict['workflow_id']      = jsonDict['workflow_id']
+  jobscriptDict['stage_id']         = jsonDict['stage_id']
   jobscriptDict['scope']            = scopeName
   jobscriptDict['jobsub_id']        = jsonDict['jobsub_id']
   jobscriptDict['jobscript_secret'] = jobDict['jobscript_secret']
-  jobscriptDict['for_awt']          = jobDict['for_awt']
   jobscriptDict['sam_web_uri']      = \
     'https://justin.dune.hep.ac.uk/api/samweb/%s/%s' \
      % (jsonDict['jobsub_id'], jobDict['jobscript_secret'])
@@ -380,7 +376,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
   try:
     query = ('SELECT env_name,env_value FROM stages_environment '
              'WHERE workflow_id=%d AND stage_id=%d ORDER BY env_name' 
-             % (stage['workflow_id'], stage['stage_id']))
+             % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
     envRows = justin.db.select(query)
   except:
@@ -396,7 +392,7 @@ def makeJobscriptDict(jsonDict, jobDict, stage):
 def updateAllocationState(jobsub_id, state):
   try:
     justin.db.insertUpdate(
-             'UPDATE jobs SET allocation_state="%s",'
+             'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' % (state, jobsub_id))
@@ -404,46 +400,8 @@ def updateAllocationState(jobsub_id, state):
   except:
     pass
 
-# (Almost) Just in time decision making: identify the best workflow+stage
-# combination based on the immediate situation rather than trying to plan 
-# ahead of time
-def findCachedStage(jobDict):
-
-  query = (
- "SELECT workflow_id,stage_id "
- "FROM get_stage_cache "
- "WHERE "
- "site_id=%d AND "
- "min_processors=%d AND "
- "max_processors=%d AND "
- "min_rss_bytes=%d AND "
- "max_rss_bytes=%d AND "
- "max_wall_seconds=%d AND "
- "job_had_inner_apptainer=%s "
- "ORDER BY cache_time DESC "
- "LIMIT 1" % 
- ( jobDict["site_id"],
-   jobDict["min_processors"],
-   jobDict["max_processors"], 
-   jobDict["min_rss_bytes"],
-   jobDict["max_rss_bytes"], 
-   jobDict["max_wall_seconds"],
-   jobDict["has_inner_apptainer"] )
-          )
-     
-  stageRow = justin.db.select(query, justOne=True)
-  
-  if not stageRow:
-    return None
-
-  # The dictionary to return, with the highest priority result
-  stage = { 'workflow_id'  : stageRow['workflow_id'],
-            'stage_id'    : stageRow['stage_id']   }
-
-  return stage
-
-# Try to get the stage with the highest priority files still unallocated
-def getStageMethod(startResponse, jsonDict, environ):
+# Get details of this jobs workflow/stage
+def getJobscriptMethod(startResponse, jsonDict, environ):
 
   if 'jobsub_id' not in jsonDict or \
      not justin.db.stringIsJobsubID(jsonDict['jobsub_id']):
@@ -452,7 +410,8 @@ def getStageMethod(startResponse, jsonDict, environ):
                      'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required integer/bool values (eg rss_bytes)
-  for name in ['rss_bytes', 'processors', 'wall_seconds', 'has_inner_apptainer']:
+  for name in ['workflow_id', 'stage_id', 'rss_bytes', 'processors',
+               'wall_seconds', 'has_inner_apptainer']:
     try:
       n = int(jsonDict[name])
     except:
@@ -483,29 +442,33 @@ def getStageMethod(startResponse, jsonDict, environ):
   # 410 below
   try:
     justin.db.insertUpdate('UPDATE jobs SET '
-                        'site_id=(SELECT site_id FROM sites '
-                        'WHERE site_name="%s"),'
-                        'entry_id=(SELECT entry_id FROM entries '
-                        'WHERE entry_name="%s"),'
-                        'cpuinfo="%s",' 
-                        'os_release="%s",' 
-                        'hostname="%s",' 
-                        'rss_bytes=%d,' 
-                        'processors=%d,' 
-                        'wall_seconds=%d,'
-                        'has_inner_apptainer=%s ' 
-                        'WHERE jobsub_id="%s" AND '
-                        'allocation_state="submitted"' % 
-                        (jsonDict['site_name'], 
-                         jsonDict['entry_name'], 
-                         jsonDict['cpuinfo'],
-                         jsonDict['os_release'],
-                         jsonDict['hostname'],
-                         jsonDict['rss_bytes'],
-                         jsonDict['processors'],
-                         jsonDict['wall_seconds'],
-                         jsonDict['has_inner_apptainer'],
-                         jsonDict['jobsub_id']))
+                           'site_id=(SELECT site_id FROM sites '
+                           'WHERE site_name="%s"),'
+                           'entry_id=(SELECT entry_id FROM entries '
+                           'WHERE entry_name="%s"),'
+                           'cpuinfo="%s",' 
+                           'os_release="%s",' 
+                           'hostname="%s",' 
+                           'rss_bytes=%d,' 
+                           'processors=%d,' 
+                           'wall_seconds=%d,'
+                           'has_inner_apptainer=%s ' 
+                           'WHERE jobsub_id="%s" AND '
+                           'workflow_id=%d AND stage_id=%d AND '
+                           'job_state="submitted"' % 
+                           (jsonDict['site_name'], 
+                            jsonDict['entry_name'], 
+                            jsonDict['cpuinfo'],
+                            jsonDict['os_release'],
+                            jsonDict['hostname'],
+                            jsonDict['rss_bytes'],
+                            jsonDict['processors'],
+                            jsonDict['wall_seconds'],
+                            jsonDict['has_inner_apptainer'],
+                            jsonDict['jobsub_id'],
+                            jsonDict['workflow_id'],
+                            jsonDict['stage_id']
+                           ))
     justin.db.conn.commit()
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
@@ -516,67 +479,50 @@ def getStageMethod(startResponse, jsonDict, environ):
                      (str(jsonDict['site_name']), str(e)))
     
   # Find details of the job
-  jobDict = makeJobDict(jsonDict['jobsub_id'])
+  jobDict = makeJobDict(jsonDict)
+
+  if (jobDict['workflow_id'] != jsonDict['workflow_id']) or \
+     (jobDict['stage_id'] != jsonDict['stage_id']):
+    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     'workflow ID / stage ID do not match jobsub ID')
 
   if jobDict['error_message']:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse,
                      '400 Bad Request', 
-                     jobDict['error_message'] + ' in getStageMethod')
+                     jobDict['error_message'] + ' in getJobscriptMethod')
 
   # Some kind of mismatch. Maybe the idle job was marked as stalled. Maybe 
   # HTCondor rescheduled the job and it has tried to run again. In all cases 
   # leave the job state as is.
-  if jobDict['allocation_state'] != 'submitted':
-# WHY WAS THIS HERE???     and jobDict['allocation_state'] != 'notused':
+  if jobDict['job_state'] != 'submitted':
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot get stage as job already in %s state' 
-                     % jobDict['allocation_state'])
+                     % jobDict['job_state'])
 
   # Site not enabled so no matches allowed 
-  if not jobDict['site_enabled'] and not jobDict['for_awt']:
+  if not jobDict['site_enabled'] and \
+     jsonDict['workflow_id'] != justin.db.awtWorkflowID:
     updateAllocationState(jsonDict['jobsub_id'], 'notused')
     return httpError(startResponse, 
                      '404 Not Found',
-                     'No stage allocated as site %s not enabled' 
+                     'Cannot start as site %s not enabled' 
                      % jobDict['site_name'])
 
-#  print('Before UPDATE sites last_get_stage_time', file=sys.stderr)
+#  print('Before UPDATE sites last_get_jobscript_time', file=sys.stderr)
   try:
-    justin.db.insertUpdate('UPDATE sites SET last_get_stage_time=NOW() '
+    justin.db.insertUpdate('UPDATE sites SET last_get_jobscript_time=NOW() '
                         'WHERE site_id=%d' % jobDict['site_id'])
   except:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
-                     '500 Internal Server Error',
-                     'justIN allocator service fails to record get_stage time')
+                 '500 Internal Server Error',
+                 'justIN allocator service fails to record get_jobscript time')
 
-  if jobDict['for_awt']:
-    # Special job for Workflow Testing Framework
-    stage = { 'workflow_id'  : justin.db.awtWorkflowID,
-              'stage_id'    : 1,
-              'scopeName'   : None }
-
-  else:
-    # Use the Just In Time decision making: identify the best workflow+stage 
-    # candidate combination at this moment
-    try:
-      stage = findCachedStage(jobDict)
-    except Exception as e:
-      updateAllocationState(jsonDict['jobsub_id'], 'aborted')
-      return httpError(startResponse, 
-                       '500 Internal Server Error', 
-                       'justIN allocator service fails finding stage: ' + str(e))
-
-  if not stage:
-    updateAllocationState(jsonDict['jobsub_id'], 'notused')
-    return httpError(startResponse, 
-                     '404 Not Found', 
-                     'No eligible stages found')
-
-  jobscriptDict = makeJobscriptDict(jsonDict, jobDict, stage)
- 
+  jobscriptDict = makeJobscriptDict(jsonDict, jobDict)
   if not jobscriptDict:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
@@ -593,10 +539,10 @@ def getStageMethod(startResponse, jsonDict, environ):
              'allocation_time=NOW(),' 
              'heartbeat_time=NOW(),'
              'finished_time="' + justin.db.unixEpoch + '",' 
-             'allocation_state="started",'
+             'job_state="started",'
              'allocator_name="' + allocatorName + '",' 
-             'workflow_id=' + str(stage['workflow_id']) + ','
-             'stage_id=' + str(stage['stage_id']) + ' '
+             'workflow_id=' + str(jsonDict['workflow_id']) + ','
+             'stage_id=' + str(jsonDict['stage_id']) + ' '
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
   except Exception as e:
@@ -668,24 +614,23 @@ def jobAbortedMethod(startResponse, jsonDict):
                      '400 Bad Request', 
                      'Missing/invalid aborted_method in JSON')
 
-  jobDict = makeJobDict(jsonDict['jobsub_id'])
+  jobDict = makeJobDict(jsonDict)
 
   if jobDict['error_message']:
     return httpError(startResponse,
                      '400 Bad Request', 
                      jobDict['error_message'] + ' in jobAbortedMethod')
 
-  if jobDict['allocation_state'] not in ['submitted','notused', 'started',
+  if jobDict['job_state'] not in ['submitted','notused', 'started',
                                          'processing','outputting']:
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot set job to aborted as job already in %s state' 
-                     % jobDict['allocation_state'])
+                     % jobDict['job_state'])
 
   # All ok, now process the message
 
-# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON WRAPPER JOBS!
-  if httpCode == 404 and jsonDict['aborted_method'].startswith('get_stage'):
+  if httpCode == 404 and jsonDict['aborted_method'] == 'get_jobscript':
     state = 'notused'
     eventTypeID = justin.db.event_JOB_NOTUSED
   elif jsonDict['aborted_method'] == 'jobscript_error':
@@ -709,7 +654,7 @@ def jobAbortedMethod(startResponse, jsonDict):
  
   try:
     justin.db.insertUpdate(
-             'UPDATE jobs SET allocation_state="%s",'
+             'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
@@ -725,7 +670,7 @@ def jobAbortedMethod(startResponse, jsonDict):
     rseName = None
 
   justin.db.logEvent(eventTypeID  = eventTypeID,
-                     workflowID    = jobDict['workflow_id'],
+                     workflowID   = jobDict['workflow_id'],
                      stageID      = jobDict['stage_id'],
                      justinJobID  = jobDict['justin_job_id'],
                      siteID       = jobDict['site_id'],
@@ -1019,19 +964,19 @@ def getFileMethod(startResponse, jsonDict):
                      'Missing/invalid jobscript secret in JSON')
 
   # Lookup job details
-  jobDict = makeJobDict(jsonDict['jobsub_id'], jsonDict['jobscript_secret'])
+  jobDict = makeJobDict(jsonDict, jsonDict['jobscript_secret'])
 
   if jobDict['error_message']:
     return httpError(startResponse,
                      '400 Bad Request', 
                      jobDict['error_message'] + ' in getFileMethod')
 
-  if jobDict['allocation_state'] != 'started' and \
-     jobDict['allocation_state'] != 'processing':
+  if jobDict['job_state'] != 'started' and \
+     jobDict['job_state'] != 'processing':
     return httpError(startResponse,
                      '403 Forbidden', 
                      'Job in wrong state to find file (%s)' % 
-                     jobDict['allocation_state'])
+                     jobDict['job_state'])
 
   # Create a stage dictionary with the next file in this stage  
   oneFile = findBestFile(jobDict)
@@ -1044,7 +989,7 @@ def getFileMethod(startResponse, jsonDict):
   if oneFile['file_did']:
     try:
       justin.db.insertUpdate(
-                   'UPDATE jobs SET allocation_state="processing",'
+                   'UPDATE jobs SET job_state="processing",'
                    'heartbeat_time=NOW() '
                    'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                          )
@@ -1201,7 +1146,7 @@ def recordResultsMethod(startResponse, jsonDict):
       
   try:
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
-             'for_awt, jobs.site_id, users.access_token, '
+             'jobs.site_id, users.access_token, '
              'jobs.has_inner_apptainer '
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
@@ -1211,10 +1156,9 @@ def recordResultsMethod(startResponse, jsonDict):
     row = justin.db.select(query, justOne = True)
 
     justinJobID       = int(row['justin_job_id'])
-    workflowID         = int(row['workflow_id'])
+    workflowID        = int(row['workflow_id'])
     stageID           = int(row['stage_id'])
     siteID            = int(row['site_id'])
-    forAwt            = row['for_awt']
     userAccessToken   = row['access_token']
     hasInnerApptainer = row['has_inner_apptainer']
   except:
@@ -1233,7 +1177,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed saving job log: ' + str(e))
 
-  if forAwt:
+  if workflowID == justin.db.awtWorkflowID:
     saveAwtResults(justinJobID, 
                    siteID, 
                    jsonDict['jobscript_log'],
@@ -1245,7 +1189,7 @@ def recordResultsMethod(startResponse, jsonDict):
     # Record job as finished due to jobscript_error
     try:
       justin.db.insertUpdate('UPDATE jobs SET '
-                             'allocation_state="jobscript_error",'
+                             'job_state="jobscript_error",'
                              'heartbeat_time=NOW(),'
                              'finished_time=NOW() '
                              'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
@@ -1352,7 +1296,7 @@ def recordResultsMethod(startResponse, jsonDict):
     jobscriptMaxRssBytes = 0
 
   try:
-    justin.db.insertUpdate('UPDATE jobs SET allocation_state="outputting",'
+    justin.db.insertUpdate('UPDATE jobs SET job_state="outputting",'
                            'heartbeat_time=NOW(),'
                            'outputting_time=NOW(),'
                            'jobscript_real_seconds=%d,'
@@ -1594,10 +1538,10 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   # Finish up and update job status
   try:
-    justin.db.insertUpdate('UPDATE jobs SET allocation_state="finished",'
+    justin.db.insertUpdate('UPDATE jobs SET job_state="finished",'
                         'heartbeat_time=NOW(),'
                         'finished_time=NOW() '
-                        'WHERE justin_job_id=%d AND allocation_state="outputting"'
+                        'WHERE justin_job_id=%d AND job_state="outputting"'
                         % justinJobID)
 
     justin.db.logEvent(eventTypeID = justin.db.event_JOB_FINISHED,
@@ -1768,10 +1712,9 @@ def application(environ, startResponse):
   except Exception as e:
     return httpError(startResponse, '403 Forbidden', str(e))
 
-  # Get the stage for the job to work on
-# CAN SIMPLIFY ONCE ONLY USING json AND PYTHON WRAPPER JOBS!
-  if jsonDict['method'].startswith('get_stage'):
-    return getStageMethod(startResponse, jsonDict, environ)
+  # Get the details of the stage for the job to work on
+  if jsonDict['method'] == 'get_jobscript':
+    return getJobscriptMethod(startResponse, jsonDict, environ)
 
   # Record heartbeats from the wrapper jobs
   if jsonDict['method'] == 'send_heartbeat':

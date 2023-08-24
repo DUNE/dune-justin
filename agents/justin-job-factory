@@ -58,10 +58,10 @@ def logLine(text):
 #        '(SELECT COUNT(*) FROM jobs WHERE '
 #         '(sites.site_id = jobs.site_id) AND '
 #         '(jobs.submitted_time > DATE_SUB(NOW(),INTERVAL 24 HOUR)) AND '
-#         '(allocation_state = "submitted")),'
+#         '(job_state = "submitted")),'
 #        'running_jobs='
 #        '(SELECT COUNT(*) FROM jobs WHERE '
-#         'sites.site_id=jobs.site_id AND allocation_state '
+#         'sites.site_id=jobs.site_id AND job_state '
 #         'IN ("started","processing","outputting"))')
 #  except Exception as e:
 #    logLine('Update site counts fails with: ' + str(e))
@@ -69,7 +69,8 @@ def logLine(text):
 #    justin.db.conn.commit()
 #    logLine('Updated site job counts')
    
-def submitJobs(numberToSubmit, 
+def submitJobs(numberToSubmit,
+               userName,
                workflowID,
                stageID,
                firstSiteID,
@@ -83,8 +84,9 @@ def submitJobs(numberToSubmit,
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and others used by GlideInWMS
 
-  logLine('submitJobs %d w%ds%s %s %s %s %d %d %d' %
+  logLine('submitJobs %d %s w%ds%s %s %s %s %d %d %d' %
           (numberToSubmit,
+               userName,
                workflowID,
                stageID,
                firstSiteID,
@@ -138,7 +140,7 @@ executable              = %s
 arguments               = 
 accounting_group        = group_dune.prod_mcsim
 #accounting_group        = group_dune.prod_keepup
-accounting_group_user   = dunejustin
+accounting_group_user   = %s
 rank                    = Mips / 2 + Memory
 job_lease_duration      = 3600
 request_memory          = %dKB
@@ -157,9 +159,9 @@ queue %d
 """ % (desiredSiteNames, 
        desiredEntryNames, 
        requestedWallSeconds,
-       justin.conf.proDev.upper(),
-       workflowID, stageID,
+       justin.conf.proDev.upper(), workflowID, stageID,
        wrapperFile.name,
+       userName.split('@')[0],
        int(requestedRssBytes / 1024), 
        requestedProcessors,
        numberToSubmit)
@@ -200,7 +202,7 @@ queue %d
 
   scheddHostname = 'justin-prod-sched01.dune.hep.ac.uk'
   jobsubJobID = '%d.0@%s' % (clusterID, scheddHostname)
- 
+
   logLine("Submitted cluster %s to %s%s" % 
           (jobsubJobID, 
            desiredSiteNames,
@@ -219,7 +221,6 @@ queue %d
                   'requested_wall_seconds=%d,'
                   'submitted_time=NOW(),'
                   'need_to_fetch_jobsub_log=%s,'
-                  'for_awt=%s,'
                   'justin_job_secret="%s",'
                   'jobscript_secret="%s",'
                   'jobsub_id="%s.%d@%s"'
@@ -231,7 +232,6 @@ queue %d
                      requestedRssBytes,
                      requestedWallSeconds,
                      "TRUE" if i == 0 else "FALSE",
-                     "TRUE" if workflowID == justin.awtWorkflowID else "FALSE",
                      justinJobSecret,
                      secrets.token_urlsafe(64),
                      clusterID, i, scheddHostname)
@@ -261,11 +261,15 @@ def workflowJobs():
   try:
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
-     'wlcg_group_name,stages.processors,stages.wall_seconds,stages.rss_bytes '
+     'wlcg_group_name,stages.processors,stages.wall_seconds,stages.rss_bytes,'
+     'principal_names.principal_name '
      'FROM workflows '
      'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
      'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
      'LEFT JOIN wlcg_groups ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+     'LEFT JOIN users ON users.user_id=workflows.user_id '
+     'LEFT JOIN principal_names '
+     'ON principal_names.user_id=users.main_pn_id '
      'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
      'ORDER BY workflows.workflow_id'
      % justin.awtWorkflowID
@@ -295,7 +299,7 @@ def workflowJobs():
     try:
       row = justin.select('SELECT COUNT(*) AS count FROM jobs '
                           'WHERE workflow_id=%d AND stage_id=%d AND '
-                          'allocation_state="submitted" AND '
+                          'job_state="submitted" AND '
                           'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY)',
                           justOne = True)
    
@@ -366,6 +370,7 @@ def workflowJobs():
                % (numberToSubmit, desiredSiteNames))
 
         submitJobs(numberToSubmit       = numberToSubmit,
+                   userName             = stageRow['principal_name'],
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
                    firstSiteID          = 0,
@@ -390,10 +395,11 @@ def awtJobsToSites():
       'FROM sites '
       'WHERE '
       '((SELECT COUNT(*) FROM jobs WHERE'
-      '  jobs.site_id=sites.site_id AND for_awt AND'
+      '  jobs.site_id=sites.site_id AND jobs.workflow_id=%d AND'
       '  submitted_time > DATE_SUB(NOW(),INTERVAL 6 HOUR)) = 0) AND '
       '(last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY)) '
-      'ORDER BY site_name' % justin.unseenSitesExpireDays
+      'ORDER BY site_name' 
+      % (justin.db.awtWorkflowID, justin.unseenSitesExpireDays)
       # Should change this to random order?
                )
 
@@ -403,6 +409,7 @@ def awtJobsToSites():
   
   for row in rows:
       submitJobs(numberToSubmit       = 1,
+                 userName             = 'dunepro',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
                  firstSiteID          = row['site_id'],

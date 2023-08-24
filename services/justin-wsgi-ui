@@ -1169,7 +1169,7 @@ def showJobsCmd(startResponse, jsonDict):
 
   if jsonDict['state']:
     try:  
-      filter += (' AND allocation_state="' +
+      filter += (' AND job_state="' +
                  re.sub('[^a-z]+', '', str(jsonDict['state'])) +
                  '"'
                 )
@@ -1178,7 +1178,7 @@ def showJobsCmd(startResponse, jsonDict):
 
   try:
     rows = justin.db.select("SELECT jobsub_id,workflow_id,stage_id,"
-                         "allocation_state,allocation_time "
+                         "job_state,allocation_time "
                          "FROM jobs "
                          + filter +
                          " ORDER BY justin_job_id")
@@ -1191,7 +1191,7 @@ def showJobsCmd(startResponse, jsonDict):
   for row in rows:
     outputString += ("%30s %5s %2s %10s  %s\n" % 
                      (row['jobsub_id'], row['workflow_id'], row['stage_id'], 
-                      row['allocation_state'], row['allocation_time']))
+                      row['job_state'], row['allocation_time']))
    
   return httpOK(startResponse, outputString)
 
