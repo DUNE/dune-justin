@@ -111,18 +111,6 @@ parser.add_argument("--monte-carlo",
                     type = int,
                     help = "Monte Carlo count")
 
-parser.add_argument("--refind-start-date",
-                    type = int,
-                    help = "Refind start date")
-
-parser.add_argument("--refind-duration-days",
-                    type = int,
-                    help = "Refind duration in days")
-
-parser.add_argument("--refind-interval-hours",
-                    type = int,
-                    help = "Refind frequency in hours")
-
 parser.add_argument("--jobscript",
                     type = str,
                     help = "Specify a jobscript file")

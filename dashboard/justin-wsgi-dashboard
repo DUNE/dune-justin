@@ -942,8 +942,7 @@ def showWorkflow(environ, user, cgiValues):
            "principal_name AS user_name,"
            "workflows.created,workflows.submitted,workflows.started,"
            "workflows.checking,workflows.finished,mql,"
-           "workflows.refind_seconds,workflows.refind_start_time,"
-           "workflows.refind_end_time,scopes.scope_name "
+           "scopes.scope_name "
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
            "LEFT JOIN users ON users.user_id=workflows.user_id "
@@ -968,15 +967,6 @@ def showWorkflow(environ, user, cgiValues):
 
   if workflowRow['scope_name']:
     output += '<tr><td>Scope</td><td>%s</td></tr>' % workflowRow['scope_name']
-
-  if workflowRow['refind_seconds'] == 0:
-    output += '<tr><td>Finding</td><td>once</td></tr>'
-  else:
-    output += ('<tr><td>Finding</td><td>every %d hour(s), %s to %s</td></tr>'
-               % (int(workflowRow['refind_seconds'] / 3600), 
-                  workflowRow['refind_start_time'],
-                  workflowRow['refind_end_time'])
-              )
       
   output += ('<tr><td>Created by</td><td>%s</td></tr>' 
              % workflowRow['user_name'])
@@ -1293,7 +1283,6 @@ def showStage(environ, user, cgiValues):
     output += ('</table>')
 
   # Environment
-
   query = ("SELECT env_name,env_value "
            "FROM stages_environment "
            "WHERE workflow_id=%d AND stage_id=%d "
@@ -1311,6 +1300,27 @@ def showStage(environ, user, cgiValues):
       output += ("<tr><td>%s</td><td>%s</td></tr>" %
                  (html.escape(envRow["env_name"]),
                   html.escape(envRow["env_value"])))
+
+    output += ('</table>') 
+
+  # ClassAds
+  query = ("SELECT classad_name,classad_value "
+           "FROM stages_classads "
+           "WHERE workflow_id=%d AND stage_id=%d "
+           "ORDER BY classad_name" %
+           (workflowID, stageID))
+
+  classadsRows = justin.select(query)
+
+  if classadsRows:
+    output += '<!-- %s -->\n' % str(time.time())
+    output += ('<h2>Condor Class Ads</h2>')
+    output += ('<table><tr><th>Name</th><th>Value</th></tr>')
+ 
+    for classadRow in classadsRows:
+      output += ("<tr><td>%s</td><td>%s</td></tr>" %
+                 (html.escape(classadRow["classad_name"]),
+                  html.escape(classadRow["classad_value"])))
 
     output += ('</table>') 
 
@@ -1923,7 +1933,7 @@ def showJob(environ, user, cgiValues):
            "jobs.allocator_name,jobs.job_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
-           "jobs.for_awt,jobs.site_job_id,"
+           "jobs.site_job_id,"
            "jobs.requested_processors,"
            "jobs.requested_rss_bytes,"
            "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
@@ -1969,7 +1979,7 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % html.escape(jobsubID, quote=True))
 
-  if jobRow['for_awt']: 
+  if jobRow['workflow_id'] == justin.awtWorkflowID: 
     output += ('<tr><td>Workflow Testing</td>'
                '<td colspan="2">Yes</td></tr>')
 
@@ -2242,7 +2252,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,sites.site_name,"
            "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
            "jobs.finished_time,jobs.jobsub_state,"
-           "principal_names.principal_name AS user_name,jobs.for_awt "
+           "principal_names.principal_name AS user_name "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
            "LEFT JOIN users ON workflows.user_id=users.user_id "
@@ -2279,7 +2289,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     else:
       userNameStr = ' '
 
-    if jobRow['for_awt']:
+    if jobRow['workflow_id'] == justin.awtWorkflowID:
       workflowStageStr = '<td colspan=2>Workflow Testing</td>'
       
     else:

@@ -23,6 +23,7 @@ import sys
 import stat
 import time
 import secrets
+import pathlib
 import tempfile
 import subprocess
 
@@ -40,6 +41,7 @@ import justin
 sleepSeconds      = 60
 jobsPerCluster    = 192
 maxSubmitted      = 2000
+updateAWTInterval = 6 * 3600
 
 # Jobsub names of all sites we always ignore. This is for sites unknown to us 
 # because they do not have pilot factory entries. Known sites are disabled in
@@ -389,7 +391,7 @@ def workflowJobs():
           condorGroupName = 'group_dune'
 
         try:
-           query = ('SELECT classad_name,classad_value '
+          query = ('SELECT classad_name,classad_value '
                    'FROM stages_classads '
                    'WHERE workflow_id=%d AND stage_id=%d ORDER BY classad_name'
                    % (stageRow['workflow_id'], stageRow['stage_id']))
@@ -423,22 +425,11 @@ def workflowJobs():
 #             numberSubmitted, numberUnallocated))
 
 def awtJobsToSites():
-  # Go through the sites deciding where to submit AWT jobs
+  # Go through the sites submitting AWT jobs
 
   try:
-    rows = justin.select('SELECT site_id,'
-      'site_name,'
-      'jobsub_site_name '
-      'FROM sites '
-      'WHERE '
-      '((SELECT COUNT(*) FROM jobs WHERE'
-      '  jobs.site_id=sites.site_id AND jobs.workflow_id=%d AND'
-      '  submitted_time > DATE_SUB(NOW(),INTERVAL 6 HOUR)) = 0) AND '
-      '(last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY)) '
-      'ORDER BY site_name' 
-      % (justin.awtWorkflowID, justin.unseenSitesExpireDays)
-      # Should change this to random order?
-               )
+    rows = justin.select('SELECT site_id,site_name,jobsub_site_name '
+                         'FROM sites ORDER BY site_name')
 
   except Exception as e:
     logLine('Failed getting list of sites for AWT jobs: ' + str(e))
@@ -464,11 +455,15 @@ def oneCycle():
 #  logLine("updateSiteCounts()")
 #  updateSiteCounts()
 
-  logLine("awtJobsToSites()")
-  awtJobsToSites()
+  try:
+    lastUpdateAWT = os.stat('/var/run/justin/last-updates/awt').st_mtime
+  except:
+    lastUpdateAWT = 0
 
-#  logLine("anySiteJobs()")
-#  anySiteJobs()
+  if lastUpdateAWT + updateAWTInterval < time.time():
+    pathlib.Path('/var/run/justin/last-updates/awt').touch(exist_ok=True)
+    logLine("awtJobsToSites()")
+    awtJobsToSites()
 
   logLine("workflowJobs()")
   workflowJobs()

@@ -1,3 +1,5 @@
+CREATE DATABASE IF NOT EXISTS `justindb`;
+
 CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
@@ -166,7 +168,8 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
 CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
+  `state` enum('draft','submitted','approved','finding','running',
+     'paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL DEFAULT '',
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -174,14 +177,10 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `started` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `checking` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `finished` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `refind_start_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `refind_end_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `refind_last_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT '0',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
   PRIMARY KEY (`workflow_id`),
-  INDEX `state` (`state`,`refind_last_time`,`refind_seconds`)
+  INDEX `state` (`state`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `entries` (

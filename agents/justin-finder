@@ -87,15 +87,6 @@ def addFilesMonteCarlo(workflowID, count):
                     stageID = 1,
                     fileID = justin.cur.lastrowid)
 
-
-  try:
-    query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
-             str(workflowID))
-
-    justin.cur.execute(query)
-  except Exception as e:
-    logLine('Failed updating workflow ' + str(workflowID))
-
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
@@ -125,15 +116,6 @@ def findFilesRucio(didClient, workflowID, scope, name):
                     workflowID = workflowID,
                     stageID = 1,
                     fileID = justin.cur.lastrowid)
-
-  # All files found for this workflow so update its state
-  try:
-    query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
-             str(workflowID))
-
-    justin.cur.execute(query)
-  except Exception as e:
-    logLine('Failed updating workflow ' + str(workflowID))
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
@@ -204,15 +186,6 @@ def findFilesMetaCat(workflowID, mql):
                     stageID = 1,
                     fileID = justin.cur.lastrowid)
 
-  # All files found for this workflow so update its state
-  try:
-    query = ('UPDATE workflows SET refind_last_time=NOW() WHERE workflow_id=' +
-             str(workflowID))
-
-    justin.cur.execute(query)
-  except Exception as e:
-    logLine('Failed updating workflow ' + str(workflowID))
-
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
@@ -222,14 +195,7 @@ def findFiles():
   # are handled directly.
 
   query = ('SELECT workflow_id,mql FROM workflows '
-           'WHERE state="running" AND '
-           '((refind_seconds=0 AND refind_last_time="%s")'
-           ' OR '
-           ' (refind_seconds > 0 AND '
-           ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
-           ' < NOW() AND refind_start_time < NOW() AND '
-           'refind_end_time >= NOW())) '
-           'ORDER BY workflow_id' % justin.unixEpoch)
+           'WHERE state="finding" ORDER BY workflow_id')
 
   findingWorkflows = justin.select(query)
   if not findingWorkflows:  
@@ -243,14 +209,14 @@ def findFiles():
     logLine('Finding files for Workflow %d with MQL %s' %
             (workflow['workflow_id'], workflow['mql']))
   
-    if workflow['workflow_id'] == justin.awtWorkflowID:
-      # If refinding the AWT workflow, then reset the existing 
-      # files to look for new replicas of theme
-      try:
-        justin.insertUpdate('UPDATE files SET state="finding" '
-                            'WHERE workflow_id=%d' % justin.awtWorkflowID)
-      except Exception as e:
-        logLine('Set all existing AWT files to finding fails: ' + str(e))
+#    if workflow['workflow_id'] == justin.awtWorkflowID:
+#      # If refinding the AWT workflow, then reset the existing 
+#      # files to look for new replicas of theme
+#      try:
+#        justin.insertUpdate('UPDATE files SET state="finding" '
+#                            'WHERE workflow_id=%d' % justin.awtWorkflowID)
+#      except Exception as e:
+#        logLine('Set all existing AWT files to finding fails: ' + str(e))
   
     mqlSplit = workflow['mql'].split()
 
@@ -282,9 +248,16 @@ def findFiles():
       
       addFilesMonteCarlo(workflow['workflow_id'], count)
 
-    else:
-    
+    else:    
       findFilesMetaCat(workflow['workflow_id'], workflow['mql'])
+
+    try:
+      justin.insertUpdate('UPDATE workflows SET state="running" '
+                          'WHERE workflow_id=%d AND state="finding"' 
+                          % workflow['workflow_id'])
+    except Exception as e:
+      logLine("Set workflow to running fails with: " + str(e))
+      continue
 
     justin.conn.commit()
 
@@ -360,8 +333,8 @@ def findReplicas():
                      'rse_id'    : storageRow['rse_id'],
                      'needs_pin' : bool(storageRow['needs_pin']) }
 
-  # Receives a list of unique (workflowID,stageID) combinations
-  workflowsStages = set()
+#  # Receives a list of unique (workflowID,stageID) combinations
+#  workflowsStages = set()
   filesList = []
 
   # Make a list of files we want replicas for, in the Rucio API's format
@@ -451,8 +424,7 @@ def findReplicas():
         
         if workflowID == justin.awtWorkflowID:
           try:
-            logLine('Try to update AWT file: %s %s' 
-                    % (wanPFN, lanPFN))
+            logLine('Try to update AWT file: %s %s' % (wanPFN, lanPFN))
           
             # For AWT, if the file is put back into finding then we can
             # update the replicas with change PFNs from Rucio
@@ -516,8 +488,8 @@ def findReplicas():
             # We give up if this happens, without the commit
             return
            
-        # Add workflow/stage to the list to have updated stats at the end
-        workflowsStages.add((fileRow['workflow_id'], fileRow['stage_id']))
+#        # Add workflow/stage to the list to have updated stats at the end
+#        workflowsStages.add((fileRow['workflow_id'], fileRow['stage_id']))
 
     if replicasInserted:
       # If we got this far, then we found all the replicas for this 
@@ -578,11 +550,11 @@ def findSubmittedWorkflows():
 
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name '
-                             'FROM workflows '
-                             'LEFT JOIN scopes '
-                             'ON workflows.scope_id=scopes.scope_id '
-                             'WHERE workflows.state="submitted" '
-                             'ORDER BY workflows.workflow_id')
+                              'FROM workflows '
+                              'LEFT JOIN scopes '
+                              'ON workflows.scope_id=scopes.scope_id '
+                              'WHERE workflows.state="submitted" '
+                              'ORDER BY workflows.workflow_id')
   except:
     logLine('Failed to get list of submitted workflows')
     return
@@ -696,12 +668,12 @@ def findSubmittedWorkflows():
   if workflowIDsToStart:
     # All successful (or not needed) so mark workflows as running
     try:
-      query = ('UPDATE workflows SET started=NOW(),state="running" '
+      query = ('UPDATE workflows SET started=NOW(),state="finding" '
                'WHERE workflow_id IN (%s)' % (','.join(workflowIDsToStart)))
 
       justin.insertUpdate(query)
     except Exception as e:
-      logLine("Exception setting workflows to running: %s" % str(e))
+      logLine("Exception setting workflows to finding: %s" % str(e))
       return
 
     justin.conn.commit()
@@ -711,9 +683,7 @@ def findFinishedWorkflows():
 
   try:
     query = ('SELECT workflow_id FROM workflows '
-             'WHERE state="running" AND '
-             '((refind_seconds = 0) OR (refind_end_time < NOW())) '
-             'ORDER BY workflow_id')
+             'WHERE state="running" ORDER BY workflow_id')
 
     justin.cur.execute(query)
 

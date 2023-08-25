@@ -47,8 +47,7 @@ This man page is distributed along with the
     
     
            create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
-    	      [--scope SCOPE] [--refind-start-date YYYYMMDD]
-    	      [--refind-duration-days DAYS] [--refind-interval-hours HOURS]
+    	      [--scope SCOPE]
     	      Create a new, empty workflow in the database, optionally with
     	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
@@ -61,12 +60,7 @@ This man page is distributed along with the
     	      Workflows are created in the state "draft" and the command
     	      returns the new workflow's ID number.  Once the workflow is in
     	      the running state, justIN will use the MQL expression to find
-    	      the list of input files from MetaCat. If --refind-interval-hours
-    	      is given, the MQL query will be resubmitted at that interval to
-    	      add any new matching files from the start of the day given by
-    	      --refind-start-date (default: today in UTC) for the number of
-    	      days given by --refind-duration-days (default: 1).
-    
+    	      the list of input files from MetaCat.
     
            show-workflows [--workflow-id ID]
     	      Show details of all workflows or optionally of a single
@@ -102,7 +96,7 @@ This man page is distributed along with the
     	      [--processors N] [--max-distance DIST] [--output-pattern
     	      PATTERN:DESTINATION] [--output-pattern-next-stage
     	      PATTERN:DATASET] [--output-rse NAME] [--lifetime-days DAYS]
-    	      [--env NAME=VALUE]
+    	      [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
     	      workflow must have at least one stage.
@@ -181,14 +175,15 @@ This man page is distributed along with the
     	      --env NAME=VALUE can be used one or more times to set
     	      environment variables when the stage's jobscript is executed.
     
+    	      --classad NAME=VALUE can be used one or more times to add
+    	      ClassAds to the jobs submitted for this stage.
+    
     
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
-    	      [--scope SCOPE] [--refind-start-date YYYYMMDD]
-    	      [--refind-duration-days DAYS] [--refind-interval-hours HOURS]
-    	      --jobscript FILENAME|--jobscript-id JSID [--wall-seconds N]
-    	      [--rss-mb N] [--processors N] [--max-distance DIST]
-    	      [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
-    	      [--lifetime-days DAYS] [--env NAME=VALUE]
+    	      [--scope SCOPE] --jobscript FILENAME|--jobscript-id JSID
+    	      [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance
+    	      DIST] [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
+    	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -324,12 +319,10 @@ This man page is distributed along with the
     
     WORKFLOW PROCESSING
            Once a workflow enters the running state, it is processed by justIN's
-           Finder agent to find its input files. Usually this is just done once,
-           but it can be repeated if the --refind-interval-hours option is given
-           when creating the workflow. When the workflow is processed, the finder
-           uses the workflows's MQL expression to create a list of input files for
-           the first stage. Work is only assigned to jobs when a matching file is
-           found and so these lists of files are essential.
+           Finder agent to find its input files. The finder uses the workflows's
+           MQL expression to create a list of input files for the first stage.
+           Work is only assigned to jobs when a matching file is found and so
+           these lists of files are essential.
     
            In most cases, the MQL query is a MetaCat Query Language expression,
            which the Finder sends to the MetaCat service to get a list of matching

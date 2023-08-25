@@ -48,7 +48,7 @@ properly registered in justIN.
 Displays information about the current user identity and session.
 
 .HP
-.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
+.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE]"
 .br
 Create a new, empty workflow in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
@@ -61,15 +61,7 @@ Rucio and uploaded to Rucio-managed storage.
 Workflows are created in the state "draft" and the command returns the new 
 workflow's ID number.
 Once the workflow is in the running state, justIN will use the 
-MQL expression to find the list of input files from MetaCat. If 
-.B --refind-interval-hours
-is given, the MQL query will be resubmitted at that interval to add any
-new matching files from the start of the day given by
-.B --refind-start-date
-(default: today in UTC) for the number of days given by
-.B --refind-duration-days
-(default: 1).
-
+MQL expression to find the list of input files from MetaCat. 
 .HP
 .B "show-workflows [--workflow-id ID]"
 .br
@@ -201,12 +193,11 @@ this stage.
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
 .B [--scope SCOPE] 
-.B [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] 
-.B [--refind-interval-hours HOURS] --jobscript FILENAME|--jobscript-id JSID 
+.B --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N]
 .B [--rss-mb N] [--processors N] [--max-distance DIST]
 .B [--output-pattern PATTERN:DESTINATION] [--output-rse NAME] 
-.B [--lifetime-days DAYS] [--env NAME=VALUE]
+.B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
 .br
 Combines the 
 .B create-workflow, create-stage
@@ -357,10 +348,7 @@ corresponding metadata files for MetaCat.
 .SH WORKFLOW PROCESSING
 
 Once a workflow enters the running state, it is processed by justIN's
-Finder agent to find its input files. Usually this is just done once, but it
-can be
-repeated if the --refind-interval-hours option is given when creating the 
-workflow. When the workflow is processed, the finder uses the workflows's MQL 
+Finder agent to find its input files. The finder uses the workflows's MQL 
 expression to create a list of input files for the first stage. Work is only
 assigned to jobs when a matching file is found and so these lists of files 
 are essential.

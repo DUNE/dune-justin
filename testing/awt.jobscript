@@ -1,4 +1,10 @@
 #!/bin/sh
+:<<'EOF'
+justin simple-workflow \
+  --rss-mb 2000 \
+  --mql 'rucio-dataset testpro:awt' \
+  --jobscript awt.jobscript
+EOF
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup rucio

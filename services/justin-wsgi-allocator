@@ -1110,11 +1110,11 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
     # else leave site as it is, thus recording the low water mark
 
     justin.insertUpdate('UPDATE sites SET '
-                           'last_awt_time=NOW(), last_awt_job_id=%d %s '
-                           'WHERE site_id=%d' 
-                  % (justinJobID, 
+                        'last_awt_time=NOW(), last_awt_job_id=%d %s '
+                        'WHERE site_id=%d' 
+                        % (justinJobID, 
                      '' if hasInnerApptainer else ',has_inner_apptainer=false',
-                     siteID))
+                        siteID))
 
   except Exception as e:
     print('Update awt last time fails with %s' % str(e), 

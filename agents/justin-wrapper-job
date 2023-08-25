@@ -655,7 +655,7 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
   jobscriptStartTime=int(time.time())
 
   jobscriptOutcome = subprocess.run('/usr/bin/time -o time.txt '
-                                    '-f "%%e %%U %%S %%M"'
+                                    '-f "%%e %%U %%S %%M" '
                                     'home/jobscript-wrapper.sh ',
                                     stdout=subprocess.PIPE,
                                     shell=True 
