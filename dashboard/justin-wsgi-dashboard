@@ -2362,8 +2362,8 @@ def listScopes(environ, user, cgiValues):
   
   output += ('<tr>'
              '<th>Scope</th>'
-             '<th>Write if in group</th>'
-             '<th>Accounting group</th></tr>')
+             '<th>Write if in WLCG Group</th>'
+             '<th>Accounting Group</th></tr>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'

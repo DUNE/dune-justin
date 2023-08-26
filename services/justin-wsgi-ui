@@ -234,7 +234,6 @@ def queryMetaCat(mql):
   try:
     response = urllib.request.urlopen(
               "https://metacat.fnal.gov:9443/dune_meta_prod/app/data/query?"
-#              "https://metacat.fnal.gov:9443/dune_meta_demo/app/data/query?"
               "with_meta=no&with_provenance=no",
               data = mql.encode() )
 
@@ -329,7 +328,7 @@ def showFilesCmd(startResponse, jsonDict):
                        'MQL query error')
 
     outputString = ''
-    for oneDID in fileDIDs:
+    for oneDID in fileDIDs[:100]:
       outputString += '%s:%s\n' % (oneDID['scope'], oneDID['name'])
     return httpOK(startResponse, outputString)
   
@@ -354,7 +353,7 @@ def showFilesCmd(startResponse, jsonDict):
     rows = justin.select("SELECT * FROM files "
                             "WHERE workflow_id=%d %s "
                             "AND files.stage_id > 0 "
-                            "ORDER BY workflow_id,stage_id,file_did LIMIT 100"
+                            "ORDER BY workflow_id,stage_id,file_did"
                             % (workflowID, filter))
   except Exception as e:
     return httpError(startResponse, 
@@ -363,7 +362,7 @@ def showFilesCmd(startResponse, jsonDict):
 
   outputString = ''
   for row in rows:
-    outputString += ("%5d %2d %-11s %s\n" % 
+    outputString += ("%d %d %s %s\n" % 
                      (row['workflow_id'],
                       row['stage_id'],
                       row['state'],

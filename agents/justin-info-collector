@@ -592,9 +592,9 @@ def updateSitesStorages():
   siteRows = justin.cur.fetchall()
   
   justin.cur.execute('SELECT rse_id,rse_name,storages.country,'
-                        'storages.region,site_name FROM storages '
-                        'LEFT JOIN sites '
-                        'ON sites.site_id=storages.site_id')
+                     'storages.region,site_name FROM storages '
+                     'LEFT JOIN sites '
+                     'ON sites.site_id=storages.site_id')
   storageRows = justin.cur.fetchall()
   
   for siteRow in siteRows:
@@ -610,6 +610,7 @@ def updateSitesStorages():
         # RSEs at sites have zero distance
         distance = 0
       elif siteRow['site_name'].startswith('US_FNAL') \
+        and storageRow['site_name'] \
         and storageRow['site_name'].startswith('US_FNAL'):
         # Everything Fermilab at zero distance to get internal Rucio config
         distance = 0
@@ -978,7 +979,7 @@ def updateScopes():
     else:
       # If not writeable via wrapper jobs as production user, then no groups
       wlcgGroupID   = 0
-      condorGroupID = duneCondorGroupID
+      condorGroupID = 0
 
     logLine('Update scope %s with wlcg_group_id=%d' 
             % (rucioScopeName, wlcgGroupID))
