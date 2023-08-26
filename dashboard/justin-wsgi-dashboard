@@ -2597,8 +2597,11 @@ def showSite(environ, user, cgiValues):
         '<form method="post" style="display:inline" '
           'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
           '<input type="hidden" name="SearchString" value="%s">'
-          '<input type="submit" value="GOCDB"></form></td>'
-          '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name']))
+          '<input type="submit" value="GOCDB"></form> '
+          '<a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%3Atitle+is%3Aissue+is%3Aopen">GitHub issues</a>'
+          '</td>'
+          '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name'], 
+                     siteRow['site_name']))
 
   output += ("</table>")
 
