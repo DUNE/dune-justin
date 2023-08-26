@@ -678,13 +678,17 @@ print(jobscriptLog)
 logLine('#### end jobscript log ####')
 
 try:
-  (j1, j2, j3, j4) = open('time.txt','r').read().split()
+  t = open('time.txt','r').read()
+  logLine('time output: ' + str(t))
+  (t1, t2, t3, t4) = t.split()
+  logLine('t1=%s,t2=%s,t3=%s,t4=%s,' % (t1,t2,t3,t4))
 
-  jobscriptRealSeconds = int(float(j1))
-  jobscriptUserSeconds = int(float(j2))
-  jobscriptSysSeconds  = int(float(j3))
-  jobscriptMaxRssKB    = int(j4)
-except:
+  jobscriptRealSeconds = int(float(t1))
+  jobscriptUserSeconds = int(float(t2))
+  jobscriptSysSeconds  = int(float(t3))
+  jobscriptMaxRssKB    = int(t4)
+except Exception as e:
+  logLine('Failed to get time output: ' + str(e))
   jobscriptRealSeconds = 0
   jobscriptUserSeconds = 0
   jobscriptSysSeconds  = 0

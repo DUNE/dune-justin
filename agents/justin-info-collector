@@ -434,10 +434,10 @@ def updateSites():
 
   try:
     justinSiteRows = justin.select('SELECT site_name,sites.site_id,'
-                                      'entry_name,entry_id FROM sites '
-                                      'LEFT JOIN entries '
-                                      'ON entries.site_id=sites.site_id '
-                                      'ORDER BY site_name,entry_name')
+                                   'entry_name,entry_id FROM sites '
+                                   'LEFT JOIN entries '
+                                   'ON entries.site_id=sites.site_id '
+                                   'ORDER BY site_name,entry_name')
   except Exception as e:
     logLine('Failed to get list of existing sites from justIN: ' + str(e))
     return

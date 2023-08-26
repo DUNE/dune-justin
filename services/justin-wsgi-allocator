@@ -512,10 +512,18 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                      'Cannot start as site %s not enabled' 
                      % jobDict['site_name'])
 
-#  print('Before UPDATE sites last_get_jobscript_time', file=sys.stderr)
+  if jsonDict['has_inner_apptainer']:
+    apptainerSQL = ''
+  else:
+    apptainerSQL = ',always_inner_apptainer=FALSE'
+
   try:
-    justin.insertUpdate('UPDATE sites SET last_get_jobscript_time=NOW() '
-                        'WHERE site_id=%d' % jobDict['site_id'])
+    justin.insertUpdate('UPDATE sites SET last_get_jobscript_time=NOW()%s '
+                        'WHERE site_id=%d' 
+                        % (apptainerSQL, jobDict['site_id']))
+    justin.insertUpdate('UPDATE entries SET last_get_jobscript_time=NOW()%s '
+                        'WHERE entry_id=%d' 
+                        % (apptainerSQL, jobDict['entry_id']))
   except:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
@@ -551,17 +559,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                      '500 Internal Server Error', 
                      'justIN allocator service failed updating allocated job: ' 
                      + str(e))
-
-#  try:
-#    clusterID = int(jsonDict['jobsub_id'].split('.')[0])
-#    procID    = int(jsonDict['jobsub_id'].split('@')[0].split('.')[1])
-#
-#    schedd = htcondor.Schedd()
-#    schedd.edit('ClusterId == %d && ProcId == %d' % (clusterID, procID),
-#                'justIN_User', '\"%s\"' % jobscriptDict['principal_name'])
-#  except Exception as e:
-#    print('schedd.edit() fails with %s' % str(e), file=sys.stderr)
-
   try:
     justin.conn.commit()
   except Exception as e:
@@ -1106,15 +1103,9 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
               file=sys.stderr)
 
   try:
-    # If AWT job found no inner apptainer support, then set site to false
-    # else leave site as it is, thus recording the low water mark
-
     justin.insertUpdate('UPDATE sites SET '
-                        'last_awt_time=NOW(), last_awt_job_id=%d %s '
-                        'WHERE site_id=%d' 
-                        % (justinJobID, 
-                     '' if hasInnerApptainer else ',has_inner_apptainer=false',
-                        siteID))
+                        'last_awt_time=NOW(), last_awt_job_id=%d '
+                        'WHERE site_id=%d' % (justinJobID, siteID))
 
   except Exception as e:
     print('Update awt last time fails with %s' % str(e), 

@@ -2200,7 +2200,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     pass
   else:
     if allocationState in ['submitted','started','processing','outputting',
-                           'finished', 'notused','failed','aborted',
+                           'finished', 'notused','aborted',
                            'stalled', 'jobscript_error', 'outputting_failed']:
       filters.append('jobs.job_state="%s"' % allocationState)
       urlTemplate += '&job_state=' + allocationState
@@ -2277,7 +2277,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   
   output += ('<tr>'
         '<th>Jobsub ID</th>'
-        '<th>Allocation state</th>'
+        '<th>Job state</th>'
         '<th>Site</th>'
         '<th>User</th>'
         '<th>Workflow</th>'
@@ -2393,9 +2393,8 @@ def listSites(environ, user, cgiValues):
            "last_get_jobscript_time,"
            "site_name,sites.enabled,sites.max_rss_bytes,"
            "sites.max_processors,sites.max_wall_seconds,sites.max_jobs,"
-           "wlcg_site_name,jobs.has_inner_apptainer "
+           "wlcg_site_name,always_inner_apptainer "
            "FROM sites "
-           "LEFT JOIN jobs ON sites.last_awt_job_id=jobs.justin_job_id "
            "WHERE sites.site_id > 0 ORDER BY site_name")
   justin.cur.execute(query)
   siteRows = justin.cur.fetchall()
@@ -2407,11 +2406,11 @@ def listSites(environ, user, cgiValues):
         '<th>Enabled?</th>'
         '<th>Last job</th>'
         '<th>Seen in OSG</th>'
-        '<th>RSS(MB) / Processors</th>'
+        '<th>RSS (MB) / Processors</th>'
         '<th>Max Wall Seconds</th>'
         '<th>Max jobs</th>'
-        '<th>Inner apptainer</th>'
-        '<th colspan=2>&nbsp;</th>'
+        '<th>Always has<br>inner<br>apptainer</th>'
+        '<th colspan=3>&nbsp;</th>'
         '</tr>')
   
   for siteRow in siteRows:  
@@ -2426,9 +2425,9 @@ def listSites(environ, user, cgiValues):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td style="text-align: right">%d / %d = %d</td>'
+          '<td style="text-align: right">%d (%d hours)</td>'
           '<td style="text-align: right">%d</td>'
-          '<td style="text-align: right">%d</td>'
-          '<td>%s%s</td>'
+          '<td>%s</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
           'CRIC</a></td>'
@@ -2436,6 +2435,8 @@ def listSites(environ, user, cgiValues):
           'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
           '<input type="hidden" name="SearchString" value="%s">'
           '<input type="submit" value="GOCDB"></form></td>'
+          '<td><a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%%3A'
+          'title+is%%3Aissue+is%%3Aopen">GitHub issues</a></td>'
           '</tr>'
           % (siteRow['site_name'], siteRow['site_name'],
              'bold' if siteRow['enabled'] else 'normal',
@@ -2446,12 +2447,13 @@ def listSites(environ, user, cgiValues):
               siteRow['max_processors'],
               int((siteRow['max_rss_bytes'] 
                     / siteRow['max_processors']) / 1048576),
-             siteRow['max_wall_seconds'],
+             siteRow['max_wall_seconds'], 
+                int(siteRow['max_wall_seconds'] / 3600),
              siteRow['max_jobs'],
-             'Y' if str(siteRow['has_inner_apptainer']) == '1' else '',
-             'N' if str(siteRow['has_inner_apptainer']) == '0' else '',
+             bool(siteRow['always_inner_apptainer']),
              siteRow['site_name'],
-             siteRow['wlcg_site_name']
+             siteRow['wlcg_site_name'],
+             siteRow['site_name']
             )
          )    
 
@@ -2552,9 +2554,9 @@ def showSite(environ, user, cgiValues):
            'sites.last_awt_time,'
            'sites.max_rss_bytes,'
            'sites.max_processors,sites.max_wall_seconds,sites.max_jobs,'
-           'wlcg_site_name,jobs.has_inner_apptainer '
+           'wlcg_site_name,always_inner_apptainer '
            'FROM sites '
-           'LEFT JOIN jobs ON sites.last_awt_job_id=jobs.justin_job_id '
+#           'LEFT JOIN jobs ON sites.last_awt_job_id=jobs.justin_job_id '
            'WHERE site_name="%s"' % siteName)
 
   justin.cur.execute(query)
@@ -2590,25 +2592,28 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Last job started</td><td>%s</td></tr>' 
              % lastGetJobscriptStr)
 
-  output += ('<tr><td rowspan="2">AWT</td><td>Last test job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
+  output += ('<tr><td colspan="2">Last AWT job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
 
-  output += ('<tr><td>Inner apptainer?</td><td>%s%s</td></tr>' 
-             % ('Y' if str(siteRow['has_inner_apptainer']) == '1' else '',
-                'N' if str(siteRow['has_inner_apptainer']) == '0' else ''))
+  output += ('<tr><td colspan="2">Always has inner apptainer</td>'
+             '<td>%s</td></tr>' % bool(siteRow['always_inner_apptainer']))
 
-  output += ('<tr><td colspan="2">Max number of jobs</td><td>%d</td></tr>' % siteRow['max_jobs'])
+  output += ('<tr><td colspan="2">Max number of jobs</td><td>%d</td></tr>' 
+             % siteRow['max_jobs'])
 
   output += ('<tr><td colspan="2">Jobs</td><td>'
              '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' 
              % siteName)
 
   for state in ['submitted', 'started', 'processing', 'outputting',
-                'finished', 'notused', 'failed']:
+                'finished', 'notused', 'aborted', 'stalled', 
+                'jobscript_error', 'outputting_failed']:
     output += ('<a href="/dashboard/?method=list-jobs&job_state=%s&'
                'site_name=%s">%s</a> ' 
                % (state, siteName, state.capitalize()))
 
-  output += ('</td></tr>')
+  output += ('<a href="/dashboard/?method=list-jobs&workflow_id=%d'
+             '&stage_id=1&site_name=%s">AWT</a></td></tr>'
+             % (justin.awtWorkflowID, siteName))
   
   output += ('<tr><td colspan="2">Events</td>'
              '<td><a href="/dashboard/?method=list-events&site_name=%s'
@@ -2624,7 +2629,8 @@ def showSite(environ, user, cgiValues):
           'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
           '<input type="hidden" name="SearchString" value="%s">'
           '<input type="submit" value="GOCDB"></form> '
-          '<a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%%3Atitle+is%%3Aissue+is%%3Aopen">GitHub issues</a>'
+          '<a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%%3A'
+          'title+is%%3Aissue+is%%3Aopen">GitHub issues</a>'
           '</td></tr>' % (siteRow['site_name'], siteRow['wlcg_site_name'],
                           siteRow['site_name']))
 
@@ -2633,7 +2639,8 @@ def showSite(environ, user, cgiValues):
   output += ("<h2>Entries for this site</h2>")
 
   query = ('SELECT entry_name,gatekeeper,max_processors,max_rss_bytes,'
-           'max_wall_seconds,always_inner_apptainer,last_osg_seen_time '
+           'max_wall_seconds,always_inner_apptainer,'
+           'DATE(last_osg_seen_time) AS osg_date '
            'FROM entries '
            'WHERE entries.site_id=%d '
            'ORDER BY entry_name' % siteRow['site_id'])
@@ -2645,30 +2652,31 @@ def showSite(environ, user, cgiValues):
   output += ('<tr>'
         '<th>Entry</th>'
         '<th>Gatekeeper</th>'
-        '<th>Processors; RSS bytes</th>'
+        '<th>RSS (MB) / processors</th>'
         '<th>Wall seconds limit</th>'
-        '<th>Inner Apptainer</th>'
-        '<th>Last seen</th>'
+        '<th>Always has inner apptainer</th>'
+        '<th>Seen in OSG config</th>'
         '</tr>')
   
   for entryRow in entryRows:  
     output += ('<tr>'
           '<td><a href="http://gfactory-2.opensciencegrid.org/factory/monitor/factoryEntryStatusNow.html?entry=%s">%s</a></td>'
           '<td>%s</td>'
-          '<td>%d; %d (%d MB)</td>'
+          '<td>%d / %d = %d</td>'
           '<td>%d (%d hours)</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>\n'
           % (entryRow['entry_name'], entryRow['entry_name'],
              entryRow['gatekeeper'],
-             entryRow['max_processors'],
-             entryRow['max_rss_bytes'], 
-               int(entryRow["max_rss_bytes"] / 1048576),
+             int(entryRow["max_rss_bytes"] / 1048576),
+               entryRow['max_processors'],
+               int(entryRow["max_rss_bytes"] / 
+                   (1048576 * entryRow['max_processors'])),
              entryRow['max_wall_seconds'],
                int(entryRow["max_wall_seconds"] / 3600),
              bool(entryRow['always_inner_apptainer']),
-             entryRow['last_osg_seen_time']
+             entryRow['osg_date']
             )
          )    
          
