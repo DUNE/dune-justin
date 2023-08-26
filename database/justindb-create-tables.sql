@@ -192,7 +192,8 @@ CREATE TABLE IF NOT EXISTS `entries` (
   `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
   `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
-  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_osg_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_get_jobscript_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY (`entry_id`),
   UNIQUE KEY `entry_name` (`entry_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -208,11 +209,11 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
-  `has_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
+  `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
   `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
   `submitted_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `running_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_osg_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_submitted_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_get_jobscript_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_awt_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',

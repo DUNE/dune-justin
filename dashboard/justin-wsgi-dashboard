@@ -42,6 +42,9 @@ import markdown
 import justin
 
 timeNow = None 
+  
+# Number of hours before AWT results go grey to indicate stale
+awtGreyHours = 48
 
 class justinStackedLine(pygal.StackedLine):
 
@@ -967,9 +970,10 @@ def showWorkflow(environ, user, cgiValues):
 
   if workflowRow['scope_name']:
     output += '<tr><td>Scope</td><td>%s</td></tr>' % workflowRow['scope_name']
-      
-  output += ('<tr><td>Created by</td><td>%s</td></tr>' 
-             % workflowRow['user_name'])
+
+  output += ('<tr><td>%s by</td><td>%s</td></tr>' 
+             % ('Created' if state == 'draft' else 'Submitted',
+                workflowRow['user_name']))
 
   output += ('<tr><td>Created</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(workflowRow['created']))
@@ -2064,7 +2068,7 @@ def showJob(environ, user, cgiValues):
     output += ('<tr><td>Inner Apptainer?</td>'
                '<td>%s</td></tr>' % bool(jobRow["has_inner_apptainer"]))
 
-  output += ('<tr><td>Allocation state</td>'
+  output += ('<tr><td>Job state</td>'
              '<td colspan="2">%s</td></tr>'
              % jobRow["job_state"])
       
@@ -2385,7 +2389,8 @@ def listSites(environ, user, cgiValues):
 
   output += ("<h1>Sites</h1>")
   
-  query = ("SELECT DATE(last_seen_time) AS osg_date,last_get_jobscript_time,"
+  query = ("SELECT DATE(last_osg_seen_time) AS osg_date,"
+           "last_get_jobscript_time,"
            "site_name,sites.enabled,sites.max_rss_bytes,"
            "sites.max_processors,sites.max_wall_seconds,sites.max_jobs,"
            "wlcg_site_name,jobs.has_inner_apptainer "
@@ -2536,7 +2541,7 @@ def showSite(environ, user, cgiValues):
 
   output += ("<h1>Site %s</h1>" % siteName)
   
-  query = ('SELECT sites.site_id,DATE(last_seen_time) AS osg_date,'
+  query = ('SELECT sites.site_id,DATE(last_osg_seen_time) AS osg_date,'
            'last_get_jobscript_time,'
            'site_name,jobsub_site_name,wlcg_site_name,'
            'sites.enabled,'
@@ -2618,15 +2623,17 @@ def showSite(environ, user, cgiValues):
         '<form method="post" style="display:inline" '
           'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
           '<input type="hidden" name="SearchString" value="%s">'
-          '<input type="submit" value="GOCDB"></form></td>'
-          '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name']))
+          '<input type="submit" value="GOCDB"></form> '
+          '<a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%%3Atitle+is%%3Aissue+is%%3Aopen">GitHub issues</a>'
+          '</td></tr>' % (siteRow['site_name'], siteRow['wlcg_site_name'],
+                          siteRow['site_name']))
 
   output += ("</table>")
 
   output += ("<h2>Entries for this site</h2>")
 
   query = ('SELECT entry_name,gatekeeper,max_processors,max_rss_bytes,'
-           'max_wall_seconds,always_inner_apptainer,last_seen_time '
+           'max_wall_seconds,always_inner_apptainer,last_osg_seen_time '
            'FROM entries '
            'WHERE entries.site_id=%d '
            'ORDER BY entry_name' % siteRow['site_id'])
@@ -2661,7 +2668,7 @@ def showSite(environ, user, cgiValues):
              entryRow['max_wall_seconds'],
                int(entryRow["max_wall_seconds"] / 3600),
              bool(entryRow['always_inner_apptainer']),
-             entryRow['last_seen_time']
+             entryRow['last_osg_seen_time']
             )
          )    
          
@@ -2842,8 +2849,12 @@ def showStorage(environ, user, cgiValues):
   output += ('<tr><td>RSE name</td><td>%s</td></tr>' % rseName)
   output += ('<tr><td>Country</td><td>%s</td></tr>' % storageRow['country'])
   output += ('<tr><td>Region</td><td>%s</td></tr>' % storageRow['region'])
-  output += ('<tr><td>Site name</td><td>%s</td></tr>' 
-            % (storageRow['site_name'] if storageRow['site_name'] else ''))
+
+  if storageRow['site_name']:
+    output += ('<tr><td>Site name</td>'
+               '<td><a href="/dashboard/?method=show-site&site_name=%s">'
+               '%s</a></td></tr>' 
+               % (storageRow['site_name'], storageRow['site_name']))
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
@@ -2879,7 +2890,7 @@ def showStorage(environ, user, cgiValues):
            'LEFT JOIN sites_storages ON sites_storages.site_id=sites.site_id '
            'LEFT JOIN jobs ON sites_storages.justin_job_id=jobs.justin_job_id '
            'WHERE rse_id=%d AND '
-           'sites.last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
+           'sites.last_osg_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
            'ORDER BY distance,site_name' 
            % (storageRow['rse_id'], justin.unseenSitesExpireDays))
 
@@ -3095,9 +3106,6 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
 def awtResults(environ, user, cgiValues):
 
-  # Number of hours before results go grey to indicate stale
-  greyHours = 48
-
   try:
     showDays = int(cgiValues['show_days'])
   except:
@@ -3114,13 +3122,13 @@ def awtResults(environ, user, cgiValues):
       '<p>Green if read and write ok; orange if only read ok; red if '
       'read fails; grey if no result for %d hours. '
       'There is a <a href="/docs/awt.md">full explanation of AWT</a> in the '
-      'justIN documentation.</p>' % greyHours)
+      'justIN documentation.</p>' % awtGreyHours)
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
            'FROM sites '
            'LEFT JOIN jobs ON jobs.justin_job_id=sites.last_awt_job_id '
-           'WHERE last_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
+           'WHERE last_osg_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
            'AND last_awt_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
            'ORDER by site_name' 
            % (justin.unseenSitesExpireDays, showDays))
@@ -3243,7 +3251,7 @@ def awtResults(environ, user, cgiValues):
         else:
           s += ' Write=%d' % writeResult
 
-        if finishedTime < timeNow - 3600 * greyHours:
+        if finishedTime < timeNow - 3600 * awtGreyHours:
           boxColor = '#BBBBBB'
         elif readResult == 255:
           boxColor = 'white'

@@ -621,12 +621,14 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
   if jsonDict['command'] == 'submit-workflow':
     if workflowState != 'draft':
       return httpError(startResponse,
-                       '403 Forbidden',
-                       'You cannot submit a workflow that was already submitted')
+                   '403 Forbidden',
+                   'You cannot submit a workflow that was already submitted')
 
+    # Submitting updates user_id to the person who actually submitted it
     query = ("UPDATE workflows SET "
-             "state='submitted',submitted=NOW() "
-             "WHERE workflow_id=%d AND state='draft'" % workflowID)
+             "state='submitted',submitted=NOW(),user_id=%d "
+             "WHERE workflow_id=%d AND state='draft'" 
+             % (workflowID, user['user_id']))
 
   elif jsonDict['command'] == 'restart-workflow':
     if workflowState != 'paused':

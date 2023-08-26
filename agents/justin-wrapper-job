@@ -678,10 +678,12 @@ print(jobscriptLog)
 logLine('#### end jobscript log ####')
 
 try:
-  (jobscriptRealSeconds,
-   jobscriptUserSeconds,
-   jobscriptSysSeconds,
-   jobscriptMaxRssKB) = open('time.txt','r').read().split()
+  (j1, j2, j3, j4) = open('time.txt','r').read().split()
+
+  jobscriptRealSeconds = int(float(j1))
+  jobscriptUserSeconds = int(float(j2))
+  jobscriptSysSeconds  = int(float(j3))
+  jobscriptMaxRssKB    = int(j4)
 except:
   jobscriptRealSeconds = 0
   jobscriptUserSeconds = 0
@@ -697,10 +699,10 @@ justinRecordResultsDict = {
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
   'jobscript_finish'       : jobscriptFinishTime,
-  'jobscript_real_seconds' : int(float(jobscriptRealSeconds)),
-  'jobscript_user_seconds' : int(float(jobscriptUserSeconds)),
-  'jobscript_sys_seconds'  : int(float(jobscriptSysSeconds)),
-  'jobscript_max_rss_kb'   : int(float(jobscriptMaxRssKB))
+  'jobscript_real_seconds' : jobscriptRealSeconds,
+  'jobscript_user_seconds' : jobscriptUserSeconds,
+  'jobscript_sys_seconds'  : jobscriptSysSeconds,
+  'jobscript_max_rss_kb'   : jobscriptMaxRssKB
 }
 
 outputFiles = []
