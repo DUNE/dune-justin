@@ -340,8 +340,7 @@ def makeJobscriptDict(jsonDict, jobDict):
   scopeName = jobDict['scope_name']
 
   try:
-    query = ("SELECT jobscript,scope_name,principal_name "
-             "FROM stages_jobscripts "
+    query = ("SELECT jobscript,principal_name FROM stages_jobscripts "
              "LEFT JOIN workflows "
              "ON workflows.workflow_id=stages_jobscripts.workflow_id "
              "LEFT JOIN users ON users.user_id=workflows.user_id "
@@ -937,8 +936,8 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
 # No try here since we expose exceptions to the caller!
 def getCacheLock(lockName, timeoutSeconds):
   row = justin.select(
-          'SELECT GET_LOCK(lockName, %d) '
-          'AS result' % timeoutSeconds, justOne = True)
+          'SELECT GET_LOCK(%s, %d) '
+          'AS result' % (lockName, timeoutSeconds), justOne = True)
 
   if not row or 'result' not in row:
     # Something went wrong!
@@ -954,7 +953,7 @@ def getCacheLock(lockName, timeoutSeconds):
 # Release the file cache lock if we can
 def releaseCacheLock(lockName):
   try:
-    justin.select('SELECT RELEASE_LOCK(lockName)')
+    justin.select('SELECT RELEASE_LOCK(%s)' % lockName)
   except Exception as e:
 # REMOVE THIS print FOR PROD
     print('Exception releasing lock: ' + str(e))

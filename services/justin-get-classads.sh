@@ -65,7 +65,7 @@ export HAS_INNER_APPTAINER=False
 if [ -x /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer ]
 then
   /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer \
-  shell --shell /usr/bin/hostname \
+    shell --shell /usr/bin/true \
   /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6  
   if [ $? = 0 ] ; then
     export HAS_INNER_APPTAINER=True
@@ -86,14 +86,14 @@ do
     --connect-timeout 10 \
     --max-time 60 \
     --retry 5 \
-    http://justin-allocator-$prodev.dune.hep.ac.uk/api/get-classads \
+    https://justin-allocator-$prodev.dune.hep.ac.uk/api/get-classads \
     2>/dev/null`
 
   if [ "$http_code" = 200 -a -r justin-get-classads-$prodev.txt ] ; then
     cat justin-get-classads-$prodev.txt | (
       while read line
       do
-        advertise $line "S"
+        advertise $line C
       done
     )
   fi
