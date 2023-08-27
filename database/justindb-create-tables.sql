@@ -74,8 +74,6 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `requested_wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `justin_job_secret` varchar(255) NOT NULL DEFAULT '',
   `jobscript_secret` varchar(255) NOT NULL DEFAULT '',
-  `need_to_fetch_jobsub_log` tinyint(1) NOT NULL DEFAULT '0',
-  `for_awt` tinyint(1) NOT NULL DEFAULT '0',
   `jobscript_real_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_cpu_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
@@ -275,29 +273,21 @@ CREATE TABLE IF NOT EXISTS `stages_classads` (
   UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`classad_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `sites_stages_cache` (
-  `site_id` smallint(5) unsigned NOT NULL,
-  `min_processors` tinyint(3) unsigned NOT NULL DEFAULT 0,
-  `max_processors` tinyint(3) unsigned NOT NULL DEFAULT 1,
-  `min_rss_bytes` bigint(20) unsigned NOT NULL DEFAULT 0,
-  `max_rss_bytes` bigint(20) unsigned NOT NULL DEFAULT 2147483648,
-  `max_wall_seconds` mediumint(8) unsigned NOT NULL DEFAULT 86400,
+CREATE TABLE IF NOT EXISTS `entries_ranks_cache` (
+  `entry_id` smallint(5) unsigned NOT NULL,
   `job_had_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
-  `workflow_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
+  `rank_text` text NOT NULL DEFAULT '',
   `cache_time` datetime NOT NULL,
-  UNIQUE KEY `multiple` (`site_id`,
-   `min_processors`,`max_processors`,`min_rss_bytes`,`max_rss_bytes`,
-   `max_wall_seconds`,`job_had_inner_apptainer`,`workflow_id`,`stage_id`)
+  UNIQUE KEY `multiple` (`entry_id`,`job_had_inner_apptainer`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `sites_files_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
-  `rse_id` smallint(5) unsigned NOT NULL,
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `replica_id` int(10) unsigned NOT NULL,
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `replica_id` int(10) unsigned NOT NULL,
+  `rse_id` smallint(5) unsigned NOT NULL,
   `distance` float NOT NULL DEFAULT 100.0,
   `cache_time` datetime NOT NULL,
   INDEX `multiple` (`site_id`, `workflow_id`, `stage_id`,

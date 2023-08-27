@@ -36,6 +36,8 @@ import M2Crypto
 
 import justin
 
+entriesRanksCacheTimeout = 300
+
 def httpError(startResponse, code, message):
 
   try:
@@ -70,6 +72,118 @@ def httpOK(startResponse, outputString):
 
   return [outputString.encode('UTF-8')]
 
+# Work out an ordered list of stages suited to this entry
+def updateEntriesRankCache(entryName, hasInnerApptainer):
+
+  startTime = int(time.time())
+
+  try:
+    siteRow = justin.select('SELECT site_name,sites.site_id,entry_id '
+                            'FROM entries '
+                            'LEFT JOIN sites ON sites.site_id=entries.site_id '
+                            'WHERE entry_name="%s" AND sites.enabled' 
+                            % entryName, justOne = True)
+  except: 
+    # entryName not found or site not enabled
+    return None
+
+  try:
+    stages = justin.select('SELECT workflows.workflow_id,stages.stage_id,'
+             'stages.max_distance,stages.stage_rank FROM workflows '
+             'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
+             'WHERE workflows.state="running" '
+             'ORDER BY stage_rank DESC,workflows.workflow_id,stages.stage_id')
+  except:
+    return None
+
+  stagesList = []
+
+  for stage in stages:
+    try:
+      fileStats = justin.select('SELECT COUNT(*) AS filesCount,'
+          'MIN(distance) AS minDistance,MAX(distance) AS maxDistance,'
+          'AVG(distance) AS avgDistance '
+          'FROM files '
+          'LEFT JOIN replicas ON replicas.file_id=files.file_id '
+          'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
+          'AND sites_storages.site_id=%d '
+          'WHERE files.workflow_id=%d AND files.stage_id=%d '
+          'AND allocation_state="unallocated" AND distance <= %f'
+          % (siteRow['site_id'], stage['workflow_id'], 
+             stage['stage_id'], stage['max_distance']), justOne = True)
+    except:
+      # Something weird? Just skip this stage
+      continue
+
+    listRank = stage['stage_rank'] * 100 + (100 - fileStats['minDistance'])
+    stagesList.append(('w%ds%d' % (stage['workflow_id'], stage['stage_id']),
+                       listRank))
+  if not stagesList:
+    return None
+
+  stagesList.sort(key=lambda row: row[1])
+  i = len(stagesList)
+  ranks = []
+
+  for (stageStr, listRank) in stagesList:
+    ranks.append('%s = %d' % (stageStr, i))
+    i -= 1
+
+  return '[' + ';'.join(ranks) + ']'
+
+# Return Class Ads to for glideins to publish
+def getClassadsCall(startResponse, environ):
+
+  try:
+    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+    inputString = environ['wsgi.input'].read(inputLength).decode()
+ 
+    i = inputString.rindex('GLIDEIN_Entry_Name=')
+    entryName = inputString[i+19:].split('\n')[0]
+    if justin.stringNoQuotes(entryName):
+      raise RuntimeError('Quotes in entryName')
+
+    i = inputString.rindex('HAS_INNER_APPTAINER=')
+    hasInnerApptainer = bool(inputString[i+20:].split('\n')[0])
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Missing/bad POST data')
+
+  try:
+    row = justin.select('SELECT rank_text,'
+                        'TIMESTAMPDIFF(SECOND, cache_time, NOW()) AS seconds,'
+                        'entries.site_id '
+                        'FROM entries '
+                        'LEFT JOIN entries_ranks_cache '
+                        'ON entries_ranks_cache.entry_id=entries.entry_id '
+                        'WHERE entries.entry_name="%s" '
+                        'AND job_had_inner_apptainer=%s'
+                        % (entryName, hasInnerApptainer), justOne = True)
+  except:
+    return httpError(startResponse, '404 Not Found', 'Not Found')
+
+  if not row:
+    rankText     = None
+    cacheSeconds = entriesRanksCacheTimeout + 1
+  else:
+    rankText     = row['rank_text']
+    cacheSeconds = row['seconds']
+
+  if cacheSeconds > entriesRanksCacheTimeout:
+    try:
+      getCacheLock('justin_allocator_ranks_cache', 0)
+    except:
+      pass
+    else:
+      rankText = updateEntriesRankCache(entryName, hasInnerApptainer)
+      releaseCacheLock('justin_allocator_ranks_cache')
+
+  if rankText:
+    return httpOK(startResponse, 
+                  'JUSTIN_%s_Test %s' % (justin.proDev.upper(), rankText))
+  else:
+    return httpError(startResponse, '404 Not Found', 'Not Found')
+
 # Return information about the job from the jobsubID
 def makeJobDict(jsonDict, jobscriptSecret = None):
 
@@ -91,18 +205,25 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'sites.max_jobs,'
              'sites.running_jobs,'
              'sites.enabled,'
+             'sites.always_inner_apptainer AS site_a_i_a,'
+             'entries.always_inner_apptainer AS entry_a_i_a,'
              'entries.entry_name,'
-             'entries.entry_id '
+             'entries.entry_id,'
+             'scopes.scope_name,'
+             'wlcg_groups.wlcg_group_name '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.workflow_id=stages.workflow_id '
              'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN sites ON jobs.site_id=sites.site_id '
              'LEFT JOIN entries ON jobs.entry_id=entries.entry_id '
+             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
+             'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
+             'LEFT JOIN wlcg_groups '
+             'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
              'WHERE jobs.jobsub_id="%s"'
              % jsonDict['jobsub_id'])
 
-    justin.cur.execute(query)
-    job = justin.cur.fetchone()
+    job = justin.select(query, justOne = True)
   except Exception as e:
     return { "error_message": "Error finding job from jobsubID " + 
              jobsubID + ": " + str(e) }
@@ -119,19 +240,25 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
            "stage_id"               : job['stage_id'],
            "site_id"                : job['site_id'],
            "site_name"              : job['site_name'],
+           "site_a_i_a"             : job['site_a_i_a'],
            "entry_id"               : job['entry_id'],
            "entry_name"             : job['entry_name'],
+           "entry_a_i_a"            : job['entry_a_i_a'],
            "running_jobs"           : job['running_jobs'],
            "max_jobs"               : job['max_jobs'],
            "site_enabled"           : job['enabled'],
            "justin_job_id"          : job['justin_job_id'],
-           "job_state"       : job['job_state'],
+           "job_state"              : job['job_state'],
            "jobscript_secret"       : job['jobscript_secret'],
            "max_distance"           : job['max_distance'],
            "requested_processors"   : job['requested_processors'],
            "requested_rss_bytes"    : job['requested_rss_bytes'],
            "requested_wall_seconds" : job['requested_wall_seconds'],
-           "has_inner_apptainer"    : job['has_inner_apptainer']
+           "has_inner_apptainer"    : job['has_inner_apptainer'],
+           "scope_name"             : job['scope_name'] 
+                                      if job['scope_name'] else '',
+           "wlcg_group_name"        : job['wlcg_group_name']
+                                      if job['wlcg_group_name'] else ''
          }
 
 # Make a new certificate from the certificate workflow sent by the 
@@ -210,13 +337,13 @@ def makeJobscriptDict(jsonDict, jobDict):
   # Collect values to be transmitted to the user jobscript
 
   jobscriptDict = {}
+  scopeName = jobDict['scope_name']
 
   try:
     query = ("SELECT jobscript,scope_name,principal_name "
              "FROM stages_jobscripts "
              "LEFT JOIN workflows "
              "ON workflows.workflow_id=stages_jobscripts.workflow_id "
-             "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
              "LEFT JOIN users ON users.user_id=workflows.user_id "
              "LEFT JOIN principal_names "
              "ON principal_names.pn_id=users.main_pn_id "
@@ -226,7 +353,6 @@ def makeJobscriptDict(jsonDict, jobDict):
 
     row       = justin.select(query, justOne = True)
     jobscript = row['jobscript']
-    scopeName = row['scope_name'] if row['scope_name'] else ''
     jobscriptDict['principal_name'] = row['principal_name']
   except Exception as e:
     print('SELECT stages_jobscripts fails: ' + str(e), file=sys.stderr)
@@ -485,9 +611,19 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
      (jobDict['stage_id'] != jsonDict['stage_id']):
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse,
-                     '400 Bad Request', 
+                     '403 Forbidden',
                      'workflow ID / stage ID do not match jobsub ID')
 
+  # Check that we're not trying to run unprivileged jobscripts 
+  # without Inner Apptainer: some kind of out of date matching?
+  if not jsonDict['has_inner_apptainer'] and \
+     (not jobDict['wlcg_group_name'] 
+      or jobDict['wlcg_group_name'] != '/dune/production'):
+    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+    return httpError(startResponse,
+              '404 Not Found',
+              'Tried to run an unprivileged workflow without Inner Apptainer')
+    
   if jobDict['error_message']:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse,
@@ -512,18 +648,29 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                      'Cannot start as site %s not enabled' 
                      % jobDict['site_name'])
 
+  # Record whether job slots from this entry always support Inner Apptainer
+  # 0=not always, 1=not known, 2=always
   if jsonDict['has_inner_apptainer']:
-    apptainerSQL = ''
+    if jobDict['entry_a_i_a'] == 1:
+      entryApptainerSQL = ',always_inner_apptainer=2'
+    else:
+      entryApptainerSQL = ''
+
+    if jobDict['site_a_i_a'] == 1:
+      siteApptainerSQL = ',always_inner_apptainer=2'
+    else:
+      siteApptainerSQL = ''
   else:
-    apptainerSQL = ',always_inner_apptainer=FALSE'
+    siteApptainerSQL  = ',always_inner_apptainer=0'
+    entryApptainerSQL = ',always_inner_apptainer=0'
 
   try:
     justin.insertUpdate('UPDATE sites SET last_get_jobscript_time=NOW()%s '
                         'WHERE site_id=%d' 
-                        % (apptainerSQL, jobDict['site_id']))
+                        % (siteApptainerSQL, jobDict['site_id']))
     justin.insertUpdate('UPDATE entries SET last_get_jobscript_time=NOW()%s '
                         'WHERE entry_id=%d' 
-                        % (apptainerSQL, jobDict['entry_id']))
+                        % (entryApptainerSQL, jobDict['entry_id']))
   except:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
@@ -788,9 +935,9 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
 # Try to get the file cache service lock or raise an exception if
 # unable to do this for any reason, including a timeout
 # No try here since we expose exceptions to the caller!
-def getFileCacheLock(timeoutSeconds):
+def getCacheLock(lockName, timeoutSeconds):
   row = justin.select(
-          'SELECT GET_LOCK("justin_allocator_file_cache", %d) '
+          'SELECT GET_LOCK(lockName, %d) '
           'AS result' % timeoutSeconds, justOne = True)
 
   if not row or 'result' not in row:
@@ -805,9 +952,9 @@ def getFileCacheLock(timeoutSeconds):
   return
 
 # Release the file cache lock if we can
-def releaseFileCacheLock():
+def releaseCacheLock(lockName):
   try:
-    justin.select('SELECT RELEASE_LOCK("justin_allocator_file_cache")')
+    justin.select('SELECT RELEASE_LOCK(lockName)')
   except Exception as e:
 # REMOVE THIS print FOR PROD
     print('Exception releasing lock: ' + str(e))
@@ -880,7 +1027,7 @@ def findBestFile(jobDict):
                jobDict['workflow_id'],
                jobDict['stage_id']), file=sys.stderr)
       try:
-        getFileCacheLock(0)
+        getCacheLock('justin_allocator_file_cache', 0)
       except Exception as e:
 # THIS EXCEPTION WILL HAPPEN ALL THE TIME NORMALLY SO print() NOT FOR PROD
         # We didn't get the cache lock so we carry on with what was returned
@@ -896,7 +1043,7 @@ def findBestFile(jobDict):
               file=sys.stderr)
         cacheFiles(jobDict['site_id'], jobDict['workflow_id'], 
                    jobDict['stage_id'], jobDict['max_distance'])
-        releaseFileCacheLock()
+        releaseCacheLock('justin_allocator_file_cache')
 
         # If we had zero results before, rerun the query
         if len(replicaRows) == 0:
@@ -1638,6 +1785,9 @@ def application(environ, startResponse):
 
   # Avoid leftovers from partial, failed transactions in this instance
   justin.conn.rollback()
+
+  if environ['REQUEST_URI'].startswith('/api/get-classads'):
+    return getClassadsCall(startResponse, environ)
 
   if environ['REQUEST_URI'].startswith('/api/samweb/'):
     # Legacy samweb support: put values into dictionary

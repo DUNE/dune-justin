@@ -2450,7 +2450,8 @@ def listSites(environ, user, cgiValues):
              siteRow['max_wall_seconds'], 
                 int(siteRow['max_wall_seconds'] / 3600),
              siteRow['max_jobs'],
-             bool(siteRow['always_inner_apptainer']),
+             ('' if (siteRow['always_inner_apptainer'] == 1) 
+                 else bool(siteRow['always_inner_apptainer'])),
              siteRow['site_name'],
              siteRow['wlcg_site_name'],
              siteRow['site_name']
@@ -2556,7 +2557,6 @@ def showSite(environ, user, cgiValues):
            'sites.max_processors,sites.max_wall_seconds,sites.max_jobs,'
            'wlcg_site_name,always_inner_apptainer '
            'FROM sites '
-#           'LEFT JOIN jobs ON sites.last_awt_job_id=jobs.justin_job_id '
            'WHERE site_name="%s"' % siteName)
 
   justin.cur.execute(query)
@@ -2595,7 +2595,9 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Last AWT job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
 
   output += ('<tr><td colspan="2">Always has inner apptainer</td>'
-             '<td>%s</td></tr>' % bool(siteRow['always_inner_apptainer']))
+             '<td>%s</td></tr>' % 
+             ('' if (siteRow['always_inner_apptainer'] == 1)
+                 else bool(siteRow['always_inner_apptainer'])))
 
   output += ('<tr><td colspan="2">Max number of jobs</td><td>%d</td></tr>' 
              % siteRow['max_jobs'])
@@ -2675,7 +2677,8 @@ def showSite(environ, user, cgiValues):
                    (1048576 * entryRow['max_processors'])),
              entryRow['max_wall_seconds'],
                int(entryRow["max_wall_seconds"] / 3600),
-             bool(entryRow['always_inner_apptainer']),
+             ('' if (entryRow['always_inner_apptainer'] == 1) 
+                 else bool(entryRow['always_inner_apptainer'])),
              entryRow['osg_date']
             )
          )    

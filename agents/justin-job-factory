@@ -235,7 +235,6 @@ queue %d
                   'requested_rss_bytes=%d,'
                   'requested_wall_seconds=%d,'
                   'submitted_time=NOW(),'
-                  'need_to_fetch_jobsub_log=%s,'
                   'justin_job_secret="%s",'
                   'jobscript_secret="%s",'
                   'jobsub_id="%s.%d@%s"'
@@ -246,7 +245,6 @@ queue %d
                      requestedProcessors,
                      requestedRssBytes,
                      requestedWallSeconds,
-                     "TRUE" if i == 0 else "FALSE",
                      justinJobSecret,
                      secrets.token_urlsafe(64),
                      clusterID, i, scheddHostname)
