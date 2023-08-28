@@ -36,7 +36,7 @@ import M2Crypto
 
 import justin
 
-entriesRanksCacheTimeout = 300
+sitesRanksCacheTimeout = 300
 
 def httpError(startResponse, code, message):
 
@@ -73,63 +73,84 @@ def httpOK(startResponse, outputString):
   return [outputString.encode('UTF-8')]
 
 # Work out an ordered list of stages suited to this entry
-def updateEntriesRankCache(entryName, hasInnerApptainer):
+def updateSitesRankCache(siteName, hasInnerApptainer):
 
   startTime = int(time.time())
 
   try:
-    siteRow = justin.select('SELECT site_name,sites.site_id,entry_id '
-                            'FROM entries '
-                            'LEFT JOIN sites ON sites.site_id=entries.site_id '
-                            'WHERE entry_name="%s" AND sites.enabled' 
-                            % entryName, justOne = True)
-  except: 
-    # entryName not found or site not enabled
+    siteRow = justin.select('SELECT site_id FROM sites '
+                            'WHERE site_name="%s" AND enabled' 
+                            % siteName, justOne = True)
+  except Exception as e: 
+    print('updateSitesRankCache() site query fails: ' + str(e), 
+          file=sys.stderr)
     return None
+
+  if not siteRow:
+    print('updateSitesRankCache() empty site query', file=sys.stderr)
+    return None
+
+  if hasInnerApptainer:
+    # Has Inner Apptainer so any type of workflow ok
+    apptJoins  = ''
+    apptWheres = ''
+  else:
+    # Does not have Inner Apptainer so only workflows run as /dune/production
+    apptJoins  = ('LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
+                  'LEFT JOIN wlcg_groups '
+                  'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id ')
+    apptWheres = 'AND wlcg_group_name="/dune/production" '
 
   try:
-    stages = justin.select('SELECT workflows.workflow_id,stages.stage_id,'
-             'stages.max_distance,stages.stage_rank FROM workflows '
-             'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
-             'WHERE workflows.state="running" '
-             'ORDER BY stage_rank DESC,workflows.workflow_id,stages.stage_id')
-  except:
+    justin.insertUpdate('SET @score=1')
+
+    query = (
+      'SELECT ws,SUM(runningScore) AS sumScore FROM '
+      '(SELECT (@score := @score + 0.001) AS runningScore,'
+      'CONCAT("w",workflows.workflow_id,"s",stages.stage_id) AS ws '
+      'FROM workflows %s '
+      'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
+      'LEFT JOIN files ON files.workflow_id=stages.workflow_id '
+      'AND files.stage_id=files.stage_id '
+      'LEFT JOIN replicas ON replicas.file_id=files.file_id '
+      'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
+      'AND sites_storages.site_id=%d '
+      'WHERE workflows.state="running" %s '
+      'AND files.state="unallocated" '
+      'AND sites_storages.distance <= stages.max_distance '
+      'ORDER BY stages.stage_rank DESC,sites_storages.distance,'
+      'files.file_id LIMIT 1000) AS sub '
+      'GROUP BY ws ORDER BY sumScore' 
+      % (apptJoins, siteRow['site_id'], apptWheres))
+
+    print('updateSitesRankCache() query: ' + query, file=sys.stderr)
+    stages = justin.select(query)
+    print('updateSitesRankCache() stages: ' + str(stages), file=sys.stderr)
+  except Exception as e:
+    print('updateSitesRankCache() fails: ' + str(e), file=sys.stderr)
     return None
 
-  stagesList = []
-
-  for stage in stages:
-    try:
-      fileStats = justin.select('SELECT COUNT(*) AS filesCount,'
-          'MIN(distance) AS minDistance,MAX(distance) AS maxDistance,'
-          'AVG(distance) AS avgDistance '
-          'FROM files '
-          'LEFT JOIN replicas ON replicas.file_id=files.file_id '
-          'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
-          'AND sites_storages.site_id=%d '
-          'WHERE files.workflow_id=%d AND files.stage_id=%d '
-          'AND allocation_state="unallocated" AND distance <= %f'
-          % (siteRow['site_id'], stage['workflow_id'], 
-             stage['stage_id'], stage['max_distance']), justOne = True)
-    except:
-      # Something weird? Just skip this stage
-      continue
-
-    listRank = stage['stage_rank'] * 100 + (100 - fileStats['minDistance'])
-    stagesList.append(('w%ds%d' % (stage['workflow_id'], stage['stage_id']),
-                       listRank))
-  if not stagesList:
+  if len(stages) == 0:
+    print('updateSitesRankCache() no matches found', file=sys.stderr)
     return None
 
-  stagesList.sort(key=lambda row: row[1])
-  i = len(stagesList)
+  listRank = 1
   ranks = []
+  for stage in stages:
+    ranks.append('%s = %d' % (stage['ws'], listRank))
+    listRank += 1
 
-  for (stageStr, listRank) in stagesList:
-    ranks.append('%s = %d' % (stageStr, i))
-    i -= 1
+  rankText = '[ ' + '; '.join(ranks) + ' ]'
 
-  return '[' + ';'.join(ranks) + ']'
+  try:
+    justin.insertUpdate('REPLACE INTO sites_ranks_cache SET '
+       'site_id=%d,job_had_inner_apptainer=%s,rank_text="%s",cache_time=NOW()'
+       % (siteRow['site_id'], hasInnerApptainer, rankText))
+  except Exception as e:
+    print('updateSitesRankCache() REPLACE fails: ' + str(e), file=sys.stderr)
+    return None
+
+  return rankText
 
 # Return Class Ads to for glideins to publish
 def getClassadsCall(startResponse, environ):
@@ -138,49 +159,52 @@ def getClassadsCall(startResponse, environ):
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
     inputString = environ['wsgi.input'].read(inputLength).decode()
  
-    i = inputString.rindex('GLIDEIN_Entry_Name=')
-    entryName = inputString[i+19:].split('\n')[0]
-    if justin.stringNoQuotes(entryName):
-      raise RuntimeError('Quotes in entryName')
+    i = inputString.index('GLIDEIN_DUNESite ')
+    siteName = inputString[i+17:].split('\n')[0]
+    if not justin.stringNoQuotes(siteName):
+      raise RuntimeError('Quotes in siteName')
 
     i = inputString.rindex('HAS_INNER_APPTAINER=')
     hasInnerApptainer = bool(inputString[i+20:].split('\n')[0])
-  except:
+  except Exception as e:
     return httpError(startResponse, 
-                     '400 Bad Request', 'Missing/bad POST data')
+                     '400 Bad Request', 'Missing/bad POST data: ' + str(e))
 
   try:
     row = justin.select('SELECT rank_text,'
                         'TIMESTAMPDIFF(SECOND, cache_time, NOW()) AS seconds,'
-                        'entries.site_id '
-                        'FROM entries '
-                        'LEFT JOIN entries_ranks_cache '
-                        'ON entries_ranks_cache.entry_id=entries.entry_id '
-                        'WHERE entries.entry_name="%s" '
+                        'sites.site_id FROM sites '
+                        'LEFT JOIN sites_ranks_cache '
+                        'ON sites_ranks_cache.site_id=sites.site_id '
+                        'WHERE sites.site_name="%s" '
                         'AND job_had_inner_apptainer=%s'
-                        % (entryName, hasInnerApptainer), justOne = True)
-  except:
-    return httpError(startResponse, '404 Not Found', 'Not Found')
+                        % (siteName, hasInnerApptainer), justOne = True)
+  except Exception as e:
+    return httpError(startResponse, '404 Not Found', 'Not Found: ' + str(e))
 
-  if not row:
+  if row is None:
     rankText     = None
-    cacheSeconds = entriesRanksCacheTimeout + 1
+    cacheSeconds = sitesRanksCacheTimeout + 1
   else:
     rankText     = row['rank_text']
     cacheSeconds = row['seconds']
 
-  if cacheSeconds > entriesRanksCacheTimeout:
+  if cacheSeconds > sitesRanksCacheTimeout:
     try:
       getCacheLock('justin_allocator_ranks_cache', 0)
     except:
       pass
     else:
-      rankText = updateEntriesRankCache(entryName, hasInnerApptainer)
+      rankText = updateSitesRankCache(siteName, hasInnerApptainer)
       releaseCacheLock('justin_allocator_ranks_cache')
 
   if rankText:
     return httpOK(startResponse, 
-                  'JUSTIN_%s_Test %s' % (justin.proDev.upper(), rankText))
+                  'JUSTIN_%s_Site_Ranks %s\n'
+                  'JUSTIN_%s_Has_Inner_Apptainer %s' 
+                  % (justin.proDev.upper(), rankText, 
+                     justin.proDev.upper(), hasInnerApptainer)
+                 )
   else:
     return httpError(startResponse, '404 Not Found', 'Not Found')
 
@@ -936,7 +960,7 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
 # No try here since we expose exceptions to the caller!
 def getCacheLock(lockName, timeoutSeconds):
   row = justin.select(
-          'SELECT GET_LOCK(%s, %d) '
+          'SELECT GET_LOCK("%s", %d) '
           'AS result' % (lockName, timeoutSeconds), justOne = True)
 
   if not row or 'result' not in row:
@@ -953,7 +977,7 @@ def getCacheLock(lockName, timeoutSeconds):
 # Release the file cache lock if we can
 def releaseCacheLock(lockName):
   try:
-    justin.select('SELECT RELEASE_LOCK(%s)' % lockName)
+    justin.select('SELECT RELEASE_LOCK("%s")' % lockName)
   except Exception as e:
 # REMOVE THIS print FOR PROD
     print('Exception releasing lock: ' + str(e))

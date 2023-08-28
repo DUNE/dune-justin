@@ -73,6 +73,7 @@ def logLine(text):
    
 def submitJobs(numberToSubmit,
                userName,
+               needsInnerApptainer,
                accountingGroup,
                workflowID,
                stageID,
@@ -88,9 +89,10 @@ def submitJobs(numberToSubmit,
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s w%ds%d %d %s %s %s %d %d %d' %
+  logLine('submitJobs %d %s %s %s w%ds%d %d %s %s %s %d %d %d' %
           (numberToSubmit,
                userName,
+               needsInnerApptainer,
                accountingGroup,
                workflowID,
                stageID,
@@ -128,6 +130,12 @@ def submitJobs(numberToSubmit,
     return
   finally:
     wrapperFile.close()
+
+  if needsInnerApptainer:
+    innerApptainerTest = ('(isUndefined(target.JUSTIN_%s_Has_Inner_Apptainer) == TRUE || target.JUSTIN_%s_Has_Inner_Apptainer == TRUE) && '
+                          % (justin.proDev.upper(), justin.proDev.upper()))
+  else:
+    innerApptainerTest = ''
 
   submitFile = ''
   
@@ -167,8 +175,7 @@ log                     = /tmp/justin-wrapper-$(Cluster).$(Process).log
 transfer_output_files   = ""
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
-requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (stringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
-#requirements = ((isUndefined(target.GLIDEIN_Entry_Name) == FALSE) && (stringListIMember(target.GLIDEIN_Entry_Name,my.Desired_Entries)))
+requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (%sstringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
 queue %d
 """ % (desiredSiteNames, 
        desiredEntryNames, 
@@ -179,6 +186,7 @@ queue %d
        userName.split('@')[0],
        int(requestedRssBytes / 1024), 
        requestedProcessors,
+       innerApptainerTest,
        numberToSubmit)
   
   # For debugging the submit file
@@ -406,6 +414,8 @@ def workflowJobs():
  
         submitJobs(numberToSubmit       = numberToSubmit,
                    userName             = stageRow['principal_name'],
+                   needsInnerApptainer  = (stageRow['wlcg_group_name'] 
+                                           != '/dune/production'),
                    accountingGroup      = condorGroupName,
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
@@ -436,6 +446,7 @@ def awtJobsToSites():
   for row in rows:
       submitJobs(numberToSubmit       = 1,
                  userName             = 'dunepro',
+                 needsInnerApptainer  = False,
                  accountingGroup      = 'group_dune.prod_mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,

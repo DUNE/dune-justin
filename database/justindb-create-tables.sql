@@ -273,12 +273,12 @@ CREATE TABLE IF NOT EXISTS `stages_classads` (
   UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`classad_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `entries_ranks_cache` (
-  `entry_id` smallint(5) unsigned NOT NULL,
+CREATE TABLE IF NOT EXISTS `sites_ranks_cache` (
+  `site_id` smallint(5) unsigned NOT NULL,
   `job_had_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
   `rank_text` text NOT NULL DEFAULT '',
   `cache_time` datetime NOT NULL,
-  UNIQUE KEY `multiple` (`entry_id`,`job_had_inner_apptainer`)
+  UNIQUE KEY `multiple` (`site_id`,`job_had_inner_apptainer`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `sites_files_cache` (
