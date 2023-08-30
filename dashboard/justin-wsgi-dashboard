@@ -2366,8 +2366,8 @@ def listScopes(environ, user, cgiValues):
   
   output += ('<tr>'
              '<th>Scope</th>'
-             '<th>Write if in WLCG Group</th>'
-             '<th>Accounting Group</th></tr>')
+             '<th>WLCG Group</th>'
+             '<th>HTCondor Group</th></tr>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
@@ -2392,7 +2392,7 @@ def listSites(environ, user, cgiValues):
   query = ("SELECT DATE(last_osg_seen_time) AS osg_date,"
            "last_get_jobscript_time,"
            "site_name,sites.enabled,sites.max_rss_bytes,"
-           "sites.max_processors,sites.max_wall_seconds,sites.max_jobs,"
+           "sites.max_processors,sites.max_wall_seconds,"
            "wlcg_site_name,always_inner_apptainer "
            "FROM sites "
            "WHERE sites.site_id > 0 ORDER BY site_name")
@@ -2408,7 +2408,6 @@ def listSites(environ, user, cgiValues):
         '<th>Seen in OSG</th>'
         '<th>RSS (MB) / Processors</th>'
         '<th>Max Wall Seconds</th>'
-        '<th>Max jobs</th>'
         '<th>Always has<br>inner<br>apptainer</th>'
         '<th colspan=3>&nbsp;</th>'
         '</tr>')
@@ -2426,7 +2425,6 @@ def listSites(environ, user, cgiValues):
           '<td>%s</td>'
           '<td style="text-align: right">%d / %d = %d</td>'
           '<td style="text-align: right">%d (%d hours)</td>'
-          '<td style="text-align: right">%d</td>'
           '<td>%s</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
@@ -2449,7 +2447,6 @@ def listSites(environ, user, cgiValues):
                     / siteRow['max_processors']) / 1048576),
              siteRow['max_wall_seconds'], 
                 int(siteRow['max_wall_seconds'] / 3600),
-             siteRow['max_jobs'],
              ('' if (siteRow['always_inner_apptainer'] == 1) 
                  else bool(siteRow['always_inner_apptainer'])),
              siteRow['site_name'],
@@ -2554,7 +2551,7 @@ def showSite(environ, user, cgiValues):
            'sites.last_get_jobscript_time,'
            'sites.last_awt_time,'
            'sites.max_rss_bytes,'
-           'sites.max_processors,sites.max_wall_seconds,sites.max_jobs,'
+           'sites.max_processors,sites.max_wall_seconds,'
            'wlcg_site_name,always_inner_apptainer '
            'FROM sites '
            'WHERE site_name="%s"' % siteName)
@@ -2598,9 +2595,6 @@ def showSite(environ, user, cgiValues):
              '<td>%s</td></tr>' % 
              ('' if (siteRow['always_inner_apptainer'] == 1)
                  else bool(siteRow['always_inner_apptainer'])))
-
-  output += ('<tr><td colspan="2">Max number of jobs</td><td>%d</td></tr>' 
-             % siteRow['max_jobs'])
 
   output += ('<tr><td colspan="2">Jobs</td><td>'
              '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' 

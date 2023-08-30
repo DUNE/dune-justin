@@ -226,7 +226,6 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'jobs.requested_wall_seconds,'
              'jobs.has_inner_apptainer,'
              'sites.site_name,'
-             'sites.max_jobs,'
              'sites.running_jobs,'
              'sites.enabled,'
              'sites.always_inner_apptainer AS site_a_i_a,'
@@ -269,7 +268,6 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
            "entry_name"             : job['entry_name'],
            "entry_a_i_a"            : job['entry_a_i_a'],
            "running_jobs"           : job['running_jobs'],
-           "max_jobs"               : job['max_jobs'],
            "site_enabled"           : job['enabled'],
            "justin_job_id"          : job['justin_job_id'],
            "job_state"              : job['job_state'],
@@ -639,7 +637,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 
   # Check that we're not trying to run unprivileged jobscripts 
   # without Inner Apptainer: some kind of out of date matching?
-  if not jsonDict['has_inner_apptainer'] and \
+  if jsonDict['workflow_id'] != justin.awtWorkflowID and \
+     not jsonDict['has_inner_apptainer'] and \
      (not jobDict['wlcg_group_name'] 
       or jobDict['wlcg_group_name'] != '/dune/production'):
     updateAllocationState(jsonDict['jobsub_id'], 'notused')

@@ -827,9 +827,9 @@ def updateStorages():
 
   justin.conn.commit()
 
-# Make sure Condor accounting groups are in database
-def updateGroupsCondor():
-  logLine('---- Start updateGroupsCondor ----')
+# Make sure HTCondor accounting groups are in database
+def updateGroupsHTCondor():
+  logLine('---- Start updateGroupsHTCondor ----')
   
   try: 
     outcome = subprocess.run(
@@ -853,7 +853,13 @@ def updateGroupsCondor():
   logLine('condor_userprio exit code: ' + str(outcome.returncode))
 
   for line in lines:
-    groupName = line.split()[0]
+    try:
+      (groupName, effQuota, confQuota, surplus, subtreeQuota, weighted) \
+        = line.split()
+# SHOULD RECORD confQuota IN JUSTINDB
+    except:
+      groupName = ''
+
     if groupName.startswith('group_dune') and justin.stringNoQuotes(groupName):
       logLine('Checking Condor Group %s is in database' % groupName)
       try:
@@ -1018,7 +1024,7 @@ def oneCycle():
   if lastUpdateStorages + updateStoragesInterval < time.time():
     pathlib.Path('/var/run/justin/last-updates/storages').touch(exist_ok=True)
     updateStorages()
-    updateGroupsCondor()
+    updateGroupsHTCondor()
     updateGroupsWLCG()
     updateScopes()
 

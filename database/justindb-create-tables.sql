@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `rse_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `milliseconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`event_id`),
@@ -111,7 +112,8 @@ CREATE TABLE IF NOT EXISTS `events` (
   INDEX `file_id` (`file_id`,`event_id`),
   INDEX `justin_job_id` (`justin_job_id`,`event_id`),
   INDEX `site_id` (`site_id`,`event_id`),
-  INDEX `rse_id` (`rse_id`,`event_id`)
+  INDEX `rse_id` (`rse_id`,`event_id`),
+  INDEX `user_id` (`user_id`,`event_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `files` (
@@ -208,7 +210,6 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
   `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
-  `max_jobs` smallint(5) unsigned NOT NULL DEFAULT 100,
   `submitted_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `running_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `last_osg_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',

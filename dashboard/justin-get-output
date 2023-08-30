@@ -15,6 +15,10 @@ if [ -r "/tmp/justin-wrapper-$JOB.log" ] ; then
 else
  echo '(missing - deleted?)'
 fi
+echo "======="
+echo "======= Start of job condor_q -long"
+echo "======="
+/usr/bin/condor_q -long "$JOB"
 echo
 echo "======="
 echo "======= Start of job $JOB output"
