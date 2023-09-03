@@ -164,6 +164,16 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
   PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `archived_workflows` (
+  `archived_row_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `row_name` varchar(255) NOT NULL,
+  `row_value` text NOT NULL,
+  PRIMARY KEY (`achived_row_id`),
+  INDEX `workflow_id` (`workflow_id`,`archived_row_id`),
+  INDEX `row_name` (`row_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `requests` (
   `request_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `state` enum('draft','submitted','approved','running','paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
@@ -181,6 +191,7 @@ CREATE TABLE IF NOT EXISTS `requests` (
   `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT '0',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `mql` text NOT NULL,
+  `archived` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`request_id`),
   INDEX `state` (`state`,`refind_last_time`,`refind_seconds`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

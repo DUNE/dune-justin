@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+#
+# justin-archiver - justIN Archiver agent
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import ssl
+import stat
+import json
+import time
+import base64
+import urllib.request
+import pathlib
+import tempfile
+import xml.dom.minidom
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+import justin
+
+sleepSeconds = 3600
+
+class justinError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+def archiveWorkflows():
+  # Find workflows which still need to be archived and save them to 
+  # archived_workflows
+
+  query = ('SELECT request_id,mql FROM requests '
+           'WHERE state="running" AND '
+           '((refind_seconds=0 AND refind_last_time="%s")'
+           ' OR '
+           ' (refind_seconds > 0 AND '
+           ' DATE_ADD(refind_last_time, INTERVAL refind_seconds SECOND) '
+           ' < NOW() AND refind_start_time < NOW() AND '
+           'refind_end_time >= NOW())) '
+           'ORDER BY request_id' % justin.db.unixEpoch)
+
+  findingRequests = justin.select(query)
+  if not findingRequests:  
+    # Nothing to do
+    return
+
+  didClient = None
+
+  for request in findingRequests:
+  
+    logLine('Finding files for Request %d with MQL %s' %
+            (request['request_id'], request['mql']))
+  
+    if request['request_id'] == justin.awtRequestID:
+      # If refinding the AWT request, then reset the existing 
+      # files to look for new replicas of theme
+      try:
+        justin.insertUpdate('UPDATE files SET state="finding" '
+                            'WHERE request_id=%d' % justin.awtRequestID)
+      except Exception as e:
+        logLine('Set all existing AWT files to finding fails: ' + str(e))
+  
+    mqlSplit = request['mql'].split()
+
+    # Request for a Rucio dataset: "rucio-dataset SCOPE:NAME"
+    if len(mqlSplit) == 2 and mqlSplit[0] == 'rucio-dataset':
+
+      if not didClient:      
+       # Only set up Rucio if we see a rucio-dataset
+       try:
+         didClient = rucio.client.didclient.DIDClient()
+       except Exception as e:
+         logLine("Connect to Rucio fails with: " + str(e))
+         continue
+
+      datasetSplit = mqlSplit[1].split(':')
+      if len(datasetSplit) == 2:
+        findFilesRucio(didClient,
+                       request['request_id'], 
+                       datasetSplit[0], 
+                       datasetSplit[1])
+        
+    # Monte Carlo request with a count
+    elif len(mqlSplit) == 2 and mqlSplit[0] == 'monte-carlo':
+      
+      try:
+        count = int(mqlSplit[1])
+      except:
+        continue
+      
+      addFilesMonteCarlo(request['request_id'], count)
+
+    else:
+    
+      findFilesMetaCat(request['request_id'], request['mql'])
+
+    justin.db.conn.commit()
+      
+def oneCycle():
+
+  archiveWorkflows()
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs(justin.conf.justinRunDir,         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open(justin.conf.justinRunDir + '/finder.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create '+justin.conf.justinRunDir+'/finder.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/justin directory exists
+        try:
+          os.makedirs('/var/log/justin', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/justin/finder', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+          
+        se = open('/var/log/justin/finder', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open(justin.conf.justinRunDir + '/finder.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new ' + justin.conf.justinRunDir + '/finder.pid - exiting')
+            break
+
+        except:
+          print('no ' + justin.conf.justinRunDir + '/finder.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          justin.conf.readConf()
+          
+          try:
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+
