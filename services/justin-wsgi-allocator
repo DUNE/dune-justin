@@ -27,10 +27,11 @@ import time
 import stat
 import json
 import hmac
-import hashlib
 import secrets
+import random
 import string
 import urllib
+import hashlib
 import M2Crypto
 #import htcondor
 
@@ -115,13 +116,14 @@ def updateSitesRankCache(siteName, hasInnerApptainer):
       'LEFT JOIN replicas ON replicas.file_id=files.file_id '
       'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
       'AND sites_storages.site_id=%d '
-      'WHERE workflows.state="running" %s '
+      'WHERE workflows.workflow_id<>%d '
+      'AND workflows.state="running" %s '
       'AND files.state="unallocated" '
       'AND sites_storages.distance <= stages.max_distance '
       'ORDER BY stages.stage_rank DESC,sites_storages.distance,'
       'files.file_id LIMIT 1000) AS sub '
-      'GROUP BY ws ORDER BY sumScore' 
-      % (apptJoins, siteRow['site_id'], apptWheres))
+      'GROUP BY ws ORDER BY sumScore DESC LIMIT 100'
+      % (justin.awtWorkflowID, apptJoins, siteRow['site_id'], apptWheres))
 
     print('updateSitesRankCache() query: ' + query, file=sys.stderr)
     stages = justin.select(query)
@@ -134,13 +136,13 @@ def updateSitesRankCache(siteName, hasInnerApptainer):
     print('updateSitesRankCache() no matches found', file=sys.stderr)
     return None
 
-  listRank = 1
+  listRank = 100
   ranks = []
   for stage in stages:
-    ranks.append('%s = %d' % (stage['ws'], listRank))
-    listRank += 1
+    ranks.append('%s=%d' % (stage['ws'], listRank))
+    listRank -= 1
 
-  rankText = '[ ' + '; '.join(ranks) + ' ]'
+  rankText = '[' + ';'.join(ranks) + ']'
 
   try:
     justin.insertUpdate('REPLACE INTO sites_ranks_cache SET '
@@ -158,17 +160,26 @@ def getClassadsCall(startResponse, environ):
   try:
     inputLength = int(environ.get('CONTENT_LENGTH', '0'))
     inputString = environ['wsgi.input'].read(inputLength).decode()
- 
+  except Exception as e:
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Failed to get inputString: ' + str(e))
+
+  try:
     i = inputString.index('GLIDEIN_DUNESite ')
     siteName = inputString[i+17:].split('\n')[0]
-    if not justin.stringNoQuotes(siteName):
-      raise RuntimeError('Quotes in siteName')
+  except Exception as e:
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Failed to get siteName: ' + str(e))
 
+  if not justin.stringNoQuotes(siteName):
+    raise RuntimeError('Quotes in siteName')
+
+  try:
     i = inputString.rindex('HAS_INNER_APPTAINER=')
     hasInnerApptainer = bool(inputString[i+20:].split('\n')[0])
   except Exception as e:
     return httpError(startResponse, 
-                     '400 Bad Request', 'Missing/bad POST data: ' + str(e))
+               '400 Bad Request', 'Failed to get hasInnerApptainer: ' + str(e))
 
   try:
     row = justin.select('SELECT rank_text,'
@@ -199,12 +210,33 @@ def getClassadsCall(startResponse, environ):
       releaseCacheLock('justin_allocator_ranks_cache')
 
   if rankText:
+    if justin.proDev == 'dev':
+      justinRank = ('isUndefined(Target.JUSTIN_DEV_Stage)'
+                    '?My.JUSTIN_PRO_Rank:My.JUSTIN_DEV_Rank')
+    else:
+      justinRank = 'My.JUSTIN_PRO_Rank'
+
+    proDevUpper = justin.proDev.upper()
     return httpOK(startResponse, 
-                  'JUSTIN_%s_Site_Ranks %s\n'
-                  'JUSTIN_%s_Has_Inner_Apptainer %s' 
-                  % (justin.proDev.upper(), rankText, 
-                     justin.proDev.upper(), hasInnerApptainer)
-                 )
+           "JUSTIN_%s_ClassAds_Time %d\n"
+           "JUSTIN_%s_Stage_Ranks_Raw %s\n"
+           "JUSTIN_%s_Stage_Ranks "
+             "isUndefined(My.GLIDEIN_PS_JUSTIN_%s_Stage_Ranks_Raw)"
+             "?My.JUSTIN_%s_Stage_Ranks_Raw"
+             ":My.GLIDEIN_PS_JUSTIN_%s_Stage_Ranks_Raw\n"
+           "JUSTIN_%s_Has_Inner_Apptainer %s\n"
+           "JUSTIN_%s_Rank isUndefined(Target.JUSTIN_%s_Stage)"
+             "?%d:My.JUSTIN_%s_Stage_Ranks[Target.JUSTIN_%s_Stage]\n"
+           "Rank %s\n"
+              % (proDevUpper, int(time.time()),
+                 proDevUpper, rankText,
+                 proDevUpper, proDevUpper, proDevUpper, proDevUpper,
+                 proDevUpper, hasInnerApptainer,
+                 proDevUpper, proDevUpper, 
+                   101 if (random.random() < justin.nonJustinFraction) else 0,
+                   proDevUpper, proDevUpper,
+                 justinRank)
+                )
   else:
     return httpError(startResponse, '404 Not Found', 'Not Found')
 

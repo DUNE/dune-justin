@@ -16,7 +16,7 @@ else
  echo '(missing - deleted?)'
 fi
 echo "======="
-echo "======= Start of job condor_q -long"
+echo "======= Start of condor_q -long $JOB"
 echo "======="
 /usr/bin/condor_q -long "$JOB"
 echo

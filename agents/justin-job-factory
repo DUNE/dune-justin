@@ -144,13 +144,17 @@ def submitJobs(numberToSubmit,
   for (name, value) in classads:
     submitFile += '+%s = "%s"' % (name, value)
 
+  if workflowID != justin.awtWorkflowID:
+    # Only include stage ClassAd if not an AWT job
+    submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"' 
+                   % justin.proDev.upper(), workflowID, stageID)
+
   submitFile += """
 +Desired_Sites          = "%s"
 +Desired_Entries        = "%s"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
-+JUSTIN_%s_Stage        = w%ds%d
 universe                = vanilla
 environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
@@ -180,7 +184,6 @@ queue %d
 """ % (desiredSiteNames, 
        desiredEntryNames, 
        requestedWallSeconds,
-       justin.proDev.upper(), workflowID, stageID,
        wrapperFile.name,
        accountingGroup,
        userName.split('@')[0],

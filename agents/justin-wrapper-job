@@ -27,6 +27,7 @@ import zlib
 import glob
 import hmac
 import hashlib
+import shutil
 import base64
 import urllib
 import urllib.request
@@ -755,7 +756,15 @@ if resultsResponseDict['status'] != 200:
   jobAborted(resultsResponseDict['status'], 'record_results', '')
 
 # Create a logs.tgz file and upload with rucio
-# At the very least jobscript.log will be there
+# At the very least jobscript.log and ClassAds logs will be there
+try:
+  shutil.copyfile(os.environ['_CONDOR_JOB_AD'],
+                  justinWorkdir + '/home/workspace/condor.job.ad.log')
+  shutil.copyfile(os.environ['_CONDOR_MACHINE_AD'],
+                  justinWorkdir + '/home/workspace/condor.machine.ad.log')
+except:
+  pass
+
 tgzName = jobsubJobID.replace('@','-') + '.logs.tgz'
 try:
   ret = os.system('cd home/workspace ; tar zcf ../../%s *.log' % tgzName)

@@ -50,6 +50,7 @@ mysqlDbName     = None
 cilogonClientID     = None
 cilogonSecret       = None
 wlcgGroups          = None
+justinAdmins        = None
 rucioProductionUser = None
 
 agentUsername   = None
@@ -71,6 +72,11 @@ rseDisksExpression = 'istape=False\\decommissioned=True'
 unixEpoch = '1970-01-01 00:00:00'
 
 unseenSitesExpireDays = 7
+
+# Fraction of all GlideIns/pilots that assign rank 101 to non-justIN jobs
+# justIN jobs get 1-100. If non-justIN does not get 101, it gets 0.
+# Set in configuration, default 0.5
+nonJustinFraction = None
 
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
                       'jobscript_error', 'outputting_failed' ]
@@ -222,7 +228,8 @@ eventTypes = {
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
-         proDev, wlcgGroups, rucioProductionUser
+         proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
+         nonJustinFraction
 
   parser = configparser.RawConfigParser()
 
@@ -285,6 +292,16 @@ def readConf():
     wlcgGroups = []
 
   try:
+    a = parser.get('users','justin_admins').strip()
+    justinAdmins = []
+    for a in a.split():
+      if not stringIsUsername(a):
+        raise 
+      justinAdmins.append(a.strip().lower())
+  except:
+    justinAdmins = []
+
+  try:
     rucioProductionUser = parser.get('users','rucio_production_user').strip()
   except:
     rucioProductionUser = 'dunepro'
@@ -300,6 +317,12 @@ def readConf():
     proDev = parser.get('agents','pro_dev').strip()
   except:
     proDev = 'pro'
+
+  try:
+    nonJustinFraction = float(
+                         parser.get('agents','non_justin_fraction').strip())
+  except:
+    nonJustinFraction = 0.5
 
 # Try to find the text of a jobscript from the Jobscripts Library 
 # given a JSID
