@@ -142,16 +142,20 @@ def submitJobs(numberToSubmit,
   # Add any user defined ClassAds for this stage 
   # but justIN's ClassAds go second so they cannot be ovewridden.
   for (name, value) in classads:
-    submitFile += '+%s = "%s"' % (name, value)
+    submitFile += '+%s = "%s"\n' % (name, value)
 
-  if workflowID != justin.awtWorkflowID:
-    # Only include stage ClassAd if not an AWT job
-    submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"' 
-                   % justin.proDev.upper(), workflowID, stageID)
+  if workflowID == justin.awtWorkflowID:
+    # Flag justIN AWT jobs
+    submitFile += '+JUSTIN_%s_AWT = True\n' % justin.proDev.upper()
+  else:
+    # Only include stage and entries ClassAds if not an AWT job
+    submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"\n' 
+                   '+Desired_Entries = "%s"\n'
+                   % (justin.proDev.upper(), 
+                      workflowID, stageID, desiredEntryNames))
 
   submitFile += """
 +Desired_Sites          = "%s"
-+Desired_Entries        = "%s"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
@@ -182,7 +186,6 @@ when_to_transfer_output = ON_EXIT_OR_EVICT
 requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (%sstringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
 queue %d
 """ % (desiredSiteNames, 
-       desiredEntryNames, 
        requestedWallSeconds,
        wrapperFile.name,
        accountingGroup,

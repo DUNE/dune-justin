@@ -78,6 +78,10 @@ unseenSitesExpireDays = 7
 # Set in configuration, default 0.5
 nonJustinFraction = None
 
+# Timeout is when to update cached ranks; Stale is when to remove from Finder
+sitesRankCacheTimeout = 300
+sitesRankCacheStale   = 3600
+
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
                       'jobscript_error', 'outputting_failed' ]
 

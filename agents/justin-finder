@@ -983,7 +983,18 @@ def findTokensToRefresh():
       
     else:
       logLine('Tokens refreshed for %s' % row['principal_name'])
-      
+
+# Remove stale values from caches
+def manageCaches():
+
+  # Remove stale rank cache entries
+  try:
+    justin.insertUdpdate('DELETE FROM sites_rank_cache '
+                       'WHERE cache_time < DATE_SUB(NOW(),INTERVAL %d SECOND)'
+                       % justin.sitesRankCacheStale)
+  except:
+    pass
+            
 def oneCycle():
 
   findTokensToRefresh()
@@ -992,6 +1003,7 @@ def oneCycle():
   findReplicas()
   findFinishedWorkflows()
   findStalledAbortedJobs()
+  manageCaches()
 
 #
 # PROGRAM MAIN

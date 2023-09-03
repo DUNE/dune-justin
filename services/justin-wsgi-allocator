@@ -37,7 +37,7 @@ import M2Crypto
 
 import justin
 
-sitesRanksCacheTimeout = 300
+#sitesRankCacheTimeout = 300
 
 def httpError(startResponse, code, message):
 
@@ -195,12 +195,12 @@ def getClassadsCall(startResponse, environ):
 
   if row is None:
     rankText     = None
-    cacheSeconds = sitesRanksCacheTimeout + 1
+    cacheSeconds = justin.sitesRankCacheTimeout + 1
   else:
     rankText     = row['rank_text']
     cacheSeconds = row['seconds']
 
-  if cacheSeconds > sitesRanksCacheTimeout:
+  if cacheSeconds > justin.sitesRankCacheTimeout:
     try:
       getCacheLock('justin_allocator_ranks_cache', 0)
     except:
