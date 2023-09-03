@@ -178,9 +178,20 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `checking` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `finished` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `archived` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `mql` text NOT NULL,
   PRIMARY KEY (`workflow_id`),
   INDEX `state` (`state`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `archived_workflows` (
+  `archived_row_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `row_name` varchar(255) NOT NULL,
+  `row_value` text NOT NULL,
+  PRIMARY KEY (`achived_row_id`),
+  INDEX `workflow_id` (`workflow_id`,`archived_row_id`),
+  INDEX `row_name` (`row_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `entries` (
