@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS `sites_storages` (
 CREATE TABLE IF NOT EXISTS `stages` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
-  `stage_rank` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `stage_priority` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL,
   `jobscript_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
@@ -287,10 +287,10 @@ CREATE TABLE IF NOT EXISTS `stages_classads` (
 
 CREATE TABLE IF NOT EXISTS `sites_ranks_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
-  `job_had_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
   `rank_text` text NOT NULL DEFAULT '',
   `cache_time` datetime NOT NULL,
-  UNIQUE KEY `multiple` (`site_id`,`job_had_inner_apptainer`)
+  `query_seconds` float NOT NULL DEFAULT 0,
+  UNIQUE KEY `site_id` (`site_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `sites_files_cache` (

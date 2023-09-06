@@ -74,9 +74,10 @@ def httpOK(startResponse, outputString):
   return [outputString.encode('UTF-8')]
 
 # Work out an ordered list of stages suited to this entry
-def updateSitesRankCache(siteName, hasInnerApptainer):
+def updateSitesRankCache(siteName):
 
-  startTime = int(time.time())
+  # We use this to time queries
+  startTime = time.time()
 
   try:
     siteRow = justin.select('SELECT site_id FROM sites '
@@ -91,39 +92,33 @@ def updateSitesRankCache(siteName, hasInnerApptainer):
     print('updateSitesRankCache() empty site query', file=sys.stderr)
     return None
 
-  if hasInnerApptainer:
-    # Has Inner Apptainer so any type of workflow ok
-    apptJoins  = ''
-    apptWheres = ''
-  else:
-    # Does not have Inner Apptainer so only workflows run as /dune/production
-    apptJoins  = ('LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
-                  'LEFT JOIN wlcg_groups '
-                  'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id ')
-    apptWheres = 'AND wlcg_group_name="/dune/production" '
-
   try:
-    justin.insertUpdate('SET @score=1')
-
+    # for the nearest 10 unprocessed files for each stage, calculate the
+    # the average distance, and return that distance for the nearest,
+    # highest priority,oldest stages
     query = (
-      'SELECT ws,SUM(runningScore) AS sumScore FROM '
-      '(SELECT (@score := @score + 0.001) AS runningScore,'
-      'CONCAT("w",workflows.workflow_id,"s",stages.stage_id) AS ws '
-      'FROM workflows %s '
+      'SELECT stages.stage_priority,'
+      'CONCAT("w",workflows.workflow_id,"s",stages.stage_id) AS ws,'
+        '(SELECT AVG(sites_storages.distance) '
+        'FROM files '
+        'LEFT JOIN replicas ON replicas.file_id=files.file_id '
+        'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
+        'AND sites_storages.site_id=%d '
+        'WHERE files.state="unallocated" '
+        'AND files.workflow_id=stages.workflow_id '
+        'AND files.stage_id=stages.stage_id '
+        'AND sites_storages.distance IS NOT NULL '
+        'AND sites_storages.distance <= stages.max_distance '
+        'ORDER BY sites_storages.distance '
+        'LIMIT 10) AS avg_distance '
+      'FROM workflows '
       'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
-      'LEFT JOIN files ON files.workflow_id=stages.workflow_id '
-      'AND files.stage_id=files.stage_id '
-      'LEFT JOIN replicas ON replicas.file_id=files.file_id '
-      'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
-      'AND sites_storages.site_id=%d '
       'WHERE workflows.workflow_id<>%d '
-      'AND workflows.state="running" %s '
-      'AND files.state="unallocated" '
-      'AND sites_storages.distance <= stages.max_distance '
-      'ORDER BY stages.stage_rank DESC,sites_storages.distance,'
-      'files.file_id LIMIT 1000) AS sub '
-      'GROUP BY ws ORDER BY sumScore DESC LIMIT 100'
-      % (justin.awtWorkflowID, apptJoins, siteRow['site_id'], apptWheres))
+      'AND workflows.state="running" '
+      'AND stages.stage_priority IS NOT NULL '
+      'ORDER BY avg_distance,stages.stage_priority DESC,'
+      'workflows.workflow_id LIMIT 100'
+      % (siteRow['site_id'], justin.awtWorkflowID))
 
     print('updateSitesRankCache() query: ' + query, file=sys.stderr)
     stages = justin.select(query)
@@ -132,22 +127,22 @@ def updateSitesRankCache(siteName, hasInnerApptainer):
     print('updateSitesRankCache() fails: ' + str(e), file=sys.stderr)
     return None
 
-  if len(stages) == 0:
-    print('updateSitesRankCache() no matches found', file=sys.stderr)
-    return None
-
-  listRank = 100
   ranks = []
   for stage in stages:
-    ranks.append('%s=%d' % (stage['ws'], listRank))
-    listRank -= 1
+    # the rank of each stage is 100-distance as the integer plus the 
+    # priority/100 where priority is 1-99 as the fraction. these ranks are
+    # used unmodified as HTCondor ranks with higher being higher priority
+    if stage['avg_distance'] is not None:
+      ranks.append('%s=%.2f' %
+          (stage['ws'], 
+           100.0 - int(stage['avg_distance']) + stage['stage_priority']/100.0))
 
   rankText = '[' + ';'.join(ranks) + ']'
 
   try:
-    justin.insertUpdate('REPLACE INTO sites_ranks_cache SET '
-       'site_id=%d,job_had_inner_apptainer=%s,rank_text="%s",cache_time=NOW()'
-       % (siteRow['site_id'], hasInnerApptainer, rankText))
+    justin.insertUpdate('REPLACE INTO sites_ranks_cache '
+       'SET site_id=%d,rank_text="%s",cache_time=NOW(),query_seconds=%f'
+       % (siteRow['site_id'], rankText, time.time() - startTime))
   except Exception as e:
     print('updateSitesRankCache() REPLACE fails: ' + str(e), file=sys.stderr)
     return None
@@ -175,6 +170,7 @@ def getClassadsCall(startResponse, environ):
     raise RuntimeError('Quotes in siteName')
 
   try:
+    # This is only used to create a ClassAd, not in the caching
     i = inputString.rindex('HAS_INNER_APPTAINER=')
     hasInnerApptainer = bool(inputString[i+20:].split('\n')[0])
   except Exception as e:
@@ -187,14 +183,13 @@ def getClassadsCall(startResponse, environ):
                         'sites.site_id FROM sites '
                         'LEFT JOIN sites_ranks_cache '
                         'ON sites_ranks_cache.site_id=sites.site_id '
-                        'WHERE sites.site_name="%s" '
-                        'AND job_had_inner_apptainer=%s'
-                        % (siteName, hasInnerApptainer), justOne = True)
+                        'WHERE sites.site_name="%s" AND cache_time IS NOT NULL'
+                        % siteName, justOne = True)
   except Exception as e:
     return httpError(startResponse, '404 Not Found', 'Not Found: ' + str(e))
 
   if row is None:
-    rankText     = None
+    rankText     = '[]'
     cacheSeconds = justin.sitesRankCacheTimeout + 1
   else:
     rankText     = row['rank_text']
@@ -206,18 +201,21 @@ def getClassadsCall(startResponse, environ):
     except:
       pass
     else:
-      rankText = updateSitesRankCache(siteName, hasInnerApptainer)
+      rankText = updateSitesRankCache(siteName)
       releaseCacheLock('justin_allocator_ranks_cache')
 
-  if rankText:
-    if justin.proDev == 'dev':
-      justinRank = ('isUndefined(Target.JUSTIN_DEV_Stage)'
+  if justin.proDev == 'dev':
+    justinRank = ('isUndefined(Target.JUSTIN_DEV_Stage)'
                     '?My.JUSTIN_PRO_Rank:My.JUSTIN_DEV_Rank')
-    else:
-      justinRank = 'My.JUSTIN_PRO_Rank'
+  else:
+    justinRank = 'My.JUSTIN_PRO_Rank'
 
-    proDevUpper = justin.proDev.upper()
-    return httpOK(startResponse, 
+  # Return ClassAds to be published by the pilot/glidein
+  # Non-justIN jobs get rank 0 or 101
+  # If a justIN job has a stage not listed in the rankText dictionary
+  # then it gets rank Undefined which equals 0
+  proDevUpper = justin.proDev.upper()
+  return httpOK(startResponse, 
            "JUSTIN_%s_ClassAds_Time %d\n"
            "JUSTIN_%s_Stage_Ranks_Raw %s\n"
            "JUSTIN_%s_Stage_Ranks "
@@ -237,8 +235,6 @@ def getClassadsCall(startResponse, environ):
                    proDevUpper, proDevUpper,
                  justinRank)
                 )
-  else:
-    return httpError(startResponse, '404 Not Found', 'Not Found')
 
 # Return information about the job from the jobsubID
 def makeJobDict(jsonDict, jobscriptSecret = None):

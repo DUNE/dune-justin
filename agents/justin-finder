@@ -272,7 +272,7 @@ def findReplicas():
     'stages.stage_id=files.stage_id '
     'WHERE workflows.state="running" AND files.state="finding" '
     'GROUP BY workflows.workflow_id,stages.stage_id '
-    'ORDER BY stage_rank DESC,RAND() LIMIT 1')
+    'ORDER BY stage_priority DESC,RAND() LIMIT 1')
 
   try:
     stageRow = justin.select(query, justOne = True)
@@ -984,17 +984,23 @@ def findTokensToRefresh():
     else:
       logLine('Tokens refreshed for %s' % row['principal_name'])
 
+  # All ok, so commit it all to the DB
+  justin.conn.commit()
+
 # Remove stale values from caches
 def manageCaches():
 
   # Remove stale rank cache entries
   try:
-    justin.insertUdpdate('DELETE FROM sites_rank_cache '
-                       'WHERE cache_time < DATE_SUB(NOW(),INTERVAL %d SECOND)'
-                       % justin.sitesRankCacheStale)
-  except:
-    pass
+    justin.insertUpdate('DELETE FROM sites_ranks_cache '
+                        'WHERE cache_time < DATE_SUB(NOW(),INTERVAL %d SECOND)'
+                        % justin.sitesRankCacheStale)
+  except Exception as e:
+    logLine('Delete stale sites rank cache rows fails: ' + str(e))
             
+  # All ok, so commit it all to the DB
+  justin.conn.commit()
+
 def oneCycle():
 
   findTokensToRefresh()

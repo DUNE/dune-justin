@@ -753,7 +753,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
   try:
     justin.insertUpdate("INSERT INTO stages SET "
-                        "stage_rank=0,"
+                        "stage_priority=50,"
                         "workflow_id=%d,"
                         "stage_id=%d,"
                         "jobscript_id=%d,"

@@ -1167,7 +1167,7 @@ def showStage(environ, user, cgiValues):
   output += '<!-- %s -->\n' % str(time.time())
 
   query = ("SELECT "
-           "stages.stage_rank,"
+           "stages.stage_priority,"
            "stages.processors,"
            "stages.wall_seconds,"
            "stages.rss_bytes,"
@@ -1206,8 +1206,8 @@ def showStage(environ, user, cgiValues):
   
   output += '<table>'
 
-  output += ('<tr><td>Rank</td>'
-        '<td>%d</td></tr>' % stageRow["stage_rank"])
+  output += ('<tr><td>Priority</td>'
+        '<td>%d</td></tr>' % stageRow["stage_priority"])
 
   output += ('<tr><td>Processors</td>'
         '<td>%s</td></tr>' % stageRow["processors"])
