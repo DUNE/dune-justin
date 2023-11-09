@@ -164,12 +164,11 @@ environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.h
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
 max_retries             = 0
 retry_until             = True
+on_exit_remove          = True
 notification            = Never
 executable              = %s
 arguments               = 
 accounting_group        = %s
-#accounting_group        = group_dune.prod_mcsim
-#accounting_group        = group_dune.prod_keepup
 accounting_group_user   = %s
 rank                    = 1
 job_lease_duration      = 3600
@@ -301,7 +300,7 @@ def workflowJobs():
      'ON condor_groups.condor_group_id=scopes.condor_group_id '
      'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
      'ORDER BY workflows.workflow_id'
-     % justin.awtWorkflowID
+     % justin.awtWorkflowID, showQuery = False
                               )
   
   except Exception as e:
@@ -321,20 +320,23 @@ def workflowJobs():
                              stageRow['stage_id']), justOne = True)
    
       unallocatedCount = int(row['count'])
-    except:
-      unallocatedCount = 0
+    except Exception as e:
+      logLine('Failed to get unallocated count: ' + str(e))
+      continue
 
     # Count submitted jobs for this stage    
     try:
       row = justin.select('SELECT COUNT(*) AS count FROM jobs '
                           'WHERE workflow_id=%d AND stage_id=%d AND '
                           'job_state="submitted" AND '
-                          'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY)',
-                          justOne = True)
+                          'submitted_time > DATE_SUB(NOW(),INTERVAL 1 DAY)'
+                          % (stageRow['workflow_id'],
+                             stageRow['stage_id']), justOne = True)
    
       submittedCount = int(row['count'])
-    except:
-      submittedCount = 0
+    except Exception as e:
+      logLine('Failed to get submitted count: ' + str(e))
+      continue
 
     logLine('unallocatedCount=%d  submittedCount=%d  maxSubmitted=%d' 
             % (unallocatedCount, submittedCount, maxSubmitted))
@@ -343,7 +345,7 @@ def workflowJobs():
       # Need to submit more jobs: find suitable entries and sites
       try:
         entriesRows = justin.select(
-   "SELECT entries.entry_name,sites.site_name "
+   "SELECT DISTINCT entries.entry_name,sites.site_name "
    "FROM files "
    "LEFT JOIN replicas ON files.file_id=replicas.file_id "
    "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
@@ -359,9 +361,9 @@ def workflowJobs():
    "AND storages.justin_read "
    "AND NOT storages.decommissioned "
    "AND sites.site_id IS NOT NULL "
+   "AND sites.enabled "
    "%s "
    "ORDER BY sites_storages.distance,files.file_id "
-   "LIMIT 1000 "
          % (stageRow['max_distance'],
             stageRow['workflow_id'],
             stageRow['stage_id'],            
@@ -386,14 +388,13 @@ def workflowJobs():
         desiredSites.add(  entryRow['site_name'])
         desiredEntries.add(entryRow['entry_name'])
 
-      if desiredSites and desiredEntries \
-         and (unallocatedCount > submittedCount):
+      if desiredSites and desiredEntries:
         desiredSiteNames  = ','.join(desiredSites)
         desiredEntryNames = ','.join(desiredEntries)
 
         numberToSubmit = unallocatedCount - submittedCount
         if numberToSubmit > jobsPerCluster:
-         numberToSubmit = jobsPerCluster
+          numberToSubmit = jobsPerCluster
 
         logLine('Submit %d jobs with desired sites: %s'
                % (numberToSubmit, desiredSiteNames))

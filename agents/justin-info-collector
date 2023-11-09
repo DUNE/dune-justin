@@ -478,7 +478,7 @@ def updateSites():
                'max_wall_seconds=%d,'
                'country="%s",'
                'region="%s",'
-               'last_seen_time=NOW() '
+               'last_osg_seen_time=NOW() '
                % (siteName, 
                   sitesDict[siteName]['jobsub_site_name'], 
                   sitesDict[siteName]['wlcg_site_name'],
@@ -506,7 +506,7 @@ def updateSites():
                'max_wall_seconds=%d,'
                'country="%s",'
                'region="%s",'
-               'last_seen_time=NOW() '
+               'last_osg_seen_time=NOW() '
                'WHERE site_name="%s"'
                % (sitesDict[siteName]['jobsub_site_name'],
                   sitesDict[siteName]['wlcg_site_name'],
@@ -533,7 +533,7 @@ def updateSites():
                    'max_processors=%d,'
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
-                   'last_seen_time=NOW() '
+                   'last_osg_seen_time=NOW() '
                    % (entryDict['entry_name'], 
                       entryDict['gatekeeper'],
                       justinSiteIDs[siteName],
@@ -557,7 +557,7 @@ def updateSites():
                    'max_processors=%d,'
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
-                   'last_seen_time=NOW() '
+                   'last_osg_seen_time=NOW() '
                    'WHERE entry_name="%s"'
                    % (entryDict['gatekeeper'],
                       justinSiteIDs[siteName],
@@ -591,28 +591,37 @@ def updateSitesStorages():
   justin.cur.execute('SELECT site_id,site_name,country,region FROM sites')
   siteRows = justin.cur.fetchall()
   
-  justin.cur.execute('SELECT rse_id,rse_name,storages.country,'
-                     'storages.region,site_name FROM storages '
-                     'LEFT JOIN sites '
-                     'ON sites.site_id=storages.site_id')
-  storageRows = justin.cur.fetchall()
-  
   for siteRow in siteRows:
+    justin.cur.execute('SELECT storages.rse_id,storages.rse_name,'
+                       'storages.country,storages.region,'
+                       'sites.site_name AS rse_site_name,'
+                       'sites_storages.rse_id AS sites_storages_rse_id '
+                       'FROM storages '
+                       'LEFT JOIN sites '
+                       'ON sites.site_id=storages.site_id '
+                       'LEFT JOIN sites_storages '
+                       'ON sites_storages.rse_id=storages.rse_id '
+                       'AND sites_storages.site_id=%d' 
+                       % siteRow['site_id'])
+    storageRows = justin.cur.fetchall()
+  
     for storageRow in storageRows:
 
+      logLine(str(storageRow))
+  
       sitePrefix = siteRow['site_name'].split('-')[0]
-      if storageRow['site_name']:
-        rseSitePrefix = storageRow['site_name'].split('-')[0]
+      if storageRow['rse_site_name']:
+        rseSitePrefix = storageRow['rse_site_name'].split('-')[0]
       else:
         rseSitePrefix = ''
     
-      if siteRow['site_name'] == storageRow['site_name'] \
+      if siteRow['site_name'] == storageRow['rse_site_name'] \
          or storageRow['rse_id'] == justin.MonteCarloRseID:
         # RSEs at sites and MC counter files have zero distance
         distance = 0
       elif siteRow['site_name'].startswith('US_FNAL') \
-        and storageRow['site_name'] \
-        and storageRow['site_name'].startswith('US_FNAL'):
+        and storageRow['rse_site_name'] \
+        and storageRow['rse_site_name'].startswith('US_FNAL'):
         # Everything Fermilab at zero distance to get internal Rucio config
         distance = 0
       elif sitePrefix and rseSitePrefix \
@@ -627,16 +636,29 @@ def updateSitesStorages():
            siteRow['region'] == storageRow['region']:
         # Same region, so distance 30
         distance = 30
-      elif storageRow['site_name'] in ['CERN', 'US_FNAL-FermiGrid']:
+      elif storageRow['rse_site_name'] in ['CERN', 'US_FNAL-FermiGrid']:
         # Catchall if RSE at CERN/FNAL then 90
         distance = 90
       else:
         # Catchall if nothing chosen above.
         distance = 100
 
-      justin.insertUpdate('REPLACE sites_storages SET '
-               'distance=%d,site_id=%d,rse_id=%d'
-               % (distance, siteRow['site_id'], storageRow['rse_id']))
+      if storageRow['sites_storages_rse_id'] is None:
+        # Not there yet, so insert
+        try:
+          justin.insertUpdate('INSERT INTO sites_storages SET '
+                              'distance=%d,site_id=%d,rse_id=%d'
+                   % (distance, siteRow['site_id'], storageRow['rse_id']))
+        except Exception as e:
+          logLine('INSERT fails with ' + str(e))
+      else:
+        # Already have a value, so update
+        try:
+          justin.insertUpdate('UPDATE sites_storages SET '
+                             'distance=%d WHERE site_id=%d AND rse_id=%d'
+                   % (distance, siteRow['site_id'], storageRow['rse_id']))
+        except Exception as e:
+          logLine('UPDATE fails with ' + str(e))
               
   justin.conn.commit()
 

@@ -488,7 +488,10 @@ def logEvent(eventTypeID = event_UNDEFINED,
   except Exception as e:
     return 'Error logging event: ' + str(e)
 
-def select(query, justOne = False, tries = 10):
+def select(query, justOne = False, tries = 10, showQuery = False):
+
+  if showQuery:
+    print('Query: ' + str(query), file=sys.stderr)
 
   for tryNumber in range(1, tries + 1):
 

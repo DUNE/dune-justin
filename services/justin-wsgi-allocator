@@ -1256,6 +1256,9 @@ def processOutputDids(outputDids, workflowID, stageID, justinJobID):
 
 def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
 
+# REMOVE prints FOR PRODUCTION
+  print('Start saveAwtResults', file=sys.stderr)
+
   for line in jobscriptLog.splitlines():
     if line.startswith('==awt== '):
       lineSplitted = line.split()
@@ -1365,6 +1368,8 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed saving job log: ' + str(e))
 
+#  print('Before call saveAwtResults %d %d' 
+#        % (workflowID, justin.awtWorkflowID), file=sys.stderr)
   if workflowID == justin.awtWorkflowID:
     saveAwtResults(justinJobID, 
                    siteID, 
