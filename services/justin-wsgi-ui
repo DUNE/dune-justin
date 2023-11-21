@@ -532,9 +532,9 @@ def createRequest(jsonDict, user, quick = False):
     scopeName = None
     scopeID   = 0
 
-  if 'refind_hours' in jsonDict and jsonDict['refind_hours']:
+  if 'refind_interval_hours' in jsonDict and jsonDict['refind_interval_hours']:
     try:
-      refindSeconds = int(jsonDict['refind_hours'] * 3600)
+      refindSeconds = int(jsonDict['refind_interval_hours']) * 3600
     except:
       return httpError(startResponse, 
                        '400 Bad Request', 
@@ -542,9 +542,9 @@ def createRequest(jsonDict, user, quick = False):
   else:
     refindSeconds = 0
 
-  if 'refind_start' in jsonDict and jsonDict['refind_start']:
+  if 'refind_start_date' in jsonDict and jsonDict['refind_start_date']:
     try:
-      yyyymmdd = str(int(jsonDict['refind_start']))
+      yyyymmdd = str(int(jsonDict['refind_start_date']))
       refindStart = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
                                            yyyymmdd[4:6], 
                                            yyyymmdd[6:8])
@@ -555,16 +555,16 @@ def createRequest(jsonDict, user, quick = False):
   else:
     refindStart = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
 
-  if 'refind_end' in jsonDict and jsonDict['refind_end']:
+  if 'refind_end_date' in jsonDict and jsonDict['refind_end_date']:
     try:
-      yyyymmdd = str(int(jsonDict['refind_end']))
+      yyyymmdd = str(int(jsonDict['refind_end_date']))
       refindEnd = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
                                          yyyymmdd[4:6], 
                                          yyyymmdd[6:8])
     except:
       return httpError(startResponse, 
                        '400 Bad Request', 
-                       '--refind-end requires a YYYYMMDD date')
+                       '--refind-end_date requires a YYYYMMDD date')
   else:
     refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
 

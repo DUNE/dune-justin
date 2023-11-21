@@ -115,9 +115,9 @@ parser.add_argument("--refind-start-date",
                     type = int,
                     help = "Refind start date")
 
-parser.add_argument("--refind-duration-days",
+parser.add_argument("--refind-end-date",
                     type = int,
-                    help = "Refind duration in days")
+                    help = "Refind end date")
 
 parser.add_argument("--refind-interval-hours",
                     type = int,

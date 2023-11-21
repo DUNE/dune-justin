@@ -160,69 +160,50 @@ def archiveOneStage(workflowID, stageID):
   else:
     scopeName = ''
   
-  output += ("<h1>Request %d, Stage %d</h1>" % (requestID, stageID))
-  
-  output += '<table>'
+  insertArchiveRow(workflowID, 'Stage %d: Rank' % stageID, 
+                   str(stageRow["stage_rank"]))
 
-  output += ('<tr><td>Rank</td>'
-        '<td>%d</td></tr>' % stageRow["stage_rank"])
+  insertArchiveRow(workflowID, 'Stage %d: Processors' % stageID, 
+                   str(stageRow["processors"]))
 
-  output += ('<tr><td>Processors</td>'
-        '<td>%s</td></tr>' % stageRow["processors"])
+  insertArchiveRow(workflowID, 'Stage %d: Wall seconds' % stageID, 
+                   str(stageRow["wall_seconds"]))
 
-  output += ('<tr><td>Wall seconds</td>'
-        '<td>%s</td></tr>' % stageRow["wall_seconds"])
+  insertArchiveRow(workflowID, 'Stage %d: RSS bytes' % stageID, 
+                   '%s (%d MB)' % (stageRow["rss_bytes"], 
+                                   int(stageRow["rss_bytes"]) / 1048576))
 
-  output += ('<tr><td>RSS bytes</td>'
-        '<td>%s (%d MB)</td></tr>' % 
-        (stageRow["rss_bytes"], 
-         int(stageRow["rss_bytes"]) / 1048576))
-
-  output += ('<tr><td>Max distance for inputs</td>'
-        '<td>%.1f</td></tr>' % stageRow["max_distance"])
-
-  output += ('<tr><td>Max files per job</td>'
-        '<td>%d</td></tr>' % stageRow["max_files_per_job"])
-
-  output += ('<tr><td>Output RSEs</td>'
-        '<td>')
+  insertArchiveRow(workflowID, 'Stage %d: Max distance for inputs' % stageID, 
+                   str(stageRow["max_distance"]))
         
+  # Output RSEs
   query = ("SELECT rse_name "
            "FROM stages_output_storages "
            "LEFT JOIN storages "
            "ON stages_output_storages.rse_id=storages.rse_id "
            "WHERE request_id=%d AND stage_id=%d "
            "ORDER BY rse_name" %
-           (requestID, stageID))
+           (workflowID, stageID))
 
-  output += '<!-- %s -->\n' % str(time.time())
-  justin.db.cur.execute(query)
-  rseRows = justin.db.cur.fetchall()
-  
+  rseRows = justin.select(query)
+
   if (len(rseRows) == 0):
-    output += ("(any)")
+    s = ("(any)")
   else:
+    s = ''
     for rseRow in rseRows:
-      output += ("%s " % rseRow['rse_name'])
+      s += ("%s " % rseRow['rse_name'])
         
-  output += ('</td></tr>')
-        
-  if stageRow["requests_scope_name"]:
-    output += ('<tr><td>Scope</td>'
-               '<td>%s</td></tr>' % stageRow["requests_scope_name"])
-
-  output += ('</table>')
+  insertArchiveRow(workflowID, 'Stage %d: Output RSEs' % stageID, s)
     
   # Output patterns
-
   query = ("SELECT destination,file_pattern,"
            "for_next_stage,lifetime_seconds "
            "FROM stages_outputs "
            "WHERE request_id=%d AND stage_id=%d "
            "ORDER BY destination,file_pattern" %
-           (requestID, stageID))
+           (workflowID, stageID))
 
-  output += '<!-- %s -->\n' % str(time.time())
   patternRows = justin.db.select(query)
 
   if patternRows:
@@ -248,7 +229,6 @@ def archiveOneStage(workflowID, stageID):
     output += ('</table>')
 
   # Environment
-
   query = ("SELECT env_name,env_value "
            "FROM stages_environment "
            "WHERE request_id=%d AND stage_id=%d "

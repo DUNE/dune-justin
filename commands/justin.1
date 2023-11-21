@@ -48,7 +48,7 @@ properly registered in justIN.
 Displays information about the current user identity and session.
 
 .HP
-.B "create-request [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] [--refind-interval-hours HOURS]"
+.B "create-request [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-start-date YYYYMMDD] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS]"
 .br
 Create a new, empty request in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
@@ -66,9 +66,9 @@ MQL expression to find the list of input files from MetaCat. If
 is given, the MQL query will be resubmitted at that interval to add any
 new matching files from the start of the day given by
 .B --refind-start-date
-(default: today in UTC) for the number of days given by
-.B --refind-duration-days
-(default: 1).
+(default: today in UTC) until the end of the day given by 
+.B --refind-end-date
+(default: today in UTC).
 
 .HP
 .B "show-requests [--request-id ID]"
@@ -197,7 +197,7 @@ jobscript is executed.
 .HP
 .B "quick-request [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
 .B [--scope SCOPE] 
-.B [--refind-start-date YYYYMMDD] [--refind-duration-days DAYS] 
+.B [--refind-start-date YYYYMMDD] [--refind-end-date YYYYMMDD] 
 .B [--refind-interval-hours HOURS] --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N]
 .B [--rss-mb N] [--processors N] [--max-distance DIST]

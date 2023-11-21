@@ -48,7 +48,7 @@ This man page is distributed along with the
     
            create-request [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-start-date YYYYMMDD]
-    	      [--refind-duration-days DAYS] [--refind-interval-hours HOURS]
+    	      [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS]
     	      Create a new, empty request in the database, optionally with the
     	      given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
@@ -64,8 +64,8 @@ This man page is distributed along with the
     	      list of input files from MetaCat. If --refind-interval-hours is
     	      given, the MQL query will be resubmitted at that interval to add
     	      any new matching files from the start of the day given by
-    	      --refind-start-date (default: today in UTC) for the number of
-    	      days given by --refind-duration-days (default: 1).
+    	      --refind-start-date (default: today in UTC) until the end of the
+    	      day given by --refind-end-date (default: today in UTC).
     
     
            show-requests [--request-id ID]
@@ -184,7 +184,7 @@ This man page is distributed along with the
     
            quick-request [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-start-date YYYYMMDD]
-    	      [--refind-duration-days DAYS] [--refind-interval-hours HOURS]
+    	      [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS]
     	      --jobscript FILENAME|--jobscript-id JSID [--wall-seconds N]
     	      [--rss-mb N] [--processors N] [--max-distance DIST]
     	      [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
