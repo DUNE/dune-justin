@@ -558,7 +558,7 @@ def createRequest(jsonDict, user, quick = False):
   if 'refind_end_date' in jsonDict and jsonDict['refind_end_date']:
     try:
       yyyymmdd = str(int(jsonDict['refind_end_date']))
-      refindEnd = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
+      refindEnd = '%s-%s-%s 23:59:59' % (yyyymmdd[0:4], 
                                          yyyymmdd[4:6], 
                                          yyyymmdd[6:8])
     except:
