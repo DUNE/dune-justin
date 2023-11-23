@@ -782,12 +782,11 @@ def createStage(jsonDict, user, quick = False, scopeName = None):
       jsid = None
 
     if not jsid:
-      return httpError(startResponse, '400 Bad Request',
-                       '--jobscript or --jobscript-id must by given')
+      return ('400 Bad Request', '--jobscript or --jobscript-id must by given')
     
     response = justin.lookupJobscript(jsid)
     if response['error']:
-      return httpError(startResponse, '400 Bad Request', response['error'])
+      return ('400 Bad Request', response['error'])
 
     jobscript   = response['jobscript']
     jobscriptID = response['jobscript_id']
