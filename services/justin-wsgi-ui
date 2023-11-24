@@ -543,18 +543,25 @@ def createRequest(jsonDict, user, quick = False):
     refindSeconds = 0
 
   if 'refind_start_date' in jsonDict and jsonDict['refind_start_date']:
+    # Set start and end if start is given
     try:
       yyyymmdd = str(int(jsonDict['refind_start_date']))
       refindStart = '%s-%s-%s 00:00:00' % (yyyymmdd[0:4], 
                                            yyyymmdd[4:6], 
                                            yyyymmdd[6:8])
+      refindEnd = '%s-%s-%s 23:59:59' % (yyyymmdd[0:4], 
+                                         yyyymmdd[4:6], 
+                                         yyyymmdd[6:8])
     except:
       return httpError(startResponse, 
                        '400 Bad Request', 
                        '--refind-start requires a YYYYMMDD date')
   else:
+    # Or use today as defaults
     refindStart = datetime.datetime.today().strftime('%Y-%m-%d 00:00:00')
+    refindEnd   = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
 
+  # Update end if end date is given explicitly
   if 'refind_end_date' in jsonDict and jsonDict['refind_end_date']:
     try:
       yyyymmdd = str(int(jsonDict['refind_end_date']))
@@ -565,8 +572,6 @@ def createRequest(jsonDict, user, quick = False):
       return httpError(startResponse, 
                        '400 Bad Request', 
                        '--refind-end_date requires a YYYYMMDD date')
-  else:
-    refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
 
   try:
     requestID = justin.db.insertUpdate('INSERT INTO requests SET created=NOW(),'
@@ -647,14 +652,20 @@ def modifyRequestCmds(startResponse, jsonDict, user):
                         'WHERE requests.request_id=%d' % requestID,
                         justOne = True)
 
-    requestUserID = int(row['user_id'])
-    requestState  = row['state']
-    wlcgGroupName = row['wlcg_group_name']
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'Database error: ' + str(e))
-  
+
+  try:
+    requestUserID = int(row['user_id'])
+    requestState  = row['state']
+    wlcgGroupName = row['wlcg_group_name']
+  except:
+    return httpError(startResponse,
+                     '404 Not found',
+                     'Request %d does not exist!' % requestID)
+      
   if requestUserID != user['user_id'] and \
      wlcgGroupName not in user['wlcg_groups']:
     return httpError(startResponse,
