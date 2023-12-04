@@ -1956,14 +1956,20 @@ def showJob(environ, user, cgiValues):
 
   inputFilesRows = justin.select(query)
 
-  query = ("SELECT file_did,files.stage_id FROM events "
-           "LEFT JOIN files ON events.file_id=files.file_id "
-           "WHERE events.justin_job_id=%d AND "
-           "(event_type_id=%d OR event_type_id=%d) "
-           "ORDER BY event_id" % 
-           (jobRow['justin_job_id'],
-            justin.db.event_FILE_CREATED,
-            justin.db.event_FILE_UPLOADED))
+# Old version using events to find output files
+#  query = ("SELECT file_did,files.stage_id FROM events "
+#           "LEFT JOIN files ON events.file_id=files.file_id "
+#           "WHERE events.justin_job_id=%d AND "
+#           "(event_type_id=%d OR event_type_id=%d) "
+#           "ORDER BY event_id" % 
+#           (jobRow['justin_job_id'],
+#            justin.db.event_FILE_CREATED,
+#            justin.db.event_FILE_UPLOADED))
+
+# New verison using files table
+  query = ("SELECT file_did,files.stage_id FROM files "
+           "WHERE creator_justin_job_id=%d AND state='output' "
+           "ORDER BY file_id" % jobRow['justin_job_id'])
 
   outputFilesRows = justin.select(query)
 
