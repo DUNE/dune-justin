@@ -264,6 +264,22 @@ def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
                
   return output
   
+def buttonHTML(user = None, key = None, name = None, value = None, 
+               label = None, nextURI = ''):
+
+  return ( '<form style="display:inline">'
+           '<input type="submit" value="%s" formmethod="post" '
+           'formaction="/dashboard/">'
+           '<input type="hidden" name="next_uri" value="%s">'
+           '<input type="hidden" name="justin_code" value="%s">'
+           '<input type="hidden" name="action_key" value="%s">'
+           '<input type="hidden" name="action_name" value="%s">'
+           '<input type="hidden" name="action_value" value="%s">'
+           '</form>'
+           % (label, nextURI, user['justin_code'], 
+              str(key), name, str(value)) 
+         )
+
 def mainPage(environ, user):
 
   output = header(environ, user, "justIN: Dashboard")
@@ -2557,8 +2573,20 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Seen in OSG config</td><td>%s</td></tr>'
              % siteRow['osg_date'])
 
-  output += ('<tr><td colspan="2">Enabled?</td><td>%s</td></tr>' 
+  output += ('<tr><td colspan="2">Enabled?</td><td>%s' 
         % bool(siteRow['enabled']))
+
+  if user and user['user_name'] in justin.justinAdmins:
+    output += ' ' + buttonHTML(user = user,
+                         nextURI = '/dashboard/?method=show-site&site_name=%s'
+                                    % siteName,
+                         label   = ('Disable' if bool(siteRow['enabled']) 
+                                    else 'Enable'),
+                         key     = siteRow['site_id'],
+                         name    = 'set_site_state', 
+                         value   = not bool(siteRow['enabled']))
+
+  output += '</td></tr>' 
 
   output += ('<tr><td colspan="2">Last submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])
@@ -2597,17 +2625,17 @@ def showSite(environ, user, cgiValues):
   output += ('<a href="/dashboard/?method=list-events&site_name=%s&'
              'awt_events=True">AWT</a></td></tr>' % siteName)
 
-  output += ('<tr><td colspan="2">External info</td><td><a '
-          'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
-          'CRIC</a> '
-        '<form method="post" style="display:inline" '
-          'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
-          '<input type="hidden" name="SearchString" value="%s">'
-          '<input type="submit" value="GOCDB"></form> '
-          '<a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%3Atitle+is%3Aissue+is%3Aopen">GitHub issues</a>'
-          '</td>'
-          '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name'], 
-                     siteRow['site_name']))
+#  output += ('<tr><td colspan="2">External info</td><td><a '
+#          'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
+#          'CRIC</a> '
+#        '<form method="post" style="display:inline" '
+#          'action="https://goc.egi.eu/portal/index.php?Page_Type=Search">'
+#          '<input type="hidden" name="SearchString" value="%s">'
+#          '<input type="submit" value="GOCDB"></form> '
+#          '<a href="https://github.com/DUNE/dist-comp/issues?q=%s+in%3Atitle+is%3Aissue+is%3Aopen">GitHub issues</a>'
+#          '</td>'
+#          '</tr>' % (siteRow['site_name'], siteRow['wlcg_site_name'], 
+#                     siteRow['site_name']))
 
   output += ("</table>")
 
@@ -2723,9 +2751,12 @@ def showUser(environ, user, cgiValues):
     return errorPage(environ, user, "Unknown user!")
 
   if user and user['user_name'] == userName:
-    output += ('<h2>Your current session</h2>\n<table>')
-  
-    output += ('<tr><td>User name</td><td>%s</td></tr>' 
+    output += ('<h2>Your current session</h2>\n')
+
+    if user['user_name'] in justin.justinAdmins:
+      output += '<p>You are a justIN admin</p>\n'
+
+    output += ('<table><tr><td>User name</td><td>%s</td></tr>' 
                % userName)
 
     output += ('<tr><td>Groups</td><td>%s</td></tr>' 
@@ -2784,15 +2815,39 @@ def showStorage(environ, user, cgiValues):
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
-  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justIN=%s)</td></tr>' 
+  if user and user['user_name'] in justin.justinAdmins:
+    readButtonHTML = ' ' + buttonHTML(user = user,
+                    nextURI = '/dashboard/?method=show-storage&rse_name=%s'
+                                    % rseName,
+                    label   = ('Disable' if bool(storageRow['justin_read']) 
+                               else 'Enable'),
+                    key     = storageRow['rse_id'],
+                    name    = 'set_storage_read_state', 
+                    value   = not bool(storageRow['justin_read']))
+
+    writeButtonHTML = ' ' + buttonHTML(user = user,
+                    nextURI = '/dashboard/?method=show-storage&rse_name=%s'
+                                    % rseName,
+                    label   = ('Disable' if bool(storageRow['justin_write']) 
+                               else 'Enable'),
+                    key     = storageRow['rse_id'],
+                    name    = 'set_storage_write_state', 
+                    value   = not bool(storageRow['justin_write']))
+  else:
+    readButtonHTML  = ''
+    writeButtonHTML = ''
+
+  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justIN=%s%s)</td></tr>' 
         % (bool(storageRow['has_read']), 
            bool(storageRow['rucio_read']), 
-           bool(storageRow['justin_read'])))
+           bool(storageRow['justin_read']),
+           readButtonHTML))
 
-  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justIN=%s)</td></tr>' 
+  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justIN=%s%s)</td></tr>' 
         % (bool(storageRow['has_write']), 
            bool(storageRow['rucio_write']), 
-           bool(storageRow['justin_write'])))
+           bool(storageRow['justin_write']),
+           writeButtonHTML))
 
   output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
         % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
@@ -3295,6 +3350,117 @@ def docsPage(startResponse, environ, user):
 
   startResponseOK(startResponse, output)
   return output
+
+def setSiteStateHandler(cgiValues, user):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    siteID   = int(cgiValues['action_key'])
+    newState = True if (cgiValues['action_value'] == 'True') else False
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  try:
+    justin.insertUpdate('UPDATE sites SET enabled=%s WHERE site_id=%d' 
+                        % (newState, siteID))
+    justin.db.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+
+  else:
+    return ('302 Moved', '')
+
+
+def setStorageStateHandler(cgiValues, user, readWrite):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    rseID = int(cgiValues['action_key'])
+    newState  = True if (cgiValues['action_value'] == 'True') else False
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  try:
+    justin.insertUpdate('UPDATE storages SET justin_%s=%s WHERE rse_id=%d' 
+                        % ('read' if (readWrite == 'read') else 'write',
+                           newState, 
+                           rseID))
+    justin.db.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+
+  else:
+    return ('302 Moved', '')
+
+# Get POST data and then a big switch to direct it to the right handler
+def postHandlers(startResponse, environ, user):
+
+  httpStatus = None
+  message    = ''
+  nextURI    = '/'
+  cgiValues  = {}
+
+  if user is None:
+    httpStatus = '403 Forbidden'
+    message    = 'You need to login'
+
+  else:
+    try:
+      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+      inputString = environ['wsgi.input'].read(inputLength)
+      rawValues = urllib.parse.parse_qs(inputString)
+      for i in rawValues:
+        cgiValues[i.decode()] = rawValues[i][0].decode()
+
+      if 'next_uri' in cgiValues:
+        nextURI = cgiValues['next_uri']
+
+    except Exception as e:
+      httpStatus = '400 Bad Request'
+      message    = 'Failed to read and parse post data: ' + str(e)
+
+    else:
+      if 'justin_code' not in cgiValues or \
+         cgiValues['justin_code'] != user['justin_code']:
+        httpStatus = '403 Forbidden'
+        message    = 'Inconsistent session/code'
+
+      elif 'action_name' not in cgiValues:
+        httpStatus = '400 Bad Request'
+        message    = 'Malformed request'
+
+      elif cgiValues['action_name'] == 'set_site_state':
+        (httpStatus, message) = setSiteStateHandler(cgiValues, user)
+
+      elif cgiValues['action_name'] == 'set_storage_read_state':
+        (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'read')
+
+      elif cgiValues['action_name'] == 'set_storage_write_state':
+        (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'write')
+
+  if httpStatus is None:
+    httpStatus = '400 Bad Request'
+    message    = 'Action not recognised'
+
+
+  # This is success
+  if httpStatus.startswith('302 '):
+    startResponse(httpStatus, [('Location',       nextURI),
+                               ('Content-length', '0')
+                              ])
+    return ''
+
+  # Everything else is some form of error
+  output = errorPage(environ, user, message)
+  startResponse(httpStatus, [('Content-type',   'text/html'),
+                             ('Content-length', str(len(output)))
+                            ])
+  return output
+
  
 #
 # Entry point from mod_wsgi
@@ -3344,6 +3510,11 @@ def application(environ, startResponse):
 
   user = getUser(environ)
 
+  if environ['REQUEST_URI'] == '/dashboard/' and \
+     environ['REQUEST_METHOD'] == 'POST':
+    output = postHandlers(startResponse, environ, user)
+    return [output.encode('UTF-8')]
+
   if environ['REQUEST_URI'].startswith('/wrapperlogs/'):
     output = outputWrapperLog(startResponse, environ, user)
     return [output.encode('UTF-8')]
@@ -3360,19 +3531,6 @@ def application(environ, startResponse):
       cgiValues[str(i)] = str(rawValues[i][0])
   except:
     pass # Use defaults: produces a method error page at the end
-
-# NOT CURRENTLY USED - WILL BE NEEDED FOR UPLOADS
-#  if environ['REQUEST_METHOD'] == 'POST':
-#    try:
-#      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-#      inputString = environ['wsgi.input'].read(inputLength)
-#      rawValues = urllib.parse.parse_qs(inputString)
-#      for i in rawValues:
-#        cgiValues[i.decode()] = rawValues[i][0].decode()
-#    except Exception as e:
-#      return httpError(startResponse,
-#                       '400 Bad Request', 
-#                       'Failed to read and parse post data')
 
   try:
     method = cgiValues['method']

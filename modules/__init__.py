@@ -20,3 +20,5 @@ from justin.db             import *
 from justin.allocator      import *
 
 __all__ = [ 'justin_version', 'conf', 'db', 'allocator' ]
+
+justinAdmins = [ ]
