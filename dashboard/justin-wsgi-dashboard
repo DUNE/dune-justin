@@ -266,7 +266,21 @@ def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
                (pageNumber + 1, pageLength))
                
   return output
-  
+
+def buttonHTML(user = None, name = None, value = None, 
+               label = None, nextURI = ''):
+
+  return ( '<form style="display:inline">'
+           '<input type="submit" value="%s" formmethod="post" '
+           'formaction="/dashboard/">'
+           '<input type="hidden" name="next_uri" value="%s">'
+           '<input type="hidden" name="justin_code" value="%s">'
+           '<input type="hidden" name="action_name" value="%s">'
+           '<input type="hidden" name="action_value" value="%s">'
+           '</form>'
+           % (label, nextURI, user['justin_code'], name, str(value)) 
+         )
+
 def mainPage(environ, user):
 
   output = header(environ, user, "justIN: Dashboard")
@@ -2570,8 +2584,19 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Seen in OSG config</td><td>%s</td></tr>'
              % siteRow['osg_date'])
 
-  output += ('<tr><td colspan="2">Enabled?</td><td>%s</td></tr>' 
+  output += ('<tr><td colspan="2">Enabled?</td><td>%s'
         % bool(siteRow['enabled']))
+
+  if user and user['user_name'] in justin.justinAdmins:
+    output += ' ' + buttonHTML(user = user,
+                         nextURI = '/dashboard/?method=show-site&site_name=%s'
+                                    % siteName,
+                         label   = ('Disable' if bool(siteRow['enabled']) 
+                                    else 'Enable'),
+                         name    = "set_site_state", 
+                         value   = not bool(siteRow['enabled']))
+
+  output += '</td></tr>' 
 
   output += ('<tr><td colspan="2">Last submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])
@@ -2786,9 +2811,12 @@ def showUser(environ, user, cgiValues):
     return errorPage(environ, user, "Unknown user!")
 
   if user and user['user_name'] == userName:
-    output += ('<h2>Your current session</h2>\n<table>')
-  
-    output += ('<tr><td>User name</td><td>%s</td></tr>' 
+    output += ('<h2>Your current session</h2>\n')
+
+    if user['user_name'] in justin.justinAdmins:
+      output += '<p>You are a justIN admin</p>\n'
+
+    output += ('<table><tr><td>User name</td><td>%s</td></tr>' 
                % userName)
 
     output += ('<tr><td>Groups</td><td>%s</td></tr>' 
@@ -3366,7 +3394,53 @@ def docsPage(startResponse, environ, user):
 
   startResponseOK(startResponse, output)
   return output
- 
+
+def setSiteStateHandler(startResponse, cgiValues, user):
+  output = str(cgiValues)
+  startResponse('200 OK',
+     [('Content-type',   'text/html'),
+      ('Content-length', str(len(output)))
+     ])
+
+  return output
+
+# Get POST data and then a big switch to direct it to the right handler
+def postHandlers(startResponse, environ, user):
+
+  if user is None:
+    return httpError(startResponse,
+                     '403 Not authorized', 
+                     'You need to login')
+
+  try:
+    cgiValues  = { }
+    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+    inputString = environ['wsgi.input'].read(inputLength)
+    rawValues = urllib.parse.parse_qs(inputString)
+    for i in rawValues:
+      cgiValues[i.decode()] = rawValues[i][0].decode()
+  except Exception as e:
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     'Failed to read and parse post data')
+
+  if 'justin_code' not in cgiValues or \
+     cgiValues['justin_code'] != user['justin_code']:
+    return httpError(startResponse,
+                     '403 Not authorized', 
+                     'Inconsistent session/code')
+
+  if 'action_name' not in cgiValues:
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     'Malformed request')
+
+  if cgiValues['action_name'] == 'set_site_state':
+    return setSiteStateHandler(startResponse, cgiValues, user)
+
+  return httpError(startResponse,
+                   '400 Bad Request',
+                   'Action not recognised') 
 #
 # Entry point from mod_wsgi
 #
@@ -3415,6 +3489,11 @@ def application(environ, startResponse):
 
   user = getUser(environ)
 
+  if environ['REQUEST_URI'] == '/dashboard/' and \
+     environ['REQUEST_METHOD'] == 'POST':
+    output = postHandlers(startResponse, environ, user)
+    return [output.encode('UTF-8')]
+
   if environ['REQUEST_URI'].startswith('/wrapperlogs/'):
     output = outputWrapperLog(startResponse, environ, user)
     return [output.encode('UTF-8')]
@@ -3432,18 +3511,6 @@ def application(environ, startResponse):
   except:
     pass # Use defaults: produces a method error page at the end
 
-# NOT CURRENTLY USED - WILL BE NEEDED FOR UPLOADS
-#  if environ['REQUEST_METHOD'] == 'POST':
-#    try:
-#      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-#      inputString = environ['wsgi.input'].read(inputLength)
-#      rawValues = urllib.parse.parse_qs(inputString)
-#      for i in rawValues:
-#        cgiValues[i.decode()] = rawValues[i][0].decode()
-#    except Exception as e:
-#      return httpError(startResponse,
-#                       '400 Bad Request', 
-#                       'Failed to read and parse post data')
 
   try:
     method = cgiValues['method']
