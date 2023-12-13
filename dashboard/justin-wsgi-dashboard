@@ -234,6 +234,8 @@ def startResponseOK(startResponse, output):
                  ('Content-length', str(len(output)))
                 ])
 
+
+
 def spaceForUnixEpoch(s):
   if str(s) == justin.unixEpoch:
     return '&nbsp;'
@@ -267,7 +269,7 @@ def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
                
   return output
 
-def buttonHTML(user = None, name = None, value = None, 
+def buttonHTML(user = None, key = None, name = None, value = None, 
                label = None, nextURI = ''):
 
   return ( '<form style="display:inline">'
@@ -275,10 +277,12 @@ def buttonHTML(user = None, name = None, value = None,
            'formaction="/dashboard/">'
            '<input type="hidden" name="next_uri" value="%s">'
            '<input type="hidden" name="justin_code" value="%s">'
+           '<input type="hidden" name="action_key" value="%s">'
            '<input type="hidden" name="action_name" value="%s">'
            '<input type="hidden" name="action_value" value="%s">'
            '</form>'
-           % (label, nextURI, user['justin_code'], name, str(value)) 
+           % (label, nextURI, user['justin_code'], 
+              str(key), name, str(value)) 
          )
 
 def mainPage(environ, user):
@@ -2593,7 +2597,8 @@ def showSite(environ, user, cgiValues):
                                     % siteName,
                          label   = ('Disable' if bool(siteRow['enabled']) 
                                     else 'Enable'),
-                         name    = "set_site_state", 
+                         key     = siteRow['site_id'],
+                         name    = 'set_site_state', 
                          value   = not bool(siteRow['enabled']))
 
   output += '</td></tr>' 
@@ -2886,15 +2891,40 @@ def showStorage(environ, user, cgiValues):
   
   output += ('<tr><td>Occupancy</td><td>%.2f</td></tr>' % storageRow['occupancy'])
 
-  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justIN=%s)</td></tr>' 
+
+  if user and user['user_name'] in justin.justinAdmins:
+    readButtonHTML = ' ' + buttonHTML(user = user,
+                    nextURI = '/dashboard/?method=show-storage&rse_name=%s'
+                                    % rseName,
+                    label   = ('Disable' if bool(storageRow['justin_read']) 
+                               else 'Enable'),
+                    key     = storageRow['rse_id'],
+                    name    = 'set_storage_read_state', 
+                    value   = not bool(storageRow['justin_read']))
+
+    writeButtonHTML = ' ' + buttonHTML(user = user,
+                    nextURI = '/dashboard/?method=show-storage&rse_name=%s'
+                                    % rseName,
+                    label   = ('Disable' if bool(storageRow['justin_write']) 
+                               else 'Enable'),
+                    key     = storageRow['rse_id'],
+                    name    = 'set_storage_write_state', 
+                    value   = not bool(storageRow['justin_write']))
+  else:
+    readButtonHTML  = ''
+    writeButtonHTML = ''
+
+  output += ('<tr><td>Read</td><td>%s (Rucio=%s, justIN=%s%s)</td></tr>' 
         % (bool(storageRow['has_read']), 
            bool(storageRow['rucio_read']), 
-           bool(storageRow['justin_read'])))
+           bool(storageRow['justin_read']),
+           readButtonHTML))
 
-  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justIN=%s)</td></tr>' 
+  output += ('<tr><td>Write</td><td>%s (Rucio=%s, justIN=%s%s)</td></tr>' 
         % (bool(storageRow['has_write']), 
            bool(storageRow['rucio_write']), 
-           bool(storageRow['justin_write'])))
+           bool(storageRow['justin_write']),
+           writeButtonHTML))
 
   output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
         % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
@@ -3395,52 +3425,117 @@ def docsPage(startResponse, environ, user):
   startResponseOK(startResponse, output)
   return output
 
-def setSiteStateHandler(startResponse, cgiValues, user):
-  output = str(cgiValues)
-  startResponse('200 OK',
-     [('Content-type',   'text/html'),
-      ('Content-length', str(len(output)))
-     ])
+def setSiteStateHandler(cgiValues, user):
 
-  return output
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    siteID   = int(cgiValues['action_key'])
+    newState = True if (cgiValues['action_value'] == 'True') else False
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  try:
+    justin.insertUpdate('UPDATE sites SET enabled=%s WHERE site_id=%d' 
+                        % (newState, siteID))
+    justin.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
+
+def setStorageStateHandler(cgiValues, user, readWrite):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    rseID = int(cgiValues['action_key'])
+    newState  = True if (cgiValues['action_value'] == 'True') else False
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  try:
+    justin.insertUpdate('UPDATE storages SET justin_%s=%s WHERE rse_id=%d' 
+                        % ('read' if (readWrite == 'read') else 'write',
+                           newState, 
+                           rseID))
+    justin.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
 
 # Get POST data and then a big switch to direct it to the right handler
 def postHandlers(startResponse, environ, user):
 
+  httpStatus = None
+  message    = ''
+  nextURI    = '/'
+  cgiValues  = {}
+
   if user is None:
-    return httpError(startResponse,
-                     '403 Not authorized', 
-                     'You need to login')
+    httpStatus = '403 Forbidden'
+    message    = 'You need to login'
 
-  try:
-    cgiValues  = { }
-    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-    inputString = environ['wsgi.input'].read(inputLength)
-    rawValues = urllib.parse.parse_qs(inputString)
-    for i in rawValues:
-      cgiValues[i.decode()] = rawValues[i][0].decode()
-  except Exception as e:
-    return httpError(startResponse,
-                     '400 Bad Request', 
-                     'Failed to read and parse post data')
+  else:
+    try:
+      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+      inputString = environ['wsgi.input'].read(inputLength)
+      rawValues = urllib.parse.parse_qs(inputString)
+      for i in rawValues:
+        cgiValues[i.decode()] = rawValues[i][0].decode()
 
-  if 'justin_code' not in cgiValues or \
-     cgiValues['justin_code'] != user['justin_code']:
-    return httpError(startResponse,
-                     '403 Not authorized', 
-                     'Inconsistent session/code')
+      if 'next_uri' in cgiValues:
+        nextURI = cgiValues['next_uri']
 
-  if 'action_name' not in cgiValues:
-    return httpError(startResponse,
-                     '400 Bad Request', 
-                     'Malformed request')
+    except Exception as e:
+      httpStatus = '400 Bad Request'
+      message    = 'Failed to read and parse post data: ' + str(e)
 
-  if cgiValues['action_name'] == 'set_site_state':
-    return setSiteStateHandler(startResponse, cgiValues, user)
+    else:
+      if 'justin_code' not in cgiValues or \
+         cgiValues['justin_code'] != user['justin_code']:
+        httpStatus = '403 Forbidden'
+        message    = 'Inconsistent session/code'
 
-  return httpError(startResponse,
-                   '400 Bad Request',
-                   'Action not recognised') 
+      elif 'action_name' not in cgiValues:
+        httpStatus = '400 Bad Request'
+        message    = 'Malformed request'
+
+      elif cgiValues['action_name'] == 'set_site_state':
+        (httpStatus, message) = setSiteStateHandler(cgiValues, user)
+
+      elif cgiValues['action_name'] == 'set_storage_read_state':
+        (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'read')
+
+      elif cgiValues['action_name'] == 'set_storage_write_state':
+        (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'write')
+
+  if httpStatus is None:
+    httpStatus = '400 Bad Request'
+    message    = 'Action not recognised'
+
+
+  # This is success
+  if httpStatus.startswith('302 '):
+    startResponse(httpStatus, [('Location',       nextURI),
+                               ('Content-length', '0')
+                              ])
+    return ''
+
+  # Everything else is some form of error
+  output = errorPage(environ, user, message)
+  startResponse(httpStatus, [('Content-type',   'text/html'),
+                             ('Content-length', str(len(output)))
+                            ])
+  return output
+
 #
 # Entry point from mod_wsgi
 #
