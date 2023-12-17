@@ -122,7 +122,7 @@ echo "====Start of jobscript execution===="
   --workdir $JUSTIN_WORKDIR \
   --home $JUSTIN_WORKDIR/home:/home \
   --bind /cvmfs \
-  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6
+  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest
 echo "====End of jobscript execution===="
 
 ls -lR "$JUSTIN_WORKDIR/home/workspace"
