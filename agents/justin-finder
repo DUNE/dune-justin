@@ -1031,7 +1031,7 @@ if __name__ == '__main__':
     else:
 
       try:
-        os.makedirs(justin.justinRunDir,         
+        os.makedirs(justin.justinRunDir + '/last-updates',
                     stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
                     stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
       except:
@@ -1109,6 +1109,7 @@ if __name__ == '__main__':
           else:
             try:
               p = pwd.getpwnam(justin.agentUsername)
+              os.chown(justin.justinRunDir + '/last-updates', p[2], p[3])
               os.setgid(p[3])
               os.setuid(p[2])
               oneCycle()
