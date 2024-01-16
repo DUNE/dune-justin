@@ -2274,7 +2274,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   
   query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,sites.site_name,"
            "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
-           "jobs.finished_time,jobs.jobsub_state,"
+           "jobs.finished_time,jobs.jobsub_state,jobs.jobscript_exit,"
            "principal_names.principal_name AS user_name "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
@@ -2303,6 +2303,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
         '<th>Stage</th>'
         '<th>Submitted</th>'
         '<th>Started</th>'
+        '<th><small>Jobscript exit</small></th>'
         '<th>Finished</th>'
         '</tr>')
   
@@ -2349,6 +2350,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
           '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
+          '<td>%s</td>'
           '</tr>'
           % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
              jobRow['job_state'],
@@ -2357,6 +2359,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
              workflowStageStr,
              spaceForUnixEpoch(jobRow["submitted_time"]),
              spaceForUnixEpoch(jobRow["allocation_time"]),
+             jobRow["jobscript_exit"],
              spaceForUnixEpoch(jobRow["finished_time"])
             )
          )    
