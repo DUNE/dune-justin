@@ -1959,6 +1959,7 @@ def showJob(environ, user, cgiValues):
            "jobs.requested_processors,"
            "jobs.requested_rss_bytes,"
            "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
+           "jobs.jobscript_exit,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes "
            "FROM jobs "
@@ -2112,7 +2113,12 @@ def showJob(environ, user, cgiValues):
 
   if jobRow["job_state"] in ['outputting', 'outputting_failed', 
                                                   'finished',]:
-    output += ('<tr><td rowspan="2">Jobscript</td>'
+    output += ('<tr><td rowspan="3">Jobscript</td>'
+               '<td>Exit code</td>'
+               '<td>%d</td></tr>'
+               % jobRow["jobscript_exit"])
+      
+    output += ('<tr>'
                '<td>Real time</td>'
                '<td>%s (%ds)</td></tr>'
                % (daysHoursMinutes(jobRow["jobscript_real_seconds"]),

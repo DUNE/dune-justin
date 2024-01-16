@@ -1383,9 +1383,12 @@ def recordResultsMethod(startResponse, jsonDict):
     try:
       justin.insertUpdate('UPDATE jobs SET '
                              'job_state="jobscript_error",'
+                             'jobscript_exit=%d,'
                              'heartbeat_time=NOW(),'
                              'finished_time=NOW() '
-                             'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+                             'WHERE jobsub_id="%s"' %
+                             (jsonDict['jobscript_exit'],
+                              jsonDict['jobsub_id']))
     except Exception as e:
       return httpError(startResponse,
                        '500 Internal Server Error',
@@ -1397,7 +1400,9 @@ def recordResultsMethod(startResponse, jsonDict):
                           'state=IF(allocations < ' + 
                           str(justin.maxAllocations) + ','
                           '"unallocated","failed") '
-                          'WHERE justin_job_id=%d' % justinJobID)
+                          'WHERE justin_job_id=%d AND '
+                          '(state="allocated" OR state="outputting")' 
+                          % justinJobID)
     except Exception as e:
       return httpError(startResponse,
                        '500 Internal Server Error',
