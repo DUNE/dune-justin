@@ -817,10 +817,15 @@ def findStalledAbortedJobs():
         # killing the job, and to us the job just appears stalled.)
 
         try:
+          # Only update file state if still allocated to THIS bad job.
+          # This safeguard should not be needed for maxAllocations files.
+          # Alternatively, we could have done a SELECT ... FOR UPDATE
+          # to use a lock.
           query = ('UPDATE files SET state="failed" '
-                   'WHERE file_id=%d' % fileRow['file_id'])
+                   'WHERE file_id=%d AND justin_job_id=%d' 
+                   % (fileRow['file_id'], jobRow['justin_job_id']))
 
-          justin.cur.execute(query)
+          affectedRows = justin.cur.execute(query)
         except:
           logLine('Failed to set file %s to failed in '
                   'workflow %d, stage %d after job %s' 
@@ -829,19 +834,26 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
             
-        justin.logEvent(eventTypeID = justin.event_FILE_SET_TO_FAILED,
-                        workflowID = jobRow['workflow_id'],
-                        stageID = jobRow['stage_id'],
-                        fileID = fileRow['file_id'],
-                        justinJobID = jobRow['justin_job_id'],
-                        siteID = jobRow['site_id'])
+        if affectedRows:
+          justin.logEvent(eventTypeID = justin.event_FILE_SET_TO_FAILED,
+                          workflowID = jobRow['workflow_id'],
+                          stageID = jobRow['stage_id'],
+                          fileID = fileRow['file_id'],
+                          justinJobID = jobRow['justin_job_id'],
+                          siteID = jobRow['site_id'])
       else:
       
         try:
+          # Only update file state if still allocated to THIS bad job.
+          # This safeguard is to avoid a race condition between getting the 
+          # list of bad jobs and then resetting their files.
+          # Alternatively, we could have done a SELECT ... FOR UPDATE
+          # to use a lock but this would slow down the allocation process.
           query = ('UPDATE files SET state="unallocated" '
-                   'WHERE file_id=%d' % fileRow['file_id'])
+                   'WHERE file_id=%d AND justin_job_id=%d' 
+                   % (fileRow['file_id'], jobRow['justin_job_id']))
 
-          justin.cur.execute(query)
+          affectedRows = justin.cur.execute(query)
         except:
           logLine('Failed to set file %s to unallocated in '
                   'workflow %d, stage %d after job %s' 
@@ -850,19 +862,20 @@ def findStalledAbortedJobs():
           # Again, just stop for now on errors
           sys.exit(0)
 
-        justin.logEvent(eventTypeID = 
-                        justin.event_FILE_OUTPUTTING_RESET 
-                         if fileRow['state'] == 'outputting'
-                         else justin.event_FILE_ALLOCATED_RESET,
-                        workflowID = jobRow['workflow_id'],
-                        stageID = jobRow['stage_id'],
-                        fileID = fileRow['file_id'],
-                        justinJobID = jobRow['justin_job_id'],
-                        siteID = jobRow['site_id'])
+        if affectedRows:
+          justin.logEvent(eventTypeID = 
+                          justin.event_FILE_OUTPUTTING_RESET 
+                          if fileRow['state'] == 'outputting'
+                          else justin.event_FILE_ALLOCATED_RESET,
+                          workflowID = jobRow['workflow_id'],
+                          stageID = jobRow['stage_id'],
+                          fileID = fileRow['file_id'],
+                          justinJobID = jobRow['justin_job_id'],
+                          siteID = jobRow['site_id'])
 
-        logLine('Reset file %s in %d,%d to unallocated for job %s' % 
-                (fileRow['file_did'], jobRow['workflow_id'],
-                 jobRow['stage_id'], jobRow['jobsub_id']))
+          logLine('Reset file %s in %d,%d to unallocated for job %s' % 
+                  (fileRow['file_did'], jobRow['workflow_id'],
+                  jobRow['stage_id'], jobRow['jobsub_id']))
 
   # Everything went ok so commit
   justin.conn.commit()
