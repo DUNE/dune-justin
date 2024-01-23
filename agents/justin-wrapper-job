@@ -544,6 +544,12 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_WORKFLOW_ID=%d\n' % workflowID)
   f.write('export JUSTIN_STAGE_ID=%d\n' % stageID)
   f.write('export JUSTIN_SCOPE=%s\n' % jobscriptDict['scope'])
+  f.write('export JUSTIN_PROCESSORS=%d\n' 
+          % jobscriptDict['requested_processors'])
+  f.write('export JUSTIN_RSS_MB=%d\n' % 
+          int(jobscriptDict['requested_rss_bytes'] / 1048576))
+  f.write('export JUSTIN_WALL_SECONDS=%d\n' 
+          % jobscriptDict['requested_wall_seconds'])
   f.write('export JUSTIN_JOBSUB_ID=%s\n' % jobsubJobID)
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % jobscriptDict['jobscript_secret'])

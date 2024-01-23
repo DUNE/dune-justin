@@ -539,6 +539,11 @@ def makeJobscriptDict(jsonDict, jobDict):
   jobscriptDict['workflow_id']      = jsonDict['workflow_id']
   jobscriptDict['stage_id']         = jsonDict['stage_id']
   jobscriptDict['scope']            = scopeName
+
+  jobscriptDict['requested_processors']   = jobDict['requested_processors']
+  jobscriptDict['requested_rss_bytes']    = jobDict['requested_rss_bytes']
+  jobscriptDict['requested_wall_seconds'] = jobDict['requested_wall_seconds']
+
   jobscriptDict['jobsub_id']        = jsonDict['jobsub_id']
   jobscriptDict['jobscript_secret'] = jobDict['jobscript_secret']
   jobscriptDict['sam_web_uri']      = \

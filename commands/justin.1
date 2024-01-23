@@ -121,15 +121,17 @@ the stage's files.
 If the maximum wallclock time needed is not given by 
 .B --wall-seconds
 then the default of 80000
-seconds is used. If the maximum amount of resident memory needed is not
-given by 
+seconds is used. The value used is available to jobscripts as
+$JUSTIN_WALL_SECONDS.
+If the maximum amount of resident memory needed is not given by 
 .B --rss-mb
 then the default of 2000MiB is used. The resident memory corresponds to the 
-physical memory managed by HTCondor's ResidentSetSize value.
-
+physical memory managed by HTCondor's ResidentSetSize value and is available
+to jobscripts as $JUSTIN_RSS_MB.
 If the script can make use of multiple processors then 
 .B --processors
-can be used to give the number needed, with a default of 1 if not given.
+can be used to give the number needed, with a default of 1 if not given. The
+value used is available to jobscripts as $JUSTIN_PROCESSORS.
 
 By default, input files will only be allocated to a script which are on 
 storages at the same site (distance=0). This can be changed by setting
