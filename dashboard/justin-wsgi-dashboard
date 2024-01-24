@@ -964,6 +964,7 @@ def showWorkflow(environ, user, cgiValues):
            "workflows.created,workflows.submitted,workflows.started,"
            "workflows.checking,workflows.finished,mql,"
            "workflows.refind_seconds,workflows.refind_end_time,"
+           "workflows.refind_next_time,"
            "scopes.scope_name "
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
@@ -997,8 +998,8 @@ def showWorkflow(environ, user, cgiValues):
                % (int(workflowRow['refind_seconds'] / 3600),
                   workflowRow['refind_end_time']))
 
-#  output +=('<tr><td colspan=2>%s.%s</td></tr>' 
-#            % (workflowRow['refind_end_time'], justin.unixEpoch))
+    output += ('<tr><td>Next find</td><td>%s</td></tr>'
+               % workflowRow['refind_next_time'])
 
   output += ('<tr><td>%s by</td><td>%s</td></tr>' 
              % ('Created' if state == 'draft' else 'Submitted',
