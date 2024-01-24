@@ -2,7 +2,7 @@
 #
 # justin - justIN command line utility
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -111,6 +111,14 @@ parser.add_argument("--monte-carlo",
                     type = int,
                     help = "Monte Carlo count")
 
+parser.add_argument("--refind-end-date",
+                    type = int,
+                    help = "Refind end date")
+
+parser.add_argument("--refind-interval-hours",
+                    type = int,
+                    help = "Refind frequency in hours")
+
 parser.add_argument("--jobscript",
                     type = str,
                     help = "Specify a jobscript file")
@@ -184,7 +192,7 @@ parser.add_argument("--url",
 justinOptions = os.getenv('JUSTIN_OPTIONS')
 
 if justinOptions:
-  justinArgv = sys.argv[1:2] + shlex.split(justinOptions) + sys.argv[3:]
+  justinArgv = sys.argv[1:2] + shlex.split(justinOptions) + sys.argv[2:]
 else:
   justinArgv = sys.argv[1:]
 

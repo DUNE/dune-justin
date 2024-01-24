@@ -26,7 +26,9 @@ Turn on verbose logging of the communication with justIN service.
 .br
 Use an alternative justIN service, rather than 
 https://justin-ui-pro.dune.hep.ac.uk/api/commands This 
-option is only needed during development and testing.
+option is only needed during development and testing, and it may be
+convenient to set this option via $JUSTIN_OPTIONS described in Environment
+below.
 
 .SH SUBCOMMANDS
 
@@ -48,7 +50,7 @@ properly registered in justIN.
 Displays information about the current user identity and session.
 
 .HP
-.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE]"
+.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS]"
 .br
 Create a new, empty workflow in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
@@ -57,6 +59,16 @@ expression or the count of the number of Monte Carlo instances to run.
 .B --scope SCOPE
 specifies the Rucio scope used for any output files to be registered with 
 Rucio and uploaded to Rucio-managed storage.
+
+The options
+.B --refind-interval-hours
+(default 1) and 
+.B --refind-end-date
+(default: today in UTC) can be used to cause MQL queries to be resubmitted at 
+that interval to add any new matching files until the end of the given day.
+.B At least one of these options must be given to trigger this behaviour 
+and to ensure that files added close to the end of that day are still found, a 
+final finding is done soon after the end time.
 
 Workflows are created in the state "draft" and the command returns the new 
 workflow's ID number.
@@ -194,8 +206,8 @@ this stage.
 
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
-.B [--scope SCOPE] 
-.B --jobscript FILENAME|--jobscript-id JSID 
+.B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
+.B [--refind-interval-hours HOURS] --jobscript FILENAME|--jobscript-id JSID 
 .B [--wall-seconds N]
 .B [--rss-mb N] [--processors N] [--max-distance DIST]
 .B [--output-pattern PATTERN:DESTINATION] [--output-rse NAME] 

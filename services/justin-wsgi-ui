@@ -531,6 +531,39 @@ def createWorkflow(jsonDict, user, simple = False):
     scopeName = None
     scopeID   = 0
 
+  refindEnd     = justin.unixEpoch
+  refindSeconds = 0
+
+  # Record refind interval if given explicitly
+  if 'refind_interval_hours' in jsonDict and jsonDict['refind_interval_hours']:
+    try:
+      refindSeconds = int(jsonDict['refind_interval_hours']) * 3600
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request',
+                       '--refind-interval-hours requires an integer argument')
+
+  # Record end time if end date is given explicitly
+  if 'refind_end_date' in jsonDict and jsonDict['refind_end_date']:
+    try:
+      yyyymmdd = str(int(jsonDict['refind_end_date']))
+      refindEnd = '%s-%s-%s 23:59:59' % (yyyymmdd[0:4],
+                                         yyyymmdd[4:6], 
+                                         yyyymmdd[6:8])
+    except:
+      return httpError(startResponse, 
+                       '400 Bad Request', 
+                       '--refind-end-date requires a YYYYMMDD date')
+
+  # If one of the refind options is given but not the other, use the default
+
+  if refindEnd == justin.unixEpoch and refindSeconds > 0:
+    # end time is still unset but we did give --refind-interval-hours
+    refindEnd = datetime.datetime.today().strftime('%Y-%m-%d 23:59:59')
+  elif refindSeconds == 0 and refindEnd != justin.unixEpoch: 
+    # interval seconds is still unset, but we did give an end time
+    refindSeconds = 3600
+
   try:
     workflowID = justin.insertUpdate('INSERT INTO workflows SET created=NOW(),'
           'state="%s",'
@@ -538,13 +571,17 @@ def createWorkflow(jsonDict, user, simple = False):
           'description="%s",'
           'mql="%s",'
           'scope_id=%d,'
-          'user_id=%d'          
+          'user_id=%d,'
+          'refind_seconds=%d,'
+          'refind_end_time="%s" '
           % ('submitted' if simple else 'draft',
              'submitted=NOW(),' if simple else '',
              description,
              mql,
              scopeID,
-             user['user_id']))
+             user['user_id'],
+             refindSeconds,
+             refindEnd))
   except Exception as e:
     return ('500 Internal Server Error', 
             'Error creating workflow: ' + str(e))

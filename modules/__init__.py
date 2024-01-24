@@ -69,6 +69,10 @@ rseAvailabilityRead   = 4
 
 rseDisksExpression = 'istape=False\\decommissioned=True'
 
+# Note that this assumes we are using UTC since we assume elsewhere this
+# will convert from this MySQL date to 0 in Unix seconds
+# Also Unicode date strings coming out of MySQL may not match plain strings 
+# like this unless converted with str()
 unixEpoch = '1970-01-01 00:00:00'
 
 unseenSitesExpireDays = 7

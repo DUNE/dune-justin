@@ -1,7 +1,7 @@
 #
-# wfa-wsgi-allocator - justIN allocator API service
+# justin-wsgi-allocator - justIN allocator API service
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

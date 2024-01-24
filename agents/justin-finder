@@ -2,7 +2,7 @@
 #
 # justin-finder - justIN Finder agent
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -190,12 +190,19 @@ def findFilesMetaCat(workflowID, mql):
   justin.conn.commit()
 
 def findFiles():
-  # Find files to be processed for each workflow in the finding state
+  # Find files to be processed for each workflow in the running state
+  # when refind_next_time says finding is due but only if it's set
   # By default we use MetaCat, but MQLs starting rucio-dataset or monte-carlo 
   # are handled directly.
 
-  query = ('SELECT workflow_id,mql FROM workflows '
-           'WHERE state="finding" ORDER BY workflow_id')
+  query = ('SELECT workflow_id,mql,refind_seconds,'
+           'UNIX_TIMESTAMP(refind_end_time) AS refind_end,'
+           'UNIX_TIMESTAMP(refind_next_time) AS refind_next '
+           'FROM workflows '
+           'WHERE state="running" AND '
+           'refind_next_time <= NOW() AND '
+           'refind_next_time > "%s" '
+           'ORDER BY workflow_id' % justin.unixEpoch)
 
   findingWorkflows = justin.select(query)
   if not findingWorkflows:  
@@ -206,17 +213,12 @@ def findFiles():
 
   for workflow in findingWorkflows:
   
+    refindNextTime = int(workflow['refind_next'])
+    refindEndTime  = int(workflow['refind_end'])
+    refindSeconds  = int(workflow['refind_seconds'])
+  
     logLine('Finding files for Workflow %d with MQL %s' %
             (workflow['workflow_id'], workflow['mql']))
-  
-#    if workflow['workflow_id'] == justin.awtWorkflowID:
-#      # If refinding the AWT workflow, then reset the existing 
-#      # files to look for new replicas of theme
-#      try:
-#        justin.insertUpdate('UPDATE files SET state="finding" '
-#                            'WHERE workflow_id=%d' % justin.awtWorkflowID)
-#      except Exception as e:
-#        logLine('Set all existing AWT files to finding fails: ' + str(e))
   
     mqlSplit = workflow['mql'].split()
 
@@ -250,13 +252,32 @@ def findFiles():
 
     else:    
       findFilesMetaCat(workflow['workflow_id'], workflow['mql'])
+    
+    if refindEndTime == 0:
+      # We are not doing refinding and we have done the only finding we do
+      # So unset refind_next_time
+      refindNextTime = 0
+    elif refindNextTime == refindEndTime:
+      # We have been doing the final refind soon after the end time
+      # So unset refind_next_time
+      refindNextTime = 0
+    else:
+      # Next finding will be soon after refind_seconds from now
+      refindNextTime = int(time.time()) + refindSeconds
+
+      # BUT if that would be after refind_end_time, force a final refind,
+      # "soon" after the end time
+      if refindNextTime > refindEndTime:
+        refindNextTime = refindEndTime
 
     try:
-      justin.insertUpdate('UPDATE workflows SET state="running" '
-                          'WHERE workflow_id=%d AND state="finding"' 
-                          % workflow['workflow_id'])
+      justin.insertUpdate('UPDATE workflows SET '
+                          'refind_next_time="%s" '
+                          'WHERE workflow_id=%d AND state="running"' 
+                          % (justin.unixEpoch, workflow['workflow_id']))
     except Exception as e:
-      logLine("Set workflow to running fails with: " + str(e))
+      logLine("Update workflow %d refind_next_time fails with: %s" 
+              % (workflow['workflow_id'],  str(e)))
       continue
 
     justin.conn.commit()
@@ -667,9 +688,15 @@ def findSubmittedWorkflows():
 
   if workflowIDsToStart:
     # All successful (or not needed) so mark workflows as running
+    # Define refind_next_time as now to force at least one finding cycle
+    # even if not refinding repeatedly
     try:
-      query = ('UPDATE workflows SET started=NOW(),state="finding" '
-               'WHERE workflow_id IN (%s)' % (','.join(workflowIDsToStart)))
+      query = ('UPDATE workflows SET '
+               'started=NOW(),'
+               'state="running",'
+               'refind_next_time=NOW() '
+               'WHERE workflow_id IN (%s)' % 
+               ','.join(workflowIDsToStart))
 
       justin.insertUpdate(query)
     except Exception as e:

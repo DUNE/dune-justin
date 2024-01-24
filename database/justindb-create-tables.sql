@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
 CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `state` enum('draft','submitted','approved','finding','running',
+  `state` enum('draft','submitted','approved','running',
      'paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL DEFAULT '',
@@ -178,6 +178,9 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `started` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `checking` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `finished` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `refind_end_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `refind_next_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `refind_seconds` mediumint(8) unsigned NOT NULL DEFAULT '0',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT '0',
   `archived` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `mql` text NOT NULL,
