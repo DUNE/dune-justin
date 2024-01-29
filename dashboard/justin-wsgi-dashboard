@@ -211,7 +211,8 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 </div>
 <div id="main_box">
 """ % (title, 
-       'DEV' if '-dev' in environ['SERVER_NAME']  else 'justIN',
+       (environ['SERVER_NAME'].upper().split('.')[0]).split('-',1)[1] if '-' in environ['SERVER_NAME'] 
+          else 'justIN',
        loginStr))
 
 def footer():
