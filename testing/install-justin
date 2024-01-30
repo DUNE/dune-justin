@@ -29,6 +29,12 @@ cp -f $JUSTIN_DIR/agents/justin-info-collector \
       $JUSTIN_DIR/agents/justin-job-factory \
       /usr/sbin/
 
+cp -f $JUSTIN_DIR/agents/justin-info-collector.service \
+      $JUSTIN_DIR/agents/justin-finder.service \
+      $JUSTIN_DIR/agents/justin-finder-fnal.service \
+      $JUSTIN_DIR/agents/justin-job-factory.service \
+      /usr/lib/systemd/system/
+
 cp -f $JUSTIN_DIR/agents/justin.logrotate \
       /etc/logrotate.d/justin
 

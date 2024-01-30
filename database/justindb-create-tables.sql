@@ -1,4 +1,5 @@
 CREATE DATABASE IF NOT EXISTS `justindb`;
+USE `justindb`;
 
 CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
@@ -186,14 +187,14 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `mql` text NOT NULL,
   PRIMARY KEY (`workflow_id`),
   INDEX `state` (`state`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=500 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `archived_workflows` (
   `archived_row_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `row_name` varchar(255) NOT NULL,
   `row_value` text NOT NULL,
-  PRIMARY KEY (`achived_row_id`),
+  PRIMARY KEY (`archived_row_id`),
   INDEX `workflow_id` (`workflow_id`,`archived_row_id`),
   INDEX `row_name` (`row_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

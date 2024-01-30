@@ -1308,13 +1308,14 @@ def newSession(startResponse, environ, jsonDict):
 '''
 To authorize this computer to run the justin command, visit this page with your
 usual web browser and follow the instructions within the next 10 minutes:
-https://justin-%s.dune.hep.ac.uk/authorize/%s
+https://justin%s.dune.hep.ac.uk/authorize/%s
 
 Check that the Session ID displayed on that page is %s
 
 Once you've followed the instructions on that web page, you can run the justin
 command without needing to authorize this computer again for 7 days.
-''' % (justin.proDev, justinCode, justinSession[:7])
+''' % ('' if (justin.proDev == 'pro') else ('-' + justin.proDev),
+       justinCode, justinSession[:7])
    
   return httpError(startResponse, 
                    '401 Authorization Required',

@@ -10,6 +10,9 @@
 # password = DATABASEPASSWORD
 #
 
+# Create the dunejustin account before anything else
+useradd --uid 1026 --user-group dunejustin
+
 echo 7.9 > /etc/yum/vars/releasever
 
 # NOT NECESSARY AS NO HARDCODED VERSION IN THE .repo FILES 
@@ -38,17 +41,18 @@ sed -i 's/^priority=90$/priority=10/' /etc/yum.repos.d/htcondor.repo
 
 yum clean all
 
-yum -y install httpd mod_ssl ca_policy_igtf-classic \
+yum -y install httpd mod_ssl ca_policy_igtf-classic certbot \
                mariadb-server python3 python36-mysql python3-mod_wsgi git \
-               python-pygal python3-condor python3-devel gcc swig \
-               python3-pip openssl-devel
+               python36-markdown python3-condor python3-devel gcc swig \
+               python3-pip openssl-devel python36-PyYAML voms-clients-cpp  \
+               munge 
 
 # No Python3 RPM yet
-pip3 install pygal
+pip3 install pygal==3.0.0
 
 # We want recent version with Chris Haen's X.509 proxy updates
 # Needs python3-devel gcc swig openssl-devel RPMs
-pip3 install M2Crypto
+pip3 install M2Crypto==0.39.0
 
 # Get the metacat command locally
 pip3 install metacat
