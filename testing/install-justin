@@ -15,12 +15,12 @@ JUSTIN_DIR="$1"
 
 mkdir -p /var/www/wsgi
 cp -f $JUSTIN_DIR/services/justin-wsgi-import-script \
-      $JUSTIN_DIR/services/justin-wsgi-commands \
+      $JUSTIN_DIR/services/justin-wsgi-ui \
       $JUSTIN_DIR/services/justin-wsgi-allocator \
       $JUSTIN_DIR/dashboard/justin-wsgi-dashboard \
       /var/www/wsgi/
 
-cp -f $JUSTIN_DIR/services/justin.conf \
+cp -f $JUSTIN_DIR/services/httpd.justin.conf \
       /etc/httpd/conf.d/
 
 cp -f $JUSTIN_DIR/agents/justin-info-collector \

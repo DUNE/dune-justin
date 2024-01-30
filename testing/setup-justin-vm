@@ -12,19 +12,24 @@
 
 echo 7.9 > /etc/yum/vars/releasever
 
-# Use live rather than deleted snapshots!
-for i in /etc/yum.repos.d/sl-7x-x86_64-os.repo \
-         /etc/yum.repos.d/sl-7x-x86_64-security.repo \
-         /etc/yum.repos.d/sl-7x-x86_64-extras.repo \
-         /etc/yum.repos.d/epel-7-x86_64.repo 
-do
-  sed -i 's:snapshot/2021-10-01:live:' $i
-done
+# NOT NECESSARY AS NO HARDCODED VERSION IN THE .repo FILES 
+## Use live rather than deleted snapshots!
+#for i in /etc/yum.repos.d/sl-7x-x86_64-os.repo \
+#         /etc/yum.repos.d/sl-7x-x86_64-security.repo \
+#         /etc/yum.repos.d/sl-7x-x86_64-extras.repo \
+#         /etc/yum.repos.d/epel-7-x86_64.repo 
+#do
+#  sed -i 's:snapshot/current:live:' $i
+#done
+
+# Ignore broken local repo
+sed -i 's/^enabled.*/enabled=0/' /etc/yum.repos.d/nagios.repo
 
 yum clean all
 
-yum -y install \
- https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest.noarch.rpm
+# NO cvmfs NOW
+#yum -y install \
+# https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest.noarch.rpm
 
 yum -y install \
  https://research.cs.wisc.edu/htcondor/repo/10.0/htcondor-release-current.el7.noarch.rpm
@@ -36,13 +41,13 @@ yum clean all
 yum -y install httpd mod_ssl ca_policy_igtf-classic \
                mariadb-server python3 python36-mysql python3-mod_wsgi git \
                python-pygal python3-condor python3-devel gcc swig \
-               python3-pip
+               python3-pip openssl-devel
 
 # No Python3 RPM yet
 pip3 install pygal
 
 # We want recent version with Chris Haen's X.509 proxy updates
-# Needs python3-devel gcc swig RPMs
+# Needs python3-devel gcc swig openssl-devel RPMs
 pip3 install M2Crypto
 
 # Get the metacat command locally
@@ -77,7 +82,7 @@ systemctl restart httpd
 #CVMFS_HTTP_PROXY=DIRECT
 #CVMFS_PROFILE=single
 #EOF
-
+#
 #systemctl restart autofs
 #cvmfs_config setup
 
