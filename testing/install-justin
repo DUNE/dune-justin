@@ -27,7 +27,6 @@ cp -f $JUSTIN_DIR/agents/justin-info-collector \
       $JUSTIN_DIR/agents/justin-finder \
       $JUSTIN_DIR/agents/justin-finder-fnal \
       $JUSTIN_DIR/agents/justin-job-factory \
-      $JUSTIN_DIR/agents/justin-stage-cache \
       /usr/sbin/
 
 cp -f $JUSTIN_DIR/agents/justin.logrotate \
@@ -35,10 +34,7 @@ cp -f $JUSTIN_DIR/agents/justin.logrotate \
 
 mkdir -p /usr/lib/python3.6/site-packages/justin
 cp -f $JUSTIN_DIR/modules/__init__.py \
-      $JUSTIN_DIR/modules/allocator.py \
-      $JUSTIN_DIR/modules/conf.py \
-      $JUSTIN_DIR/modules/db.py \
-      $JUSTIN_DIR/modules/events.py \
+      $JUSTIN_DIR/modules/justin_version.py \
       /usr/lib/python3.6/site-packages/justin/
 
 mkdir -p /var/lib/justin

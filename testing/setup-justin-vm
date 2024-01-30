@@ -1,0 +1,104 @@
+#!/bin/sh
+#
+# Script to set up components needed by justIN agents and services
+#
+# Tested on SL7.9
+#
+# You need to make a file like this in /etc/justin.conf :
+# [database]
+# username = root
+# password = DATABASEPASSWORD
+#
+
+echo 7.9 > /etc/yum/vars/releasever
+
+# Use live rather than deleted snapshots!
+for i in /etc/yum.repos.d/sl-7x-x86_64-os.repo \
+         /etc/yum.repos.d/sl-7x-x86_64-security.repo \
+         /etc/yum.repos.d/sl-7x-x86_64-extras.repo \
+         /etc/yum.repos.d/epel-7-x86_64.repo 
+do
+  sed -i 's:snapshot/2021-10-01:live:' $i
+done
+
+yum clean all
+
+yum -y install \
+ https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest.noarch.rpm
+
+yum -y install \
+ https://research.cs.wisc.edu/htcondor/repo/10.0/htcondor-release-current.el7.noarch.rpm
+
+sed -i 's/^priority=90$/priority=10/' /etc/yum.repos.d/htcondor.repo
+
+yum clean all
+
+yum -y install httpd mod_ssl ca_policy_igtf-classic \
+               mariadb-server python3 python36-mysql python3-mod_wsgi git \
+               python-pygal python3-condor python3-devel gcc swig \
+               python3-pip
+
+# No Python3 RPM yet
+pip3 install pygal
+
+# We want recent version with Chris Haen's X.509 proxy updates
+# Needs python3-devel gcc swig RPMs
+pip3 install M2Crypto
+
+# Get the metacat command locally
+pip3 install metacat
+
+git clone https://github.com/DUNE/dune-justin.git
+dune-justin/testing/install-justin dune-justin
+
+# NO LONGER NEEDED
+## This enables support for X.509 proxies in Apache
+#echo 'OPENSSL_ALLOW_PROXY_CERTS=1' >>/etc/sysconfig/httpd
+
+# Use self-signed cert/key from mod_ssl install
+# This lets us get Apache  up and run Let Encrypt
+ln -sf /etc/pki/tls/certs/localhost.crt \
+       /etc/grid-security/justin-allocator.cert.pem 
+
+ln -sf /etc/pki/tls/private/localhost.key \
+       /etc/grid-security/justin-allocator.key.pem
+       
+ln -sf /etc/pki/tls/certs/localhost.crt \
+       /etc/grid-security/justin.cert.pem
+       
+ln -sf /etc/pki/tls/private/localhost.key \
+       /etc/grid-security/justin.key.pem
+
+systemctl enable httpd
+systemctl restart httpd
+
+#cat <<EOF >/etc/cvmfs/default.local 
+#CVMFS_REPOSITORIES=lhcb.cern.ch,grid.cern.ch,dune.opensciencegrid.org
+#CVMFS_HTTP_PROXY=DIRECT
+#CVMFS_PROFILE=single
+#EOF
+
+#systemctl restart autofs
+#cvmfs_config setup
+
+systemctl enable mariadb
+systemctl restart mariadb
+
+pip3 install --upgrade rucio-clients==1.29.11 
+
+mkdir -p /opt/rucio/etc/
+ 
+cat <<EOF > /opt/rucio/etc/rucio.cfg
+[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://auth-dune-rucio.fnal.gov
+ca_cert = /etc/grid-security/certificates
+account = dunepro
+auth_type = x509_proxy
+#client_x509_proxy = $X509_USER_PROXY
+request_retries = 3
+EOF
+
+mkdir -p /var/www/wsgi /var/log/justin /var/lib/justin
+
+
