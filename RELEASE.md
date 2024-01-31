@@ -15,3 +15,6 @@ previous versions.
 5) A --classad option has been added to create-stage and simple-workflow 
    which allows the insertion of extra ClassAds in the HTCondor wrapper
    jobs.
+
+The justin and other command man pages have been updated to reflect these and
+other changes.
