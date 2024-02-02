@@ -229,9 +229,9 @@ def errorPage(environ, user, message):
   output += footer()
   return output
 
-def startResponseOK(startResponse, output):
+def startResponseOK(startResponse, output, contentType = 'text/html'):
   startResponse('200 OK',
-                [('Content-type',   'text/html'),
+                [('Content-type',   contentType),
                  ('Content-length', str(len(output)))
                 ])
 
@@ -1708,6 +1708,11 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   except:
     return errorPage(environ, user, "stage_id must be given")
 
+  if 'format' in cgiValues:
+    format     = cgiValues['format']
+  else:
+    format = 'html'
+
   stateFilter = ''
   stateText = ''
 
@@ -1721,13 +1726,11 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
         or state == 'notfound' or state == 'failed':
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
-    
-  output = header(environ, user, "justIN: Files for Workflow %d, Stage %d%s" 
-                  % (workflowID, stageID, stateText))
 
-  output += ("<h1>Files  for Workflow %d, Stage %d%s</h1>" 
-             % (workflowID, stageID, stateText))
-  
+  if format == 'csv' or format == 'json':
+    pageNumber = 0
+    pageLength = 9999 # Too small?
+
   query = ("SELECT files.file_did,files.state,event_time,"
            "storages.rse_name,jobs.jobsub_id,sites.site_name,"
            "allocations "
@@ -1742,24 +1745,43 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
            (justin.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
             pageNumber * pageLength, pageLength + 1))
 
-  output += '<!-- %s -->\n' % query
-
   justin.cur.execute(query)
   filesRows = justin.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(filesRows),
+  if format == 'csv':
+    output = ''
+    for fileRow in filesRows:
+      output += ('"%s",%d,"%s",%s,"%s","%s","%s" %
+         (fileRow["file_did"], fileRow["allocations"], fileRow["state"],
+          fileRow["event_time"], fileRow["rse_name"], fileRow["site_name"],
+          fileRow["jobsub_id"]
+         )
+                )
+
+  elif format == 'json':
+    output = json.dumps(filesRows)
+  else:
+    output = header(environ, user, "justIN: Files for Workflow %d, Stage %d%s" 
+                  % (workflowID, stageID, stateText)) 
+
+    output += '<!-- %s -->\n' % query
+
+    output += ("<h1>Files  for Workflow %d, Stage %d%s</h1>" 
+             % (workflowID, stageID, stateText))
+
+    output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&workflow_id=' + str(workflowID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
-  output += (
+    output += (
 """<p><table>
 <tr><th rowspan="2">DID</th><th rowspan="2">Attempts</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
-  for fileRow in filesRows[:pageLength]:
-    output += ('<tr><td><a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
+    for fileRow in filesRows[:pageLength]:
+      output += ('<tr><td><a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%d</td><td>%s</td>' % 
           (workflowID, 
            stageID, 
@@ -1769,8 +1791,8 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
           )
          )
          
-    if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
-      output += ('<td>%s</td>'
+      if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
+        output += ('<td>%s</td>'
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
@@ -1780,18 +1802,28 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
              str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
             )
            )
-    else:
-      output += ('<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
+      else:
+        output += ('<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
       
-  output += ("</table>")
+    output += ("</table>")
   
-  output += makePager(pageNumber, pageLength, len(filesRows),
+    output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&workflow_id=' + str(workflowID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
-  output += footer()
+    output += ('<p>You can download this list as '
+               '<a href="/dashboard/?method=list-files&workflow_id=%d'
+               '&stage_id=%d&state=%s&format=csv">CSV</a> or '
+               '<a href="/dashboard/?method=list-files&workflow_id=%d'
+               '&stage_id=%d&state=%s&format=json">JSON</a> '
+               '(up to 10000 files included)</p>'
+               % (workflowID, stageID, state,
+                  workflowID, stageID, state)
+
+    output += footer()
+
   return output
 
 def showFile(environ, user, cgiValues):
@@ -3711,5 +3743,11 @@ def application(environ, startResponse):
     return [output.encode('UTF-8')]
 
   # Valid method was found, so return the string it output
-  startResponseOK(startResponse, output)
+
+  if format in cgiValues['format'] and cgiValues['format'] == 'csv':
+    startResponseOK(startResponse, output, contentType = 'text/csv')
+  elif format in cgiValues['format'] and cgiValues['format'] == 'json':
+    startResponseOK(startResponse, output, contentType = 'application/json')
+  else:
+    startResponseOK(startResponse, output)
   return [output.encode('UTF-8')]
