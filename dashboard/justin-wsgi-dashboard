@@ -2125,7 +2125,7 @@ def showJob(environ, user, cgiValues):
   output += '</td></tr>'
 
   if jobRow["job_state"] in ['outputting', 'outputting_failed', 
-                                                  'finished',]:
+                             'jobscript_error', 'finished']:
     output += ('<tr><td rowspan="3">Jobscript</td>'
                '<td>Exit code</td>'
                '<td>%d</td></tr>'
