@@ -229,10 +229,13 @@ def errorPage(environ, user, message):
   output += footer()
   return output
 
-def startResponseOK(startResponse, output, contentType = 'text/html'):
+def startResponseOK(startResponse, output, contentType = 'text/html',
+                    contentDisposition = 'inline'):
+
   startResponse('200 OK',
-                [('Content-type',   contentType),
-                 ('Content-length', str(len(output)))
+                [('Content-type',        contentType),
+                 ('Content-length',      str(len(output))),
+                 ('Content-Disposition', contentDisposition)
                 ])
 
 
@@ -1713,6 +1716,9 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   else:
     format = 'html'
 
+  if format not in ['csv','json','html']:
+    return errorPage(environ, user, "format must be csv, json, or html")
+
   stateFilter = ''
   stateText = ''
 
@@ -1721,6 +1727,9 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   except:
     state = ''
   else:
+    if not justin.stringIsEnvName(state):
+      return errorPage(environ, user, "Invalid characters in state")
+      
     if state == 'finding' or state == 'unallocated' or state == 'allocated' \
         or state == 'outputting' or state == 'processed' \
         or state == 'notfound' or state == 'failed':
@@ -1731,12 +1740,15 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
     pageNumber = 0
     pageLength = 9999 # Too small?
 
-  query = ("SELECT files.file_did,files.state,event_time,"
-           "storages.rse_name,jobs.jobsub_id,sites.site_name,"
-           "allocations "
+  query = ("SELECT files.file_did,files.state,"
+           "CAST(event_time AS char) AS last_allocation_time,"
+           "storages.rse_name,jobs.jobsub_id,"
+           "sites.site_name,"
+           "allocations,jobs.jobscript_exit AS last_jobscript_exit "
            "FROM files "
            "LEFT JOIN events"
-           " ON files.justin_job_id=events.justin_job_id AND events.event_type_id=%d "
+           " ON files.justin_job_id=events.justin_job_id AND"
+           " events.event_type_id=%d "
            "LEFT JOIN storages ON events.rse_id=storages.rse_id "
            "LEFT JOIN jobs ON jobs.justin_job_id=files.justin_job_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
@@ -1751,10 +1763,10 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   if format == 'csv':
     output = ''
     for fileRow in filesRows:
-      output += ('"%s",%d,"%s",%s,"%s","%s","%s" %
+      output += ('"%s",%d,"%s",%s,"%s","%s","%s",%d\n' %
          (fileRow["file_did"], fileRow["allocations"], fileRow["state"],
-          fileRow["event_time"], fileRow["rse_name"], fileRow["site_name"],
-          fileRow["jobsub_id"]
+          fileRow["last_allocation_time"], fileRow["rse_name"], fileRow["site_name"],
+          fileRow["jobsub_id"], fileRow['last_jobscript_exit']
          )
                 )
 
@@ -1796,7 +1808,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td></tr>' % 
-            (str(fileRow["event_time"]),
+            (str(fileRow["last_allocation_time"]),
              str(fileRow["rse_name"]),  str(fileRow["rse_name"]),
              str(fileRow["site_name"]), str(fileRow["site_name"]),
              str(fileRow["jobsub_id"]), str(fileRow["jobsub_id"])
@@ -1815,12 +1827,12 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
     output += ('<p>You can download this list as '
                '<a href="/dashboard/?method=list-files&workflow_id=%d'
-               '&stage_id=%d&state=%s&format=csv">CSV</a> or '
+               '&stage_id=%d&state=%s&format=csv&csvfile=">CSV</a> or '
                '<a href="/dashboard/?method=list-files&workflow_id=%d'
                '&stage_id=%d&state=%s&format=json">JSON</a> '
                '(up to 10000 files included)</p>'
                % (workflowID, stageID, state,
-                  workflowID, stageID, state)
+                  workflowID, stageID, state))
 
     output += footer()
 
@@ -3744,10 +3756,12 @@ def application(environ, startResponse):
 
   # Valid method was found, so return the string it output
 
-  if format in cgiValues['format'] and cgiValues['format'] == 'csv':
-    startResponseOK(startResponse, output, contentType = 'text/csv')
-  elif format in cgiValues['format'] and cgiValues['format'] == 'json':
-    startResponseOK(startResponse, output, contentType = 'application/json')
+  if 'format' in cgiValues and cgiValues['format'] == 'csv':
+    startResponseOK(startResponse, output, contentType = 'text/csv',
+                    contentDisposition = 'attachment; filename="saved.csv"')
+  elif 'format' in cgiValues and cgiValues['format'] == 'json':
+    startResponseOK(startResponse, output, contentType = 'application/json',
+                    contentDisposition = 'attachment; filename="saved.json"')
   else:
     startResponseOK(startResponse, output)
   return [output.encode('UTF-8')]
