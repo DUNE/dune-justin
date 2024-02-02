@@ -1763,10 +1763,15 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   if format == 'csv':
     output = ''
     for fileRow in filesRows:
-      output += ('"%s",%d,"%s",%s,"%s","%s","%s",%d\n' %
-         (fileRow["file_did"], fileRow["allocations"], fileRow["state"],
-          fileRow["last_allocation_time"], fileRow["rse_name"], fileRow["site_name"],
-          fileRow["jobsub_id"], fileRow['last_jobscript_exit']
+      output += ('"%s",%s,"%s",%s,"%s","%s","%s",%s\n' %
+         (str(fileRow["file_did"]), 
+          str(fileRow["allocations"]), 
+          str(fileRow["state"]),
+          str(fileRow["last_allocation_time"]), 
+          str(fileRow["rse_name"]), 
+          str(fileRow["site_name"]),
+          str(fileRow["jobsub_id"]), 
+          str(fileRow['last_jobscript_exit'])
          )
                 )
 
