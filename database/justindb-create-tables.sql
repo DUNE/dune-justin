@@ -392,3 +392,14 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   INDEX `linked_session_id` (`linked_session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `service_test_results` (
+  `service_name` varchar(255) NOT NULL,
+  `test_name` varchar(255) NOT NULL,
+  `sort_number` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `last_time` datetime NOT NULL,
+  `test_state` enum('pass','fail','warning')
+                  NOT NULL DEFAULT 'pass',
+  `test_output` text not null default '',
+  `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  UNIQUE KEY `service_test` (`service_name`,`test_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
