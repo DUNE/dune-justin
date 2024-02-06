@@ -307,6 +307,9 @@ CREATE TABLE IF NOT EXISTS `sites_files_cache` (
   `rse_id` smallint(5) unsigned NOT NULL,
   `distance` float NOT NULL DEFAULT 100.0,
   `cache_time` datetime NOT NULL,
+#  INDEX `file_id` (`file_id`),
+#  INDEX `replica_id` (`replica_id`),
+#  INDEX `rse_id` (`rse_id`),
   INDEX `multiple` (`site_id`, `workflow_id`, `stage_id`,
                     `cache_time`, `distance`, `file_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

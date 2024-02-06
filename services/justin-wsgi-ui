@@ -1412,7 +1412,9 @@ def application(environ, startResponse):
                      'DB connection lost and cannot reconnect: ' + str(e))
 
   # Avoid leftovers from partial, failed transactions in this instance
+  # and make sure autocommit is not set
   justin.conn.rollback()
+  justin.conn.autocommit(False)
 
   if environ['REQUEST_URI'] == '/api/info/scopes.csv':
     return scopesInfo(startResponse)

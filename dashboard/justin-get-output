@@ -8,6 +8,10 @@ JOB=`echo "$1" | sed 's/[^0-9.]//g'`
 condor_transfer_data "$JOB" >/dev/null 2>&1
 
 echo "======="
+echo "======= Start of condor_q -better $JOB output"
+echo "======="
+/usr/bin/condor_q -better "$JOB"
+echo "======="
 echo "======= Start of job $JOB log"
 echo "======="
 if [ -r "/tmp/justin-wrapper-$JOB.log" ] ; then

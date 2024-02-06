@@ -1108,9 +1108,12 @@ def showWorkflow(environ, user, cgiValues):
   # Get counts of job states for all stages
   stateCounts = []
   for i in range(0, len(stageRows) + 1):
-    stateCounts.append({ 'processing'        : 0,
+    stateCounts.append({ 'submitted'         : 0,
+                         'started'           : 0,
+                         'processing'        : 0,
                          'outputting'        : 0,
                          'finished'          : 0,
+                         'notused'           : 0,
                          'aborted'           : 0,
                          'stalled'           : 0,
                          'jobscript_error'   : 0,
@@ -1131,8 +1134,12 @@ def showWorkflow(environ, user, cgiValues):
 
   output += ('<h2>Job states per stage</h2>')
   output += ('<table>')
-  output += ('<tr><th>Stage</th><th>Total</th><th>Processing</th>'
+  output += ('<tr><th>Stage</th><th>Total</th>'
+             '<th>Submitted</th>'
+             '<th>Started</th>'
+             '<th>Processing</th>'
              '<th>Outputting</th><th>Finished</th>'
+             '<th>Notused</th>'
              '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
              '<th>Outputting failed</th></tr>')
 
@@ -1143,11 +1150,17 @@ def showWorkflow(environ, user, cgiValues):
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=submitted">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=started">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=processing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=finished">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=notused">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=aborted">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
@@ -1160,19 +1173,28 @@ def showWorkflow(environ, user, cgiValues):
         % (stageRow["workflow_id"], stageRow["stage_id"], 
             stageRow["stage_id"],
            stageRow["workflow_id"], stageRow["stage_id"], 
-            stateCounts[stageRow['stage_id']]['processing'] +
+             stateCounts[stageRow['stage_id']]['submitted'] +
+             stateCounts[stageRow['stage_id']]['started'] +
+             stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
              stateCounts[stageRow['stage_id']]['finished'] +
+             stateCounts[stageRow['stage_id']]['notused'] +
              stateCounts[stageRow['stage_id']]['aborted'] +
              stateCounts[stageRow['stage_id']]['stalled'] +
              stateCounts[stageRow['stage_id']]['jobscript_error'] +
              stateCounts[stageRow['stage_id']]['outputting_failed'],
+           stageRow["workflow_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['submitted'],
+           stageRow["workflow_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['started'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['processing'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finished'],
+           stageRow["workflow_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['notused'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['aborted'],
            stageRow["workflow_id"], stageRow["stage_id"],
@@ -2636,8 +2658,11 @@ def showSite(environ, user, cgiValues):
            'sites.last_awt_time,'
            'sites.max_rss_bytes,'
            'sites.max_processors,sites.max_wall_seconds,'
-           'wlcg_site_name,always_inner_apptainer '
+           'wlcg_site_name,always_inner_apptainer,'
+           'rank_text,cache_time '
            'FROM sites '
+           'LEFT JOIN sites_ranks_cache '
+           'ON sites_ranks_cache.site_id=sites.site_id '
            'WHERE site_name="%s"' % siteName)
 
   justin.cur.execute(query)
@@ -2692,6 +2717,10 @@ def showSite(environ, user, cgiValues):
              ('' if (siteRow['always_inner_apptainer'] == 1)
                  else bool(siteRow['always_inner_apptainer'])))
 
+  if siteRow['rank_text']:
+    output += ('<tr><td colspan="2">Stage Ranks</td><td>At %s, %s</td></tr>' 
+               % (spaceForUnixEpoch(siteRow['cache_time']),
+                  siteRow['rank_text'].replace(';',' ')))
   output += ('<tr><td colspan="2">Jobs</td><td>'
              '<a href="/dashboard/?method=list-jobs&site_name=%s">All</a> ' 
              % siteName)
@@ -3638,7 +3667,9 @@ def application(environ, startResponse):
     return [message.encode('UTF-8')]
 
   # Avoid leftovers from partial, failed transactions in this instance
+  # and make sure autocommit is not set
   justin.conn.rollback()  
+  justin.conn.autocommit(False)
   
   if environ['REQUEST_URI'].startswith('/login/cilogon/login?'):
     output = cilogonCallback(startResponse, environ)
