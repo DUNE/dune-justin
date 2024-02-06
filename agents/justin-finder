@@ -649,7 +649,7 @@ def findSubmittedWorkflows():
       in datasetsToCreate:
       # Create the dataset if not already there
       try:
-        logLine('Try to add dataset %s:name' % (scopeName, datasetName))
+        logLine('Try to add dataset %s:%s' % (scopeName, datasetName))
         ret = didClient.add_dataset(scope    = scopeName,
                                     name     = datasetName,
                                     lifetime = lifetimeSeconds)
