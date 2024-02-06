@@ -296,6 +296,7 @@ def workflowJobs():
      'LEFT JOIN users ON users.user_id=workflows.user_id '
      'LEFT JOIN principal_names '
      'ON principal_names.user_id=users.main_pn_id '
+# GET condor_group_id FROM workflows ONCE ALL ACTIVE WORKFLOWS HAVE THEM
      'LEFT JOIN condor_groups '
      'ON condor_groups.condor_group_id=scopes.condor_group_id '
      'WHERE workflows.state="running" AND workflows.workflow_id<>%d '

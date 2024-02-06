@@ -58,7 +58,9 @@ expression or the count of the number of Monte Carlo instances to run.
 
 .B --scope SCOPE
 specifies the Rucio scope used for any output files to be registered with 
-Rucio and uploaded to Rucio-managed storage.
+Rucio and uploaded to Rucio-managed storage. Scopes also determine 
+which HTCondor group wrapper jobs are submitted to. If not given, the 
+default scope usertests is used.
 
 The options
 .B --refind-interval-hours

@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `state` enum('draft','submitted','approved','running',
      'paused','checking','finished','deleted') NOT NULL DEFAULT 'finished',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL DEFAULT '',
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `submitted` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
