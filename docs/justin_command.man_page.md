@@ -28,7 +28,8 @@ This man page is distributed along with the
            --url URL
     	      Use an alternative justIN service, rather than https://justin-
     	      ui-pro.dune.hep.ac.uk/api/commands This option is only needed
-    	      during development and testing.
+    	      during development and testing, and it may be convenient to set
+    	      this option via $JUSTIN_OPTIONS described in Environment below.
     
     
     SUBCOMMANDS
@@ -47,7 +48,8 @@ This man page is distributed along with the
     
     
            create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
-    	      [--scope SCOPE]
+    	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
+    	      [--refind-interval-hours HOURS]
     	      Create a new, empty workflow in the database, optionally with
     	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
@@ -55,7 +57,17 @@ This man page is distributed along with the
     
     	      --scope SCOPE specifies the Rucio scope used for any output
     	      files to be registered with Rucio and uploaded to Rucio-managed
-    	      storage.
+    	      storage. Scopes also determine which HTCondor group wrapper jobs
+    	      are submitted to. If not given, the default scope usertests is
+    	      used.
+    
+    	      The options --refind-interval-hours (default 1) and
+    	      --refind-end-date (default: today in UTC) can be used to cause
+    	      MQL queries to be resubmitted at that interval to add any new
+    	      matching files until the end of the given day.  At least one of
+    	      these options must be given to trigger this behaviour and to
+    	      ensure that files added close to the end of that day are still
+    	      found, a final finding is done soon after the end time.
     
     	      Workflows are created in the state "draft" and the command
     	      returns the new workflow's ID number.  Once the workflow is in
@@ -112,15 +124,16 @@ This man page is distributed along with the
     	      stage's files.
     
     	      If the maximum wallclock time needed is not given by
-    	      --wall-seconds then the default of 80000 seconds is used. If the
-    	      maximum amount of resident memory needed is not given by
+    	      --wall-seconds then the default of 80000 seconds is used. The
+    	      value used is available to jobscripts as $JUSTIN_WALL_SECONDS.
+    	      If the maximum amount of resident memory needed is not given by
     	      --rss-mb then the default of 2000MiB is used. The resident
     	      memory corresponds to the physical memory managed by HTCondor's
-    	      ResidentSetSize value.
-    
-    	      If the script can make use of multiple processors then
-    	      --processors can be used to give the number needed, with a
-    	      default of 1 if not given.
+    	      ResidentSetSize value and is available to jobscripts as
+    	      $JUSTIN_RSS_MB.  If the script can make use of multiple
+    	      processors then --processors can be used to give the number
+    	      needed, with a default of 1 if not given. The value used is
+    	      available to jobscripts as $JUSTIN_PROCESSORS.
     
     	      By default, input files will only be allocated to a script which
     	      are on storages at the same site (distance=0). This can be
@@ -180,10 +193,12 @@ This man page is distributed along with the
     
     
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
-    	      [--scope SCOPE] --jobscript FILENAME|--jobscript-id JSID
-    	      [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance
-    	      DIST] [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
-    	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
+    	      [--refind-interval-hours HOURS] --jobscript
+    	      FILENAME|--jobscript-id JSID [--wall-seconds N] [--rss-mb N]
+    	      [--processors N] [--max-distance DIST] [--output-pattern
+    	      PATTERN:DESTINATION] [--output-rse NAME] [--lifetime-days DAYS]
+    	      [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -240,16 +255,16 @@ This man page is distributed along with the
     
            show-files --workflow-id ID [--stage-id ID] [--file-did DID]
            show-files --mql QUERY
-    	      Show up to 100 files either cached in the justIN Database and
-    	      filtered by workflow ID and optionally by stage ID and/or file
-    	      DID; or found by a query to MetaCat using the given MQL query.
+    	      Show files either cached in the justIN Database and filtered by
+    	      workflow ID and optionally by stage ID and/or file DID; or up to
+    	      100 found by a query to MetaCat using the given MQL query.
     
            show-replicas --workflow-id ID [--stage-id ID] [--file-did DID]
            show-replicas --mql QUERY
-    	      Show up to 100 replicas either cached in the justIN Database and
-    	      filtered by workflow ID and optionally by stage ID and/or file
-    	      DID; or found by a query to MetaCat using the given MQL query
-    	      and looked up using Rucio.
+    	      Show replicas either cached in the justIN Database and filtered
+    	      by workflow ID and optionally by stage ID and/or file DID; or up
+    	      to 100 found by a query to MetaCat using the given MQL query and
+    	      looked up using Rucio.
     
            show-jobs --jobsub-id ID | --workflow-id ID [--stage-id ID] [--state
     	      STATE]

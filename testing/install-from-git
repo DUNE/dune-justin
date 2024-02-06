@@ -1,0 +1,66 @@
+#!/bin/sh
+
+GITDIR=`mktemp -d /tmp/install-from-git.XXXXXX`
+cd $GITDIR
+git clone https://github.com/DUNE/dune-justin.git
+git checkout 00.12
+
+mkdir -p /var/www/wsgi \
+         /var/lib/justin \
+         /etc/logrotate.d/justin \
+         /usr/lib/python3.6/site-packages/justin
+
+# justIN services running on Apache
+
+cp  \
+  dune-justin/dashboard/justin-wsgi-dashboard \
+  /var/www/wsgi/
+
+cp  \
+  dune-justin/agents/justin-wrapper-job \
+  dune-justin/dashboard/justin-get-output \
+  /var/lib/justin/
+
+cp  \
+  dune-justin/services/justin-wsgi-import-script \
+  dune-justin/services/justin-wsgi-ui \
+  dune-justin/services/justin-wsgi-allocator \
+  /var/www/wsgi/
+
+cp  \
+  dune-justin/services/httpd.justin.conf \
+  /etc/httpd/conf.d/
+
+# justIN Agents 
+
+cp  \
+  dune-justin/agents/justin-info-collector \
+  dune-justin/agents/justin-finder \
+  dune-justin/agents/justin-finder-fnal \
+  dune-justin/agents/justin-job-factory \
+  /usr/sbin/
+
+cp  \
+  dune-justin/agents/justin-info-collector.service \
+  dune-justin/agents/justin-finder.service \
+  dune-justin/agents/justin-finder-fnal.service \
+  dune-justin/agents/justin-job-factory.service \
+  /usr/lib/systemd/system/
+
+cp  \
+  dune-justin/agents/justin.logrotate \
+  /etc/logrotate.d/justin
+
+# justIN Python modules needed by both services and agents
+
+cp  \
+  dune-justin/modules/justin_version.py \
+  dune-justin/modules/__init__.py \
+  /usr/lib/python3.6/site-packages/justin/
+
+# VOMS Proxy creator script currently run from cron
+
+cp  \
+  dune-justin/agents/justin-create-x509-proxies \
+  /etc/cron.daily/
+
