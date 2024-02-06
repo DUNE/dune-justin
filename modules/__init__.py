@@ -94,6 +94,8 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
 
 jobStallSeconds = 3660
 
+defaultScopeName = 'usertests'
+
 rseCountriesRegions = { 
                         'BR'  : 'South_America',
                         'CA'  : 'North_America',

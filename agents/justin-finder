@@ -566,23 +566,31 @@ def executeMetaCatCommand(args):
 def findSubmittedWorkflows():
   # Find workflows waiting in the submitted state and set them to running
 
-  datasetsToCreate  = set()
-  workflowIDsToStart = []
+  datasetsToCreate = set()
+  workflowsToStart = []
 
   try:
-    workflows = justin.select('SELECT workflows.workflow_id,scope_name '
-                              'FROM workflows '
-                              'LEFT JOIN scopes '
-                              'ON workflows.scope_id=scopes.scope_id '
-                              'WHERE workflows.state="submitted" '
-                              'ORDER BY workflows.workflow_id')
+    workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
+                    'condor_groups.condor_group_id '
+                    'FROM workflows '
+                    'LEFT JOIN scopes '
+                    'ON workflows.scope_id=scopes.scope_id '
+                    'LEFT JOIN condor_groups '
+                    'ON condor_groups.condor_group_id=scopes.condor_group_id '
+                    'WHERE workflows.state="submitted" '
+                    'ORDER BY workflows.workflow_id')
   except:
     logLine('Failed to get list of submitted workflows')
     return
 
   for workflow in workflows:
-    workflowIDsToStart.append(str(workflow['workflow_id']))
+    try:
+      condorGroupID = int(workflow['condor_group_id'])
+    except:
+      condorGroupID = 0
   
+    workflowsToStart.append( (workflow['workflow_id'],condorGroupID) )
+
     try:
       stagesOutputs = justin.select(
           'SELECT destination,lifetime_seconds,stage_id '
@@ -630,6 +638,7 @@ def findSubmittedWorkflows():
 
   if datasetsToCreate:
     try:
+      logLine('Try to create DID and Rule Rucio clients')
       didClient  = rucio.client.didclient.DIDClient()
       ruleClient = rucio.client.ruleclient.RuleClient()
     except Exception as e:
@@ -640,6 +649,7 @@ def findSubmittedWorkflows():
       in datasetsToCreate:
       # Create the dataset if not already there
       try:
+        logLine('Try to add dataset %s:name' % (scopeName, datasetName))
         ret = didClient.add_dataset(scope    = scopeName,
                                     name     = datasetName,
                                     lifetime = lifetimeSeconds)
@@ -659,6 +669,7 @@ def findSubmittedWorkflows():
 
         # Create a rule for the new dataset
         try:
+          logLine('Try to add rule for %s:%s' % (scopeName, datasetName))
           ret = ruleClient.add_replication_rule(
                      dids = [ {'scope' : scopeName,
                                'name'  : datasetName} ], 
@@ -686,24 +697,24 @@ def findSubmittedWorkflows():
 #        # We assume failures are due to the dataset already being registered
 #        pass
 
-  if workflowIDsToStart:
-    # All successful (or not needed) so mark workflows as running
-    # Define refind_next_time as now to force at least one finding cycle
-    # even if not refinding repeatedly
+  # All successful (or not needed) so mark workflows as running
+  # Define refind_next_time as now to force at least one finding cycle
+  # even if not refinding repeatedly
+  for (workflowID, condorGroupID) in workflowsToStart:
     try:
-      query = ('UPDATE workflows SET '
-               'started=NOW(),'
-               'state="running",'
-               'refind_next_time=NOW() '
-               'WHERE workflow_id IN (%s)' % 
-               ','.join(workflowIDsToStart))
+        query = ('UPDATE workflows SET '
+                 'started=NOW(),'
+                 'state="running",'
+                 'refind_next_time=NOW(),'
+                 'condor_group_id=%d '
+                 'WHERE workflow_id=%d' % (condorGroupID, workflowID))
 
-      justin.insertUpdate(query)
+        justin.insertUpdate(query)
     except Exception as e:
-      logLine("Exception setting workflows to finding: %s" % str(e))
-      return
+        logLine("Exception setting workflow running: %s" % str(e))
+        return
 
-    justin.conn.commit()
+  justin.conn.commit()
 
 def findFinishedWorkflows():
   # Find workflows with all files in terminal states and set to finished

@@ -969,12 +969,14 @@ def showWorkflow(environ, user, cgiValues):
            "workflows.checking,workflows.finished,mql,"
            "workflows.refind_seconds,workflows.refind_end_time,"
            "workflows.refind_next_time,"
-           "scopes.scope_name "
+           "scopes.scope_name,condor_groups.condor_group_name "
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
            "LEFT JOIN users ON users.user_id=workflows.user_id "
            "LEFT JOIN principal_names "
-           'ON principal_names.pn_id=users.main_pn_id '
+           "ON principal_names.pn_id=users.main_pn_id "
+           "LEFT JOIN condor_groups "
+           "ON condor_groups.condor_group_id=workflows.condor_group_id "
            "WHERE workflow_id=%d "
            "ORDER BY workflow_id" % workflowID)
 
@@ -994,6 +996,10 @@ def showWorkflow(environ, user, cgiValues):
 
   if workflowRow['scope_name']:
     output += '<tr><td>Scope</td><td>%s</td></tr>' % workflowRow['scope_name']
+
+  if workflowRow['condor_group_name']:
+    output += ('<tr><td>HTCondor Group</td><td>%s</td></tr>'  
+               % workflowRow['condor_group_name'])
 
   if str(workflowRow['refind_end_time']) == justin.unixEpoch:
     output += '<tr><td>Finding</td><td>once</td></tr>' 
@@ -2045,7 +2051,8 @@ def showJob(environ, user, cgiValues):
            "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
            "jobs.jobscript_exit,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
-           "jobs.jobscript_max_rss_bytes "
+           "jobs.jobscript_max_rss_bytes,"
+           "condor_groups.condor_group_name "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
            "LEFT JOIN users ON workflows.user_id=users.user_id "
@@ -2054,6 +2061,8 @@ def showJob(environ, user, cgiValues):
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
+           "LEFT JOIN condor_groups "
+           "ON condor_groups.condor_group_id=workflows.condor_group_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   jobRow = justin.select(query, justOne = True)
@@ -2100,6 +2109,10 @@ def showJob(environ, user, cgiValues):
         
   output += ('<tr><td>User name</td>'
              '<td colspan="2">%s</td></tr>' % jobRow['user_name'])
+
+  if jobRow['condor_group_name']:
+    output += ('<tr><td>HTCondor Group</td>'
+               '<td colspan="2">%s</td></tr>' % jobRow['condor_group_name'])
 
   output += ('<tr><td rowspan="3">Requested</td><td>'
              'Processors</td><td>%d</td></tr>'
