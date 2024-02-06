@@ -1117,13 +1117,19 @@ def findBestFile(jobDict):
     query = ("UPDATE files SET state='allocated',"
              "allocations=allocations+1,"
              "justin_job_id=" + str(jobDict['justin_job_id']) + " "
-             "WHERE file_id=" + str(replicaRows[0]['file_id'])
+             "WHERE state='unallocated' AND "
+             "file_id=" + str(replicaRows[0]['file_id'])
             )
-    justin.cur.execute(query)
+    affectedRows = justin.cur.execute(query)
   except Exception as e:
     # If anything goes wrong, we stop straightaway
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
+  if affectedRows != 1:
+    return { 'error_message': 
+             'Failed to allocate the chosen file (%s): already allocated???'
+             % str(replicaRows[0]['file_did']) }
+    
   justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED,
                      workflowID     = jobDict['workflow_id'],
                      stageID        = jobDict['stage_id'],
@@ -1849,7 +1855,11 @@ def application(environ, startResponse):
                      'DB connection lost and cannot reconnect: ' + str(e))
 
   # Avoid leftovers from partial, failed transactions in this instance
+  # and reset autocommit
   justin.conn.rollback()
+  justin.conn.autocommit(False)
+#  row = justin.select('SELECT @@autocommit', justOne = True)
+#  print('autocommit=' + str(row), file=sys.stderr)
 
   if environ['REQUEST_URI'].startswith('/api/get-classads'):
     return getClassadsCall(startResponse, environ)

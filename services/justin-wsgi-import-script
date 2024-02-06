@@ -30,7 +30,8 @@ try:
   justin.conn = MySQLdb.connect(host=justin.mysqlHostname,
                                 user=justin.mysqlUsername,
                                 passwd=justin.mysqlPassword,
-                                db=justin.mysqlDbName)
+                                db=justin.mysqlDbName,
+                                autocommit=False)
   justin.conn.autocommit(False)
   justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
 

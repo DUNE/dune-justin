@@ -345,7 +345,7 @@ def workflowJobs():
       # Need to submit more jobs: find suitable entries and sites
       try:
         entriesRows = justin.select(
-   "SELECT DISTINCT entries.entry_name,sites.site_name "
+   "SELECT DISTINCT entries.entry_name,sites.jobsub_site_name,sites.site_name "
    "FROM files "
    "LEFT JOIN replicas ON files.file_id=replicas.file_id "
    "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
@@ -385,7 +385,8 @@ def workflowJobs():
     
       # Submit clusters of jobs
       for entryRow in entriesRows:
-        desiredSites.add(  entryRow['site_name'])
+        # USE jobsub_site_name FOR NOW UNTIL CHANGED IN DUNE POOL
+        desiredSites.add(  entryRow['jobsub_site_name'])
         desiredEntries.add(entryRow['entry_name'])
 
       if desiredSites and desiredEntries:
