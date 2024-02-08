@@ -129,7 +129,7 @@ def executeMetaCatCommand(args):
   for i in range(1, 4):  
     cmd = (
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
-     'setup metacat ; '
+     'setup python v3_9_13 ; setup metacat ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune ; '
      'export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app ; '
@@ -153,7 +153,7 @@ def executeJustinRucioUpload(args):
   for i in range(1, 4):
     cmd = (
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
-     'setup rucio ; setup justin ; '
+     'setup python v3_9_13 ; setup rucio ; setup justin ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
      'justin-rucio-upload %s' % args)
@@ -403,6 +403,10 @@ def updateMetadataTmp(fileScope, fileName,
    = getJobscriptDict['os_release']
   metadata['metadata']['dune.workflow']['job_id'] \
    = jobsubJobID
+
+  # This gets updated to confirmed if the confirm step after MetaCat/Rucio
+  # is successful for ALL output files in this job
+  metadata['metadata']['dune.output_status'] = 'recorded'
 
   # Force lowercase in top level metadata keys names
   for keyName in metadata['metadata']:
@@ -831,6 +835,8 @@ confirmResultsDict = { 'method'      : 'confirm_results',
                        'output_dids' : {},
                        'output_urls' : []  }
 
+rucioUploadDIDs = []
+
 # Go through the list of output files
 for (destination, fileScope, fileName) in outputFiles:
   
@@ -904,6 +910,18 @@ for (destination, fileScope, fileName) in outputFiles:
       logLine('Failed to upload %s:%s' % (fileScope, fileName))
       jobAborted(900, 'rucio_upload', '')
 
+#    # Update MetaCat output_status for this file to uploaded
+#    try:
+#      ret = executeMetaCatCommand("file update --metadata "
+#         "'{\"dune.output_status\":\"uploaded\"}' '%s:%s'" 
+#         % (fileScope, fileName))
+#    except Exception as e:
+#      logLine('Failed to set %s:%s to output_status=uploaded' 
+#              % (fileScope, fileName))
+#      jobAborted(900, 'set_uploaded', '')
+#
+#    rucioUploadDIDs.append(fileScope + ':' + fileName)
+
     # Add to list of uploaded files for confirm results
     confirmResultsDict['output_dids'][fileScope + ':' + fileName] = rse
 
@@ -919,6 +937,16 @@ logLine('confirm_results returns HTTP code %d' % confirmDict['status'])
 
 if confirmDict['status'] != 200:
   jobAborted(900, 'confirm_results', '')
+
+## Update MetaCat output_status for all files to confirmed
+#try: 
+#  open('rucio_upload_dids.txt','w').write('\n'.join(rucioUploadDIDs))
+#  ret = executeMetaCatCommand("file update --metadata "
+#         "'{\"dune.output_status\":\"confirmed\"}' "
+#         "./rucio_uploaded_dids.txt")
+#except Exception as e:
+#  logLine('Failed to set files to output_status=confirmed in MetaCat') 
+#  jobAborted(900, 'set_confirmed', '')
 
 logLine('====End of justin-wrapper-job====')
 time.sleep(10)

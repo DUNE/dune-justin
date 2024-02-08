@@ -7,6 +7,7 @@ justin simple-workflow \
 EOF
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+setup python v3_9_13
 setup rucio
 setup justin
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
@@ -24,6 +25,7 @@ echo '===End $JUSTIN_PATH/justin-awt-rse-list.txt==='
 
 cat $JUSTIN_PATH/justin-awt-rse-list.txt | (
 
+upload_dataset=`date --utc +'awt-uploads-%Y%W'`
 while read rse_name write_protocol read_pfn
 do
   echo '---------------------------------------------------------------------'
@@ -47,7 +49,7 @@ do
             --rse "$rse_name" \
             --protocol "$write_protocol" \
             --scope testpro \
-            --dataset awt-uploads \
+            --dataset $upload_dataset \
             --timeout 1200 \
             "$fn" 2>&1 
 #            | sed -r 's/\x1B\[([0-9]{1,3}(;[0-9]{1,2};?)?)?[mGK]//g'
@@ -57,7 +59,7 @@ do
     fi
   done
 
-  echo "'justin-rucio-upload --rse $rse_name --protocol $write_protocol --scope testpro --dataset awt-uploads $fn --timeout 1200' returns $upload_retval"
+  echo "'justin-rucio-upload --rse $rse_name --protocol $write_protocol --scope testpro --dataset $upload_dataset $fn --timeout 1200' returns $upload_retval"
   echo
   echo
 
@@ -75,7 +77,7 @@ echo '===== Results ====='
 echo
 echo 'Download/upload commands:'
 echo 'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt'
-echo 'justin-rucio-upload --rse $rse_name --protocol $write_protocol --scope testpro --dataset awt-uploads --timeout 1200 FILENAME'
+echo 'justin-rucio-upload --rse $rse_name --protocol $write_protocol --scope testpro --dataset '$upload_dataset' --timeout 1200 FILENAME'
 echo 'Use the wrapper job link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
 echo
 echo 'Each line: $JUSTIN_SITE_NAME $rse_name $download_retval $upload_retval $read_pfn $write_protocol'
