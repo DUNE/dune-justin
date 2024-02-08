@@ -7,6 +7,7 @@ justin simple-workflow \
 EOF
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+setup python v3_9_13
 setup rucio
 setup justin
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
