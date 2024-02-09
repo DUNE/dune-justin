@@ -29,8 +29,13 @@ import time
 import urllib.request
 import tempfile
 
-# Needs MySQL-python RPM
-import MySQLdb
+## Needs MySQL-python RPM
+#import MySQLdb
+
+# WE NEED TO REMOVE OLD MySQLdb REFERENCES STILL!
+import pymysql
+pymysql.install_as_MySQLdb()
+MySQLdb=pymysql
 
 # justin/conf.py must define these variables in a way that is both
 # valid Python and valid Bash!

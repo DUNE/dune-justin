@@ -1,12 +1,14 @@
 # Dockerfile for AlmaLinux 9
 #
-FROM almalinux/almalinux:9
+FROM almalinux:9
+
+RUN useradd --uid 1026 --user-group dunejustin
 
 RUN yum update -y
 RUN yum install -y git
 #RUN yum install -y mariadb
 RUN yum install -y python3-PyMySQL
-RUN yum install -y gcc make which python3-pip
+RUN yum install -y gcc make which nano procps-ng python3-pip
 #RUN yum install -y bzip2-devel xz-devel libcurl-devel libjpeg-devel
 #RUN yum update -y
 
@@ -28,7 +30,7 @@ COPY agents/justin-finder.service         /usr/lib/systemd/system/
 COPY agents/justin-finder-fnal.service    /usr/lib/systemd/system/
 COPY agents/justin-job-factory.service    /usr/lib/systemd/system/
 
-RUN  mkdir            /opt/rucio/etc/
+RUN  mkdir -p         /opt/rucio/etc/
 COPY agents/rucio.cfg /opt/rucio/etc/rucio.cfg
 
 COPY agents/justin.logrotate /etc/logrotate.d/justin.logrotate
@@ -46,7 +48,7 @@ COPY modules/justin_version.py /usr/lib/python3.9/site-packages/justin/
 #RUN mkdir -p /docker-entrypoint-initdb.d
 #COPY database/justindb-create-tables.sql /docker-entrypoint-initdb.d/
 
-COPY docker/justin/justinEntrypoint.sh /usr/sbin/
+COPY docker/justin-agents/justinEntrypoint.sh /usr/sbin/
 
 # MOUNT LOGS FROM HOST???
 #RUN mkdir -p /var/log/justin

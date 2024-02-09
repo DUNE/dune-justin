@@ -32,8 +32,13 @@ import warnings
 import subprocess
 import xml.dom.minidom
 
-# Needs MySQL-python RPM
-import MySQLdb
+## Needs MySQL-python RPM
+#import MySQLdb
+
+# WE NEED TO REMOVE OLD MySQLdb REFERENCES STILL!
+import pymysql
+pymysql.install_as_MySQLdb()
+MySQLdb=pymysql
 
 # Installed by pip install of Rucio
 import rucio.client
