@@ -19,8 +19,7 @@ RUN python3 -m pip install mod_wsgi
 
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY services/justin-wsgi-import-script /var/www/wsgi/
-COPY services/justin-wsgi-ui            /var/www/wsgi/
-#COPY services/justin-wsgi-commands      /var/www/wsgi/
+COPY services/justin-wsgi-commands      /var/www/wsgi/
 COPY services/justin-wsgi-allocator     /var/www/wsgi/
 
 COPY services/justin.conf /etc/httpd/conf.d/
@@ -30,11 +29,11 @@ COPY docs/*.md /var/www/html/docs/
 RUN mkdir -p /etc/httpd/bin
 COPY docker/httpd/httpdEntrypoint.sh /etc/httpd/bin/
 
-#COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
+COPY docker/httpd/conf.modules.d/* /etc/httpd/conf.modules.d/
 
-#COPY docker/certificates/wfs.dune.hep.ac.uk/ /etc/grid-security/certificates/wfs.dune.hep.ac.uk
-#COPY docker/certificates/ /etc/grid-security/
-## ADD docker/certificates/wfs.dune.hep.ac.uk.tar.gz /etc/grid-security/certificates/
+COPY docker/certificates/wfs.dune.hep.ac.uk/ /etc/grid-security/certificates/wfs.dune.hep.ac.uk
+COPY docker/certificates/ /etc/grid-security/
+# ADD docker/certificates/wfs.dune.hep.ac.uk.tar.gz /etc/grid-security/certificates/
 
 # USER 1001
 

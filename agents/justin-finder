@@ -647,7 +647,13 @@ def findSubmittedWorkflows():
       
     for (scopeName,datasetName,lifetimeSeconds,rseExpression) \
       in datasetsToCreate:
-      # Create the dataset if not already there
+
+      # Create the dataset in MetaCat
+      ret = executeMetaCatCommand('dataset create %s:%s' % (scopeName, datasetName))
+      # Carry on regardless if ret != 0 since we can't tell from the metacat return code if
+      # the dataset just already exists or there was a genuine problem ...
+
+      # Create the dataset in Rucio if not already there
       try:
         logLine('Try to add dataset %s:%s' % (scopeName, datasetName))
         ret = didClient.add_dataset(scope    = scopeName,

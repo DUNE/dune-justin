@@ -55,7 +55,7 @@ pip3 install pygal==3.0.0
 pip3 install M2Crypto==0.39.0
 
 # Get the metacat command locally
-pip3 install metacat
+pip3 install metacat==3.42.2
 
 git clone https://github.com/DUNE/dune-justin.git
 dune-justin/testing/install-justin dune-justin
