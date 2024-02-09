@@ -2,16 +2,20 @@ version: '3.2'
 
 networks:
   internal:
-volumes:
-  maria-db:
+#volumes:
+#  maria-db:
 
 services:
-  justin:
+  justin-agents:
     build:
       context: ..
-      dockerfile: docker/justin/Dockerfile    
+      dockerfile: docker/justin-agents/Dockerfile
+      security_opt:
+        - seccomp: unconfined
     volumes:
-      - ./services/rucio.cfg:/opt/rucio/etc/rucio.cfg
+      - /var/log/justin:/var/log/justin
+      - /etc/grid-security:/etc/grid-security
+      - /etc/letsencrypt:/etc/letsencrypt
     networks:
       internal:
         aliases:
