@@ -1,0 +1,23 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN httpd container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker stop %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=/usr/bin/docker run --rm --name %n --privileged \
+  --volume /etc/grid-security:/etc/grid-security \
+  --volume /etc/letsencrypt:/etc/letsencrypt \
+  --volume /var/log/justin:/var/log/justin \
+  --volume /var/run/justin:/var/run/justin \
+  --volume /etc/justin.container.conf:/etc/justin.conf \
+  justin:00.13.xx \
+  /usr/sbin/httpd -DFOREGROUND
+
+[Install]
+WantedBy=multi-user.target
