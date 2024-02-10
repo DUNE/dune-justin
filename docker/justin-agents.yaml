@@ -13,10 +13,10 @@ services:
       dockerfile: docker/justin-agents/Dockerfile
 #      security_opt:
 #        - seccomp: unconfined
-    volumes:
-      - /var/log/justin:/var/log/justin
-      - /etc/grid-security:/etc/grid-security
-      - /etc/letsencrypt:/etc/letsencrypt
+#    volumes:
+#      - /var/log/justin:/var/log/justin
+#      - /etc/grid-security:/etc/grid-security
+#      - /etc/letsencrypt:/etc/letsencrypt
     networks:
       internal:
         aliases:

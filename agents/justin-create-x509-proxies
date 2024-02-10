@@ -2,7 +2,7 @@
 #
 # justin-create-x509-proxies - create X.509 proxies for justIN 
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 #
 
 (
-#. /cvmfs/grid.cern.ch/centos7-ui-200122/etc/profile.d/setup-c7-ui-example.sh
 
 HTTPD_USER_GROUP=dunejustin.dunejustin
 
@@ -30,18 +29,19 @@ voms-proxy-init \
  -key  /etc/grid-security/justin-jobs-production.key.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
- -out /var/lib/justin/justin-jobs-production.proxy.pem.tmp 
+ -out /etc/grid-security/justin-jobs-production.proxy.pem.tmp 
  
-if [ $? = 0 -a -s /var/lib/justin/justin-jobs-production.proxy.pem.tmp ]
+if [ $? = 0 -a -s /etc/grid-security/justin-jobs-production.proxy.pem.tmp ]
 then
-  cp -f /var/lib/justin/justin-jobs-production.proxy.pem.tmp /tmp/x509up_u1026
+  cp -f /etc/grid-security/justin-jobs-production.proxy.pem.tmp \
+        /etc/grid-security/x509up_u1026
   chown dunejustin.dunejustin /tmp/x509up_u1026
 
-  chown $HTTPD_USER_GROUP /var/lib/justin/justin-jobs-production.proxy.pem.tmp
-  mv -f /var/lib/justin/justin-jobs-production.proxy.pem.tmp \
-        /var/lib/justin/justin-jobs-production.proxy.pem
+  chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-production.proxy.pem.tmp
+  mv -f /etc/grid-security/justin-jobs-production.proxy.pem.tmp \
+        /etc/grid-security/justin-jobs-production.proxy.pem
 
-  voms-proxy-info -all -file /var/lib/justin/justin-jobs-production.proxy.pem
+  voms-proxy-info -all -file /etc/grid-security/justin-jobs-production.proxy.pem
 fi
 
 echo
@@ -52,15 +52,15 @@ voms-proxy-init \
  -key  /etc/grid-security/justin-jobs-no-roles.key.pem \
  -voms dune \
  -valid 168:0 \
- -out /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp 
+ -out /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp 
 
-if [ $? = 0 -a -s /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp ]
+if [ $? = 0 -a -s /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp ]
 then
-  chown $HTTPD_USER_GROUP /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp
-  mv -f /var/lib/justin/justin-jobs-no-roles.proxy.pem.tmp \
-        /var/lib/justin/justin-jobs-no-roles.proxy.pem
+  chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp
+  mv -f /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp \
+        /etc/grid-security/justin-jobs-no-roles.proxy.pem
 
-  voms-proxy-info -all -file /var/lib/justin/justin-jobs-no-roles.proxy.pem
+  voms-proxy-info -all -file /etc/grid-security/justin-jobs-no-roles.proxy.pem
 fi
 
 echo
@@ -71,15 +71,15 @@ voms-proxy-init \
  -key  /etc/grid-security/justin-jobs-analysis.key.pem \
  -voms dune \
  -valid 168:0 \
- -out /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp 
+ -out /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp 
 
-if [ $? = 0 -a -s /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp ]
+if [ $? = 0 -a -s /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp ]
 then
-  chown $HTTPD_USER_GROUP /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp
-  mv -f /var/lib/justin/justin-jobs-analysis.proxy.pem.tmp \
-        /var/lib/justin/justin-jobs-analysis.proxy.pem
+  chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp
+  mv -f /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp \
+        /etc/grid-security/justin-jobs-analysis.proxy.pem
 
-  voms-proxy-info -all -file /var/lib/justin/justin-jobs-analysis.proxy.pem
+  voms-proxy-info -all -file /etc/grid-security/justin-jobs-analysis.proxy.pem
 fi
 
 ) >/var/log/justin/create-x509-proxies.log 2>&1

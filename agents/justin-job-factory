@@ -497,15 +497,22 @@ def oneCycle():
 
 if __name__ == '__main__':
 
-  if (os.fork() != 0):
+  if len(sys.argv) > 1 and sys.argv[1] == '--container':
+    notContainer = False
+  else:
+    notContainer = True
+
+  if notContainer and os.fork() != 0:
     sys.exit() # first parent
 
   else:
     os.chdir("/")
-    os.setsid()
     os.umask(0)
 
-    if os.fork() != 0:
+    if notContainer:
+      os.setsid()
+
+    if notContainer and os.fork() != 0:
       sys.exit() # second parent
 
     else:

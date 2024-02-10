@@ -1,12 +1,24 @@
 # Install in /usr/lib/systemd/system
 [Unit]
-Description=justIN Finder daemon
-Documentation=man:justin-finder(8)
+Description=justIN Finder Container
+After=docker.service
+Requires=docker.service
 
 [Service]
-Type=forking
-PIDFile=/var/run/justin/finder.pid
-ExecStart=/usr/sbin/justin-finder
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker stop %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=/usr/bin/docker run --rm --name %n --privileged \
+  --volume /etc/grid-security:/etc/grid-security \
+  --volume /var/log/justin:/var/log/justin \
+  --volume /var/run/justin:/var/run/justin \
+  --volume /etc/justin.container.conf:/etc/justin.conf \
+  justin-agents:00.13.xx \
+  /usr/sbin/justin-finder --container
+ 
+#  --volume /var/lib/justin/justin-finder:/var/lib/justin/justin-finder \
 
 [Install]
-#WantedBy=multi-user.target
+WantedBy=multi-user.target
