@@ -13,8 +13,7 @@ ExecStartPre=-/usr/bin/docker rm %n
 ExecStart=/usr/bin/docker run --rm --name %n --privileged \
   --volume /etc/grid-security:/etc/grid-security \
   --volume /etc/letsencrypt:/etc/letsencrypt \
-  --volume /var/log/justin:/var/log/justin \
-  --volume /var/run/justin:/var/run/justin \
+  --volume /var/log/httpd:/var/log/httpd \
   --volume /etc/justin.container.conf:/etc/justin.conf \
   justin:00.13.xx \
   /usr/sbin/httpd -DFOREGROUND
