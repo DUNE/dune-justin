@@ -8,13 +8,19 @@ EOF
 
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 setup python v3_9_13
+setup metacat
 setup rucio
+export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
+export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
+export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
 setup justin
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
-export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
+which metacat
+metacat --version
 which rucio
 rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
+metacat auth login -m x509 dunepro
 
 touch results.txt
 export now=`date +'%s'`
