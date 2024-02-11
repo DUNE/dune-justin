@@ -1,3 +1,4 @@
+#!/bin/sh
 # Start justin-info-collector, for execution inside the justin container
 #
 # Copyright 2013-24 Andrew McNab for the University of Manchester

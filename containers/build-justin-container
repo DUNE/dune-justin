@@ -1,3 +1,4 @@
+#!/bin/sh
 # Build Docker image for justIN agents and services on AlmaLinux 9
 #
 # Copyright 2013-24 
@@ -27,4 +28,4 @@ source modules/justin_version.py
 docker build --platform linux/amd64 --tag justin:$justinVersion \
              --file containers/Dockerfile .
 
-docker save --output /tmp/justin-agents.tar justin:$justinVersion
+docker save --output /tmp/justin.tar justin:$justinVersion

@@ -1,4 +1,4 @@
-# Start httpd, for execution inside the justin container
+# Start justin-finder, for execution inside the justin container
 #
 # Copyright 2013-24 Andrew McNab for the University of Manchester
 # 
@@ -30,4 +30,4 @@ if [ $? != 0 ] ; then
 fi
 
 # Run daemon in the foreground
-/usr/sbin/httpd -DFOREGROUND
+/usr/sbin/justin-finder --container

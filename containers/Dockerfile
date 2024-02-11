@@ -82,7 +82,7 @@ RUN mkdir /usr/lib/python3.9/site-packages/justin
 COPY modules/__init__.py       /usr/lib/python3.9/site-packages/justin/
 COPY modules/justin_version.py /usr/lib/python3.9/site-packages/justin/
 
-RUN mkdir -p /var/www/wsgi/
+RUN mkdir -p /var/www/wsgi/ /var/www/html/docs/
 RUN mkdir -p /var/run/justin/last-updates/
  
 COPY services/justin-wsgi-import-script /var/www/wsgi/
@@ -91,6 +91,7 @@ COPY services/justin-wsgi-allocator     /var/www/wsgi/
 COPY services/httpd.justin.conf         /etc/httpd/conf.d/
 COPY dashboard/justin-get-output        /var/lib/justin/
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
+COPY docs/*.md                          /var/www/html/docs/
 
 COPY agents/02_dune_condor.conf         /etc/condor/config.d/
 
