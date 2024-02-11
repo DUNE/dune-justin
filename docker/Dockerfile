@@ -31,12 +31,15 @@ RUN dnf install -y epel-release
 RUN dnf config-manager --set-enabled crb
 RUN yum update -y
 
-RUN yum install -y git
+RUN yum install -y git joe
 RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
 RUN yum install -y gcc make which nano procps-ng python3-pip
 RUN yum install -y python3-devel gcc swig openssl-devel
 
 RUN yum install -y httpd mod_ssl 
+# The container image mod_ssl does not have a %post to generate these files:
+RUN ln -sf /etc/grid-security/justin.cert.pem /etc/pki/tls/certs/localhost.crt
+RUN ln -sf /etc/grid-security/justin.key.pem /etc/pki/tls/private/localhost.key
 RUN yum install -y python3-mod_wsgi
 RUN yum install -y python3-markdown
 RUN yum install -y python3-m2crypto
@@ -73,10 +76,11 @@ RUN pip3 install M2Crypto==0.39.0
 
 RUN mkdir -p /var/www/wsgi/
 RUN mkdir -p /var/run/justin/last-updates/
-
-COPY dashboard/justin-get-output        /var/lib/justin/
+ 
 COPY services/justin-wsgi-import-script /var/www/wsgi/
 COPY services/justin-wsgi-ui            /var/www/wsgi/
 COPY services/justin-wsgi-allocator     /var/www/wsgi/
 COPY services/httpd.justin.conf         /etc/httpd/conf.d/
+COPY dashboard/justin-get-output        /var/lib/justin/
+COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 

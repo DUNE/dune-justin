@@ -27,15 +27,22 @@ import random
 import string
 import tarfile
 import configparser
-import MySQLdb
+
+#import MySQLdb
+
+# WE NEED TO REMOVE OLD MySQLdb REFERENCES STILL!
+import pymysql
+pymysql.install_as_MySQLdb()
+MySQLdb=pymysql
+
 import MySQLdb.constants.ER
 
 # Globals
 jobsProductionProxyString = None
-jobsProductionProxyFile   = '/var/lib/justin/justin-jobs-production.proxy.pem'
+jobsProductionProxyFile   = '/etc/grid-security/justin-jobs-production.proxy.pem'
 
 jobsNoRolesProxyString = None
-jobsNoRolesProxyFile   = '/var/lib/justin/justin-jobs-no-roles.proxy.pem'
+jobsNoRolesProxyFile   = '/etc/grid-security/justin-jobs-no-roles.proxy.pem'
 
 # Constants
 MonteCarloRseID = 1

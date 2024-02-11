@@ -20,8 +20,13 @@
 # To be run by the mod_wsgi WSGIImportScript directive in the Apache
 # configuration.
 
+#import MySQLdb
+# WE NEED TO REMOVE OLD MySQLdb REFERENCES STILL!
+import pymysql
+pymysql.install_as_MySQLdb()
+MySQLdb=pymysql
+
 import sys
-import MySQLdb
 import justin
 
 justin.readConf()
