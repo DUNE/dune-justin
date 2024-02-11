@@ -47,6 +47,11 @@ do
   fn=`mktemp awt-$now-XXXXXXXXXX`
   echo "$fn" > $fn
 
+  echo '{"namespace":"testpro","name":"'$fn'","size":0}' >tmp.json
+  metacat file declare --json -f tmp.json "dune:all"
+  ret=$?
+  echo "metacat file declare returns $ret"
+
   echo "GFAL_CONFIG_DIR: $GFAL_CONFIG_DIR   GFAL_PLUGIN_DIR: $GFAL_PLUGIN_DIR"
   for i in 1 2 3 4 5
   do
@@ -83,6 +88,8 @@ echo '===== Results ====='
 echo
 echo 'Download/upload commands:'
 echo 'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt'
+echo echo \''{"namespace":"testpro","name":"FILENAME","size":0}'\' \>tmp.json
+echo 'metacat file declare --json -f tmp.json "dune:all"'
 echo 'justin-rucio-upload --rse $rse_name --protocol $write_protocol --scope testpro --dataset '$upload_dataset' --timeout 1200 FILENAME'
 echo 'Use the wrapper job link on the page for the job on the justIN Dashboard to find the full log file, with errors from these commands'
 echo

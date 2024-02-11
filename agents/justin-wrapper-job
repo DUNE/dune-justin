@@ -796,8 +796,22 @@ except Exception as e:
 if ret:
   jobAborted(900, 'create_logs_tgz', '')
 
+# First try to register logs with MetaCat
+logLine('Register justin-logs:%s with MetaCat' % tgzName)
+try:
+  open('tmp.json','w').write('{"namespace":"justin-logs","name":"' 
+                             + tgzName + '","size":0}')
+except:
+  logLine('Failed to create tmp.json for justin-logs:%s' % tgzName)
+  jobAborted(900, 'metacat_logs_creation', '')
+  
+ret = executeMetaCatCommand('file declare --json -f tmp.json "dune:all"')
+if ret:
+  logLine('Failed to register justin-logs:%s in MetaCat' % tgzName)
+  jobAborted(900, 'metacat_logs_registration', '')
+
 for (rse,scheme) in jobscriptDict['output_rses'][:3]:
-  logLine('Try justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
+  logLine('Upload justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
 
   ret = executeJustinRucioUpload('--rse %s '
                                  '--protocol %s '
