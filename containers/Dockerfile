@@ -26,14 +26,19 @@
 #
 
 FROM almalinux:9
+
+# Setup dunejustin, yum files, and update the base OS
 RUN useradd --uid 1026 --user-group dunejustin
 RUN dnf install -y epel-release
 RUN dnf config-manager --set-enabled crb
+RUN yum -y install \
+ https://research.cs.wisc.edu/htcondor/repo/10.x/htcondor-release-current.el9.noarch.rpm
 RUN yum update -y
 
-RUN yum install -y git joe
+# Install the RPMs we need
+RUN yum install -y git joe util-linux-user
 RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
-RUN yum install -y gcc make which nano procps-ng python3-pip
+RUN yum install -y make which nano procps-ng python3-pip
 RUN yum install -y python3-devel gcc swig openssl-devel
 
 RUN yum install -y httpd mod_ssl 
@@ -42,11 +47,21 @@ RUN ln -sf /etc/grid-security/justin.cert.pem /etc/pki/tls/certs/localhost.crt
 RUN ln -sf /etc/grid-security/justin.key.pem /etc/pki/tls/private/localhost.key
 RUN yum install -y python3-mod_wsgi
 RUN yum install -y python3-markdown
-RUN yum install -y python3-m2crypto
+RUN yum install -y munge
 
+# With 10.x this pulls in condor itself and the voms clients
+RUN yum install -y python3-condor
+
+# Some things do not have suitable RPMs
 RUN pip3 install rucio
 RUN pip3 install metacat
+RUN pip3 install pygal==3.0.0
 
+# We want recent version with Chris Haen's X.509 proxy updates
+# Needs python3-devel gcc swig openssl-devel RPMs
+RUN pip3 install M2Crypto==0.39.0
+
+# Copy justIN scripts and configs into place
 COPY agents/justin-info-collector /usr/sbin/
 COPY agents/justin-finder         /usr/sbin/
 COPY agents/justin-finder-fnal    /usr/sbin/
@@ -67,13 +82,6 @@ RUN mkdir /usr/lib/python3.9/site-packages/justin
 COPY modules/__init__.py       /usr/lib/python3.9/site-packages/justin/
 COPY modules/justin_version.py /usr/lib/python3.9/site-packages/justin/
 
-# No Python3 RPM yet
-RUN pip3 install pygal==3.0.0
-
-# We want recent version with Chris Haen's X.509 proxy updates
-# Needs python3-devel gcc swig openssl-devel RPMs
-RUN pip3 install M2Crypto==0.39.0
-
 RUN mkdir -p /var/www/wsgi/
 RUN mkdir -p /var/run/justin/last-updates/
  
@@ -83,4 +91,11 @@ COPY services/justin-wsgi-allocator     /var/www/wsgi/
 COPY services/httpd.justin.conf         /etc/httpd/conf.d/
 COPY dashboard/justin-get-output        /var/lib/justin/
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
+
+COPY agents/02_dune_condor.conf         /etc/condor/config.d/
+
+COPY containers/start-justin-httpd          /usr/sbin/
+COPY containers/start-justin-finder         /usr/sbin/
+COPY containers/start-justin-job-factory    /usr/sbin/
+COPY containers/start-justin-info-collector /usr/sbin/
 

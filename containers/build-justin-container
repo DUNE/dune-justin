@@ -25,6 +25,6 @@ fi
 source modules/justin_version.py
 
 docker build --platform linux/amd64 --tag justin:$justinVersion \
-             --file docker/Dockerfile .
+             --file containers/Dockerfile .
 
 docker save --output /tmp/justin-agents.tar justin:$justinVersion

@@ -1,12 +1,22 @@
 # Install in /usr/lib/systemd/system
 [Unit]
-Description=justIN Finder for FNAL daemon
-Documentation=man:justin-finder-fnal(8)
+Description=justIN Finder for FNAL
+After=docker.service
+Requires=docker.service
 
 [Service]
-Type=forking
-PIDFile=/var/run/justin/finder-fnal.pid
-ExecStart=/usr/sbin/justin-finder-fnal
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker stop %n
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=/usr/bin/docker run --rm --name %n --privileged \
+  --volume /etc/grid-security:/etc/grid-security \
+  --volume /var/log/justin:/var/log/justin \
+  --volume /var/run/justin:/var/run/justin \
+  --volume /etc/justin.container.conf:/etc/justin.conf \
+  justin:00.13.xx \
+  /usr/sbin/start-justin-finder-fnal
 
 [Install]
-#WantedBy=multi-user.target
+WantedBy=multi-user.target

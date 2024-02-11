@@ -16,7 +16,7 @@ ExecStart=/usr/bin/docker run --rm --name %n --privileged \
   --volume /var/log/httpd:/var/log/httpd \
   --volume /etc/justin.container.conf:/etc/justin.conf \
   justin:00.13.xx \
-  /usr/sbin/httpd -DFOREGROUND
+  /usr/sbin/start-justin-httpd
 
 [Install]
 WantedBy=multi-user.target
