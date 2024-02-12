@@ -14,7 +14,7 @@ ExecStart=/usr/bin/docker run --rm --name %n --privileged \
   --volume /etc/grid-security:/etc/grid-security \
   --volume /var/log/justin:/var/log/justin \
   --volume /var/run/justin:/var/run/justin \
-  --volume /etc/justin.container.conf:/etc/justin.conf \
+  --volume /etc/justin.conf:/etc/justin.conf \
   justin:00.13.xx \
   /usr/sbin/start-justin-info-collector
 

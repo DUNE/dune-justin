@@ -35,7 +35,7 @@ if [ $? = 0 -a -s /etc/grid-security/justin-jobs-production.proxy.pem.tmp ]
 then
   cp -f /etc/grid-security/justin-jobs-production.proxy.pem.tmp \
         /etc/grid-security/x509up_u1026
-  chown dunejustin.dunejustin /tmp/x509up_u1026
+  chown dunejustin.dunejustin /etc/grid-security/x509up_u1026
 
   chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-production.proxy.pem.tmp
   mv -f /etc/grid-security/justin-jobs-production.proxy.pem.tmp \

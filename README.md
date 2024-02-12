@@ -7,10 +7,12 @@ See https://justin.dune.hep.ac.uk/ for documentation
 
 (This will be adopted in the near future.)
 
-Most development happens on the main branch, via pull requests
+Most development happens on the main branch, via pull requests. 
 
 Version numbers in the form MM.mm.pp with major, minor and patch versions.
-Each of the three numbers has two digits, usually with a leading 0.
+For releases, each of the three numbers has two digits, usually with a 
+leading 0. Release candidates for new minor releases are prepared on the main
+branch and have a patch version of the form rcN, for release candidate N.
 
 When a minor release is made, a new branch named MM.mm is created.
 The start of that branch is tagged as MM.mm.00 The same procedure is used for
