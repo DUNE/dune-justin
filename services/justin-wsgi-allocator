@@ -277,10 +277,11 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
     job = justin.select(query, justOne = True)
   except Exception as e:
     return { "error_message": "Error finding job from jobsubID " + 
-             jobsubID + ": " + str(e) }
+             jsonDict['jobsub_id'] + ": " + str(e) }
 
   if not job:
-    return { "error_message": "Failed to find job from jobsubID " + jobsubID }
+    return { "error_message": "Failed to find job from jobsubID " + 
+             jsonDict['jobsub_id'] }
 
   if jobscriptSecret is not None and \
      job['jobscript_secret'] != jobscriptSecret:
