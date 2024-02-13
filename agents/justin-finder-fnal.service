@@ -8,6 +8,7 @@ Requires=docker.service
 Type=simple
 TimeoutStartSec=0
 Restart=always
+EnvironmentFile=/etc/justin-environmentfile
 ExecStartPre=-/usr/bin/docker stop %n
 ExecStartPre=-/usr/bin/docker rm %n
 ExecStart=/usr/bin/docker run --rm --name %n --privileged \
@@ -15,7 +16,7 @@ ExecStart=/usr/bin/docker run --rm --name %n --privileged \
   --volume /var/log/justin:/var/log/justin \
   --volume /var/run/justin:/var/run/justin \
   --volume /etc/justin.conf:/etc/justin.conf \
-  justin:00.13.xx \
+  justin:${justinVersion} \
   /usr/sbin/start-justin-finder-fnal
 
 [Install]

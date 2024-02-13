@@ -22,7 +22,7 @@ The
 is used to manage the jobs. It uses the metadata query
 `rucio-dataset testpro:awt` to find files in the testpro:awt Rucio dataset. 
 The [justIN finder agent](/docs/agents.finder.md) looks for new files in
-that dataset every two hour. At the same time, existing files in the 
+that dataset every two hours. At the same time, existing files in the 
 testpro:awt dataset are reset to the finding state. The finder agent then
 looks for the replicas of the new and existing files, updating the PFNs
 of the already cached replicas and adding new replicas as appropriate.
@@ -73,8 +73,8 @@ the RSE name, and `$fn` is temporary test file created locally by the
 jobscript.
 
 All of the verbose outputs of these commands are logged to the jobscript
-logfile, which is available in full by looking at the Landscape page for
-each job. There is a link to the Landscape webserver's files for each job
+logfile, which is available in full by looking at the job wrapper logs page 
+for each job. There is a link to the wrapper job logs for each job
 on each job's page on the justIN dashboard.
 
 At the end of the jobscript, it outputs a summary of the `xrdcp` and 

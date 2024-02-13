@@ -25,6 +25,13 @@
 # This script should ideally be run as Big Ben in London signals the start
 # of each new year in UTC :-) 
 
+echo 'MetaCat whoami:'
+metacat auth whoami
+echo
+echo 'Rucoo whoami:'
+rucio whoami
+echo
+
 y=`date --utc +'%Y'`
 current_week=`date --utc +'%W'`
 w=$current_week
@@ -33,6 +40,7 @@ while [ $w -lt 54 ]
 do
  upload_dataset=`printf "awt-uploads-%d%02d" $y $w`
  lifetime=`expr \( $w - $current_week + 1 \) \* 604800`
+ metacat dataset create testpro:$upload_dataset
  rucio add-dataset --lifetime $lifetime testpro:$upload_dataset 
  ## HERE WE SHOULD CREATE A RULE FOR THIS DATASET
  w=`expr $w + 1`
