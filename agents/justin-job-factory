@@ -46,6 +46,7 @@ import justin
 sleepSeconds      = 60
 jobsPerCluster    = 192
 maxSubmitted      = 2000
+jobsRatio         = 1.5 
 updateAWTInterval = 6 * 3600
 
 # Jobsub names of all sites we always ignore. This is for sites unknown to us 
@@ -347,7 +348,7 @@ def workflowJobs():
     logLine('unallocatedCount=%d  submittedCount=%d  maxSubmitted=%d' 
             % (unallocatedCount, submittedCount, maxSubmitted))
 
-    if unallocatedCount > submittedCount * 1.5:
+    if unallocatedCount * jobsRatio > submittedCount:
       # Need to submit more jobs: find suitable entries and sites
       try:
         entriesRows = justin.select(
@@ -399,7 +400,7 @@ def workflowJobs():
         desiredSiteNames  = ','.join(desiredSites)
         desiredEntryNames = ','.join(desiredEntries)
 
-        numberToSubmit = unallocatedCount - submittedCount
+        numberToSubmit = unallocatedCount * jobsRatio - submittedCount
         if numberToSubmit > jobsPerCluster:
           numberToSubmit = jobsPerCluster
 
