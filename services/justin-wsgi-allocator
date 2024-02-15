@@ -1787,10 +1787,11 @@ def checkSecretHash(environ, jsonDict):
                        % (secretTime, nowTime ) )
 
   try:
-    row = justin.select('SELECT justin_job_secret FROM jobs '
+    row = justin.select('SELECT justin_job_secret,job_state FROM jobs '
                         'WHERE jobsub_id="%s"' % jsonDict['jobsub_id'],
                         justOne = True)
     justinJobSecret = row['justin_job_secret']
+    jobState        = row['job_state']
   except:
     raise RuntimeError('Forbidden - failed to get job secret for %s' 
                        % jsonDict['jobsub_id'])
@@ -1808,6 +1809,8 @@ def checkSecretHash(environ, jsonDict):
 
   if jsonDict['secret_hash'] != secretHash:
     raise RuntimeError('Forbidden - invalid hash given')
+
+  return jobState
 
 #def getAllocatorLock(timeoutSeconds):
 #  # Try to get the workflow allocator service lock or raise an exception if
@@ -1924,13 +1927,20 @@ def application(environ, startResponse):
   # All other methods are called by the wrapper job using its secret hash
   # which is checked with checkSecretHash()
   try:
-    checkSecretHash(environ, jsonDict)
+    jobState = checkSecretHash(environ, jsonDict)
   except Exception as e:
     return httpError(startResponse, '403 Forbidden', str(e))
 
   # Get the details of the stage for the job to work on
   if jsonDict['method'] == 'get_jobscript':
-    return getJobscriptMethod(startResponse, jsonDict, environ)
+    if jobState == 'submitted':
+      return getJobscriptMethod(startResponse, jsonDict, environ)
+    else:
+      print('Duplicate get_jobscript received for job in state %s: %s' 
+             % (jobState, str(jsonDict)), file=sys.stderr)
+      return httpError(startResponse, 
+                 '403 Forbidden', 
+                 'Job is no longer in submitted state - duplicate/retry?')
 
   # Record heartbeats from the wrapper jobs
   if jsonDict['method'] == 'send_heartbeat':
