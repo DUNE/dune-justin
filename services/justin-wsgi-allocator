@@ -210,7 +210,7 @@ def getClassadsCall(startResponse, environ):
   else:
     justinRank = 'My.JUSTIN_PRO_Rank'
 
-  # Return ClassAds to be published by the pilot/glidein
+   # Return ClassAds to be published by the pilot/glidein
   # Non-justIN jobs get rank 0 or 101
   # If a justIN job has a stage not listed in the rankText dictionary
   # then it gets rank Undefined which equals 0
