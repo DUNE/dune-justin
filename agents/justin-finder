@@ -793,11 +793,11 @@ def findFinishedWorkflows():
     logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
   justin.conn.commit()
 
-def resetFilesForJob(justinJobID = justinJobID, 
-                     jobsubID    = jobsubID, 
-                     workflowID  = workflowID, 
-                     stageID     = stageID,
-                     siteID      = siteID):    
+def resetFilesForJob(justinJobID,
+                     jobsubID,
+                     workflowID,
+                     stageID,
+                     siteID):   
 
     # Then find the file(s) allocated to this stalled or aborted job 
     # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
@@ -1093,6 +1093,8 @@ def manageCaches():
   justin.conn.commit()
 
 def findStalledCondorJobs():
+
+  logLine('Start of finding stalled HTCondor jobs')
 
   nowTime = int(time.time())
 
