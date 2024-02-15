@@ -629,6 +629,8 @@ if __name__ == '__main__':
             except Exception as e:
               print('Cycle fails with exception ' + str(e))
 
+            justin.conn.close()
+ 
           logLine('================ End cycle ================')
           sys.exit(0)
 

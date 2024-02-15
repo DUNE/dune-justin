@@ -3666,7 +3666,7 @@ def application(environ, startResponse):
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    justin.conn.ping(True)
+    justin.conn.ping(reconnect = True)
   except Exception as e:
     message = 'DB connection lost and cannot reconnect: ' + str(e)
 

@@ -1031,7 +1031,7 @@ def updateScopes():
 
 def oneCycle():
 
-  # Is it time to update storages from Rucio?
+  # Is it time to update CILogon Jwks
   try:
     lastUpdateJwks = os.stat('/var/run/justin/last-updates/jwks').st_mtime
   except:
@@ -1181,6 +1181,8 @@ if __name__ == '__main__':
               oneCycle()
             except Exception as e:
               print('Cycle fails with exception ' + str(e))
+
+            justin.conn.close()
 
           logLine('================ End cycle ================')
           sys.exit(0)

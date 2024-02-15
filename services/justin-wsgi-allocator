@@ -277,10 +277,11 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
     job = justin.select(query, justOne = True)
   except Exception as e:
     return { "error_message": "Error finding job from jobsubID " + 
-             jobsubID + ": " + str(e) }
+             jsonDict['jobsub_id'] + ": " + str(e) }
 
   if not job:
-    return { "error_message": "Failed to find job from jobsubID " + jobsubID }
+    return { "error_message": "Failed to find job from jobsubID " + 
+             jsonDict['jobsub_id'] }
 
   if jobscriptSecret is not None and \
      job['jobscript_secret'] != jobscriptSecret:
@@ -1039,17 +1040,16 @@ def findCachedFiles(siteID, workflowID, stageID, maxFiles):
   
 def findBestFile(jobDict):
 
-# DEBUGGING print() STATEMENTS BELOW NEED TO BE REMOVED
-
   # When there are less cached files than this we update the cache
   minCacheSize = 20
 
   replicaRows = findCachedFiles(jobDict['site_id'], jobDict['workflow_id'], 
                                 jobDict['stage_id'], minCacheSize)
 
-  print('For %s/%d/%d got %d rows' 
-        % (jobDict['site_name'], jobDict['workflow_id'], jobDict['stage_id'], 
-           len(replicaRows)))
+#  DEBUGGING print() STATEMENTS BELOW NEED TO BE REMOVED
+#  print('For %s/%d/%d got %d rows' 
+#        % (jobDict['site_name'], jobDict['workflow_id'], jobDict['stage_id'], 
+#           len(replicaRows)))
 
   if len(replicaRows) < minCacheSize:    
     # Too few returned: might be time to update the cache?
@@ -1848,7 +1848,7 @@ def application(environ, startResponse):
     # True should provoke a reconnection attempt.
     # See https://github.com/farcepest/MySQLdb1/blob/master/_mysql.c#L1978
     # (Not sure if there is a more authoritative source for this API.)
-    justin.conn.ping(True)
+    justin.conn.ping(reconnect = True)
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',

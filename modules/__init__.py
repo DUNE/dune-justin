@@ -107,12 +107,15 @@ rseCountriesRegions = {
                         'BR'  : 'South_America',
                         'CA'  : 'North_America',
                         'CERN': 'Europe',
+                        'CH'  : 'Europe',
                         'CZ'  : 'Europe',
                         'DE'  : 'Europe',
                         'ES'  : 'Europe',
                         'FR'  : 'Europe',
-                        'NL'  : 'Europe',
                         'IN'  : 'South_Asia',
+                        'IT'  : 'Europe',
+                        'NL'  : 'Europe',
+                        'RU'  : 'Europe',
                         'UK'  : 'Europe',
                         'US'  : 'North_America'
                       }
