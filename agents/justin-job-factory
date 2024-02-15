@@ -348,7 +348,7 @@ def workflowJobs():
     logLine('unallocatedCount=%d  submittedCount=%d  maxSubmitted=%d' 
             % (unallocatedCount, submittedCount, maxSubmitted))
 
-    if unallocatedCount * jobsRatio > submittedCount:
+    if int(unallocatedCount * jobsRatio + 0.9999) > submittedCount:
       # Need to submit more jobs: find suitable entries and sites
       try:
         entriesRows = justin.select(
@@ -400,7 +400,8 @@ def workflowJobs():
         desiredSiteNames  = ','.join(desiredSites)
         desiredEntryNames = ','.join(desiredEntries)
 
-        numberToSubmit = unallocatedCount * jobsRatio - submittedCount
+        numberToSubmit = (int(unallocatedCount * jobsRatio + 0.9999) 
+                          - submittedCount)
         if numberToSubmit > jobsPerCluster:
           numberToSubmit = jobsPerCluster
 
