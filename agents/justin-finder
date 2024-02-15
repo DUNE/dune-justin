@@ -889,9 +889,11 @@ def resetFilesForJob(justinJobID,
                   stageID, jobsubID))
 
 def findStalledAbortedJobs():
-  # Find jobs which have not sent a heartbeat in jobStalledSeconds
-  # or which have reported they have aborted or that outputting failed
-  # and reset their file allocations
+  # Find jobs which have 
+  # (1) not sent a heartbeat in jobStalledSeconds, or
+  # (2) which have reported they have aborted or that outputting failed
+  #     and still have has_allocations set
+  # and then reset their file allocations
   #
   # We handle bad waiting jobs in findStalledCondorJobs()
 
@@ -904,10 +906,10 @@ def findStalledAbortedJobs():
              'WHERE ((job_state="started" OR '
              'job_state="processing" OR '
              'job_state="outputting") AND '
-             '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) '
-             'OR job_state="aborted" '
-             'OR job_state="jobscript_error" '
-             'OR job_state="outputting_failed" '
+             '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) OR '
+             '((job_state="aborted" OR '
+             '  job_state="jobscript_error" OR '
+             '  job_state="outputting_failed") AND has_allocations) '
              'ORDER BY justin_job_id' % justin.jobStallSeconds)
 
     justin.cur.execute(query)
@@ -927,7 +929,8 @@ def findStalledAbortedJobs():
                                    'outputting_failed']:
       # If not here due to an abort, we mark the job as stalled
       try:
-        query = ('UPDATE jobs SET job_state="stalled",finished_time=NOW() '
+        query = ('UPDATE jobs SET job_state="stalled",finished_time=NOW(),'
+                 'has_allocations=FALSE '
                  'WHERE justin_job_id=%d' % jobRow['justin_job_id'])
     
         justin.cur.execute(query)

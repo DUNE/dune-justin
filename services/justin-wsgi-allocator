@@ -751,6 +751,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
              'heartbeat_time=NOW(),'
              'finished_time="' + justin.unixEpoch + '",' 
              'job_state="started",'
+             'has_allocations=TRUE,'
              'allocator_name="' + allocatorName + '",' 
              'workflow_id=' + str(jsonDict['workflow_id']) + ','
              'stage_id=' + str(jsonDict['stage_id']) + ' '

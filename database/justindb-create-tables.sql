@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
                   'finished','notused','aborted','stalled','jobscript_error',
                   'outputting_failed') 
                   NOT NULL DEFAULT 'submitted',
+  `has_allocations` tinyint(1) NOT NULL DEFAULT 0,
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
   `submitted_time` datetime NOT NULL,
@@ -81,13 +82,13 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
-  INDEX `jobsub_state` (`jobsub_state`,
-    `job_state`,`site_id`),
   INDEX `site_id_job_state` (`site_id`,`job_state`,
     `submitted_time`),
   INDEX `job_state_site_id` (`job_state`,`site_id`,
     `submitted_time`),
-  INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`job_state`)
+  INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`job_state`),
+  INDEX `has_allocations` (`has_allocations`,`job_state`),
+  INDEX `heartbeat_time` (`job_state`,`heartbeat_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
