@@ -890,10 +890,10 @@ def resetFilesForJob(justinJobID,
 
 def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
-  # or which have reported they have aborted
-
-#  # or which were submitted too long ago (should really find these from
-#  # HTCondor directly since they may be perfectly valid just waiting)
+  # or which have reported they have aborted or that outputting failed
+  # and reset their file allocations
+  #
+  # We handle bad waiting jobs in findStalledCondorJobs()
 
   logLine('Start of finding stalled and aborted jobs')
 
@@ -908,8 +908,6 @@ def findStalledAbortedJobs():
              'OR job_state="aborted" '
              'OR job_state="jobscript_error" '
              'OR job_state="outputting_failed" '
-#             'OR (job_state="submitted" AND '
-#             'submitted_time < DATE_SUB(NOW(),INTERVAL 12 HOUR)) '
              'ORDER BY justin_job_id' % justin.jobStallSeconds)
 
     justin.cur.execute(query)
@@ -926,7 +924,7 @@ def findStalledAbortedJobs():
   for jobRow in jobRows:
 
     if jobRow['job_state'] not in ['aborted', 'jobscript_error', 
-                                                     'outputting_failed']:
+                                   'outputting_failed']:
       # If not here due to an abort, we mark the job as stalled
       try:
         query = ('UPDATE jobs SET job_state="stalled",finished_time=NOW() '
@@ -947,11 +945,12 @@ def findStalledAbortedJobs():
                       justinJobID = jobRow['justin_job_id'],
                       siteID = jobRow['site_id'])
 
-      resetFilesForJob(justinJobID = jobRow['justin_job_id'],
-                       jobsubID    = jobRow['jobsub_id'],
-                       workflowID  = jobRow['workflow_id'],
-                       stageID     = jobRow['stage_id'],
-                       siteID      = jobRow['site_id'])
+    # However we got here, reset the job's files
+    resetFilesForJob(justinJobID = jobRow['justin_job_id'],
+                     jobsubID    = jobRow['jobsub_id'],
+                     workflowID  = jobRow['workflow_id'],
+                     stageID     = jobRow['stage_id'],
+                     siteID      = jobRow['site_id'])
 
   # Everything went ok so commit
   justin.conn.commit()

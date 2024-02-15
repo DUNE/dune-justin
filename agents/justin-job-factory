@@ -168,9 +168,12 @@ def submitJobs(numberToSubmit,
 universe                = vanilla
 environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
+periodic_vacate         = False
+periodic_hold           = False
 max_retries             = 0
 retry_until             = True
 on_exit_remove          = True
+on_exit_hold            = False
 notification            = Never
 executable              = %s
 arguments               = 
