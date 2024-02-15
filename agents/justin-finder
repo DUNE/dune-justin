@@ -200,6 +200,8 @@ def findFiles():
   # By default we use MetaCat, but MQLs starting rucio-dataset or monte-carlo 
   # are handled directly.
 
+  logLine('Start of finding files')
+
   query = ('SELECT workflow_id,mql,refind_seconds,'
            'UNIX_TIMESTAMP(refind_end_time) AS refind_end,'
            'UNIX_TIMESTAMP(refind_next_time) AS refind_next '
@@ -217,7 +219,6 @@ def findFiles():
   didClient = None
 
   for workflow in findingWorkflows:
-  
     refindNextTime = int(workflow['refind_next'])
     refindEndTime  = int(workflow['refind_end'])
     refindSeconds  = int(workflow['refind_seconds'])
@@ -289,6 +290,8 @@ def findFiles():
 
 def findReplicas():
   # Find replicas of files in the finding state
+
+  logLine('Start findng replicas')
 
   query = (
     'SELECT workflows.workflow_id,stages.stage_id '
@@ -571,6 +574,8 @@ def executeMetaCatCommand(args):
 def findSubmittedWorkflows():
   # Find workflows waiting in the submitted state and set them to running
 
+  logLine('Start of finding submitted workflows')
+
   datasetsToCreate = set()
   workflowsToStart = []
 
@@ -733,6 +738,8 @@ def findSubmittedWorkflows():
 def findFinishedWorkflows():
   # Find workflows with all files in terminal states and set to finished
 
+  logLine('Start of finding finished workflows')
+
   try:
     query = ('SELECT workflow_id FROM workflows '
              'WHERE state="running" ORDER BY workflow_id')
@@ -784,13 +791,109 @@ def findFinishedWorkflows():
       continue
 
     logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
-    
   justin.conn.commit()
+
+def resetFilesForJob(justinJobID = justinJobID, 
+                     jobsubID    = jobsubID, 
+                     workflowID  = workflowID, 
+                     stageID     = stageID,
+                     siteID      = siteID):    
+
+    # Then find the file(s) allocated to this stalled or aborted job 
+    # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
+    #  CHECKS FOR FILE IN THE outputting STATE)
+    try:
+      query = ('SELECT file_id,allocations,file_did,state '
+               'FROM files '
+               'WHERE (state="allocated" OR state="outputting") '
+               'AND justin_job_id=%d '
+               'ORDER BY file_id' % justinJobID)
+
+      justin.cur.execute(query)
+
+      fileRows = justin.cur.fetchall()
+    except:
+      logLine('Failed to get list of files of the stalled or aborted job')
+      # We should give up at this point rather than commit a mess?
+      sys.exit(0)
+    
+    for fileRow in fileRows: 
+    
+      if fileRow['allocations'] >= justin.maxAllocations:
+        # Reached max allocations allowed per file
+        # Mark file as failed in case it is the file causing the problem
+        # (eg pathological file causes memory to balloon leading to the site
+        # killing the job, and to us the job just appears stalled.)
+
+        try:
+          # Only update file state if still allocated to THIS bad job.
+          # This safeguard should not be needed for maxAllocations files.
+          # Alternatively, we could have done a SELECT ... FOR UPDATE
+          # to use a lock.
+          query = ('UPDATE files SET state="failed" '
+                   'WHERE file_id=%d AND justin_job_id=%d' 
+                   % (fileRow['file_id'], justinJobID))
+
+          affectedRows = justin.cur.execute(query)
+        except:
+          logLine('Failed to set file %s to failed in '
+                  'workflow %d, stage %d after job %s' 
+                  % (fileRow['file_did'], workflowID, 
+                     stageID, jobsubID))
+          # Again, just stop for now on errors
+          sys.exit(0)
+            
+        if affectedRows:
+          justin.logEvent(eventTypeID = justin.event_FILE_SET_TO_FAILED,
+                          workflowID = workflowID,
+                          stageID = stageID,
+                          fileID = fileRow['file_id'],
+                          justinJobID = justinJobID,
+                          siteID = siteID)
+      else:
+      
+        try:
+          # Only update file state if still allocated to THIS bad job.
+          # This safeguard is to avoid a race condition between getting the 
+          # list of bad jobs and then resetting their files.
+          # Alternatively, we could have done a SELECT ... FOR UPDATE
+          # to use a lock but this would slow down the allocation process.
+          query = ('UPDATE files SET state="unallocated" '
+                   'WHERE file_id=%d AND justin_job_id=%d' 
+                   % (fileRow['file_id'], justinJobID))
+
+          affectedRows = justin.cur.execute(query)
+        except:
+          logLine('Failed to set file %s to unallocated in '
+                  'workflow %d, stage %d after job %s' 
+                  % (fileRow['file_did'], workflowID, 
+                     stageID, jobsubID))
+          # Again, just stop for now on errors
+          sys.exit(0)
+
+        if affectedRows:
+          justin.logEvent(eventTypeID = 
+                          justin.event_FILE_OUTPUTTING_RESET 
+                          if fileRow['state'] == 'outputting'
+                          else justin.event_FILE_ALLOCATED_RESET,
+                          workflowID = workflowID,
+                          stageID = stageID,
+                          fileID = fileRow['file_id'],
+                          justinJobID = justinJobID,
+                          siteID = siteID)
+
+          logLine('Reset file %s in %d,%d to unallocated for job %s' % 
+                  (fileRow['file_did'], workflowID,
+                  stageID, jobsubID))
 
 def findStalledAbortedJobs():
   # Find jobs which have not sent a heartbeat in jobStalledSeconds
   # or which have reported they have aborted
-  # or which were submitted a day ago
+
+#  # or which were submitted too long ago (should really find these from
+#  # HTCondor directly since they may be perfectly valid just waiting)
+
+  logLine('Start of finding stalled and aborted jobs')
 
   try:
     query = ('SELECT workflow_id,stage_id,justin_job_id,jobsub_id,site_id,'
@@ -803,8 +906,8 @@ def findStalledAbortedJobs():
              'OR job_state="aborted" '
              'OR job_state="jobscript_error" '
              'OR job_state="outputting_failed" '
-             'OR (job_state="submitted" AND '
-             'submitted_time < DATE_SUB(NOW(),INTERVAL 1 DAY)) '
+#             'OR (job_state="submitted" AND '
+#             'submitted_time < DATE_SUB(NOW(),INTERVAL 12 HOUR)) '
              'ORDER BY justin_job_id' % justin.jobStallSeconds)
 
     justin.cur.execute(query)
@@ -842,92 +945,11 @@ def findStalledAbortedJobs():
                       justinJobID = jobRow['justin_job_id'],
                       siteID = jobRow['site_id'])
 
-    # Then find the file(s) allocated to this stalled or aborted job 
-    # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
-    #  CHECKS FOR FILE IN THE outputting STATE)
-    try:
-      query = ('SELECT file_id,allocations,file_did,state '
-               'FROM files '
-               'WHERE (state="allocated" OR state="outputting") '
-               'AND justin_job_id=%d '
-               'ORDER BY file_id' % jobRow['justin_job_id'])
-
-      justin.cur.execute(query)
-
-      fileRows = justin.cur.fetchall()
-    except:
-      logLine('Failed to get list of files of the stalled or aborted job')
-      # We should give up at this point rather than commit a mess?
-      sys.exit(0)
-    
-    for fileRow in fileRows: 
-    
-      if fileRow['allocations'] >= justin.maxAllocations:
-        # Reached max allocations allowed per file
-        # Mark file as failed in case it is the file causing the problem
-        # (eg pathological file causes memory to balloon leading to the site
-        # killing the job, and to us the job just appears stalled.)
-
-        try:
-          # Only update file state if still allocated to THIS bad job.
-          # This safeguard should not be needed for maxAllocations files.
-          # Alternatively, we could have done a SELECT ... FOR UPDATE
-          # to use a lock.
-          query = ('UPDATE files SET state="failed" '
-                   'WHERE file_id=%d AND justin_job_id=%d' 
-                   % (fileRow['file_id'], jobRow['justin_job_id']))
-
-          affectedRows = justin.cur.execute(query)
-        except:
-          logLine('Failed to set file %s to failed in '
-                  'workflow %d, stage %d after job %s' 
-                  % (fileRow['file_did'], jobRow['workflow_id'], 
-                     jobRow['stage_id'], jobRow['jobsub_id']))
-          # Again, just stop for now on errors
-          sys.exit(0)
-            
-        if affectedRows:
-          justin.logEvent(eventTypeID = justin.event_FILE_SET_TO_FAILED,
-                          workflowID = jobRow['workflow_id'],
-                          stageID = jobRow['stage_id'],
-                          fileID = fileRow['file_id'],
-                          justinJobID = jobRow['justin_job_id'],
-                          siteID = jobRow['site_id'])
-      else:
-      
-        try:
-          # Only update file state if still allocated to THIS bad job.
-          # This safeguard is to avoid a race condition between getting the 
-          # list of bad jobs and then resetting their files.
-          # Alternatively, we could have done a SELECT ... FOR UPDATE
-          # to use a lock but this would slow down the allocation process.
-          query = ('UPDATE files SET state="unallocated" '
-                   'WHERE file_id=%d AND justin_job_id=%d' 
-                   % (fileRow['file_id'], jobRow['justin_job_id']))
-
-          affectedRows = justin.cur.execute(query)
-        except:
-          logLine('Failed to set file %s to unallocated in '
-                  'workflow %d, stage %d after job %s' 
-                  % (fileRow['file_did'], jobRow['workflow_id'], 
-                     jobRow['stage_id'], jobRow['jobsub_id']))
-          # Again, just stop for now on errors
-          sys.exit(0)
-
-        if affectedRows:
-          justin.logEvent(eventTypeID = 
-                          justin.event_FILE_OUTPUTTING_RESET 
-                          if fileRow['state'] == 'outputting'
-                          else justin.event_FILE_ALLOCATED_RESET,
-                          workflowID = jobRow['workflow_id'],
-                          stageID = jobRow['stage_id'],
-                          fileID = fileRow['file_id'],
-                          justinJobID = jobRow['justin_job_id'],
-                          siteID = jobRow['site_id'])
-
-          logLine('Reset file %s in %d,%d to unallocated for job %s' % 
-                  (fileRow['file_did'], jobRow['workflow_id'],
-                  jobRow['stage_id'], jobRow['jobsub_id']))
+      resetFilesForJob(justinJobID = jobRow['justin_job_id'],
+                       jobsubID    = jobRow['jobsub_id'],
+                       workflowID  = jobRow['workflow_id'],
+                       stageID     = jobRow['stage_id'],
+                       siteID      = jobRow['site_id'])
 
   # Everything went ok so commit
   justin.conn.commit()
@@ -990,6 +1012,8 @@ def oidcRefreshRequest(refreshToken):
     return tokensDict
 
 def findTokensToRefresh():
+
+  logLine('Start of finding tokens to refresh')
 
   try:
     query = ('SELECT users.user_id,principal_name,refresh_token '
@@ -1055,6 +1079,8 @@ def findTokensToRefresh():
 # Remove stale values from caches
 def manageCaches():
 
+  logLine('Start of manage caches')
+
   # Remove stale rank cache entries
   try:
     justin.insertUpdate('DELETE FROM sites_ranks_cache '
@@ -1063,6 +1089,98 @@ def manageCaches():
   except Exception as e:
     logLine('Delete stale sites rank cache rows fails: ' + str(e))
             
+  # All ok, so commit it all to the DB
+  justin.conn.commit()
+
+def findStalledCondorJobs():
+
+  nowTime = int(time.time())
+
+  try: 
+    outcome = subprocess.run(
+               ['/usr/bin/condor_q',
+                '--long:json',
+                '-attributes',
+                'clusterid,procid,jobstatus,enteredcurrentstatus'
+               ],
+               encoding = 'utf-8',
+               stderr   = subprocess.STDOUT,
+               stdout   = subprocess.PIPE,
+               timeout  = 60
+                            ) 
+  except Exception as e:
+    logLine("condor_q fails with error: " + str(e))
+    return
+
+  logLine('condor_q exit code: ' + str(outcome.returncode))
+
+  try:
+    jsonJobs = json.loads(outcome.stdout)
+  except:
+    logLine('Failed to load JSON output by condor_q')
+    return
+
+  condorJobs = {}  
+  for jsonJob in jsonJobs:  
+    if 'jobstatus' not in jsonJob or \
+       'enteredcurrentstatus' not in jsonJob or \
+       'clusterid' not in jsonJob or \
+       'procid' not in jsonJob:
+      continue
+      
+    condorJobs[jsonJob['clusterid']+'.'+jsobJob['procid']] = \
+           (jsobJob['jobstatus'], jsobJob['enteredcurrentstatus'])
+
+  # Get a list of waiting/running jobs
+  query = ('SELECT jobsub_id,job_state,justin_job_id,workflow_id,stage_id,'
+           'site_id FROM jobs WHERE job_state IN '
+           '("submitted","started","processing","outputting")')
+
+  dbJobRows = justin.select(query)
+  for dbJobRow in dbJobRows:
+    stalled = False
+    clusterProc = dbJobRow['jobsub_id'].split('@')[0]
+    
+    if clusterProc not in condorJobs:
+      # if Condor is unaware of the job, then it's stalled
+      logLine('Job %s is not known to HTCondor - marking as stalled' 
+              % clusterProc)
+      stalled = True
+      
+    else:
+      (jobStatus, enteredCurrentStatus) = condorJobs[clusterProc]
+
+      # Allow 60 seconds for race conditions, but if DB thinks 
+      # job is waiting or running but Condor says something else, 
+      # then mark as stalled
+      if enteredCurrentStatus < nowTime - 60 and jobStatus in (3,4,5,6):
+        logLine('Job %s is in HTCondor state %d - marking as stalled' %
+                (clusterProc, jobStatus))
+        stalled = True
+        
+    if stalled:
+      try:
+        justin.insertUpdate('UPDATE jobs '
+              'SET job_state="stalled",finished_time=NOW() '
+              'WHERE justin_job_id="%s" AND '
+              'job_state IN ("submitted","started","processing","outputting")'
+              % dbJobRow['justin_job_id'])
+      except Exception as e:
+        logLine('Failed to update stalled job - exiting')
+        sys.exit(0)
+
+      justin.logEvent(eventTypeID = justin.event_JOB_STALLED,
+                      workflowID = dbJobRow['workflow_id'],
+                      stageID = dbJobRow['stage_id'],
+                      justinJobID = dbJobRow['justin_job_id'],
+                      siteID = dbJobRow['site_id'])
+
+      resetFilesForJob(justinJobID = dbJobRow['justin_job_id'],
+                       jobsubID    = dbJobRow['jobsub_id'],
+                       workflowID  = dbJobRow['workflow_id'],
+                       stageID     = dbJobRow['stage_id'],
+                       siteID      = dbJobRow['site_id'])
+
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
@@ -1076,6 +1194,16 @@ def oneCycle():
   findStalledAbortedJobs()
   manageCaches()
 
+  # Is it time to update CILogon Jwks
+  try:
+    lastUpdateCondorJobs = \
+              os.stat('/var/run/justin/last-updates/condorjobs').st_mtime
+  except:
+    lastUpdateCondorJobs = 0
+
+  if lastUpdateCondorJobs + updateCondorJobs < time.time():
+    pathlib.Path('/var/run/justin/last-updates/condorjobs').touch(exist_ok=True)
+    findStalledCondorJobs()
 #
 # PROGRAM MAIN
 #
@@ -1177,7 +1305,8 @@ if __name__ == '__main__':
             justin.conn.autocommit(False)
             justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
-            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+            logLine('Failed to create database connection (' + 
+                    str(e) + ') - skipping cycle')
           else:
             try:
               p = pwd.getpwnam(justin.agentUsername)
@@ -1187,6 +1316,8 @@ if __name__ == '__main__':
               oneCycle()
             except Exception as e:
               print('Cycle fails with exception ' + str(e))
+
+            justin.conn.close()
 
           logLine('================ End cycle ================')
           sys.exit(0)

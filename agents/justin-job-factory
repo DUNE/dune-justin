@@ -347,7 +347,7 @@ def workflowJobs():
     logLine('unallocatedCount=%d  submittedCount=%d  maxSubmitted=%d' 
             % (unallocatedCount, submittedCount, maxSubmitted))
 
-    if unallocatedCount > submittedCount:
+    if unallocatedCount > submittedCount * 1.5:
       # Need to submit more jobs: find suitable entries and sites
       try:
         entriesRows = justin.select(
@@ -602,6 +602,8 @@ if __name__ == '__main__':
               oneCycle()
             except Exception as e:
               print('Cycle fails with exception ' + str(e))
+
+            justin.conn.close()
 
           logLine('================ End cycle ================')
           sys.exit(0)
