@@ -25,6 +25,7 @@ import stat
 import json
 import time
 import base64
+import subprocess
 import urllib.request
 import pathlib
 import xml.dom.minidom
@@ -50,6 +51,7 @@ import justin
 
 maxFileFindsPerCycle = 500
 sleepSeconds         = 60
+updateCondorJobs     = 3600 
 
 class justinError(Exception):
   pass
@@ -1130,8 +1132,8 @@ def findStalledCondorJobs():
        'procid' not in jsonJob:
       continue
       
-    condorJobs[jsonJob['clusterid']+'.'+jsobJob['procid']] = \
-           (jsobJob['jobstatus'], jsobJob['enteredcurrentstatus'])
+    condorJobs['%d.%d' % (jsonJob['clusterid'], jsonJob['procid'])] = \
+           (jsonJob['jobstatus'], jsonJob['enteredcurrentstatus'])
 
   # Get a list of waiting/running jobs
   query = ('SELECT jobsub_id,job_state,justin_job_id,workflow_id,stage_id,'
