@@ -427,26 +427,6 @@ siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
 entryName   = os.environ.get('GLIDEIN_Entry_Name', 'UNKNOWN')
 jobPID      = os.getpid()
 
-# Start of subprocess to send regular heartbeats
-if os.fork() == 0:
-  time.sleep(600)
-  # Redirect stdout/stderr
-  so = open('heartbeats.log', 'a+')
-  os.dup2(so.fileno(), sys.stdout.fileno())
-  se = open('heartbeats.log', 'a+')
-  os.dup2(se.fileno(), sys.stderr.fileno())
-  
-  # Send heartbeats until parent exits
-  while os.getppid() == jobPID:
-    sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
-                '/api/allocator/send_heartbeat',
-                { "method" : "send_heartbeat" }
-               )
-    time.sleep(600)
-             
-  sys.exit(0)    
-# End of subprocess to send regular heartbeats
-
 justinWorkdir = os.environ['PWD']
 
 # Make $HOME directory and workspace subdirectory for Apptainer/Singularity
@@ -520,8 +500,7 @@ for i in range(1,6):
 
   # Sleep for up to 60 seconds to spread out job start storms
   logLine('Random sleep ...')
-##REINSTATE THIS AFTER TESTING!!!!
-  ##time.sleep(random.randrange(61))
+  time.sleep(random.randrange(61))
 
   logLine('====start justin-get-stage.json====')
   print(json.dumps(getJobscriptDict))
@@ -542,6 +521,26 @@ if jobscriptDict['status'] != 200:
           % (jobscriptDict['status'], jobscriptDict['response']))
   time.sleep(10)
   sys.exit(0)
+
+# Start of subprocess to send regular heartbeats
+if os.fork() == 0:
+  time.sleep(600)
+  # Redirect stdout/stderr
+  so = open('heartbeats.log', 'a+')
+  os.dup2(so.fileno(), sys.stdout.fileno())
+  se = open('heartbeats.log', 'a+')
+  os.dup2(se.fileno(), sys.stderr.fileno())
+  
+  # Send heartbeats until parent exits
+  while os.getppid() == jobPID:
+    sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+                '/api/allocator/send_heartbeat',
+                { "method" : "send_heartbeat" }
+               )
+    time.sleep(600)
+             
+  sys.exit(0)    
+# End of subprocess to send regular heartbeats
 
 # Stage-defined and standard environment variables for the jobscript
 with open('home/justin-jobscript-env.sh','w') as f:

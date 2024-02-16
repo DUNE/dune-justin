@@ -404,11 +404,29 @@ def findReplicas():
   # Go through the files again, pulling out the replica info obtained 
   # for the file's DID
   for fileRow in fileRows:
-    try:
-      pfnsList = repsDict[fileRow['file_did']]
-    except:
+    if fileRow['file_did'] not in repsDict:
+      # No replicas for this file! All deleted?
+      logLine('File (%d,%d,%s) has no replicas in Rucio' %
+                (fileRow['workflow_id'], 
+                 fileRow['stage_id'],
+                 fileRow['file_did']))
+
+      query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
+               fileRow['file_id'])    
+      try:
+        justin.cur.execute(query)
+      except Exception as e:
+        logLine('Failed setting file (%d,%d,%s) to notfound: %s' %
+                (fileRow['workflow_id'], 
+                 fileRow['stage_id'],
+                 fileRow['file_did'],
+                 str(e)))
+        # We give up if this happens, without the commit
+        return
+        
       continue
-    
+      
+    pfnsList = repsDict[fileRow['file_did']]    
     rses = {}
 
     # Save the wan and lan PFNs returned for each RSE with a replica

@@ -137,11 +137,12 @@ def submitJobs(numberToSubmit,
   finally:
     wrapperFile.close()
 
-  if needsInnerApptainer:
-    innerApptainerTest = ('(isUndefined(target.JUSTIN_%s_Has_Inner_Apptainer) == TRUE || target.JUSTIN_%s_Has_Inner_Apptainer == TRUE) && '
-                          % (justin.proDev.upper(), justin.proDev.upper()))
-  else:
-    innerApptainerTest = ''
+# ONLY RELY ON Desired_Entries 
+#  if needsInnerApptainer:
+#    innerApptainerTest = ('(isUndefined(target.JUSTIN_%s_Has_Inner_Apptainer) == TRUE || target.JUSTIN_%s_Has_Inner_Apptainer == TRUE) && '
+#                          % (justin.proDev.upper(), justin.proDev.upper()))
+#  else:
+#    innerApptainerTest = ''
 
   submitFile = ''
   
@@ -152,11 +153,18 @@ def submitJobs(numberToSubmit,
 
   if workflowID == justin.awtWorkflowID:
     # Flag justIN AWT jobs
-    submitFile += '+JUSTIN_%s_AWT = True\n' % justin.proDev.upper()
+    submitFile += ('+JUSTIN_%s_AWT = True\n' 
+                   'requirements = '
+  '((isUndefined(target.GLIDEIN_Site) == FALSE) && '
+  ' (stringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))\n'
+                   % justin.proDev.upper())
   else:
     # Only include stage and entries ClassAds if not an AWT job
     submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"\n' 
                    '+Desired_Entries = "%s"\n'
+                   'requirements = '
+  '((isUndefined(target.GLIDEIN_Entry_Name) == FALSE) && '
+  ' (stringListIMember(target.GLIDEIN_Entry_Name,my.Desired_Entries)))\n'
                    % (justin.proDev.upper(), 
                       workflowID, stageID, desiredEntryNames))
 
@@ -168,7 +176,6 @@ def submitJobs(numberToSubmit,
 universe                = vanilla
 environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
-periodic_vacate         = False
 periodic_hold           = False
 max_retries             = 0
 retry_until             = True
@@ -183,7 +190,7 @@ rank                    = 1
 job_lease_duration      = 3600
 request_memory          = %dKB
 request_cpus            = %d
-request_disk            = 1
+request_disk            = 1000000
 getenv                  = False
 output                  = /tmp/justin-wrapper-$(Cluster).$(Process).out
 error                   = /tmp/justin-wrapper-$(Cluster).$(Process).out
@@ -191,7 +198,6 @@ log                     = /tmp/justin-wrapper-$(Cluster).$(Process).log
 transfer_output_files   = ""
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
-requirements = ((isUndefined(target.GLIDEIN_Site) == FALSE) && (%sstringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))
 queue %d
 """ % (desiredSiteNames, 
        requestedWallSeconds,
@@ -200,7 +206,6 @@ queue %d
        userName.split('@')[0],
        int(requestedRssBytes / 1024), 
        requestedProcessors,
-       innerApptainerTest,
        numberToSubmit)
   
   # For debugging the submit file
