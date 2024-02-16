@@ -1898,7 +1898,7 @@ def showFile(environ, user, cgiValues):
   output += ("<h1>File %s</h1>"
              % html.escape(fileDID, quote=True))
   
-  query = ('SELECT file_id,state,processed_time '
+  query = ('SELECT file_id,state,processed_time,size_bytes '
            'FROM files '
            'WHERE workflow_id=%d AND stage_id=%d and file_did="%s"' %
            (workflowID, stageID, fileDID))
@@ -1941,6 +1941,10 @@ def showFile(environ, user, cgiValues):
              '<td><a href="/dashboard/?method=show-stage&workflow_id=%d&stage_id=%d">%d</a></td></tr>'
              % (workflowID, stageID, stageID))
         
+  output += ('<tr><td>Size</td>'
+             '<td>%d bytes (%.2fGB)</td></tr>'
+             % (fileRow["size_bytes"], fileRow["size_bytes"] / 1000000000.0 ))
+      
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
              % fileRow["state"])

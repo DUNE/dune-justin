@@ -31,4 +31,8 @@ if [ $? != 0 ] ; then
 fi
 
 # Run daemon in the foreground
-/usr/sbin/justin-finder --container
+if [ -x /var/run/justin/overrides/justin-finder ] ; then
+  /var/run/justin/overrides/justin-finder --container
+else
+  /usr/sbin/justin-finder --container
+fi
