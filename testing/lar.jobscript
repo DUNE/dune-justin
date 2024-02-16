@@ -27,6 +27,7 @@ rse=`echo $did_pfn_rse | cut -f3 -d' '`
 . /cvmfs/fermilab.opensciencegrid.org/products/common/etc/setups
 export FILETIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+export OMP_NUM_THREADS=${JUSTIN_PROCESSORS} 
 setup dunetpc v09_09_01 -q e19:prof
 setup protoduneana v09_09_01 -q e19:prof
 setup duneutil v09_09_01_01 -q e19:prof

@@ -49,6 +49,7 @@ source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
 # so add it to the start of the path
 export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRODUCTS}
 setup dunesw "$DUNE_VERSION" -q "$DUNE_QUALIFIER"
+export OMP_NUM_THREADS=${JUSTIN_PROCESSORS} 
 
 # Construct outFile from input $pfn 
 now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
