@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `requested_wall_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `justin_job_secret` varchar(255) NOT NULL DEFAULT '',
   `jobscript_secret` varchar(255) NOT NULL DEFAULT '',
-  `jobscript_exit` tinyint(1) NOT NULL DEFAULT 0,
+  `jobscript_exit` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `jobscript_real_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_cpu_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
