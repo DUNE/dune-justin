@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `rse_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `seconds` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `seconds` float NOT NULL DEFAULT 0.0,
   PRIMARY KEY (`event_id`),
   INDEX `awt` (`event_type_id`,`rse_id`,`site_id`,`event_time`),
   INDEX `workflow_id` (`workflow_id`,`stage_id`,`event_type_id`,`rse_id`),

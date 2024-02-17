@@ -1701,7 +1701,7 @@ def confirmResultsMethod(startResponse, jsonDict):
         seconds   = jsonDict['output_dids'][fileRow['file_did']]['seconds']
       except:
         sizeBytes = 0
-        seconds   = 0
+        seconds   = 0.0
         try:
 # THIS IS ONLY NEEDED WHILE WE HAVE OLD STYLE WRAPPER JOBS AROUND
           rseName = jsonDict['output_dids'][fileRow['file_did']]

@@ -898,7 +898,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
       logLine('Try %s:%s to %s/%s' 
               % (fileScope, fileName, rse, scheme))
  
-      uploadStartTime = int(time.time())
+      uploadStartTime = time.time()
       ret = executeJustinRucioUpload('--rse %s '
                                      '--protocol %s '
                                      '--scope %s '
@@ -910,10 +910,10 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
                                       fileScope,
                                       destination,
                                       fileName))
-      uploadEndTime = int(time.time())
+      uploadEndTime = time.time()
       if ret == 0:
-        logLine('Uploaded %s:%s to %s in %ds' %
-                (fileScope, fileName, rse, (uploadEndTime - uploadStartTime))
+        logLine('Uploaded %s:%s to %s in %.3fs' %
+                (fileScope, fileName, rse, uploadEndTime - uploadStartTime))
         break
       else:
         logLine('Failed to upload %s:%s to %s' % (fileScope, fileName, rse))

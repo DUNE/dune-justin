@@ -468,7 +468,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              siteName = None,
              rseID = 0,
              rseName = None,
-             milliseconds = 0):
+             seconds = 0.0):
 
   if siteName:
     siteExpr = ('(SELECT site_id FROM sites WHERE sites.site_name="%s")' 
@@ -491,7 +491,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'justin_job_id=%d,'
              'site_id=%s,'
              'rse_id=%s,'
-             'milliseconds=%d,'
+             'seconds=%.3f,'
              'event_time=NOW()' %
              (eventTypeID,
               workflowID,
@@ -500,7 +500,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
               justinJobID,
               siteExpr,
               rseExpr,
-              milliseconds))
+              seconds))
 
     cur.execute(query)
     return None
