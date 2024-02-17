@@ -31,4 +31,8 @@ if [ $? != 0 ] ; then
 fi
 
 # Run daemon in the foreground
-/usr/sbin/justin-job-factory --container
+if [ -x /var/run/justin/overrides/justin-job-factory ] ; then
+  /var/run/justin/overrides/justin-job-factory --container
+else
+  /usr/sbin/justin-job-factory --container
+fi

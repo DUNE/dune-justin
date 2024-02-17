@@ -167,18 +167,20 @@ def findFilesMetaCat(workflowID, mql):
       logLine("Parsing line from MetaCat fails with: " + str(e))
       return
         
-    if 'namespace' not in fileDict or not fileDict['namespace'] \
-       or 'name' not in fileDict or not fileDict['name']:
-      logLine('Ignore file with invalid SCOPE:NAME from MetaCat: '
+    try:
+      namespace = fileDict['namespace']
+      name      = fileDict['name']
+      size      = int(fileDict['size'])
+    except:
+      logLine('Ignore file with invalid SCOPE:NAME/SIZE from MetaCat: '
               + str(fileDict))
       continue
-
+    
     try:
       query = ('INSERT INTO files SET '
-               'workflow_id=' + str(workflowID) + ',' +
-               'file_did="' + fileDict['namespace'] + ':' 
-                + fileDict['name'] + '" '
+               'workflow_id=%d,file_did="%s:%s",size_bytes=%d '
                'ON DUPLICATE KEY UPDATE workflow_id=workflow_id'
+               % (workflowID, namespace, name, size)
               )
 
       justin.cur.execute(query)
@@ -404,11 +406,29 @@ def findReplicas():
   # Go through the files again, pulling out the replica info obtained 
   # for the file's DID
   for fileRow in fileRows:
-    try:
-      pfnsList = repsDict[fileRow['file_did']]
-    except:
+    if fileRow['file_did'] not in repsDict:
+      # No replicas for this file! All deleted?
+      logLine('File (%d,%d,%s) has no replicas in Rucio' %
+                (fileRow['workflow_id'], 
+                 fileRow['stage_id'],
+                 fileRow['file_did']))
+
+      query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
+               fileRow['file_id'])    
+      try:
+        justin.cur.execute(query)
+      except Exception as e:
+        logLine('Failed setting file (%d,%d,%s) to notfound: %s' %
+                (fileRow['workflow_id'], 
+                 fileRow['stage_id'],
+                 fileRow['file_did'],
+                 str(e)))
+        # We give up if this happens, without the commit
+        return
+        
       continue
-    
+      
+    pfnsList = repsDict[fileRow['file_did']]    
     rses = {}
 
     # Save the wan and lan PFNs returned for each RSE with a replica

@@ -31,6 +31,7 @@ import shutil
 import base64
 import urllib
 import urllib.request
+import random
 import subprocess
 
 awtWorkflowID   = 1
@@ -424,28 +425,8 @@ for i in sorted(os.environ):
 
 jobsubJobID = os.environ['JUSTIN_JOBSUB_ID']
 siteName    = os.environ.get('GLIDEIN_DUNESite', 'XX_UNKNOWN')
-entryName   = os.environ.get('GLIDEIN_Entry_Name', 'UNKNOWN')
+entryName   = os.environ.get('GLIDEIN_Entry_Name', 'XX_UNKNOWN')
 jobPID      = os.getpid()
-
-# Start of subprocess to send regular heartbeats
-if os.fork() == 0:
-  time.sleep(600)
-  # Redirect stdout/stderr
-  so = open('heartbeats.log', 'a+')
-  os.dup2(so.fileno(), sys.stdout.fileno())
-  se = open('heartbeats.log', 'a+')
-  os.dup2(se.fileno(), sys.stderr.fileno())
-  
-  # Send heartbeats until parent exits
-  while os.getppid() == jobPID:
-    sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
-                '/api/allocator/send_heartbeat',
-                { "method" : "send_heartbeat" }
-               )
-    time.sleep(600)
-             
-  sys.exit(0)    
-# End of subprocess to send regular heartbeats
 
 justinWorkdir = os.environ['PWD']
 
@@ -520,8 +501,7 @@ for i in range(1,6):
 
   # Sleep for up to 60 seconds to spread out job start storms
   logLine('Random sleep ...')
-##REINSTATE THIS AFTER TESTING!!!!
-  ##time.sleep(random.randrange(61))
+  time.sleep(random.randrange(61))
 
   logLine('====start justin-get-stage.json====')
   print(json.dumps(getJobscriptDict))
@@ -542,6 +522,26 @@ if jobscriptDict['status'] != 200:
           % (jobscriptDict['status'], jobscriptDict['response']))
   time.sleep(10)
   sys.exit(0)
+
+# Start of subprocess to send regular heartbeats
+if os.fork() == 0:
+  time.sleep(600)
+  # Redirect stdout/stderr
+  so = open('heartbeats.log', 'a+')
+  os.dup2(so.fileno(), sys.stdout.fileno())
+  se = open('heartbeats.log', 'a+')
+  os.dup2(se.fileno(), sys.stderr.fileno())
+  
+  # Send heartbeats until parent exits
+  while os.getppid() == jobPID:
+    sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+                '/api/allocator/send_heartbeat',
+                { "method" : "send_heartbeat" }
+               )
+    time.sleep(600)
+             
+  sys.exit(0)    
+# End of subprocess to send regular heartbeats
 
 # Stage-defined and standard environment variables for the jobscript
 with open('home/justin-jobscript-env.sh','w') as f:
@@ -740,7 +740,8 @@ for (forNextStage, destination, scope, pattern) in \
   matches = glob.glob('home/workspace/' + pattern)
   for match in matches:
     matchingFile = match.split('/')[-1]
-    outputFiles.append((destination, scope, matchingFile))
+    fileSize     = os.path.getsize(match)
+    outputFiles.append((destination, scope, matchingFile, fileSize))
     
     if scope == '::URL::':
       justinRecordResultsDict['output_urls'].append(destination + '/' +
@@ -852,7 +853,7 @@ confirmResultsDict = { 'method'      : 'confirm_results',
 rucioUploadedDIDs = []
 
 # Go through the list of output files
-for (destination, fileScope, fileName) in outputFiles:
+for (destination, fileScope, fileName, fileSize) in outputFiles:
   
   if fileScope == '::URL::': 
     # Uploading to user scratch
@@ -874,7 +875,6 @@ for (destination, fileScope, fileName) in outputFiles:
                      getJobscriptDict, jobscriptDict, justinRecordResultsDict)
 
       fileAdler32 = calculateAdler32('home/workspace/' + fileName)
-      fileSize    = os.path.getsize('home/workspace/' + fileName)
     except Exception as e:
       logLine('updateMetadataTmp() fails ' + str(e))
       jobAborted(900, 'update_metadata', '')
@@ -885,14 +885,9 @@ for (destination, fileScope, fileName) in outputFiles:
                                 '"%s:%s"' 
                                   % (fileSize, fileAdler32,
                                      'dune', 'all'
-         # we now use the above hard-coded dataset in MetaCat for everything :-(
+      # we now use the above hard-coded dataset in MetaCat for everything :-(
                                      # fileScope, destination
                                      ))
-
-#    # IF DEPLOYED METACAT SERVER DOES NOT NOW MATCH CVMFS VERSION !!!!!
-#    ret = 0
-#    print(open('tmp.json','r').read())
-#    # END CLOWN WORLD STUFF
 
     if ret:
       logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))
@@ -902,7 +897,8 @@ for (destination, fileScope, fileName) in outputFiles:
     for (rse,scheme) in jobscriptDict['output_rses'][:3]:
       logLine('Try %s:%s to %s/%s' 
               % (fileScope, fileName, rse, scheme))
-
+ 
+      uploadStartTime = time.time()
       ret = executeJustinRucioUpload('--rse %s '
                                      '--protocol %s '
                                      '--scope %s '
@@ -914,8 +910,10 @@ for (destination, fileScope, fileName) in outputFiles:
                                       fileScope,
                                       destination,
                                       fileName))
+      uploadEndTime = time.time()
       if ret == 0:
-        logLine('Uploaded %s:%s to %s' % (fileScope, fileName, rse))
+        logLine('Uploaded %s:%s to %s in %.3fs' %
+                (fileScope, fileName, rse, uploadEndTime - uploadStartTime))
         break
       else:
         logLine('Failed to upload %s:%s to %s' % (fileScope, fileName, rse))
@@ -937,7 +935,10 @@ for (destination, fileScope, fileName) in outputFiles:
     rucioUploadedDIDs.append(fileScope + ':' + fileName)
 
     # Add to list of uploaded files for confirm results
-    confirmResultsDict['output_dids'][fileScope + ':' + fileName] = rse
+    confirmResultsDict['output_dids'][fileScope + ':' + fileName] = \
+      { "rse_name"   : rse, 
+        "seconds"    : uploadEndTime - uploadStartTime,
+        "size_bytes" : fileSize }
 
 # If all ok, then confirm that to the Workflow Allocator
 

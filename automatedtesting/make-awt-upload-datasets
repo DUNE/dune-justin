@@ -28,7 +28,7 @@
 echo 'MetaCat whoami:'
 metacat auth whoami
 echo
-echo 'Rucoo whoami:'
+echo 'Rucio whoami:'
 rucio whoami
 echo
 

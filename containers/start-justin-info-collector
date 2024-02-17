@@ -31,4 +31,8 @@ if [ $? != 0 ] ; then
 fi
 
 # Run daemon in the foreground
-/usr/sbin/justin-info-collector --container
+if [ -x /var/run/justin/overrides/justin-info-collector ] ; then
+  /var/run/justin/overrides/justin-info-collector --container
+else
+  /usr/sbin/justin-info-collector --container
+fi

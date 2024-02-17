@@ -1890,7 +1890,7 @@ def showFile(environ, user, cgiValues):
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(environ, user, "stage_id must be given")
+    stageID = None
 
   output = header(environ, user, "justIN: File %s" 
                   % html.escape(fileDID, quote=True))
@@ -1898,10 +1898,12 @@ def showFile(environ, user, cgiValues):
   output += ("<h1>File %s</h1>"
              % html.escape(fileDID, quote=True))
   
-  query = ('SELECT file_id,state,processed_time '
+  query = ('SELECT file_id,state,processed_time,size_bytes '
            'FROM files '
-           'WHERE workflow_id=%d AND stage_id=%d and file_did="%s"' %
-           (workflowID, stageID, fileDID))
+           'WHERE workflow_id=%d %s AND file_did="%s"' %
+           (workflowID, 
+            ('AND stage_id=%d' % stageID) if stageID else '',
+            fileDID))
 
   fileRow = justin.select(query, justOne = True)
 
@@ -1936,11 +1938,16 @@ def showFile(environ, user, cgiValues):
   output += ('<tr><td>Workflow ID</td>'
              '<td><a href="/dashboard/?method=show-workflow&workflow_id=%d">%d</a></td></tr>'
              % (workflowID, workflowID))
+
+  if stageID:
+    output += ('<tr><td>Stage ID</td>'
+               '<td><a href="/dashboard/?method=show-stage&workflow_id=%d&stage_id=%d">%d</a></td></tr>'
+               % (workflowID, stageID, stageID))
         
-  output += ('<tr><td>Stage ID</td>'
-             '<td><a href="/dashboard/?method=show-stage&workflow_id=%d&stage_id=%d">%d</a></td></tr>'
-             % (workflowID, stageID, stageID))
-        
+  output += ('<tr><td>Size</td>'
+             '<td>%d bytes (%.2fGB)</td></tr>'
+             % (fileRow["size_bytes"], fileRow["size_bytes"] / 1000000000.0 ))
+      
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
              % fileRow["state"])
@@ -3239,9 +3246,8 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
       output += '<td style="font-size: 0.8em">%s</td>' % eventRow['file_did']
     elif eventRow['file_did']:
       output += ('<td><a href="/dashboard/?method=show-file&workflow_id=%d'
-            '&stage_id=%d&file_did=%s">%s</td>' 
+            '&file_did=%s">%s</td>' 
             % (eventRow['workflow_id'], 
-               eventRow['stage_id'], 
                eventRow['file_did'], 
                eventRow['file_did']))
     else:

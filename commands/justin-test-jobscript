@@ -97,6 +97,9 @@ export JUSTIN_SITE_NAME=XX_UNKNOWN
 export JUSTIN_WORKFLOW_ID=1
 export JUSTIN_STAGE_ID=1
 export JUSTIN_JOBSUB_ID='1.1@x'
+export JUSTIN_PROCESSORS=1
+export JUSTIN_RSS_MB=4000
+export JUSTIN_WALL_SECONDS=86400
 EOF
 
 # Wrapper to be run inside the Apptainer/Singularity container

@@ -83,6 +83,7 @@ export PRODUCTS=/cvmfs/dune.opensciencegrid.org/products/dune/testproducts:${PRO
 export DUNEVERSION=v09_44_00_02
 export DUNEQUALIFIER="e20:prof"
 setup dunesw $DUNEVERSION -q $DUNEQUALIFIER
+export OMP_NUM_THREADS=${JUSTIN_PROCESSORS} 
 
 now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
 

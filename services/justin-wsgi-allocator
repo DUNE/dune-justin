@@ -1695,22 +1695,33 @@ def confirmResultsMethod(startResponse, jsonDict):
   for fileRow in fileRows:
   
     try:
-      justin.insertUpdate('UPDATE files SET state="%s" WHERE file_id=%d' %
-                          ('finding' if (fileRow['stage_id'] > 0) else 'output', 
+      try:
+        rseName   = jsonDict['output_dids'][fileRow['file_did']]['rse_name']
+        sizeBytes = jsonDict['output_dids'][fileRow['file_did']]['size_bytes']
+        seconds   = jsonDict['output_dids'][fileRow['file_did']]['seconds']
+      except:
+        sizeBytes = 0
+        seconds   = 0.0
+        try:
+# THIS IS ONLY NEEDED WHILE WE HAVE OLD STYLE WRAPPER JOBS AROUND
+          rseName = jsonDict['output_dids'][fileRow['file_did']]
+        except:
+          rseName = None
+      
+      justin.insertUpdate('UPDATE files SET state="%s",size_bytes=%d '
+                          'WHERE file_id=%d' %
+                       ('finding' if (fileRow['stage_id'] > 0) else 'output',
+                          sizeBytes,
                           fileRow['file_id']))
 
-      try:
-        rseName = jsonDict['output_dids'][fileRow['file_did']]
-      except:
-        rseName = None
-      
       justin.logEvent(eventTypeID = justin.event_FILE_CREATED,
                       workflowID = workflowID,
                       stageID = stageID,
                       fileID = fileRow['file_id'],
                       justinJobID = justinJobID,
                       siteID = siteID,
-                      rseName = rseName
+                      rseName = rseName,
+                      seconds = seconds
                      )
     except Exception as e:
       return httpError(startResponse,
