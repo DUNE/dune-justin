@@ -172,10 +172,10 @@ If an https:// URL is not given, DESTINATION is interpreted as a
 Rucio dataset minus the scope component. The overall scope of the workflow
 is used and the output files are uploaded with Rucio and registered in that
 dataset. If the dataset does not already exist then it will be created when
-the workflow changes state from submitted to running and if the --lifetime-days
-option is given, then a rule for the new dataset will be created with that
-lifetime rather than the default 1 day. 
-Furthermore, files for Rucio-managed storage must have a corresponding
+the workflow changes state from submitted to running with a rule with a 
+lifetime of 
+.B --lifetime-days
+days. Furthermore, files for Rucio-managed storage must have a corresponding
 JSON metadata file with the same name but with ".json" appended, that will 
 be recorded for that file in MetaCat.
 
@@ -188,8 +188,11 @@ available for allocation to instances of that stage's script.
 
 .B --lifetime-days DAYS
 sets the Rucio rule lifetime when creating a new dataset, for all output files
-that are uploaded in the given stage. 
-The lifetime defaults to 1 day if not specified.
+that are uploaded in the given stage. If 
+.B --output-pattern
+or
+.B --output-pattern-next-stage
+are given then the lifetime option is required.
 
 If one or more options
 .B --output-rse NAME

@@ -3346,7 +3346,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
     # CSV or JSON file with stats of output files for a workflow/stage
 
     query = ('SELECT file_did,site_name,rse_name,size_bytes,seconds,distance,'
-             'CAST(event_time AS char) AS finish_time '
+             'event_time AS finish_time '
              'FROM events '
              'LEFT JOIN files ON files.file_id=events.file_id '
              'LEFT JOIN sites_storages '
@@ -3375,7 +3375,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
       outputFields = []
 
       for field in fieldsList:
-        if True: # should test if row[field] is a string
+        if type(row[field]) is str:
           outputFields.append('"' + row[field] + '"')
         else:
           outputFileds.append(str(row[field]))
