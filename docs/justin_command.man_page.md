@@ -176,8 +176,8 @@ This man page is distributed along with the
     	      --lifetime-days DAYS sets the Rucio rule lifetime when creating
     	      a new dataset, for all output files that are uploaded in the
     	      given stage. If --output-pattern or --output-pattern-next-stage
-    	      are given and the dataset does not already exist, then the
-    	      lifetime option is required.
+    	      are given and refer to a Rucio dataset that does not already
+    	      exist, then the lifetime-days option is required.
     
     	      If one or more options --output-rse NAME is given, then the RSE
     	      used for uploads of output files will be chosen from that list
