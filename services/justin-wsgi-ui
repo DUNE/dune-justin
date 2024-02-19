@@ -864,6 +864,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   except:
     lifetimeDays = 0
 
+  didClient  = rucio.client.didclient.DIDClient()
+
   for (forNextStage, pattern, destination) in outputPatterns:
 
     if not justin.stringIsFilePattern(pattern):
@@ -886,9 +888,16 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         destination = destination + '/%05d/%d' % (workflowID, stageID)
     else:
         if lifetimeDays == 0:
-          return ('400 Bad Request', 
-                  'A lifetime must be specified when creating a stage if '
-                  'an output pattern with a Rucio dataset is given.')
+          try:
+            didClient.get_metadata(scope = scopeName, name = destination)
+
+          except rucio.common.exception.DataIdentifierNotFound:
+            return ('400 Bad Request',
+                    'A lifetime must be specified when creating a stage if '
+                    'a Rucio dataset is given that does not yet exist.')
+          except:
+            return ('400 Bad Request', 
+                    'Failed to connect to Rucio server for dataset checks')
 
         # Rucio dataset name
         if not justin.stringIsDID(destination) or ':' in destination:
