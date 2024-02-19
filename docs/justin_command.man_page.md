@@ -161,12 +161,11 @@ This man page is distributed along with the
     	      and the output files are uploaded with Rucio and registered in
     	      that dataset. If the dataset does not already exist then it will
     	      be created when the workflow changes state from submitted to
-    	      running and if the --lifetime-days option is given, then a rule
-    	      for the new dataset will be created with that lifetime rather
-    	      than the default 1 day.  Furthermore, files for Rucio-managed
-    	      storage must have a corresponding JSON metadata file with the
-    	      same name but with ".json" appended, that will be recorded for
-    	      that file in MetaCat.
+    	      running with a rule with a lifetime of --lifetime-days days.
+    	      Furthermore, files for Rucio-managed storage must have a
+    	      corresponding JSON metadata file with the same name but with
+    	      ".json" appended, that will be recorded for that file in
+    	      MetaCat.
     
     	      Alternatively --output-pattern-next-stage PATTERN:DATASET can be
     	      given in which case the output file will be uploaded to Rucio-
@@ -176,7 +175,9 @@ This man page is distributed along with the
     
     	      --lifetime-days DAYS sets the Rucio rule lifetime when creating
     	      a new dataset, for all output files that are uploaded in the
-    	      given stage.  The lifetime defaults to 1 day if not specified.
+    	      given stage. If --output-pattern or --output-pattern-next-stage
+    	      are given and the dataset does not already exist, then the
+    	      lifetime option is required.
     
     	      If one or more options --output-rse NAME is given, then the RSE
     	      used for uploads of output files will be chosen from that list

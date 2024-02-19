@@ -1756,14 +1756,6 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   except:
     return errorPage(environ, user, "stage_id must be given")
 
-  if 'format' in cgiValues:
-    format     = cgiValues['format']
-  else:
-    format = 'html'
-
-  if format not in ['csv','json','html']:
-    return errorPage(environ, user, "format must be csv, json, or html")
-
   stateFilter = ''
   stateText = ''
 
@@ -1780,10 +1772,6 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
         or state == 'notfound' or state == 'failed':
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
-
-  if format == 'csv' or format == 'json':
-    pageNumber = 0
-    pageLength = csvJsonMaxRows - 1
 
   query = ("SELECT files.file_did,files.state,"
            "CAST(event_time AS char) AS last_allocation_time,"
@@ -1805,44 +1793,26 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   justin.cur.execute(query)
   filesRows = justin.cur.fetchall()
 
-  if format == 'csv':
-    output = ''
-    for fileRow in filesRows:
-      output += ('"%s",%s,"%s",%s,"%s","%s","%s",%s\n' %
-         (str(fileRow["file_did"]), 
-          str(fileRow["allocations"]), 
-          str(fileRow["state"]),
-          str(fileRow["last_allocation_time"]), 
-          str(fileRow["rse_name"]), 
-          str(fileRow["site_name"]),
-          str(fileRow["jobsub_id"]), 
-          str(fileRow['last_jobscript_exit'])
-         )
-                )
-
-  elif format == 'json':
-    output = json.dumps(filesRows)
-  else:
-    output = header(environ, user, "justIN: Files for Workflow %d, Stage %d%s" 
+  output = header(environ, user, "justIN: Files for Workflow %d, Stage %d%s" 
                   % (workflowID, stageID, stateText)) 
 
-    output += '<!-- %s -->\n' % query
+  output += '<!-- %s -->\n' % query
 
-    output += ("<h1>Files  for Workflow %d, Stage %d%s</h1>" 
+  output += ("<h1>Files  for Workflow %d, Stage %d%s</h1>" 
              % (workflowID, stageID, stateText))
 
-    output += makePager(pageNumber, pageLength, len(filesRows),
+  output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&workflow_id=' + str(workflowID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
-    output += (
+  output += (
 """<p><table>
 <tr><th rowspan="2">DID</th><th rowspan="2">Attempts</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
-    for fileRow in filesRows[:pageLength]:
+  for fileRow in filesRows[:pageLength]:
       output += ('<tr><td><a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
           '%s</a></td><td>%d</td><td>%s</td>' % 
           (workflowID, 
@@ -1867,15 +1837,15 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
       else:
         output += ('<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
       
-    output += ("</table>")
+  output += ("</table>")
   
-    output += makePager(pageNumber, pageLength, len(filesRows),
+  output += makePager(pageNumber, pageLength, len(filesRows),
              '/dashboard/?method=list-files&page_number=%d&page_length=%d'
              '&workflow_id=' + str(workflowID) + 
              '&stage_id=' + str(stageID) + 
              '&state=' + state)
 
-    output += ('<p>You can download this list as '
+  output += ('<p>You can download this list as '
                '<a href="/dashboard/?method=download-file-states&workflow_id=%d'
                '&stage_id=%d&state=%s&format=csv&csvfile=">CSV</a> or '
                '<a href="/dashboard/?method=download-file-states&workflow_id=%d'
@@ -1885,7 +1855,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
                   workflowID, stageID, state,
                   csvJsonMaxRows))
 
-    output += footer()
+  output += footer()
 
   return output
 
@@ -3409,7 +3379,8 @@ def downloadCsvJson(environ, user, cgiValues, method):
 
   if format == 'csv':
     # For CSV, we use fieldsList to define the order of each line
-    output = ''
+    output = ','.join(fieldsList) + '\n'
+
     for row in rows:
       outputFields = []
 
@@ -3423,7 +3394,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
 
   elif format == 'json':
     # For JSON, we just dump each line's dictionary
-    output = json.dumps(rows)
+    output = json.dumps(rows, indent = 0)
 
   return output
 
@@ -3960,12 +3931,15 @@ def application(environ, startResponse):
 
   # Valid method was found, so return the string it output
 
-  if 'format' in cgiValues and cgiValues['format'] == 'csv':
-    startResponseOK(startResponse, output, contentType = 'text/csv',
-                    contentDisposition = 'attachment; filename="saved.csv"')
-  elif 'format' in cgiValues and cgiValues['format'] == 'json':
-    startResponseOK(startResponse, output, contentType = 'application/json',
-                    contentDisposition = 'attachment; filename="saved.json"')
+  if 'format' in cgiValues and cgiValues['format'] in ['csv','json']:
+    # Easier to just view in browser and then save with their preferred filename?
+    startResponseOK(startResponse, output, contentType = 'text/plain')
+#  if 'format' in cgiValues and cgiValues['format'] == 'csv':
+#    startResponseOK(startResponse, output, contentType = 'text/csv',
+#                    contentDisposition = 'attachment; filename="saved.csv"')
+#  elif 'format' in cgiValues and cgiValues['format'] == 'json':
+#    startResponseOK(startResponse, output, contentType = 'application/json',
+#                    contentDisposition = 'attachment; filename="saved.json"')
   else:
     startResponseOK(startResponse, output)
   return [output.encode('UTF-8')]
