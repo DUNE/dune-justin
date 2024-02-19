@@ -42,6 +42,7 @@ do
  lifetime=`expr \( $w - $current_week + 1 \) \* 604800`
  metacat dataset create testpro:$upload_dataset
  rucio add-dataset --lifetime $lifetime testpro:$upload_dataset 
- ## HERE WE SHOULD CREATE A RULE FOR THIS DATASET
+ rucio add-rule --lifetime $lifetime testpro:$upload_dataset \
+   1 DUNE_US_FNAL_DISK_STAGE
  w=`expr $w + 1`
 done

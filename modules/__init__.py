@@ -74,7 +74,8 @@ rseAvailabilityDelete = 1
 rseAvailabilityWrite  = 2
 rseAvailabilityRead   = 4
 
-rseDisksExpression = 'istape=False\\decommissioned=True'
+#rseDisksExpression = 'istape=False\\decommissioned=True'
+rseDisksExpression = 'DUNE_US_FNAL_DISK_STAGE'
 
 # Note that this assumes we are using UTC since we assume elsewhere this
 # will convert from this MySQL date to 0 in Unix seconds

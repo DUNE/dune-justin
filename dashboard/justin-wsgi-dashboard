@@ -46,6 +46,8 @@ timeNow = None
 # Number of hours before AWT results go grey to indicate stale
 awtGreyHours = 48
 
+csvJsonMaxRows = 10000
+
 class justinStackedLine(pygal.StackedLine):
 
   def __init__(self, imageSize, firstTime, hoursPerBin, numBins,
@@ -1651,6 +1653,20 @@ def showStage(environ, user, cgiValues):
 
     output += ('</table>') 
 
+  output += ('<p>Stats of processed input files as '
+               '<a href="/dashboard/?method=download-input-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=csv">CSV</a> or '
+               '<a href="/dashboard/?method=download-input-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=json">JSON</a>, '
+               'and of uploaded output files as '
+               '<a href="/dashboard/?method=download-output-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=csv">CSV</a> or '
+               '<a href="/dashboard/?method=download-output-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=json">JSON</a> '
+               '(up to %d files included)</p>'
+               % (workflowID, stageID, workflowID, stageID, 
+                  workflowID, stageID, workflowID, stageID, csvJsonMaxRows))
+
   # Reset event counts
 
   resetCounts = {}
@@ -1767,7 +1783,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   if format == 'csv' or format == 'json':
     pageNumber = 0
-    pageLength = 9999 # Too small?
+    pageLength = csvJsonMaxRows - 1
 
   query = ("SELECT files.file_did,files.state,"
            "CAST(event_time AS char) AS last_allocation_time,"
@@ -1860,13 +1876,14 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
              '&state=' + state)
 
     output += ('<p>You can download this list as '
-               '<a href="/dashboard/?method=list-files&workflow_id=%d'
+               '<a href="/dashboard/?method=download-file-states&workflow_id=%d'
                '&stage_id=%d&state=%s&format=csv&csvfile=">CSV</a> or '
-               '<a href="/dashboard/?method=list-files&workflow_id=%d'
+               '<a href="/dashboard/?method=download-file-states&workflow_id=%d'
                '&stage_id=%d&state=%s&format=json">JSON</a> '
-               '(up to 10000 files included)</p>'
+               '(up to %d files included)</p>'
                % (workflowID, stageID, state,
-                  workflowID, stageID, state))
+                  workflowID, stageID, state,
+                  csvJsonMaxRows))
 
     output += footer()
 
@@ -2278,8 +2295,6 @@ def showJob(environ, user, cgiValues):
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
-#        '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
-#        'Landscape job page</a> '
         '<a href="/wrapperlogs/%s.txt">'
         'Wrapper job log</a> '
         '</td></tr>'
@@ -3282,6 +3297,136 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
+def downloadCsvJson(environ, user, cgiValues, method):
+
+  try:
+    workflowID = int(cgiValues["workflow_id"])
+  except:
+    return errorPage(environ, user, "workflow_id must be given")
+  
+  try:
+    stageID = int(cgiValues["stage_id"])
+  except:
+    return errorPage(environ, user, "stage_id must be given")
+
+  if 'format' in cgiValues:
+    format = cgiValues['format']
+  else:
+    return errorPage(environ, user, "format must be given")
+
+  if format not in ['csv','json']:
+    return errorPage(environ, user, "format must be csv or json")
+
+  if method == 'download-file-states':
+    # CSV or JSON file with states of input files for a workflow/stage
+    stateFilter = ''
+    stateText = ''
+
+    try:
+      state = str(cgiValues["state"])
+    except:
+      state = ''
+    else:
+      if not justin.stringIsEnvName(state):
+        return errorPage(environ, user, "Invalid characters in state")
+      
+      if state == 'finding' or state == 'unallocated' or state == 'allocated' \
+          or state == 'outputting' or state == 'processed' \
+          or state == 'notfound' or state == 'failed':
+        stateFilter = 'AND files.state="' + state + '"'
+        stateText = ' (state = ' + state + ')'
+
+    query = ("SELECT files.file_did,files.state,"
+             "CAST(event_time AS CHAR) AS last_allocation_time,"
+             "storages.rse_name,jobs.jobsub_id,"
+             "sites.site_name,"
+             "allocations,jobs.jobscript_exit AS last_jobscript_exit "
+             "FROM files "
+             "LEFT JOIN events"
+             " ON files.justin_job_id=events.justin_job_id AND"
+             " events.event_type_id=%d "
+             "LEFT JOIN storages ON events.rse_id=storages.rse_id "
+             "LEFT JOIN jobs ON jobs.justin_job_id=files.justin_job_id "
+             "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+             "WHERE files.workflow_id=%d AND files.stage_id=%d %s "
+             "ORDER BY files.file_id DESC LIMIT %d" % 
+             (justin.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
+              csvJsonMaxRows))
+ 
+    fieldsList = ['file_did','allocations','state','last_allocation_time',
+                  'rse_name','site_name','jobsub_id','last_jobscript_exit']
+
+  elif method == 'download-input-file-stats':
+    # CSV or JSON file with stats of input files for a workflow/stage
+
+    query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
+             'jobscript_real_seconds AS seconds,distance,'
+             'CAST(processed_time AS CHAR) AS job_finish_time '
+             'FROM files '
+             'LEFT JOIN jobs ON files.justin_job_id=jobs.justin_job_id '
+             'LEFT JOIN events ON events.file_id=files.file_id '
+             'AND events.justin_job_id=files.justin_job_id '
+             'AND events.event_type_id=%d '
+             'LEFT JOIN sites_storages '
+             'ON events.site_id=sites_storages.site_id '
+             'AND events.rse_id=sites_storages.rse_id '
+             'LEFT JOIN storages ON events.rse_id=storages.rse_id '
+             'LEFT JOIN sites ON events.site_id=sites.site_id '
+             'WHERE files.state="processed" '
+             'AND files.workflow_id=%d '
+             'AND files.stage_id=%d' %
+             (justin.event_FILE_ALLOCATED, workflowID, stageID))
+
+    fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
+                  'seconds','distance','job_finish_time']
+
+  elif method == 'download-output-file-stats':
+    # CSV or JSON file with stats of output files for a workflow/stage
+
+    query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
+             'seconds,distance,CAST(event_time AS CHAR) AS job_finish_time '
+             'FROM events '
+             'LEFT JOIN files ON files.file_id=events.file_id '
+             'LEFT JOIN jobs ON jobs.justin_job_id=events.justin_job_id '
+             'LEFT JOIN sites_storages '
+             'ON events.site_id=sites_storages.site_id '
+             'AND events.rse_id=sites_storages.rse_id '
+             'LEFT JOIN storages ON events.rse_id=storages.rse_id '
+             'LEFT JOIN sites ON events.site_id=sites.site_id '
+             'WHERE event_type_id=%d '
+             'AND events.workflow_id=%d '
+             'AND events.stage_id=%d' %
+             (justin.event_FILE_CREATED, workflowID, stageID))
+
+    fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
+                  'seconds','distance','job_finish_time']
+
+  else:  
+    return errorPage(environ, user, "Download method not recognised!")
+
+  # Common to all download methods: execute the query and format the results
+  rows = justin.select(query)
+
+  if format == 'csv':
+    # For CSV, we use fieldsList to define the order of each line
+    output = ''
+    for row in rows:
+      outputFields = []
+
+      for field in fieldsList:
+        if type(row[field]) is str:
+          outputFields.append('"' + row[field] + '"')
+        else:
+          outputFields.append(str(row[field]))
+
+      output += ','.join(outputFields) + '\n'
+
+  elif format == 'json':
+    # For JSON, we just dump each line's dictionary
+    output = json.dumps(rows)
+
+  return output
+
 def awtResults(environ, user, cgiValues):
 
   try:
@@ -3797,6 +3942,9 @@ def application(environ, startResponse):
 
   elif method == "list-events":
     output = listEvents(environ, user, cgiValues, pageNumber, pageLength)
+
+  elif method.startswith("download-"):
+    output = downloadCsvJson(environ, user, cgiValues, method)
 
   elif method == "awt-results":
     output = awtResults(environ, user, cgiValues)

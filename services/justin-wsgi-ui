@@ -815,11 +815,6 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     return ('500 Internal Server Error', 
             'Error updating stages/stages_jobscripts in database ' + str(e))
 
-  try:
-    lifetimeDays = int(jsonDict['lifetime_days'])
-  except:
-    lifetimeDays = 1
-
   justinEnvVars = { 'JUSTIN_WORKFLOW_ID' : str(workflowID),
                     'JUSTIN_STAGE_ID'    : str(stageID)    }
 
@@ -828,7 +823,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
   outputPatterns = []
 
-  # check output_pattern is not None then proceed
+  # check output_pattern is not None then proceed with checks
   if jsonDict['output_pattern']:
     for i in jsonDict['output_pattern']:
       try:
@@ -846,9 +841,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       destination = justin.expandEnvVars(destination, justinEnvVars)
       outputPatterns.append((False, pattern, destination))
 
-  if not simple:
-    # check output_pattern is not None then proceed
-    if jsonDict['output_pattern_next_stage']:
+  # check output_pattern_next_stage is not None then proceed with checks
+  if jsonDict['output_pattern_next_stage']:
       for i in jsonDict['output_pattern_next_stage']:
         try:
           (pattern, destination) = i.split(':', 1)
@@ -856,7 +850,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
           return ('400 Bad Request',
                   'Output patterns must be of the form PATTERN:DESTINATION')
 
-        if not destination.startswith('https://') and not scopeName:
+        if not scopeName:
           return ('400 Bad Request', 
                   'A scope must be specified when creating the workflow if '
                   '--output-pattern-next-stage is given for this stage '
@@ -864,6 +858,13 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
         destination = justin.expandEnvVars(destination, justinEnvVars)
         outputPatterns.append((True, pattern, destination))
+    
+  try:
+    lifetimeDays = int(jsonDict['lifetime_days'])
+  except:
+    lifetimeDays = 0
+
+  didClient  = rucio.client.didclient.DIDClient()
 
   for (forNextStage, pattern, destination) in outputPatterns:
 
@@ -886,6 +887,18 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         # Add Workflow ID and Stage ID to URL
         destination = destination + '/%05d/%d' % (workflowID, stageID)
     else:
+        if lifetimeDays == 0:
+          try:
+            didClient.get_metadata(scope = scopeName, name = destination)
+
+          except rucio.common.exception.DataIdentifierNotFound:
+            return ('400 Bad Request',
+                    'A lifetime must be specified when creating a stage if '
+                    'a Rucio dataset is given that does not yet exist.')
+          except:
+            return ('400 Bad Request', 
+                    'Failed to connect to Rucio server for dataset checks')
+
         # Rucio dataset name
         if not justin.stringIsDID(destination) or ':' in destination:
           return ('400 Bad Request',
