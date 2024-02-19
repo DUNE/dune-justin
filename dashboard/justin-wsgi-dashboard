@@ -1977,17 +1977,25 @@ def showFile(environ, user, cgiValues):
 
   output += '</td></tr>'
 
+
+  output += ('<tr><td colspan=2>'
+             '<a href="/dashboard/?method=list-events&file_did=%s'
+             '&workflow_id=%d">List file events</a> &nbsp; &nbsp; '
+             % (urllib.parse.quote_plus(fileDID), workflowID))
+
   # THIS IS A BIT OF HACK WHILE HAVE OLD DATASETS AROUND
   if workflowID > 400 and ':' in fileDID:
-    output += ('<tr><td colspan=2><a href="'
+    output += ('<a href="'
      'https://metacat.fnal.gov:9443/dune_meta_prod/app/gui/show_file?did=%s">'
-     'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+     'Find in MetaCat</a>' % urllib.parse.quote_plus(fileDID))
 
   elif ':' in fileDID:
     # This test skips monte-carlo-NNNNNN counter DIDs
-    output += ('<tr><td colspan=2><a href="'
+    output += ('<a href="'
      'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
-     'Find in Demo MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+     'Find in Demo MetaCat</a>' % urllib.parse.quote_plus(fileDID))
+
+  output += '</td></tr>'
 
   output += "</table>"  
   output += footer()
@@ -3119,6 +3127,24 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   queryList = ''
 
   try:
+    workflowID = int(cgiValues["workflow_id"])
+  except:
+    pass
+  else:
+    if workflowID:
+      whereList.append('events.workflow_id=%d' % workflowID)
+      queryList += '&workflow_id=' + str(workflowID)
+
+  try:
+    stageID = int(cgiValues["stage_id"])
+  except:
+    pass
+  else:
+    if stageID:
+      whereList.append('events.stage_id=%d' % stageID)
+      queryList += '&stage_id=' + str(stageID)
+
+  try:
     jobsubID = cgiValues["jobsub_id"]
   except:
     pass
@@ -3126,6 +3152,15 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     if jobsubID:
       whereList.append('jobsub_id="%s"' % jobsubID)
       queryList += '&jobsub_id=' + jobsubID
+
+  try:
+    fileDID = cgiValues["file_did"]
+  except:
+    pass
+  else:
+    if fileDID:
+      whereList.append('file_did="%s"' % fileDID)
+      queryList += '&file_did=' + fileDID
 
   try:
     rseName = cgiValues["rse_name"]
