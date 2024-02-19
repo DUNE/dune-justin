@@ -232,9 +232,12 @@ queue %d
     return
   finally:
     os.remove(wrapperFile.name)
-
+    
   logLine('%s' % str(outcome.stdout))
-  logLine('condor_submit exit code: ' + str(outcome.returncode))
+
+  if outcome.returncode != 0:
+    logLine("condor_submit fails with return code %d" % outcome.returncode)
+    return
 
   try:
     clusterID = int(outcome.stdout.split('.')[0])
