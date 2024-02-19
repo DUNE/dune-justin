@@ -1653,6 +1653,20 @@ def showStage(environ, user, cgiValues):
 
     output += ('</table>') 
 
+  output += ('<p>Stats of processed input files as '
+               '<a href="/dashboard/?method=download-input-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=csv">CSV</a> or '
+               '<a href="/dashboard/?method=download-input-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=json">JSON</a>, '
+               'and of uploaded output files as '
+               '<a href="/dashboard/?method=download-output-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=csv">CSV</a> or '
+               '<a href="/dashboard/?method=download-output-file-stats&'
+               'workflow_id=%d&stage_id=%d&format=json">JSON</a> '
+               '(up to %d files included)</p>'
+               % (workflowID, stageID, workflowID, stageID, 
+                  workflowID, stageID, workflowID, stageID, csvJsonMaxRows))
+
   # Reset event counts
 
   resetCounts = {}
@@ -3323,7 +3337,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
         stateText = ' (state = ' + state + ')'
 
     query = ("SELECT files.file_did,files.state,"
-             "CAST(event_time AS char) AS last_allocation_time,"
+             "CAST(event_time AS CHAR) AS last_allocation_time,"
              "storages.rse_name,jobs.jobsub_id,"
              "sites.site_name,"
              "allocations,jobs.jobscript_exit AS last_jobscript_exit "
@@ -3338,29 +3352,54 @@ def downloadCsvJson(environ, user, cgiValues, method):
              "ORDER BY files.file_id DESC LIMIT %d" % 
              (justin.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
               csvJsonMaxRows))
-
+ 
     fieldsList = ['file_did','allocations','state','last_allocation_time',
                   'rse_name','site_name','jobsub_id','last_jobscript_exit']
+
+  elif method == 'download-input-file-stats':
+    # CSV or JSON file with stats of input files for a workflow/stage
+
+    query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
+             'jobscript_real_seconds AS seconds,distance,'
+             'CAST(processed_time AS CHAR) AS job_finish_time '
+             'FROM files '
+             'LEFT JOIN jobs ON files.justin_job_id=jobs.justin_job_id '
+             'LEFT JOIN events ON events.file_id=files.file_id '
+             'AND events.justin_job_id=files.justin_job_id '
+             'AND events.event_type_id=%d '
+             'LEFT JOIN sites_storages '
+             'ON events.site_id=sites_storages.site_id '
+             'AND events.rse_id=sites_storages.rse_id '
+             'LEFT JOIN storages ON events.rse_id=storages.rse_id '
+             'LEFT JOIN sites ON events.site_id=sites.site_id '
+             'WHERE files.state="processed" '
+             'AND files.workflow_id=%d '
+             'AND files.stage_id=%d' %
+             (justin.event_FILE_ALLOCATED, workflowID, stageID))
+
+    fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
+                  'seconds','distance','job_finish_time']
 
   elif method == 'download-output-file-stats':
     # CSV or JSON file with stats of output files for a workflow/stage
 
-    query = ('SELECT file_did,site_name,rse_name,size_bytes,seconds,distance,'
-             'event_time AS finish_time '
+    query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
+             'seconds,distance,CAST(event_time AS CHAR) AS job_finish_time '
              'FROM events '
              'LEFT JOIN files ON files.file_id=events.file_id '
+             'LEFT JOIN jobs ON jobs.justin_job_id=events.justin_job_id '
              'LEFT JOIN sites_storages '
              'ON events.site_id=sites_storages.site_id '
-             'AND events.storage_id '
+             'AND events.rse_id=sites_storages.rse_id '
              'LEFT JOIN storages ON events.rse_id=storages.rse_id '
-             'LEFT JOIN storages ON events.site_id=sites.site_id '
+             'LEFT JOIN sites ON events.site_id=sites.site_id '
              'WHERE event_type_id=%d '
              'AND events.workflow_id=%d '
              'AND events.stage_id=%d' %
-             (justin.event_FILE_CREATED, workflowID, stageID))'
+             (justin.event_FILE_CREATED, workflowID, stageID))
 
-    fieldsList = ['file_did','site_name','rse_name','size_bytes','seconds',
-                  'distance', 'finish_time']
+    fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
+                  'seconds','distance','job_finish_time']
 
   else:  
     return errorPage(environ, user, "Download method not recognised!")
@@ -3378,9 +3417,9 @@ def downloadCsvJson(environ, user, cgiValues, method):
         if type(row[field]) is str:
           outputFields.append('"' + row[field] + '"')
         else:
-          outputFileds.append(str(row[field]))
+          outputFields.append(str(row[field]))
 
-    output += ','.join(outputFields) + '\n'
+      output += ','.join(outputFields) + '\n'
 
   elif format == 'json':
     # For JSON, we just dump each line's dictionary
