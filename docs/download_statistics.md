@@ -28,7 +28,7 @@ to group
 [storages](https://justin-dev.dune.hep.ac.uk/dashboard/?method=list-storages) 
 by location, nationality, region, and continent:
 you can view distances by going to the page for any site or storage and
-lookign at the table near the bottom.
+looking at the table near the bottom.
 
 For input files, seconds refers to the time for which the user's jobscript ran, 
 which may have processed more than one file. The jobsub_id is provided, and so
