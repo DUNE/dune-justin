@@ -44,11 +44,12 @@ jobsProductionProxyFile   = '/etc/grid-security/justin-jobs-production.proxy.pem
 jobsNoRolesProxyString = None
 jobsNoRolesProxyFile   = '/etc/grid-security/justin-jobs-no-roles.proxy.pem'
 
-# Constants
+# Constantas
 MonteCarloRseID = 1
 
 justinRunDir    = '/var/run/justin'
 
+# From justin.conf etc
 mysqlUsername   = None
 mysqlPassword   = None
 mysqlHostname   = None
@@ -59,10 +60,9 @@ cilogonSecret       = None
 wlcgGroups          = None
 justinAdmins        = None
 rucioProductionUser = None
-
-agentUsername   = None
-
-proDev          = None
+agentUsername       = None
+proDev              = None
+htcondorSchedds     = None
 
 ## Global database connection
 conn = None
@@ -350,6 +350,16 @@ def readConf():
                          parser.get('agents','non_justin_fraction').strip())
   except:
     nonJustinFraction = 0.5
+
+  try:
+    a = parser.get('htcondor','schedds').strip()
+    htcondorSchedds = []
+    for a in a.split():
+      if not stringIsDomain(a):
+        raise 
+      htcondorSchedds.append(a.strip().lower())
+  except:
+    htcondorSchedds = []
 
 # Try to find the text of a jobscript from the Jobscripts Library 
 # given a JSID

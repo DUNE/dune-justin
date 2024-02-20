@@ -227,8 +227,9 @@ def findFiles():
     refindEndTime  = int(workflow['refind_end'])
     refindSeconds  = int(workflow['refind_seconds'])
   
-    logLine('Finding files for Workflow %d with MQL %s' %
-            (workflow['workflow_id'], workflow['mql']))
+    logLine('Finding files for Workflow %d with MQL %s (%d,%d,%d)' %
+            (workflow['workflow_id'], workflow['mql'],
+             refindNextTime, refindEndTime, refindSeconds))
   
     mqlSplit = workflow['mql'].split()
 
@@ -282,9 +283,9 @@ def findFiles():
 
     try:
       justin.insertUpdate('UPDATE workflows SET '
-                          'refind_next_time="%s" '
+                          'refind_next_time=FROM_UNIXTIME(%d) '
                           'WHERE workflow_id=%d AND state="running"' 
-                          % (justin.unixEpoch, workflow['workflow_id']))
+                          % (refindNextTime, workflow['workflow_id']))
     except Exception as e:
       logLine("Update workflow %d refind_next_time fails with: %s" 
               % (workflow['workflow_id'],  str(e)))
@@ -402,6 +403,8 @@ def findReplicas():
       pfnDict = rep['pfns'][pfn]
       pfnDict['pfn'] = pfn
       repsDict[rep['scope']+':'+rep['name']].append(pfnDict)
+
+#  logLine('repsDict: ' + str(repsDict))
                       
   # Go through the files again, pulling out the replica info obtained 
   # for the file's DID
@@ -1132,10 +1135,16 @@ def findStalledCondorJobs():
 
   nowTime = int(time.time())
 
-  try: 
-    outcome = subprocess.run(
+  # Gather details of HTCondor jobs from our list of schedds
+  condorJobs = {}  
+
+  for scheddHostname in justin.htcondorSchedds:
+    try: 
+      outcome = subprocess.run(
                ['/usr/bin/condor_q',
-                '--long:json',
+                '-name',
+                scheddHostname,
+                '-long:json',
                 '-attributes',
                 'clusterid,procid,jobstatus,enteredcurrentstatus'
                ],
@@ -1144,27 +1153,29 @@ def findStalledCondorJobs():
                stdout   = subprocess.PIPE,
                timeout  = 60
                             ) 
-  except Exception as e:
-    logLine("condor_q fails with error: " + str(e))
-    return
+    except Exception as e:
+      logLine("condor_q fails with error: " + str(e))
+      return
 
-  logLine('condor_q exit code: ' + str(outcome.returncode))
+    logLine('condor_q exit code: ' + str(outcome.returncode))
 
-  try:
-    jsonJobs = json.loads(outcome.stdout)
-  except:
-    logLine('Failed to load JSON output by condor_q')
-    return
+    try:
+      jsonJobs = json.loads(outcome.stdout)
+    except:
+      logLine('Failed to load JSON output by condor_q')
+      return
 
-  condorJobs = {}  
-  for jsonJob in jsonJobs:  
-    if 'jobstatus' not in jsonJob or \
-       'enteredcurrentstatus' not in jsonJob or \
-       'clusterid' not in jsonJob or \
-       'procid' not in jsonJob:
-      continue
+    for jsonJob in jsonJobs:  
+      if 'jobstatus' not in jsonJob or \
+         'enteredcurrentstatus' not in jsonJob or \
+         'clusterid' not in jsonJob or \
+         'procid' not in jsonJob:
+        continue
       
-    condorJobs['%d.%d' % (jsonJob['clusterid'], jsonJob['procid'])] = \
+      condorJobs['%d.%d@%s' % 
+                 (jsonJob['clusterid'], 
+                  jsonJob['procid'],
+                  scheddHostname)] = \
            (jsonJob['jobstatus'], jsonJob['enteredcurrentstatus'])
 
   # Get a list of waiting/running jobs
@@ -1175,23 +1186,22 @@ def findStalledCondorJobs():
   dbJobRows = justin.select(query)
   for dbJobRow in dbJobRows:
     stalled = False
-    clusterProc = dbJobRow['jobsub_id'].split('@')[0]
     
-    if clusterProc not in condorJobs:
+    if dbJobRow['jobsub_id'] not in condorJobs:
       # if Condor is unaware of the job, then it's stalled
       logLine('Job %s is not known to HTCondor - marking as stalled' 
-              % clusterProc)
+              % dbJobRow['jobsub_id'])
       stalled = True
       
     else:
-      (jobStatus, enteredCurrentStatus) = condorJobs[clusterProc]
+      (jobStatus, enteredCurrentStatus) = condorJobs[dbJobRow['jobsub_id']]
 
       # Allow 60 seconds for race conditions, but if DB thinks 
       # job is waiting or running but Condor says something else, 
       # then mark as stalled
       if enteredCurrentStatus < nowTime - 60 and jobStatus in (3,4,5,6):
         logLine('Job %s is in HTCondor state %d - marking as stalled' %
-                (clusterProc, jobStatus))
+                (dbJobRow['jobsub_id'], jobStatus))
         stalled = True
         
     if stalled:

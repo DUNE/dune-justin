@@ -22,6 +22,7 @@ import pwd
 import sys
 import stat
 import time
+import random
 import secrets
 import pathlib
 import tempfile
@@ -144,6 +145,12 @@ def submitJobs(numberToSubmit,
 #  else:
 #    innerApptainerTest = ''
 
+  if justin.htcondorSchedds:
+    logLine('schedds missing from [htcondor] section of config')
+    return
+    
+#  'justin-prod-sched01.dune.hep.ac.uk'
+  scheddHostname = random.choice(justin.htcondorSchedds)
   submitFile = ''
   
   # Add any user defined ClassAds for this stage 
@@ -174,7 +181,7 @@ def submitJobs(numberToSubmit,
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
 universe                = vanilla
-environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@justin-prod-sched01.dune.hep.ac.uk"
+environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@%s"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
 periodic_hold           = False
 max_retries             = 0
@@ -192,21 +199,25 @@ request_memory          = %dKB
 request_cpus            = %d
 request_disk            = 1000000
 getenv                  = False
-output                  = /tmp/justin-wrapper-$(Cluster).$(Process).out
-error                   = /tmp/justin-wrapper-$(Cluster).$(Process).out
-log                     = /tmp/justin-wrapper-$(Cluster).$(Process).log
+output                  = /tmp/justin-wrapper-$(Cluster).$(Process).%s.out
+error                   = /tmp/justin-wrapper-$(Cluster).$(Process).%s.out
+log                     = /tmp/justin-wrapper-$(Cluster).$(Process).%s.log
 transfer_output_files   = ""
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
 queue %d
 """ % (desiredSiteNames, 
        requestedWallSeconds,
+       scheddHostname,
        wrapperFile.name,
        accountingGroup,
        userName.split('@')[0],
        int(requestedRssBytes / 1024), 
        requestedProcessors,
-       numberToSubmit)
+       numberToSubmit,
+       scheddHostname,
+       scheddHostname,
+       scheddHostname)
   
   # For debugging the submit file
   if False:
@@ -219,6 +230,8 @@ queue %d
     beforeTime = time.time()
     outcome = subprocess.run(
                ['/usr/bin/condor_submit',
+                '-name',
+                scheddHostname,
                 '-spool',
                 '-terse'
                ],
@@ -247,7 +260,6 @@ queue %d
     logLine('Failed to get cluster ID from %s' % outcome.stdout)
     return
 
-  scheddHostname = 'justin-prod-sched01.dune.hep.ac.uk'
   jobsubJobID = '%d.0@%s' % (clusterID, scheddHostname)
 
   logLine("Submitted cluster %s to %s%s" % 

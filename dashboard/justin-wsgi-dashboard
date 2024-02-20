@@ -2013,8 +2013,12 @@ def outputWrapperLog(startResponse, environ, user):
     filename = environ['REQUEST_URI'].split('/')[2]
     cluster = int(filename.split('.')[0])
     proc    = int(filename.split('.')[1])
-    output = os.popen('/var/lib/justin/justin-get-output %d.%d'
-                      % (cluster, proc), 'r').read()
+    schedd  = filename.split('.',2)[2]
+    if not justin.stringIsDomain(schedd):
+      raise
+
+    output = os.popen('/var/lib/justin/justin-get-output %d %d %s'
+                      % (cluster, proc, schedd), 'r').read()
   except Exception as e:
    print(environ['REQUEST_URI'], str(e), file=sys.stderr)
    startResponse('302 Moved', [('Location', '/dashboard/'),
@@ -2276,7 +2280,7 @@ def showJob(environ, user, cgiValues):
         '<a href="/wrapperlogs/%s.txt">'
         'Wrapper job log</a> '
         '</td></tr>'
-        % (jobsubID, jobsubID.split('@')[0]))
+        % (jobsubID, jobsubID.replace('@','.')))
 
   output += "</table>"
 
@@ -3043,12 +3047,16 @@ def showStorage(environ, user, cgiValues):
   output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
         % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
 
-  output += ('<tr><td>Events</td>'
-             '<td><a href="/dashboard/?method=list-events&rse_name=%s'
-             '">All</a> &nbsp; ' % rseName)
+  output += ('<tr><td colspan=2>'
+             '<a href="/dashboard/?method=list-events&rse_name=%s'
+             '">All events</a> &nbsp; ' % rseName)
 
   output += ('<a href="/dashboard/?method=list-events&rse_name=%s&'
-             'awt_events=True">AWT</a></td></tr>' % rseName)
+             'awt_events=True">AWT events</a> &nbsp; ' % rseName)
+
+  output += ('<a href="https://github.com/DUNE/dist-comp/issues'
+             '?q=%s+in%%3Atitle+is%%3Aissue+is%%3Aopen">'
+             'GitHub issues</a></td></tr>' % rseName)
 
   output += ('</table>')
 

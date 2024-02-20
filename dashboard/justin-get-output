@@ -1,35 +1,38 @@
 #!/bin/sh
 #
-# Wrapper for condor_transfer_data
+# Wrapper for condor_transfer_data etc
 # 
 
-JOB=`echo "$1" | sed 's/[^0-9.]//g'`
+cluster="$1"
+proc="$2"
+schedd="$3"
 
-condor_transfer_data "$JOB" >/dev/null 2>&1
+condor_transfer_data -name "$schedd" "$cluster.$proc" >/dev/null 2>&1
 
 echo "======="
-echo "======= Start of condor_q -better $JOB output"
+echo "======= Start of condor_q -better $cluster.$proc@$schedd output"
 echo "======="
-/usr/bin/condor_q -better "$JOB"
+/usr/bin/condor_q -better -name "$schedd" "$cluster.$proc"
 echo "======="
-echo "======= Start of job $JOB log"
+echo "======= Start of job $cluster.$proc@$schedd log"
 echo "======="
-if [ -r "/tmp/justin-wrapper-$JOB.log" ] ; then
- cat "/tmp/justin-wrapper-$JOB.log"
+if [ -r "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" ] ; then
+ cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.log"
 else
  echo '(missing - deleted?)'
 fi
 echo "======="
-echo "======= Start of condor_q -long $JOB"
+echo "======= Start of condor_q -long $cluster.$proc@$schedd"
 echo "======="
-/usr/bin/condor_q -long "$JOB"
+/usr/bin/condor_q -name "$schedd" -long "$cluster.$proc"
 echo
 echo "======="
-echo "======= Start of job $JOB output"
+echo "======= Start of job $cluster.$proc@$schedd output"
 echo "======="
-if [ -r "/tmp/justin-wrapper-$JOB.out" ] ; then
- cat "/tmp/justin-wrapper-$JOB.out"
+if [ -r "/tmp/justin-wrapper-$cluster.$proc.$schedd.out" ] ; then
+ cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
 else
  echo '(missing - deleted?)'
 fi
-rm -f "/tmp/justin-wrapper-$JOB.log" "/tmp/justin-wrapper-$JOB.out"
+rm -f "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" \
+      "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
