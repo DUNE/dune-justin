@@ -256,7 +256,7 @@ def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
-         nonJustinFraction
+         nonJustinFraction, htcondorSchedds
 
   parser = configparser.RawConfigParser()
 

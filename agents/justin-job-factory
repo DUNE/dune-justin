@@ -145,7 +145,7 @@ def submitJobs(numberToSubmit,
 #  else:
 #    innerApptainerTest = ''
 
-  if justin.htcondorSchedds:
+  if not justin.htcondorSchedds:
     logLine('schedds missing from [htcondor] section of config')
     return
     
@@ -214,10 +214,10 @@ queue %d
        userName.split('@')[0],
        int(requestedRssBytes / 1024), 
        requestedProcessors,
-       numberToSubmit,
        scheddHostname,
        scheddHostname,
-       scheddHostname)
+       scheddHostname,
+       numberToSubmit)
   
   # For debugging the submit file
   if False:
@@ -281,7 +281,7 @@ queue %d
                       'submitted_time=NOW(),'
                       'justin_job_secret="%s",'
                       'jobscript_secret="%s",'
-                      'jobsub_id="%s.%d@%s"'
+                      'jobsub_id="%d.%d@%s"'
                       % (os.uname()[1],
                          workflowID,
                          stageID,
@@ -297,13 +297,13 @@ queue %d
     except Exception as e:
       # But try to keep going
       logLine('INSERT INTO jobs fails with: ' + str(e))
-      
-    justin.logEvent(eventTypeID = event_JOB_SUBMITTED,
-                    workflowID = workflowID,
-                    stageID = stageID,
-                    siteID = firstSiteID,
-                    justinJobID = justinJobID,             
-                    seconds = afterTime - beforeTime):
+    else:
+      justin.logEvent(eventTypeID = event_JOB_SUBMITTED,
+                      workflowID = workflowID,
+                      stageID = stageID,
+                      siteID = firstSiteID,
+                      justinJobID = justinJobID,
+                      seconds = afterTime - beforeTime)
 
   # Record that we've done a submission if just for one site
   if firstSiteID:
