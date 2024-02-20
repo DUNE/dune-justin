@@ -228,8 +228,7 @@ if jsonDict['verbose']:
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-#  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
-  url = 'https://justin-ui.dune.hep.ac.uk/api/commands'
+  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
 
 try:
   (session, secret) = open(sessionFile, 'r').read().split()
