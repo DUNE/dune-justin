@@ -159,8 +159,8 @@ event_JOB_SCRIPT_ERROR          = 309
 event_JOB_OUTPUTTING_FAILED     = 310
 
 # File events
-#event_FILE_ALLOCATED            = 103
-event_FILE_ALLOCATED            = 401
+event_FILE_ALLOCATED            = 103
+# event_FILE_ALLOCATED            = 401
 event_FILE_ALLOCATED_RESET      = 402
 event_FILE_SET_TO_FAILED        = 403
 event_FILE_CREATED              = 404
