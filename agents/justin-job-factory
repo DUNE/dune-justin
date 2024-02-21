@@ -298,7 +298,7 @@ queue %d
       # But try to keep going
       logLine('INSERT INTO jobs fails with: ' + str(e))
     else:
-      justin.logEvent(eventTypeID = event_JOB_SUBMITTED,
+      justin.logEvent(eventTypeID = justin.event_JOB_SUBMITTED,
                       workflowID = workflowID,
                       stageID = stageID,
                       siteID = firstSiteID,
