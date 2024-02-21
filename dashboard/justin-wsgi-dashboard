@@ -1977,17 +1977,25 @@ def showFile(environ, user, cgiValues):
 
   output += '</td></tr>'
 
+
+  output += ('<tr><td colspan=2>'
+             '<a href="/dashboard/?method=list-events&file_did=%s'
+             '&workflow_id=%d">List file events</a> &nbsp; &nbsp; '
+             % (urllib.parse.quote_plus(fileDID), workflowID))
+
   # THIS IS A BIT OF HACK WHILE HAVE OLD DATASETS AROUND
   if workflowID > 400 and ':' in fileDID:
-    output += ('<tr><td colspan=2><a href="'
+    output += ('<a href="'
      'https://metacat.fnal.gov:9443/dune_meta_prod/app/gui/show_file?did=%s">'
-     'Find in MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+     'Find in MetaCat</a>' % urllib.parse.quote_plus(fileDID))
 
   elif ':' in fileDID:
     # This test skips monte-carlo-NNNNNN counter DIDs
-    output += ('<tr><td colspan=2><a href="'
+    output += ('<a href="'
      'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
-     'Find in Demo MetaCat</a></td></tr>' % urllib.parse.quote_plus(fileDID))
+     'Find in Demo MetaCat</a>' % urllib.parse.quote_plus(fileDID))
+
+  output += '</td></tr>'
 
   output += "</table>"  
   output += footer()
@@ -2005,8 +2013,12 @@ def outputWrapperLog(startResponse, environ, user):
     filename = environ['REQUEST_URI'].split('/')[2]
     cluster = int(filename.split('.')[0])
     proc    = int(filename.split('.')[1])
-    output = os.popen('/var/lib/justin/justin-get-output %d.%d'
-                      % (cluster, proc), 'r').read()
+    schedd  = filename.split('.',2)[2]
+    if not justin.stringIsDomain(schedd):
+      raise
+
+    output = os.popen('/var/lib/justin/justin-get-output %d %d %s'
+                      % (cluster, proc, schedd), 'r').read()
   except Exception as e:
    print(environ['REQUEST_URI'], str(e), file=sys.stderr)
    startResponse('302 Moved', [('Location', '/dashboard/'),
@@ -2268,7 +2280,7 @@ def showJob(environ, user, cgiValues):
         '<a href="/wrapperlogs/%s.txt">'
         'Wrapper job log</a> '
         '</td></tr>'
-        % (jobsubID, jobsubID.split('@')[0]))
+        % (jobsubID, jobsubID.replace('@','.')))
 
   output += "</table>"
 
@@ -3035,12 +3047,16 @@ def showStorage(environ, user, cgiValues):
   output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
         % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
 
-  output += ('<tr><td>Events</td>'
-             '<td><a href="/dashboard/?method=list-events&rse_name=%s'
-             '">All</a> &nbsp; ' % rseName)
+  output += ('<tr><td colspan=2>'
+             '<a href="/dashboard/?method=list-events&rse_name=%s'
+             '">All events</a> &nbsp; ' % rseName)
 
   output += ('<a href="/dashboard/?method=list-events&rse_name=%s&'
-             'awt_events=True">AWT</a></td></tr>' % rseName)
+             'awt_events=True">AWT events</a> &nbsp; ' % rseName)
+
+  output += ('<a href="https://github.com/DUNE/dist-comp/issues'
+             '?q=%s+in%%3Atitle+is%%3Aissue+is%%3Aopen">'
+             'GitHub issues</a></td></tr>' % rseName)
 
   output += ('</table>')
 
@@ -3119,6 +3135,24 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   queryList = ''
 
   try:
+    workflowID = int(cgiValues["workflow_id"])
+  except:
+    pass
+  else:
+    if workflowID:
+      whereList.append('events.workflow_id=%d' % workflowID)
+      queryList += '&workflow_id=' + str(workflowID)
+
+  try:
+    stageID = int(cgiValues["stage_id"])
+  except:
+    pass
+  else:
+    if stageID:
+      whereList.append('events.stage_id=%d' % stageID)
+      queryList += '&stage_id=' + str(stageID)
+
+  try:
     jobsubID = cgiValues["jobsub_id"]
   except:
     pass
@@ -3126,6 +3160,15 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     if jobsubID:
       whereList.append('jobsub_id="%s"' % jobsubID)
       queryList += '&jobsub_id=' + jobsubID
+
+  try:
+    fileDID = cgiValues["file_did"]
+  except:
+    pass
+  else:
+    if fileDID:
+      whereList.append('file_did="%s"' % fileDID)
+      queryList += '&file_did=' + fileDID
 
   try:
     rseName = cgiValues["rse_name"]

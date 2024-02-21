@@ -44,11 +44,12 @@ jobsProductionProxyFile   = '/etc/grid-security/justin-jobs-production.proxy.pem
 jobsNoRolesProxyString = None
 jobsNoRolesProxyFile   = '/etc/grid-security/justin-jobs-no-roles.proxy.pem'
 
-# Constants
+# Constantas
 MonteCarloRseID = 1
 
 justinRunDir    = '/var/run/justin'
 
+# From justin.conf etc
 mysqlUsername   = None
 mysqlPassword   = None
 mysqlHostname   = None
@@ -59,10 +60,9 @@ cilogonSecret       = None
 wlcgGroups          = None
 justinAdmins        = None
 rucioProductionUser = None
-
-agentUsername   = None
-
-proDev          = None
+agentUsername       = None
+proDev              = None
+htcondorSchedds     = None
 
 ## Global database connection
 conn = None
@@ -130,12 +130,13 @@ maxAllocations = 6
 event_UNDEFINED = 0
 
 # Workflow Allocator events
-event_HEARTBEAT_RECEIVED  = 100
-event_GET_STAGE_RECEIVED  = 101
-event_STAGE_ALLOCATED     = 102
-event_FILE_ALLOCATED      = 103
-event_OUTPUTTING_RECEIVED = 104
-event_CONFIRM_RECEIVED    = 105
+# DEPRECATED: DO NOT USE NOW!!!
+#old_event_HEARTBEAT_RECEIVED  = 100
+#old_event_GET_STAGE_RECEIVED  = 101
+#old_event_STAGE_ALLOCATED     = 102
+#old_event_FILE_ALLOCATED      = 103
+#old_event_OUTPUTTING_RECEIVED = 104
+#old_event_CONFIRM_RECEIVED    = 105
 
 # Finder events
 event_FILE_ADDED                = 201
@@ -155,9 +156,11 @@ event_JOB_NOTUSED		= 306
 event_JOB_ABORTED		= 307
 event_JOB_STALLED		= 308
 event_JOB_SCRIPT_ERROR          = 309
+event_JOB_OUTPUTTING_FAILED     = 310
 
 # File events
-#event_FILE_ALLOCATED           = 401
+#event_FILE_ALLOCATED            = 103
+event_FILE_ALLOCATED            = 401
 event_FILE_ALLOCATED_RESET      = 402
 event_FILE_SET_TO_FAILED        = 403
 event_FILE_CREATED              = 404
@@ -175,19 +178,19 @@ eventTypes = {
  # Catch all events
  event_UNDEFINED       : ['UNDEFINED',       'Undefined'],
 
- # Workflow Allocator events
- event_HEARTBEAT_RECEIVED : ['HEARTBEAT_RECEIVED', 
-                             'Heartbeat received by allocator'],
- event_GET_STAGE_RECEIVED : ['GET_STAGE_RECEIVED', 
-                             'get_stage received from job by allocator'],
- event_STAGE_ALLOCATED    : ['STAGE_ALLOCATED', 
-                             'Stage allocated to job'],
- event_FILE_ALLOCATED     : ['FILE_ALLOCATED',  
-                             'File allocated to job'],
- event_OUTPUTTING_RECEIVED : ['OUTPUTTING_RECEIVED',
-                             'Outputting state received from job by allocator'],
- event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
-                             'Confirmation received from job by allocator'],
+ # Workflow Allocator events (DEPRECATED)
+# old_event_HEARTBEAT_RECEIVED : ['HEARTBEAT_RECEIVED', 
+#                             'Heartbeat received by allocator'],
+# old_event_GET_STAGE_RECEIVED : ['GET_STAGE_RECEIVED', 
+#                             'get_stage received from job by allocator'],
+# old_event_STAGE_ALLOCATED    : ['STAGE_ALLOCATED', 
+#                             'Stage allocated to job'],
+# old_event_FILE_ALLOCATED     : ['FILE_ALLOCATED',  
+#                             'File allocated to job'],
+# old_event_OUTPUTTING_RECEIVED : ['OUTPUTTING_RECEIVED',
+#                             'Outputting state received from job by allocator'],
+# old_event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
+#                             'Confirmation received from job by allocator'],
 
  # Finder events
  event_FILE_ADDED                : ['FILE_ADDED',
@@ -222,8 +225,12 @@ eventTypes = {
                            'Job identified as stalled by Finder'],
  event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
                            'Error raised by the jobscript'],
+ event_JOB_OUTPUTTING_FAILED : ['JOB_OUTPUTTING_FAILED',
+                                'Job outputting failed'],
 
  # File events
+ event_FILE_ALLOCATED        : ['FILE_ALLOCATED',  
+                                'File allocated to job'],
  event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',
                                 'File set back to unallocated from allocated'],
  event_FILE_SET_TO_FAILED    : ['FILE_SET_TO_FAILED',
@@ -250,7 +257,7 @@ def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
-         nonJustinFraction
+         nonJustinFraction, htcondorSchedds
 
   parser = configparser.RawConfigParser()
 
@@ -344,6 +351,16 @@ def readConf():
                          parser.get('agents','non_justin_fraction').strip())
   except:
     nonJustinFraction = 0.5
+
+  try:
+    a = parser.get('htcondor','schedds').strip()
+    htcondorSchedds = []
+    for a in a.split():
+      if not stringIsDomain(a):
+        raise 
+      htcondorSchedds.append(a.strip().lower())
+  except:
+    htcondorSchedds = []
 
 # Try to find the text of a jobscript from the Jobscripts Library 
 # given a JSID

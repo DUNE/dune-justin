@@ -811,7 +811,7 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   if 'aborted_method' not in jsonDict or \
      not justin.stringNoQuotes(jsonDict['aborted_method']):
-    return httpError(startResponse, 
+    return httpError(startResponse,  
                      '400 Bad Request', 
                      'Missing/invalid aborted_method in JSON')
 
@@ -822,8 +822,8 @@ def jobAbortedMethod(startResponse, jsonDict):
                      '400 Bad Request', 
                      jobDict['error_message'] + ' in jobAbortedMethod')
 
-  if jobDict['job_state'] not in ['submitted','notused', 'started',
-                                         'processing','outputting']:
+  if jobDict['job_state'] not in ['submitted','notused','started',
+                                  'processing','outputting','jobscript_error']:
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot set job to aborted as job already in %s state' 
@@ -836,14 +836,12 @@ def jobAbortedMethod(startResponse, jsonDict):
     eventTypeID = justin.event_JOB_NOTUSED
   elif jsonDict['aborted_method'] == 'jobscript_error':
     state = 'jobscript_error'
-##### NEEDS CHANGING TO A jobscript error EVENT!!!
-    eventTypeID = justin.event_JOB_ABORTED
+    eventTypeID = justin.event_JOB_SCRIPT_ERROR
   elif jsonDict['aborted_method'] in [ 'rucio_attach', 'rucio_upload',
                                        'metacat_declare' ]:
 # WANT TO RESET FILE ALLOCATIONS TOO?
     state = 'outputting_failed'
-##### NEEDS CHANGING TO AN outputting error EVENT!!!
-    eventTypeID = justin.event_JOB_ABORTED
+    eventTypeID = justin.event_JOB_OUTPUTTING_FAILED
   else:
     state = 'aborted'
     eventTypeID = justin.event_JOB_ABORTED
@@ -1702,11 +1700,7 @@ def confirmResultsMethod(startResponse, jsonDict):
       except:
         sizeBytes = 0
         seconds   = 0.0
-        try:
-# THIS IS ONLY NEEDED WHILE WE HAVE OLD STYLE WRAPPER JOBS AROUND
-          rseName = jsonDict['output_dids'][fileRow['file_did']]
-        except:
-          rseName = None
+        rseName   = None
       
       justin.insertUpdate('UPDATE files SET state="%s",size_bytes=%d '
                           'WHERE file_id=%d' %
