@@ -695,8 +695,7 @@ def findSubmittedWorkflows():
       try:
         logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetName))
         ret = didClient.add_dataset(scope    = scopeName,
-                                    name     = datasetName,
-                                    lifetime = lifetimeSeconds)
+                                    name     = datasetName)
                                     
       except rucio.common.exception.DataIdentifierAlreadyExists:
         pass

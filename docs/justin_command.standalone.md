@@ -49,7 +49,7 @@ with your Fermilab SSO account. `justin` creates a session file for you in
 session, which you authorize by folling that URL and logging in.
 
 With this done, you can follow some of the simple commands in the 
-[justIN DUNE tutorial](tutorial.dune.md) which do not need cvmfs. For
+[justIN DUNE tutorial](tutorials.dune.md) which do not need cvmfs. For
 example: 
 
     justin simple-workflow --monte-carlo 10 --jobscript-id testpro:hello-world

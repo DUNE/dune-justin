@@ -7,10 +7,14 @@ sites, storages etc.
 See the [snapshot of its man page](justin_command.man_page.md) for the 
 full list of subcommands, options, and their syntax.
 
-The command requires Python 3.6 or above and has no dependencies beyond the
-standard Python 3 modules. On a Linux system with python3 on the path, it
-should be possible to install and run the workflow command directly from the
-[commands directory in the justIN repo on GitHub](https://github.com/DUNE/dune-justin/tree/main/commands).
+On Fermilab dunegpvm machines and CERN's lxplus, it can easily be accessed
+by setting up the usual DUNE environment and executing `setup justin` 
+
+The command only requires Python 3.6 or above and has no dependencies 
+beyond the standard Python 3 modules. 
+Even on a macOS or Linux system without cvmfs, it should also be 
+possible to 
+[install and run](justin_command.standalone.md) the command standalone.
 
 If you have Python2 module directories in $PYTHONPATH, it may be necessary
 to unset PYTHONPATH in the session where you run the workflow command.
