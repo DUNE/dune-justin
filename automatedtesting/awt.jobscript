@@ -21,6 +21,7 @@ which rucio
 rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
 metacat auth login -m x509 dunepro
+export upload_dataset=`date --utc +'awt-uploads-%Y%W'`
 
 touch results.txt
 export now=`date +'%s'`
@@ -31,7 +32,6 @@ echo '===End $JUSTIN_PATH/justin-awt-rse-list.txt==='
 
 cat $JUSTIN_PATH/justin-awt-rse-list.txt | (
 
-upload_dataset=`date --utc +'awt-uploads-%Y%W'`
 while read rse_name write_protocol read_pfn
 do
   echo '---------------------------------------------------------------------'

@@ -300,6 +300,32 @@ def mainPage(environ, user):
      ('<h1 style="text-align: center">DUNE justIN service</h1>'
       '<table class="center main_page_table">')
 
+  query = ('SELECT ('
+           'SELECT COUNT(*) FROM jobs WHERE job_state="started" OR '
+           'job_state="processing" OR job_state="outputting") '
+           'AS running_jobs,('
+           'SELECT COUNT(*) FROM workflows '
+           'WHERE state="running" AND workflow_id<>%d) AS running_workflows,('
+           'SELECT COUNT(*) FROM files '
+           'LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+           'WHERE files.state="unallocated" AND workflows.state="running" '
+           'AND workflows.workflow_id<>%d) AS unallocated_files' 
+           % (justin.awtWorkflowID, justin.awtWorkflowID))
+  try:
+    row = justin.select(query, justOne = True)
+  except:
+    pass
+  else:
+    output += \
+     ('<p style="text-align: center">%d running job%s in %d running '
+      'workflow%s. %d file%s not yet allocated to jobs.</p>\n' 
+      % (row['running_jobs'], 
+          '' if row['running_jobs'] == 1 else 's',
+         row['running_workflows'], 
+          '' if row['running_workflows'] == 1 else 's',
+         row['unallocated_files'],
+          '' if row['unallocated_files'] == 1 else 's'))
+
   cells = [
    { 'startRow'  : True,
      'endRow'    : False,
