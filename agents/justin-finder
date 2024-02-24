@@ -537,6 +537,13 @@ def findReplicas():
 
             justin.select(query)
             replicasInserted += 1
+
+            justin.logEvent(eventTypeID = justin.event_REPLICA_ADDED,
+                            workflowID = workflowID,
+                            stageID = stageID,
+                            fileID = fileRow['file_id'],
+                            rseID = storagesDict[rse]['rse_id'])
+   
           except Exception as e:
             logLine('Failed inserting replica: ' + str(e))
             # We give up if this happens, without the commit
