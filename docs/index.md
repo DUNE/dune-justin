@@ -13,6 +13,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 ## User Guides
 
 - [justin command](justin_command.md)
+    - [man page](justin_command.man_page.md)
     - [Standalone setup](justin_command.standalone.md)
 - [Monte Carlo workflows](monte_carlo.md)
 - [Jobscripts](jobscripts.md)
