@@ -1157,6 +1157,10 @@ def findStalledCondorJobs():
       return
 
     logLine('condor_q exit code: ' + str(outcome.returncode))
+    
+    if outcome.returncode != 0:
+      logLine("condor_q fails with return code %d" % outcome.returncode)
+      return
 
     try:
       jsonJobs = json.loads(outcome.stdout)
