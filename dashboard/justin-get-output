@@ -10,7 +10,7 @@ schedd="$3"
 condor_transfer_data -name "$schedd" "$cluster.$proc" >/dev/null 2>&1
 
 echo "======="
-echo "======= Start of condor_q -better $cluster.$proc@$schedd output"
+echo "======= Start of condor_q -better -name $schedd $cluster.$proc output"
 echo "======="
 /usr/bin/condor_q -better -name "$schedd" "$cluster.$proc"
 echo "======="
@@ -22,7 +22,7 @@ else
  echo '(missing - deleted?)'
 fi
 echo "======="
-echo "======= Start of condor_q -long $cluster.$proc@$schedd"
+echo "======= Start of condor_q -name $schedd -long $cluster.$proc"
 echo "======="
 /usr/bin/condor_q -name "$schedd" -long "$cluster.$proc"
 echo

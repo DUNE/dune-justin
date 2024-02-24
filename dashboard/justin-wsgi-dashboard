@@ -2303,7 +2303,7 @@ def showJob(environ, user, cgiValues):
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
-        '<a href="/wrapperlogs/%s.txt">'
+        '<a href="/wrapperlogs/%s">'
         'Wrapper job log</a> '
         '</td></tr>'
         % (jobsubID, jobsubID.replace('@','.')))

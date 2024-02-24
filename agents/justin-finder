@@ -982,7 +982,8 @@ def findStalledAbortedJobs():
         continue
 
     # However we got here, reset the job's files
-    resetFilesForJob(justinJobID = jobRow['justin_job_id'],                      jobsubID    = jobRow['jobsub_id'],
+    resetFilesForJob(justinJobID = jobRow['justin_job_id'],                      
+                     jobsubID    = jobRow['jobsub_id'],
                      workflowID  = jobRow['workflow_id'],
                      stageID     = jobRow['stage_id'],
                      siteID      = jobRow['site_id'])
