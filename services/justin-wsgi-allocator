@@ -757,6 +757,14 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
              'stage_id=' + str(jsonDict['stage_id']) + ' '
              'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
                        )
+
+    justin.logEvent(eventTypeID = justin.event_JOB_STARTED,
+                    workflowID = jsonDict['workflow_id'],
+                    stageID = jsonDict['stage_id'],
+                    justinJobID = jobDict['justin_job_id'],
+                    siteID = jobDict['site_id']
+                   )
+
   except Exception as e:
     updateAllocationState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
@@ -858,6 +866,7 @@ def jobAbortedMethod(startResponse, jsonDict):
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
+
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -1192,11 +1201,19 @@ def getFileMethod(startResponse, jsonDict):
   
   if oneFile['file_did']:
     try:
-      justin.insertUpdate(
-                   'UPDATE jobs SET job_state="processing",'
-                   'heartbeat_time=NOW() '
-                   'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
+      justin.insertUpdate('UPDATE jobs SET job_state="processing",'
+                          'heartbeat_time=NOW() '
+                          'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                          )
+
+      if jobDict['job_state'] == 'started':
+        justin.logEvent(eventTypeID = justin.event_JOB_PROCESSING,
+                        workflowID  = jobDict['workflow_id'],
+                        stageID     = jobDict['stage_id'],
+                        justinJobID = jobDict['justin_job_id'],
+                        siteID      = jobDict['site_id']
+                       )
+
     except Exception as e:
        return httpError(startResponse,
                         '500 Internal Server Error',
@@ -1512,16 +1529,24 @@ def recordResultsMethod(startResponse, jsonDict):
 
   try:
     justin.insertUpdate('UPDATE jobs SET job_state="outputting",'
-                           'heartbeat_time=NOW(),'
-                           'outputting_time=NOW(),'
-                           'jobscript_real_seconds=%d,'
-                           'jobscript_cpu_seconds=%d,'
-                           'jobscript_max_rss_bytes=%d '
-                           'WHERE jobsub_id="%s"'
-                           % (jobscriptRealSeconds,
-                              jobscriptCpuSeconds,
-                              jobscriptMaxRssBytes,
-                              jsonDict['jobsub_id']))
+                        'heartbeat_time=NOW(),'
+                        'outputting_time=NOW(),'
+                        'jobscript_real_seconds=%d,'
+                        'jobscript_cpu_seconds=%d,'
+                        'jobscript_max_rss_bytes=%d '
+                        'WHERE jobsub_id="%s"'
+                        % (jobscriptRealSeconds,
+                           jobscriptCpuSeconds,
+                           jobscriptMaxRssBytes,
+                           jsonDict['jobsub_id']))
+
+    justin.logEvent(eventTypeID = justin.event_JOB_OUTPUTTING,
+                    workflowID  = workflowID,
+                    stageID     = stageID,
+                    justinJobID = justinJobID,
+                    siteID      = siteID
+                   )
+
   except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',

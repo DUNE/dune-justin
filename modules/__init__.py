@@ -139,12 +139,11 @@ event_UNDEFINED = 0
 #old_event_CONFIRM_RECEIVED    = 105
 
 # Finder events
-event_FILE_ADDED                = 201
+#event_FILE_ADDED                = 201
 event_REPLICA_ADDED             = 202
 event_REPLICA_STAGING_REQUESTED = 203
 event_REPLICA_STAGING_DONE      = 204
 event_REPLICA_STAGING_CANCELLED = 205
-event_WORKFLOW_FINISHED         = 206
 
 # Job events
 event_JOB_SUBMITTED		= 301
@@ -159,6 +158,8 @@ event_JOB_SCRIPT_ERROR          = 309
 event_JOB_OUTPUTTING_FAILED     = 310
 
 # File events
+event_FILE_ADDED                = 201
+#event_FILE_ADDED                = 400
 #event_FILE_ALLOCATED            = 103
 event_FILE_ALLOCATED            = 401
 event_FILE_ALLOCATED_RESET      = 402
@@ -172,6 +173,10 @@ event_AWT_READ_OK               = 501
 event_AWT_READ_FAIL             = 502
 event_AWT_WRITE_OK              = 503
 event_AWT_WRITE_FAIL            = 504
+
+# Workflow/stage events
+event_WORKFLOW_FINISHED         = 610
+
 
 eventTypes = { 
  
@@ -578,6 +583,29 @@ def insertUpdate(query, tries = 10):
       
     else:
       return cur.lastrowid
+
+def update(query, tries = 10):
+
+  for tryNumber in range(1, tries + 1):
+
+    try:
+      changed = cur.execute(query)
+ 
+    except MySQLdb.OperationalError as e:
+      # We try again iff a deadlock error
+      if ( (e.args[0] == MySQLdb.constants.ER.LOCK_DEADLOCK or
+            e.args[0] == MySQLdb.constants.ER.LOCK_WAIT_TIMEOUT) and
+           tryNumber < tries ):
+        print('Lock error but will retry (%d/%d): %s' % 
+              (tryNumber, tries, str(e)), file=sys.stderr)
+        time.sleep(3 * random.random() * tryNumber)
+        continue
+   
+      # Otherwise we re-raise the same exception
+      raise
+      
+    else:
+      return changed
 
 # Temporary function to fix PFNs from Rucio that have faulty URLs
 def fixPfn(pfn):
