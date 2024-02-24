@@ -982,7 +982,7 @@ def findStalledAbortedJobs():
         continue
 
     # However we got here, reset the job's files
-    resetFilesForJob(justinJobID = jobRow['justin_job_id'],                      
+    resetFilesForJob(justinJobID = jobRow['justin_job_id'],
                      jobsubID    = jobRow['jobsub_id'],
                      workflowID  = jobRow['workflow_id'],
                      stageID     = jobRow['stage_id'],
@@ -1158,6 +1158,10 @@ def findStalledCondorJobs():
       return
 
     logLine('condor_q exit code: ' + str(outcome.returncode))
+    
+    if outcome.returncode != 0:
+      logLine("condor_q fails with return code %d" % outcome.returncode)
+      return
 
     try:
       jsonJobs = json.loads(outcome.stdout)

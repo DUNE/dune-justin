@@ -210,7 +210,7 @@ def getClassadsCall(startResponse, environ):
   else:
     justinRank = 'My.JUSTIN_PRO_Rank'
 
-  # Return ClassAds to be published by the pilot/glidein
+   # Return ClassAds to be published by the pilot/glidein
   # Non-justIN jobs get rank 0 or 101
   # If a justIN job has a stage not listed in the rankText dictionary
   # then it gets rank Undefined which equals 0
@@ -1348,7 +1348,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'jobs.site_id, users.access_token, '
-             'jobs.has_inner_apptainer '
+             'jobs.has_inner_apptainer, jobs.job_state '
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN users ON users.user_id=workflows.user_id '
@@ -1362,10 +1362,17 @@ def recordResultsMethod(startResponse, jsonDict):
     siteID            = int(row['site_id'])
     userAccessToken   = row['access_token']
     hasInnerApptainer = row['has_inner_apptainer']
+    jobState          = row['job_state']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'Failed finding job')
+
+  if jobState != 'processing':
+    return httpError(startResponse, 
+                     '410 Gone', 
+                     'Cannot record results as job already in %s state' 
+                     % jobState)
 
   try:
     justin.insertUpdate(
@@ -1655,7 +1662,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Missing jobsub_id in JSON')
 
   try:
-    query = ('SELECT justin_job_id,workflow_id,stage_id,site_id '
+    query = ('SELECT justin_job_id,workflow_id,stage_id,site_id,job_state '
              'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.select(query, justOne = True)
@@ -1664,10 +1671,17 @@ def confirmResultsMethod(startResponse, jsonDict):
     workflowID = int(row['workflow_id'])
     stageID   = int(row['stage_id'])
     siteID    = int(row['site_id'])
+    jobState  = row['job_state']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
                      'Failed finding job')
+
+  if jobState != 'outputting':
+    return httpError(startResponse, 
+                     '410 Gone',
+                     'Cannot confirm results as job already in %s state'
+                     % jobState)
 
   try:
     justin.insertUpdate('UPDATE files '

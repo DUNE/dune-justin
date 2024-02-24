@@ -774,6 +774,10 @@ resultsResponseDict = sendJsonURL(
 
 logLine('record_results returns HTTP code %d' % resultsResponseDict['status'])
 
+if resultsResponseDict['status'] == 410:
+  logLine('Exiting as job is already marked as gone!')
+  sys.exit(0)
+
 if resultsResponseDict['status'] != 200:
   jobAborted(resultsResponseDict['status'], 'record_results', '')
 
@@ -949,6 +953,14 @@ confirmDict = sendJsonURL(
   confirmResultsDict)
 
 logLine('confirm_results returns HTTP code %d' % confirmDict['status'])
+
+if confirmDict['status'] == 410:
+  # Server side, nothing is confirmed. Presumably this was already sorted
+  # when the job was marked as stalled or whatever.
+  # In this script, we exit now, before the outputs are marked as confirmed 
+  # in MetaCat.
+  logLine('Exiting as job is already marked as gone!')
+  sys.exit(0)
 
 if confirmDict['status'] != 200:
   jobAborted(900, 'confirm_results', '')
