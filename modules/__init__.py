@@ -174,10 +174,6 @@ event_AWT_READ_FAIL             = 502
 event_AWT_WRITE_OK              = 503
 event_AWT_WRITE_FAIL            = 504
 
-# Workflow/stage events
-event_WORKFLOW_FINISHED         = 610
-
-
 eventTypes = { 
  
  # Catch all events
@@ -197,9 +193,7 @@ eventTypes = {
 # old_event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
 #                             'Confirmation received from job by allocator'],
 
- # Finder events
- event_FILE_ADDED                : ['FILE_ADDED',
-                                    'File added to first stage by finder'],
+ # Replica events
  event_REPLICA_ADDED             : ['REPLICA_ADDED',
                                     'Replica added for file by finder'],
  event_REPLICA_STAGING_REQUESTED : ['REPLICA_STAGING_REQUESTED',
@@ -208,8 +202,6 @@ eventTypes = {
                                     'Replica staging workflowed by finder done'],
  event_REPLICA_STAGING_CANCELLED : ['REPLICA_STAGING_CANCELLED',
                                     'Replica staging cancelled by finder'],
- event_WORKFLOW_FINISHED         : ['WORKFLOW_FINISHED',
-                                    'Finder identifies workflow as finished'],
 
  # Job events               
  event_JOB_SUBMITTED    : ['JOB_SUBMITTED',
@@ -234,6 +226,8 @@ eventTypes = {
                                 'Job outputting failed'],
 
  # File events
+ event_FILE_ADDED            : ['FILE_ADDED',
+                                'File added to first stage by finder'],
  event_FILE_ALLOCATED        : ['FILE_ALLOCATED',  
                                 'File allocated to job'],
  event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',
