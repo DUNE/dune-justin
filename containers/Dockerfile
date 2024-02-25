@@ -55,14 +55,7 @@ RUN yum install -y python3-markdown
 RUN yum install -y munge
 
 # Install an updatable snapshot of the current CA files
-RUN <<EOF cat >/etc/yum.repos.d/trustanchors.repo
-[trustanchors]
-name=trustanchors
-baseurl=https://dl.igtf.net/distribution/igtf/current/
-enabled=1
-gpgcheck=1
-gpgkey=https://dl.igtf.net/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
-EOF
+COPY containers/trustanchors.repo /etc/yum.repos.d/
 RUN yum install -y ca_policy_igtf-classic
 
 # We only install crond for the automatic update of VOMS proxies
