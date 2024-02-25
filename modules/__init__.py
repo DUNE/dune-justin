@@ -39,10 +39,10 @@ import MySQLdb.constants.ER
 
 # Globals
 jobsProductionProxyString = None
-jobsProductionProxyFile   = '/etc/grid-security/justin-jobs-production.proxy.pem'
+jobsProductionProxyFile   = '/tmp/justin-jobs-production.proxy.pem'
 
 jobsNoRolesProxyString = None
-jobsNoRolesProxyFile   = '/etc/grid-security/justin-jobs-no-roles.proxy.pem'
+jobsNoRolesProxyFile   = '/tmp/justin-jobs-no-roles.proxy.pem'
 
 # Constantas
 MonteCarloRseID = 1

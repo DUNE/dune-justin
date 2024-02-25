@@ -16,8 +16,14 @@
 # limitations under the License.
 #
 
+# Create a set of VOMS proxies
+/usr/sbin/justin-create-x509-proxies
+
+# Start crond (just to refresh VOMS proxies?)
+/usr/sbin/crond
+
 # Set up and start munge daemon, which runs in the background
-cp -f /etc/grid-security/munge.key /etc/grid-security/munge.key.b64 \
+cp -f /etc/justin-secrets/munge.key /etc/justin-secrets/munge.key.b64 \
       /etc/munge
 chown munge.munge /etc/munge/munge.key*
 chmod 0400 /etc/munge/munge.key*

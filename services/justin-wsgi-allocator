@@ -570,15 +570,42 @@ def makeJobscriptDict(jsonDict, jobDict):
 
   return jobscriptDict
 
-def updateAllocationState(jobsub_id, state):
+def updateTerminalJobState(justinJobID = 0, jobState = '', 
+                           workflowID = 0, stageID = 0, siteID = 0):
+
+# Update job_state with one of the terminal states
+# THIS DOES A COMMIT TOO AND MUST ONLY BE USED IMMEDIATELY BEFORE
+# httpError() IN THE CALLING FUNCION
+
+  if jobState == 'finished':
+    eventTypeID = justin.event_JOB_FINISHED
+  elif jobState == 'notused':
+    eventTypeID = justin.event_JOB_NOTUSED
+  elif jobState == 'aborted':
+    eventTypeID = justin.event_JOB_ABORTED
+  elif jobState == 'jobscript_error':
+    eventTypeID = justin.event_JOB_SCRIPT_ERROR
+  elif jobState == 'outputting_failed':
+    eventTypeID = justin.event_JOB_OUTPUTTING_FAILED
+  else:
+    raise RuntimeError('state %s not handled by updateTerminalJobState()'
+                       % jobState)
   try:
     justin.insertUpdate(
              'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
              'finished_time=NOW() '
-             'WHERE jobsub_id="%s"' % (state, jobsub_id))
+             'WHERE justin_job_id=%d' % (jobState, justinJobID))
+
+    justin.logEvent(eventTypeID = eventTypeID,
+                    workflowID  = workflowID, 
+                    stageID     = stageID,
+                    justinJobID = justinJobID,
+                    siteID      = siteID
+                   )
+
     justin.conn.commit()
-  except:
+  except: 
     pass
 
 # Get details of this jobs workflow/stage
@@ -596,7 +623,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     try:
       n = int(jsonDict[name])
     except:
-      updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+#      updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Missing/invalid integer value(s) in JSON')
@@ -606,7 +633,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                'hostname', 'site_job_id']:
     if name not in jsonDict or not justin.stringNoQuotes(jsonDict[name]) \
        or not jsonDict[name]:
-      updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+#      updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
                        '400 Bad Request', 
                        'Missing/invalid value for %s in JSON' % name)
@@ -615,7 +642,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
      jsonDict['entry_name'] == 'UNKNOWN':
     print('Job %s has unknown site_name or entry_name - aborting' 
           % jsonDict['jobsub_id'], file=sys.stderr)
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+#    updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
 
   # If the job is in the submitted state then update with host details
@@ -652,7 +679,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                            ))
     justin.conn.commit()
   except Exception as e:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+#    updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error',
                      'justIN allocator service fails to update job with site_id '
@@ -664,7 +691,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 
   if (jobDict['workflow_id'] != jsonDict['workflow_id']) or \
      (jobDict['stage_id'] != jsonDict['stage_id']):
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'],
+                           jobState    = 'aborted')
     return httpError(startResponse,
                      '403 Forbidden',
                      'workflow ID / stage ID do not match jobsub ID')
@@ -675,13 +703,15 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
      not jsonDict['has_inner_apptainer'] and \
      (not jobDict['wlcg_group_name'] 
       or jobDict['wlcg_group_name'] != '/dune/production'):
-    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'notused')
     return httpError(startResponse,
               '404 Not Found',
               'Tried to run an unprivileged workflow without Inner Apptainer')
     
   if jobDict['error_message']:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'aborted')
     return httpError(startResponse,
                      '400 Bad Request', 
                      jobDict['error_message'] + ' in getJobscriptMethod')
@@ -698,7 +728,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
   # Site not enabled so no matches allowed 
   if not jobDict['site_enabled'] and \
      jsonDict['workflow_id'] != justin.awtWorkflowID:
-    updateAllocationState(jsonDict['jobsub_id'], 'notused')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'notused')
     return httpError(startResponse, 
                      '404 Not Found',
                      'Cannot start as site %s not enabled' 
@@ -728,14 +759,16 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                         'WHERE entry_id=%d' 
                         % (entryApptainerSQL, jobDict['entry_id']))
   except:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'aborted')
     return httpError(startResponse, 
                  '500 Internal Server Error',
                  'justIN allocator service fails to record get_jobscript time')
 
   jobscriptDict = makeJobscriptDict(jsonDict, jobDict)
   if not jobscriptDict:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Failed to create jobscript dictionary')
@@ -766,7 +799,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                    )
 
   except Exception as e:
-    updateAllocationState(jsonDict['jobsub_id'], 'aborted')
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'justIN allocator service failed updating allocated job: ' 
@@ -867,23 +901,23 @@ def jobAbortedMethod(startResponse, jsonDict):
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
 
+    if 'rse_name' in jsonDict:
+      rseName = jsonDict['rse_name']
+    else:
+      rseName = None
+
+    justin.logEvent(eventTypeID  = eventTypeID,
+                    workflowID   = jobDict['workflow_id'],
+                    stageID      = jobDict['stage_id'],
+                    justinJobID  = jobDict['justin_job_id'],
+                    siteID       = jobDict['site_id'],
+                    rseName      = rseName
+                   )
+
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'justIN allocator service job_aborted failed: ' + str(e))
-
-  if 'rse_name' in jsonDict:
-    rseName = jsonDict['rse_name']
-  else:
-    rseName = None
-
-  justin.logEvent(eventTypeID  = eventTypeID,
-                     workflowID   = jobDict['workflow_id'],
-                     stageID      = jobDict['stage_id'],
-                     justinJobID  = jobDict['justin_job_id'],
-                     siteID       = jobDict['site_id'],
-                     rseName      = rseName
-                 )
 
   return httpOK(startResponse, '')
 
@@ -1416,13 +1450,21 @@ def recordResultsMethod(startResponse, jsonDict):
     # Record job as finished due to jobscript_error
     try:
       justin.insertUpdate('UPDATE jobs SET '
-                             'job_state="jobscript_error",'
-                             'jobscript_exit=%d,'
-                             'heartbeat_time=NOW(),'
-                             'finished_time=NOW() '
-                             'WHERE jobsub_id="%s"' %
-                             (jsonDict['jobscript_exit'],
-                              jsonDict['jobsub_id']))
+                          'job_state="jobscript_error",'
+                          'jobscript_exit=%d,'
+                          'heartbeat_time=NOW(),'
+                          'finished_time=NOW() '
+                          'WHERE jobsub_id="%s"' %
+                          (jsonDict['jobscript_exit'],
+                           jsonDict['jobsub_id']))
+
+      justin.logEvent(eventTypeID  = justin.event_JOB_SCRIPT_ERROR,
+                      workflowID   = workflowID,
+                      stageID      = stageID,
+                      justinJobID  = justinJobID,
+                      siteID       = siteID
+                     )
+
     except Exception as e:
       return httpError(startResponse,
                        '500 Internal Server Error',

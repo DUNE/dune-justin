@@ -47,16 +47,36 @@ RUN sed -i -e 's:^LoadModule mpm.*:#&:' -e \
  's:^#LoadModule mpm_prefork_module.*:LoadModule mpm_prefork_module modules/mod_mpm_prefork.so:' \
  /etc/httpd/conf.modules.d/00-mpm.conf 
 # The container image mod_ssl does not have a %post to generate these files:
-RUN ln -sf /etc/grid-security/justin.cert.pem /etc/pki/tls/certs/localhost.crt
-RUN ln -sf /etc/grid-security/justin.key.pem /etc/pki/tls/private/localhost.key
+RUN ln -sf /etc/justin-secrets/justin.cert.pem /etc/pki/tls/certs/localhost.crt
+RUN ln -sf /etc/justin-secrets/justin.key.pem /etc/pki/tls/private/localhost.key
 RUN yum install -y python3-mod_wsgi
-
-
 
 RUN yum install -y python3-markdown
 RUN yum install -y munge
 
-# With 10.x this pulls in condor itself and the voms clients
+# Install an updatable snapshot of the current CA files
+RUN <<EOF cat >/etc/yum.repos.d/trustanchors.repo
+[trustanchors]
+name=trustanchors
+baseurl=https://dl.igtf.net/distribution/igtf/current/
+enabled=1
+gpgcheck=1
+gpgkey=https://dl.igtf.net/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+EOF
+RUN yum install -y ca_policy_igtf-classic
+
+# We only install crond for the automatic update of VOMS proxies
+# Unless we have another use for it, it can go away when they do
+# /usr/sbin/crond has to be started by each /usr/sbin/start-justin-* script
+RUN yum install -y cronie voms-clients
+COPY agents/justin-create-x509-proxies /etc/cron.daily/
+RUN mkdir -p /etc/grid-security/vomsdir/dune /etc/vomses
+RUN /bin/echo -e '/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms1.fnal.gov\n/C=US/O=Internet2/CN=InCommon RSA IGTF Server CA 3' >/etc/grid-security/vomsdir/dune/voms1.fnal.gov.lsc
+RUN /bin/echo -e '/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms2.fnal.gov\n/C=US/O=Internet2/CN=InCommon RSA IGTF Server CA 3' >/etc/grid-security/vomsdir/dune/voms2.fnal.gov.lsc
+RUN /bin/echo -e '"dune" "voms1.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms1.fnal.gov" "dune"' >/etc/vomses/dune-voms1.fnal.gov
+RUN /bin/echo -e '"dune" "voms2.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms1.fnal.gov" "dune"' >/etc/vomses/dune-voms2.fnal.gov
+
+# With HTCondor 10.x this pulls in condor itself and the voms clients
 RUN yum install -y python3-condor
 
 # Some things do not have suitable RPMs

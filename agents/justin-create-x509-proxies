@@ -24,62 +24,66 @@ HTTPD_USER_GROUP=dunejustin.dunejustin
 echo
 echo '======= Create justin-jobs-production.proxy.pem'
 echo
+date
 voms-proxy-init \
- -cert /etc/grid-security/justin-jobs-production.cert.pem \
- -key  /etc/grid-security/justin-jobs-production.key.pem \
+ -cert /etc/justin-secrets/justin-jobs-production.cert.pem \
+ -key  /etc/justin-secrets/justin-jobs-production.key.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
- -out /etc/grid-security/justin-jobs-production.proxy.pem.tmp 
+ -out /tmp/justin-jobs-production.proxy.pem.tmp 
  
-if [ $? = 0 -a -s /etc/grid-security/justin-jobs-production.proxy.pem.tmp ]
+if [ $? = 0 -a -s /tmp/justin-jobs-production.proxy.pem.tmp ]
 then
-  cp -f /etc/grid-security/justin-jobs-production.proxy.pem.tmp \
-        /etc/grid-security/x509up_u1026
-  chown dunejustin.dunejustin /etc/grid-security/x509up_u1026
+  cp -f /tmp/justin-jobs-production.proxy.pem.tmp \
+        /tmp/x509up_u1026
+  chown dunejustin.dunejustin /tmp/x509up_u1026
 
-  chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-production.proxy.pem.tmp
-  mv -f /etc/grid-security/justin-jobs-production.proxy.pem.tmp \
-        /etc/grid-security/justin-jobs-production.proxy.pem
+  chown $HTTPD_USER_GROUP /tmp/justin-jobs-production.proxy.pem.tmp
+  mv -f /tmp/justin-jobs-production.proxy.pem.tmp \
+        /tmp/justin-jobs-production.proxy.pem
 
-  voms-proxy-info -all -file /etc/grid-security/justin-jobs-production.proxy.pem
+  voms-proxy-info -all -file /tmp/justin-jobs-production.proxy.pem
 fi
 
 echo
 echo '======= Create justin-jobs-no-roles.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/grid-security/justin-jobs-no-roles.cert.pem \
- -key  /etc/grid-security/justin-jobs-no-roles.key.pem \
+ -cert /etc/justin-secrets/justin-jobs-no-roles.cert.pem \
+ -key  /etc/justin-secrets/justin-jobs-no-roles.key.pem \
  -voms dune \
  -valid 168:0 \
- -out /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp 
+ -out /tmp/justin-jobs-no-roles.proxy.pem.tmp 
 
-if [ $? = 0 -a -s /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp ]
+if [ $? = 0 -a -s /tmp/justin-jobs-no-roles.proxy.pem.tmp ]
 then
-  chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp
-  mv -f /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp \
-        /etc/grid-security/justin-jobs-no-roles.proxy.pem
+  chown $HTTPD_USER_GROUP /tmp/justin-jobs-no-roles.proxy.pem.tmp
+  mv -f /tmp/justin-jobs-no-roles.proxy.pem.tmp \
+        /tmp/justin-jobs-no-roles.proxy.pem
 
-  voms-proxy-info -all -file /etc/grid-security/justin-jobs-no-roles.proxy.pem
+  voms-proxy-info -all -file /tmp/justin-jobs-no-roles.proxy.pem
 fi
 
 echo
 echo '======= Create justin-jobs-analysis.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/grid-security/justin-jobs-analysis.cert.pem \
- -key  /etc/grid-security/justin-jobs-analysis.key.pem \
+ -cert /etc/justin-secrets/justin-jobs-analysis.cert.pem \
+ -key  /etc/justin-secrets/justin-jobs-analysis.key.pem \
  -voms dune \
  -valid 168:0 \
- -out /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp 
+ -out /tmp/justin-jobs-analysis.proxy.pem.tmp 
 
-if [ $? = 0 -a -s /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp ]
+if [ $? = 0 -a -s /tmp/justin-jobs-analysis.proxy.pem.tmp ]
 then
-  chown $HTTPD_USER_GROUP /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp
-  mv -f /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp \
-        /etc/grid-security/justin-jobs-analysis.proxy.pem
+  chown $HTTPD_USER_GROUP /tmp/justin-jobs-analysis.proxy.pem.tmp
+  mv -f /tmp/justin-jobs-analysis.proxy.pem.tmp \
+        /tmp/justin-jobs-analysis.proxy.pem
 
-  voms-proxy-info -all -file /etc/grid-security/justin-jobs-analysis.proxy.pem
+  voms-proxy-info -all -file /tmp/justin-jobs-analysis.proxy.pem
 fi
+echo
+date
+echo
 
-) >/var/log/justin/create-x509-proxies.log 2>&1
+) >>/var/log/create-x509-proxies 2>&1

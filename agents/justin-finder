@@ -590,11 +590,11 @@ def executeMetaCatCommand(args):
 
   for i in range(1, 4):  
     ret = os.system(
-     'export X509_USER_PROXY=/etc/grid-security/justin-jobs-production.proxy.pem ; '
+     'export X509_USER_PROXY=%s ; '
      'export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune ; '
      'export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app ; '
      '/usr/local/bin/metacat auth login -m x509 dunepro ; '
-     '/usr/local/bin/metacat %s' % args)
+     '/usr/local/bin/metacat %s' % (justin.jobsProductionProxyFile, args))
      
     if ret == 0:
       break

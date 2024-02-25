@@ -12,7 +12,7 @@ EnvironmentFile=/etc/justin-environmentfile
 ExecStartPre=-/usr/bin/docker stop %n
 ExecStartPre=-/usr/bin/docker rm %n
 ExecStart=/usr/bin/docker run --rm --name %n --privileged \
-  --volume /etc/grid-security:/etc/grid-security \
+  --volume /etc/justin-secrets:/etc/justin-secrets \
   --volume /etc/letsencrypt:/etc/letsencrypt \
   --volume /var/log/httpd:/var/log/httpd \
   --volume /var/run/justin:/var/run/justin \
