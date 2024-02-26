@@ -16,8 +16,11 @@
 # limitations under the License.
 #
 
+# All processes get this defined
+echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
+
 # Create a set of VOMS proxies
-/usr/sbin/justin-create-x509-proxies
+/etc/cron.daily/justin-create-x509-proxies
 
 # Start crond (just to refresh VOMS proxies?)
 /usr/sbin/crond

@@ -26,8 +26,8 @@ echo '======= Create justin-jobs-production.proxy.pem'
 echo
 date
 voms-proxy-init \
- -cert /etc/justin-secrets/justin-jobs-production.cert.pem \
- -key  /etc/justin-secrets/justin-jobs-production.key.pem \
+ -cert /etc/justin-secrets/justin-jobs-production.dune.hep.ac.uk.cert.pem \
+ -key  /etc/justin-secrets/justin-jobs-production.dune.hep.ac.uk.key.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
  -out /tmp/justin-jobs-production.proxy.pem.tmp 
@@ -49,8 +49,8 @@ echo
 echo '======= Create justin-jobs-no-roles.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/justin-secrets/justin-jobs-no-roles.cert.pem \
- -key  /etc/justin-secrets/justin-jobs-no-roles.key.pem \
+ -cert /etc/justin-secrets/justin-jobs-no-roles.dune.hep.ac.uk.cert.pem \
+ -key  /etc/justin-secrets/justin-jobs-no-roles.dune.hep.ac.uk.key.pem \
  -voms dune \
  -valid 168:0 \
  -out /tmp/justin-jobs-no-roles.proxy.pem.tmp 
@@ -68,8 +68,8 @@ echo
 echo '======= Create justin-jobs-analysis.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/justin-secrets/justin-jobs-analysis.cert.pem \
- -key  /etc/justin-secrets/justin-jobs-analysis.key.pem \
+ -cert /etc/justin-secrets/justin-jobs-analysis.dune.hep.ac.uk.cert.pem \
+ -key  /etc/justin-secrets/justin-jobs-analysis.dune.hep.ac.uk.key.pem \
  -voms dune \
  -valid 168:0 \
  -out /tmp/justin-jobs-analysis.proxy.pem.tmp 
@@ -86,4 +86,4 @@ echo
 date
 echo
 
-) >>/var/log/create-x509-proxies 2>&1
+) >>/var/log/justin/create-x509-proxies-${CONTAINER_NAME:-xxx} 2>&1
