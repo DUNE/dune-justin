@@ -1,0 +1,5 @@
+# Copy to /etc/my.cnf.d/justin-client.cnf
+[client]
+ssl_capath=/etc/grid-security/certificates
+ssl_cert=/etc/justin-secrets/justin-jobs-production.dune.hep.ac.uk.cert.pem
+ssl_key=/etc/justin-secrets/justin-jobs-production.dune.hep.ac.uk.key.pem

@@ -103,8 +103,9 @@ COPY modules/__init__.py       /usr/lib/python3.9/site-packages/justin/
 COPY modules/justin_version.py /usr/lib/python3.9/site-packages/justin/
 
 RUN mkdir -p /var/www/wsgi/ /var/www/html/docs/
-RUN mkdir -p /var/run/justin/last-updates/
- 
+RUN mkdir -p /var/run/justin/last-updates/ /etc/justin.d/
+
+COPY containers/users.conf              /etc/justin.d/ 
 COPY services/justin-wsgi-import-script /var/www/wsgi/
 COPY services/justin-wsgi-ui            /var/www/wsgi/
 COPY services/justin-wsgi-allocator     /var/www/wsgi/
@@ -114,7 +115,8 @@ COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY dashboard/*.png                    /var/www/html/
 COPY docs/*.md                          /var/www/html/docs/
 
-COPY agents/02_dune_condor.conf         /etc/condor/config.d/
+COPY containers/02_dune_condor.conf     /etc/condor/config.d/
+COPY containers/justin-client.cnf       /etc/my.cnf.d/
 
 COPY containers/start-justin-httpd          /usr/sbin/
 COPY containers/start-justin-finder         /usr/sbin/

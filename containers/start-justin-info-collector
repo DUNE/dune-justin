@@ -39,6 +39,11 @@ if [ $? != 0 ] ; then
   exit 1
 fi
 
+if [ -f /var/run/justin/overrides/dev.conf ] ; then
+  cp -f /var/run/justin/overrides/dev.conf /etc/justin.d/
+fi
+cp -f /etc/justin-secrets/cilogon.conf /etc/justin.d/
+ 
 # Run daemon in the foreground
 if [ -x /var/run/justin/overrides/justin-info-collector ] ; then
   /var/run/justin/overrides/justin-info-collector --container

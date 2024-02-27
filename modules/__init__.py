@@ -51,7 +51,6 @@ justinRunDir    = '/var/run/justin'
 
 # From justin.conf etc
 mysqlUsername   = None
-mysqlPassword   = None
 mysqlHostname   = None
 mysqlDbName     = None
 
@@ -253,7 +252,7 @@ eventTypes = {
              }
 
 def readConf():
-  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
+  global mysqlUsername, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
          nonJustinFraction, htcondorSchedds
@@ -279,17 +278,12 @@ def readConf():
   try:
     mysqlUsername = parser.get('database','username').strip()
   except:
-    mysqlUsername = 'root'
-
-  try:
-    mysqlPassword = parser.get('database','password').strip()
-  except:
-     mysqlPassword = None
+    mysqlUsername = 'dunejustin'
 
   try:
     mysqlHostname = parser.get('database','hostname').strip()
   except:
-    mysqlHostname = 'localhost'
+    mysqlHostname = 'justin-db-pro.dune.hep.ac.uk'
 
   try:
     mysqlDbName = parser.get('database','db').strip()
@@ -359,7 +353,7 @@ def readConf():
         raise 
       htcondorSchedds.append(a.strip().lower())
   except:
-    htcondorSchedds = []
+    htcondorSchedds = [ 'justin-prod-sched01.dune.hep.ac.uk' ]
 
 # Try to find the text of a jobscript from the Jobscripts Library 
 # given a JSID

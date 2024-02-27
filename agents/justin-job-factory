@@ -23,6 +23,7 @@ import sys
 import stat
 import time
 import random
+import socket
 import secrets
 import pathlib
 import tempfile
@@ -36,12 +37,6 @@ import pymysql
 pymysql.install_as_MySQLdb()
 MySQLdb=pymysql
 
-# justin/conf.py must define these variables in a way that is both
-# valid Python and valid Bash!
-#
-# mysqlUser='username'
-# mysqlPassword='PAsSWoRd'
-#
 import justin
 
 sleepSeconds      = 60
@@ -619,10 +614,10 @@ if __name__ == '__main__':
           justin.readConf()
           
           try:
-            justin.conn = MySQLdb.connect(host=justin.mysqlHostname, 
-                                  user=justin.mysqlUsername,
-                                  passwd=justin.mysqlPassword, 
-                                  db=justin.mysqlDbName)
+            justin.conn = MySQLdb.connect(
+                          host = socket.gethostbyname(justin.mysqlHostname),
+                          user = justin.mysqlUsername,
+                          db   = justin.mysqlDbName)
             justin.conn.autocommit(False)
             justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
           except Exception as e:
