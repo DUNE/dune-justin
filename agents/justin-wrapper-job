@@ -889,8 +889,6 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
                                 '"%s:%s"' 
                                   % (fileSize, fileAdler32,
                                      'dune', 'all'
-      # we now use the above hard-coded dataset in MetaCat for everything :-(
-                                     # fileScope, destination
                                      ))
 
     if ret:
