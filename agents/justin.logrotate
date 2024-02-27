@@ -3,6 +3,7 @@
 /var/log/justin/finder-fnal
 /var/log/justin/job-factory
 /var/log/justin/stage-cache
+/var/log/justin/create-x509-proxies-*
 {
   daily
   missingok

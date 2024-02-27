@@ -25,8 +25,8 @@ echo
 echo '======= Create justin-jobs-production.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/grid-security/justin-jobs-production.cert.pem \
- -key  /etc/grid-security/justin-jobs-production.key.pem \
+ -cert /etc/grid-security/justin-jobs-production.dune.hep.ac.uk.cert.pem \
+ -key  /etc/grid-security/justin-jobs-production.dune.hep.ac.uk.key.pem \
  -voms dune:/dune/Role=Production \
  -valid 168:0 \
  -out /etc/grid-security/justin-jobs-production.proxy.pem.tmp 
@@ -48,8 +48,8 @@ echo
 echo '======= Create justin-jobs-no-roles.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/grid-security/justin-jobs-no-roles.cert.pem \
- -key  /etc/grid-security/justin-jobs-no-roles.key.pem \
+ -cert /etc/grid-security/justin-jobs-no-roles.dune.hep.ac.uk.cert.pem \
+ -key  /etc/grid-security/justin-jobs-no-roles.dune.hep.ac.uk.key.pem \
  -voms dune \
  -valid 168:0 \
  -out /etc/grid-security/justin-jobs-no-roles.proxy.pem.tmp 
@@ -67,8 +67,8 @@ echo
 echo '======= Create justin-jobs-analysis.proxy.pem'
 echo
 voms-proxy-init \
- -cert /etc/grid-security/justin-jobs-analysis.cert.pem \
- -key  /etc/grid-security/justin-jobs-analysis.key.pem \
+ -cert /etc/grid-security/justin-jobs-analysis.dune.hep.ac.uk.cert.pem \
+ -key  /etc/grid-security/justin-jobs-analysis.dune.hep.ac.uk.key.pem \
  -voms dune \
  -valid 168:0 \
  -out /etc/grid-security/justin-jobs-analysis.proxy.pem.tmp 

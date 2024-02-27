@@ -1,0 +1,7 @@
+# Copy to /etc/my.cnf.d/justin-mysql.cnf
+[client-server]
+ssl
+ssl-cipher=DHE-RSA-AES256-SHA
+ssl_capath=/etc/grid-security/certificates
+ssl_cert=/etc/justin-secrets/justin-db-dev.dune.hep.ac.uk.cert.pem
+ssl_key=/etc/justin-secrets/justin-db-dev.dune.hep.ac.uk.key.pem
