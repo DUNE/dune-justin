@@ -37,7 +37,7 @@ umask 0077
 export JUSTIN_WORKDIR=`mktemp -d /tmp/justin-test-jobscript.XXXXXX`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
-ARGS=$(getopt -o 'j:m:e:' --long 'jobscript:,mql:,env:' -- "$@") || exit
+ARGS=$(getopt -o 'j:m:e:' --long 'jobscript:,mql:,monte-carlo:,env:' -- "$@") || exit
 eval "set -- $ARGS"
 
 while true; do
@@ -46,6 +46,8 @@ while true; do
    JOBSCRIPT=$2; shift 2;;
   (--mql)
    MQL=$2; shift 2;;
+  (--monte-carlo)
+   MONTECARLO="true"; shift 2;;
   (--env)
    echo "export $2" >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh; shift 2;;
   (--) shift; break;;
@@ -61,8 +63,8 @@ if [ ! -f "$JOBSCRIPT" ] ; then
  exit 1
 fi
 
-if [ "$MQL" = "" ] ; then
-  echo "You must give --mql MQL"
+if [ "$MQL" = "" -a "$MONTECARLO" = "" ] ; then
+  echo "You must give --mql MQL or --monte-carlo COUNT"
   exit 2
 fi
 
@@ -72,16 +74,20 @@ echo
 cp "$JOBSCRIPT" $JUSTIN_WORKDIR/home/justin-jobscript.sh
 chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
 
-echo "Execute justin show-replicas for $MQL"
-replica=`justin show-replicas --mql "$MQL" | head -1`
-if [ $? != 0 ] ; then
-  echo "justin show-replicas failed!"
-  exit 3
-fi
-
-if [ "$replica" = "" ] ; then
- echo "No replica found"
- exit 4
+if [ "$MONTECARLO" != "" ] ; then
+  replica='monte-carlo-000001-000001 000001 MONTECARLO'
+else
+  echo "Execute justin show-replicas for $MQL"
+  replica=`justin show-replicas --mql "$MQL" | head -1`
+  if [ $? != 0 ] ; then
+    echo "justin show-replicas failed!"
+    exit 3
+  fi
+ 
+  if [ "$replica" = "" ] ; then
+   echo "No replica found"
+   exit 4
+  fi
 fi
 
 # Fake justin-get-file command using the values from MetaCat/Rucio

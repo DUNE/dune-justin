@@ -92,8 +92,8 @@ COPY agents/justin-finder.service         /usr/lib/systemd/system/
 COPY agents/justin-finder-fnal.service    /usr/lib/systemd/system/
 COPY agents/justin-job-factory.service    /usr/lib/systemd/system/
  
-RUN  mkdir -p         /opt/rucio/etc/
-COPY agents/rucio.cfg /opt/rucio/etc/rucio.cfg
+RUN  mkdir -p             /opt/rucio/etc/
+COPY containers/rucio.cfg /opt/rucio/etc/rucio.cfg
 
 RUN mkdir -p /var/lib/justin
 COPY agents/justin-wrapper-job /var/lib/justin/
