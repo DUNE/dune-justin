@@ -94,6 +94,7 @@ def makeMetadataForSAM(metaCatFile):
                      "last_event"  :  "core.last_event_number",
                      "event_count" :  "core.event_count",
                      "DUNE.fcl_name" : "dune.config_file",
+                     "parents": "core.parents",
                    }
 
   # Rename MetaCat core attributes
@@ -113,7 +114,14 @@ def makeMetadataForSAM(metaCatFile):
   # Remove extra bad stuff
   samMetadata.pop('DUNE.workflow', None)
   samMetadata.pop('DUNE.output_status', None)
-  samMetadata.pop('core.parents', None)
+
+  # Try patching parents
+  if 'parents' in samMetadata:
+    for parent in samMetadata['parents']:
+     # Remove fardet-hd/vd preamble if needed
+      parent['file_name'] = (parent['file_name'].replace('fardet-hd:', '').
+          replace('fardet-vd:', ''))
+      print('Patched parent', parent)
 
   try:
     samMetadata['application'] = { 
