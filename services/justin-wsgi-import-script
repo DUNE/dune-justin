@@ -36,6 +36,7 @@ try:
   justin.conn = MySQLdb.connect( 
                     host       = socket.gethostbyname(justin.mysqlHostname),
                     user       = justin.mysqlUsername,
+                    passwd     = justin.mysqlPassword,
                     db         = justin.mysqlDbName,
                     autocommit = False)
   justin.conn.autocommit(False)

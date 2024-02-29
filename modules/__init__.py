@@ -51,6 +51,7 @@ justinRunDir    = '/var/run/justin'
 
 # From justin.conf etc
 mysqlUsername   = None
+mysqlPassword   = None
 mysqlHostname   = None
 mysqlDbName     = None
 
@@ -252,7 +253,7 @@ eventTypes = {
              }
 
 def readConf():
-  global mysqlUsername, mysqlHostname, mysqlDbName, \
+  global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
          nonJustinFraction, htcondorSchedds
@@ -286,10 +287,15 @@ def readConf():
     mysqlHostname = 'justin-db-pro.dune.hep.ac.uk'
 
   try:
+    mysqlPassword = parser.get('database','password').strip()
+  except:
+     mysqlPassword = None
+
+  try:
     mysqlDbName = parser.get('database','db').strip()
   except:
     mysqlDbName = 'justindb'
-
+ 
   # Options for the [users] section
 
   try:
