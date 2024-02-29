@@ -112,7 +112,7 @@ def makeMetadataForSAM(metaCatFile):
 
   # Remove extra bad stuff
   samMetadata.pop('DUNE.workflow', None)
-  samMetadata.pop('dune.output_status', None)
+  samMetadata.pop('DUNE.output_status', None)
   samMetadata.pop('core.parents', None)
 
   try:
