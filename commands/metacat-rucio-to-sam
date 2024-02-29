@@ -92,7 +92,8 @@ def makeMetadataForSAM(metaCatFile):
                      "events"      :  "core.events",
                      "first_event" :  "core.first_event_number",
                      "last_event"  :  "core.last_event_number",
-                     "event_count" :  "core.event_count"
+                     "event_count" :  "core.event_count",
+                     "DUNE.fcl_name" : "dune.config_file",
                    }
 
   # Rename MetaCat core attributes
@@ -101,6 +102,7 @@ def makeMetadataForSAM(metaCatFile):
       samMetadata[sk] = samMetadata[coreAttributes[sk]]
       samMetadata.pop(coreAttributes[sk], None)
 
+
   # Set dune.* and dune_mc.* to uppercase
   for sk in samMetadata:
     if sk.startswith('dune.') or sk.startswith('dune_mc.'):
@@ -108,7 +110,10 @@ def makeMetadataForSAM(metaCatFile):
       samMetadata[prefix.upper() + '.' + suffix] = samMetadata[sk]
       samMetadata.pop(sk, None)
 
+  # Remove extra bad stuff
   samMetadata.pop('DUNE.workflow', None)
+  samMetadata.pop('dune.output_status', None)
+  samMetadata.pop('core.parents', None)
 
   try:
     samMetadata['application'] = { 
