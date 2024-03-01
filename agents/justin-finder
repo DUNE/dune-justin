@@ -966,7 +966,7 @@ def findStalledAbortedJobs():
       logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
                                                  jobRow['job_state']))
     
-      justin.logEvent(eventTypeID = justin.event_JOB_STALLED,
+      justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HEARTBEAT,
                       workflowID = jobRow['workflow_id'],
                       stageID = jobRow['stage_id'],
                       justinJobID = jobRow['justin_job_id'],
@@ -1221,7 +1221,7 @@ def findStalledCondorJobs():
         logLine('Failed to update stalled job - exiting')
         sys.exit(0)
 
-      justin.logEvent(eventTypeID = justin.event_JOB_STALLED,
+      justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HTCONDOR,
                       workflowID = dbJobRow['workflow_id'],
                       stageID = dbJobRow['stage_id'],
                       justinJobID = dbJobRow['justin_job_id'],

@@ -153,9 +153,10 @@ event_JOB_OUTPUTTING		= 304
 event_JOB_FINISHED		= 305
 event_JOB_NOTUSED		= 306
 event_JOB_ABORTED		= 307
-event_JOB_STALLED		= 308
+event_JOB_STALLED_HEARTBEAT	= 308
 event_JOB_SCRIPT_ERROR          = 309
 event_JOB_OUTPUTTING_FAILED     = 310
+event_JOB_STALLED_HTCONDOR	= 311
 
 # File events
 event_FILE_ADDED                = 201
@@ -218,12 +219,14 @@ eventTypes = {
                            'Job was not allocated a stage'],
  event_JOB_ABORTED      : ['JOB_ABORTED',
                            'Job aborted'],
- event_JOB_STALLED      : ['JOB_STALLED',
-                           'Job identified as stalled by Finder'],
+ event_JOB_STALLED_HEARTBEAT : ['JOB_STALLED_HEARTBEAR',
+                                'Job stalls with missing heartbeats'],
  event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
                            'Error raised by the jobscript'],
  event_JOB_OUTPUTTING_FAILED : ['JOB_OUTPUTTING_FAILED',
                                 'Job outputting failed'],
+ event_JOB_STALLED_HTCONDOR : ['JOB_STALLED_HTCONDOR',
+                               'Job stalls as absent from HTCondor'],
 
  # File events
  event_FILE_ADDED            : ['FILE_ADDED',

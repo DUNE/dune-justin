@@ -1,6 +1,9 @@
 CREATE DATABASE IF NOT EXISTS `justindb`;
 USE `justindb`;
 
+CREATE USER IF NOT EXISTS 'dunejustin'@'%' IDENTIFIED BY RANDOM PASSWORD;
+GRANT ALL ON justindb.* TO 'dunejustin'@'%';
+
 CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
