@@ -779,17 +779,24 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
 
     justin.insertUpdate(
              'UPDATE jobs SET '
-             'site_job_id="' + str(jsonDict['site_job_id']) + '",'
+             'site_job_id="%s",'
              'allocation_time=NOW(),' 
              'heartbeat_time=NOW(),'
-             'finished_time="' + justin.unixEpoch + '",' 
-             'job_state="started",'
+             'finished_time="%s",' 
+             'job_state="%s",'
              'has_allocations=TRUE,'
-             'allocator_name="' + allocatorName + '",' 
-             'workflow_id=' + str(jsonDict['workflow_id']) + ','
-             'stage_id=' + str(jsonDict['stage_id']) + ' '
-             'WHERE jobsub_id="' + str(jsonDict['jobsub_id']) + '"'
-                       )
+             'allocator_name="%s",' 
+             'workflow_id=%d,'
+             'stage_id=%d '
+             'WHERE jobsub_id="%s"'
+             % (str(jsonDict['site_job_id']), 
+                justin.unixEpoch,                
+                'processing' if jsonDict['workflow_id']==justin.awtWorkflowID 
+                else 'started',
+                allocatorName,
+                jsonDict['workflow_id'],
+                jsonDict['stage_id'],
+                jsonDict['jobsub_id']))
 
     justin.logEvent(eventTypeID = justin.event_JOB_STARTED,
                     workflowID = jsonDict['workflow_id'],
@@ -797,6 +804,15 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                     justinJobID = jobDict['justin_job_id'],
                     siteID = jobDict['site_id']
                    )
+
+    if jsonDict['workflow_id']==justin.awtWorkflowID:
+      # AWT jobs go straight to processing too
+      justin.logEvent(eventTypeID = justin.event_JOB_PROCESSING,
+                      workflowID = jsonDict['workflow_id'],
+                      stageID = jsonDict['stage_id'],
+                      justinJobID = jobDict['justin_job_id'],
+                      siteID = jobDict['site_id']
+                     )
 
   except Exception as e:
     updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
@@ -1235,12 +1251,16 @@ def getFileMethod(startResponse, jsonDict):
   
   if oneFile['file_did']:
     try:
+      # Update heartbeat_time and make sure job is set to processing now
       justin.insertUpdate('UPDATE jobs SET job_state="processing",'
                           'heartbeat_time=NOW() '
                           'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                          )
+      # Note that AWT jobs go to processing when they get the jobscript
+      # as they do not use the get_file method implemented here!
 
       if jobDict['job_state'] == 'started':
+        # If just here to update the hearbeat, do not log a state change
         justin.logEvent(eventTypeID = justin.event_JOB_PROCESSING,
                         workflowID  = jobDict['workflow_id'],
                         stageID     = jobDict['stage_id'],

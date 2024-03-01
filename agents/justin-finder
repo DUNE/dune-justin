@@ -966,7 +966,7 @@ def findStalledAbortedJobs():
       logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
                                                  jobRow['job_state']))
     
-      justin.logEvent(eventTypeID = justin.event_JOB_STALLED,
+      justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HEARTBEAT,
                       workflowID = jobRow['workflow_id'],
                       stageID = jobRow['stage_id'],
                       justinJobID = jobRow['justin_job_id'],
@@ -1153,7 +1153,7 @@ def findStalledCondorJobs():
                encoding = 'utf-8',
                stderr   = subprocess.STDOUT,
                stdout   = subprocess.PIPE,
-               timeout  = 60
+               timeout  = 120
                             ) 
     except Exception as e:
       logLine("condor_q fails with error: " + str(e))
@@ -1184,6 +1184,11 @@ def findStalledCondorJobs():
                   scheddHostname)] = \
            (jsonJob['jobstatus'], jsonJob['enteredcurrentstatus'])
 
+  if not condorJobs:
+    # If we get nothing at all then something must be going wrong
+    logLine('Failed to find any job info from HTCondor')
+    return
+    
   # Get a list of waiting/running jobs
   query = ('SELECT jobsub_id,job_state,justin_job_id,workflow_id,stage_id,'
            'site_id FROM jobs WHERE job_state IN '
@@ -1204,11 +1209,15 @@ def findStalledCondorJobs():
 
       # Allow 60 seconds for race conditions, but if DB thinks 
       # job is waiting or running but Condor says something else, 
-      # then mark as stalled
-      if enteredCurrentStatus < nowTime - 60 and jobStatus in (3,4,5,6):
-        logLine('Job %s is in HTCondor state %d - marking as stalled' %
+      # then mark as stalled - but submitted can be in HTCondor HELD
+      if ((enteredCurrentStatus < nowTime - 60) and 
+          (jobStatus == justin.htcondorREMOVED or 
+           jobStatus == justin.htcondorCOMPLETED or 
+           (jobStatus == justin.htcondorHELD and 
+            dbJobRow['job_state'] != 'submitted'))):
+          logLine('Job %s is in HTCondor state %d - marking as stalled' %
                 (dbJobRow['jobsub_id'], jobStatus))
-        stalled = True
+          stalled = True
         
     if stalled:
       try:
@@ -1221,7 +1230,7 @@ def findStalledCondorJobs():
         logLine('Failed to update stalled job - exiting')
         sys.exit(0)
 
-      justin.logEvent(eventTypeID = justin.event_JOB_STALLED,
+      justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HTCONDOR,
                       workflowID = dbJobRow['workflow_id'],
                       stageID = dbJobRow['stage_id'],
                       justinJobID = dbJobRow['justin_job_id'],
