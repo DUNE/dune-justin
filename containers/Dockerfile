@@ -33,6 +33,10 @@ RUN dnf install -y epel-release
 RUN dnf config-manager --set-enabled crb
 RUN yum -y install \
  https://research.cs.wisc.edu/htcondor/repo/10.x/htcondor-release-current.el9.noarch.rpm
+## Nasty hack to get 10.0 not really 10.x!
+#RUN sed -i 's/10.x/10.0/' /etc/yum.repos.d/htcondor*.repo
+#RUN curl https://research.cs.wisc.edu/htcondor/repo/keys/HTCondor-10.0-Key \
+#  > /etc/pki/rpm-gpg/RPM-GPG-KEY-HTCondor-10.0
 RUN yum update -y
 
 # Install the RPMs we need

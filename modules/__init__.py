@@ -77,6 +77,14 @@ rseAvailabilityRead   = 4
 #rseDisksExpression = 'istape=False\\decommissioned=True'
 rseDisksExpression = 'DUNE_US_FNAL_DISK_STAGE'
 
+htcondorIDLE                = 1
+htcondorRUNNING             = 2
+htcondorREMOVED             = 3
+htcondorCOMPLETED           = 4
+htcondorHELD                = 5
+htcondorTRANSFERRING_OUTPUT = 6
+htcondorSUSPENDED           = 7
+
 # Note that this assumes we are using UTC since we assume elsewhere this
 # will convert from this MySQL date to 0 in Unix seconds
 # Also Unicode date strings coming out of MySQL may not match plain strings 
@@ -194,6 +202,9 @@ eventTypes = {
 # old_event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
 #                             'Confirmation received from job by allocator'],
 
+# SHOULD REPLACE WITH SOMETHING DYNAMIC USING exec() TO AVOID DUPLICATION
+# OF NAMES?
+
  # Replica events
  event_REPLICA_ADDED             : ['REPLICA_ADDED',
                                     'Replica added for file by finder'],
@@ -219,7 +230,7 @@ eventTypes = {
                            'Job was not allocated a stage'],
  event_JOB_ABORTED      : ['JOB_ABORTED',
                            'Job aborted'],
- event_JOB_STALLED_HEARTBEAT : ['JOB_STALLED_HEARTBEAR',
+ event_JOB_STALLED_HEARTBEAT : ['JOB_STALLED_HEARTBEAT',
                                 'Job stalls with missing heartbeats'],
  event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
                            'Error raised by the jobscript'],

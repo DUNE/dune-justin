@@ -16,6 +16,7 @@ ExecStart=/usr/bin/docker run --rm --name %N --privileged \
   --volume /etc/justin-secrets:/etc/justin-secrets \
   --volume /etc/letsencrypt:/etc/letsencrypt \
   --volume /var/log/httpd:/var/log/httpd \
+  --volume /var/log/justin:/var/log/justin \
   --volume /var/run/justin:/var/run/justin \
   --publish  80:80  \
   --publish 443:443 \
