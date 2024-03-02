@@ -1439,7 +1439,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed finding job')
 
-  if jobState != 'processing':
+  if jobState != 'started' and jobState != 'processing':
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot record results as job already in %s state' 
