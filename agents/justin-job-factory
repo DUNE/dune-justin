@@ -504,6 +504,8 @@ def awtJobsToSites():
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
 
+  random.seed()
+
 #  logLine("updateSiteCounts()")
 #  updateSiteCounts()
 
