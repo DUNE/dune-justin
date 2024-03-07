@@ -134,137 +134,108 @@ awtFileID     = 1
 
 maxAllocations = 6
 
-# Catch all events
-event_UNDEFINED = 0
-
-# Workflow Allocator events
-# DEPRECATED: DO NOT USE NOW!!!
-#old_event_HEARTBEAT_RECEIVED  = 100
-#old_event_GET_STAGE_RECEIVED  = 101
-#old_event_STAGE_ALLOCATED     = 102
-#old_event_FILE_ALLOCATED      = 103
-#old_event_OUTPUTTING_RECEIVED = 104
-#old_event_CONFIRM_RECEIVED    = 105
+# This list of sequences is just used to define the types of events
+# We use exec() later on to create variables for each event which will
+# fail at runtime if you get the names wrong in the code
+eventsList = [
 
 # Finder events
-#event_FILE_ADDED                = 201
-event_REPLICA_ADDED             = 202
-event_REPLICA_STAGING_REQUESTED = 203
-event_REPLICA_STAGING_DONE      = 204
-event_REPLICA_STAGING_CANCELLED = 205
+('FILE_ADDED',
+ 201,
+ 'File added to first stage by finder'), 
+('REPLICA_ADDED',
+ 202,
+ 'Replica added for file by finder'),
+('REPLICA_STAGING_REQUESTED',
+ 203,
+ 'Finder requestss replica staging'),
+('REPLICA_STAGING_DONE',
+ 204,
+ 'Replica staging requested by finder done'),
+('REPLICA_STAGING_CANCELLED ', 
+ 205,
+ 'Replica staging cancelled by finder'),
 
 # Job events
-event_JOB_SUBMITTED		= 301
-event_JOB_STARTED		= 302
-event_JOB_PROCESSING		= 303
-event_JOB_OUTPUTTING		= 304
-event_JOB_FINISHED		= 305
-event_JOB_NOTUSED		= 306
-event_JOB_ABORTED		= 307
-event_JOB_STALLED_HEARTBEAT	= 308
-event_JOB_SCRIPT_ERROR          = 309
-event_JOB_OUTPUTTING_FAILED     = 310
-event_JOB_STALLED_HTCONDOR	= 311
+('JOB_SUBMITTED', 
+ 301,
+ 'Job submitted by factory'),
+('JOB_STARTED', 
+ 302,
+ 'Job started running at site'),
+('JOB_PROCESSING', 
+ 303,
+ 'Job began processing files'),
+('JOB_OUTPUTTING', 
+ 304,
+ 'Job began outputting files to storage'),
+('JOB_FINISHED', 
+ 305,
+ 'Job finished'),
+('JOB_NOTUSED', 
+ 306,
+ 'Job was not allocated a stage'),
+('JOB_ABORTED', 
+ 307,
+ 'Job aborted'),
+('JOB_STALLED_HEARTBEAT', 
+ 308,
+ 'Job stalls with missing heartbeats'),
+('JOB_SCRIPT_ERROR', 
+ 309,
+ 'Error raised by the jobscript'),
+('JOB_OUTPUTTING_FAILED', 
+ 310,
+ 'Job outputting failed'),
+('JOB_STALLED_HTCONDOR', 
+ 311,
+ 'Job stalls as absent from HTCondor'),
 
 # File events
-event_FILE_ADDED                = 201
-#event_FILE_ADDED                = 400
-#event_FILE_ALLOCATED            = 103
-event_FILE_ALLOCATED            = 401
-event_FILE_ALLOCATED_RESET      = 402
-event_FILE_SET_TO_FAILED        = 403
-event_FILE_CREATED              = 404
-event_FILE_OUTPUTTING_RESET     = 405
-event_FILE_UPLOADED             = 406
+('FILE_ALLOCATED', 
+ 401,
+ 'File allocated to job'),
+('FILE_ALLOCATED_RESET', 
+ 402,
+ 'File set back to unallocated from allocated'),
+('FILE_SET_TO_FAILED', 
+ 403,
+ 'Too many attempts to process file: failed'),
+('FILE_CREATED', 
+ 404,
+ 'Output file created in job'),
+('FILE_OUTPUTTING_RESET', 
+ 405,
+ 'File set back to unallocated from outputting'),
+('FILE_UPLOADED', 
+ 406,
+ 'Output file uploaded in job'),
 
 # AWT events 
-event_AWT_READ_OK               = 501
-event_AWT_READ_FAIL             = 502
-event_AWT_WRITE_OK              = 503
-event_AWT_WRITE_FAIL            = 504
+('AWT_READ_OK', 
+ 501,
+ 'AWT read test succeeds'),
+('AWT_READ_FAIL', 
+ 502,
+ 'AWT read test fails'),
+('AWT_WRITE_OK', 
+ 503,
+ 'AWT write test succeeds'),
+('AWT_WRITE_FAIL', 
+ 504,
+ 'AWT write test fails')
+]
 
-eventTypes = { 
- 
- # Catch all events
- event_UNDEFINED       : ['UNDEFINED',       'Undefined'],
+# Catch all events
+event_UNDEFINED = 0
+eventTypes = { event_UNDEFINED : ['UNDEFINED', 'Undefined'] }
 
- # Workflow Allocator events (DEPRECATED)
-# old_event_HEARTBEAT_RECEIVED : ['HEARTBEAT_RECEIVED', 
-#                             'Heartbeat received by allocator'],
-# old_event_GET_STAGE_RECEIVED : ['GET_STAGE_RECEIVED', 
-#                             'get_stage received from job by allocator'],
-# old_event_STAGE_ALLOCATED    : ['STAGE_ALLOCATED', 
-#                             'Stage allocated to job'],
-# old_event_FILE_ALLOCATED     : ['FILE_ALLOCATED',  
-#                             'File allocated to job'],
-# old_event_OUTPUTTING_RECEIVED : ['OUTPUTTING_RECEIVED',
-#                             'Outputting state received from job by allocator'],
-# old_event_CONFIRM_RECEIVED   : ['CONFIRM_RECEIVED',
-#                             'Confirmation received from job by allocator'],
+# Go through eventsList defining variables and adding to dictionary
+# So we can say justin.event_AWT_READ_OK etc in the code elsewhere
+for (eventLabel, eventID, eventText) in eventsList:
+  exec('event_%s=%d' % (eventLabel, eventID))
+  exec('eventTypes[event_%s]=["%s","%s"]' % (eventLabel,eventLabel,eventText))
 
-# SHOULD REPLACE WITH SOMETHING DYNAMIC USING exec() TO AVOID DUPLICATION
-# OF NAMES?
-
- # Replica events
- event_REPLICA_ADDED             : ['REPLICA_ADDED',
-                                    'Replica added for file by finder'],
- event_REPLICA_STAGING_REQUESTED : ['REPLICA_STAGING_REQUESTED',
-                                    'Finder workflows replica staging'],
- event_REPLICA_STAGING_DONE      : ['REPLICA_STAGING_DONE',
-                                    'Replica staging workflowed by finder done'],
- event_REPLICA_STAGING_CANCELLED : ['REPLICA_STAGING_CANCELLED',
-                                    'Replica staging cancelled by finder'],
-
- # Job events               
- event_JOB_SUBMITTED    : ['JOB_SUBMITTED',
-                           'Job submitted by factory'],
- event_JOB_STARTED      : ['JOB_STARTED',
-                           'Job started running at site'],
- event_JOB_PROCESSING   : ['JOB_PROCESSING',
-                           'Job began processing files'],
- event_JOB_OUTPUTTING   : ['JOB_OUTPUTTING',
-                           'Job began outputting files to storage'],
- event_JOB_FINISHED     : ['JOB_FINISHED',
-                           'Job finished'],
- event_JOB_NOTUSED      : ['JOB_NOTUSED',
-                           'Job was not allocated a stage'],
- event_JOB_ABORTED      : ['JOB_ABORTED',
-                           'Job aborted'],
- event_JOB_STALLED_HEARTBEAT : ['JOB_STALLED_HEARTBEAT',
-                                'Job stalls with missing heartbeats'],
- event_JOB_SCRIPT_ERROR : ['JOB_SCRIPT_ERROR',
-                           'Error raised by the jobscript'],
- event_JOB_OUTPUTTING_FAILED : ['JOB_OUTPUTTING_FAILED',
-                                'Job outputting failed'],
- event_JOB_STALLED_HTCONDOR : ['JOB_STALLED_HTCONDOR',
-                               'Job stalls as absent from HTCondor'],
-
- # File events
- event_FILE_ADDED            : ['FILE_ADDED',
-                                'File added to first stage by finder'],
- event_FILE_ALLOCATED        : ['FILE_ALLOCATED',  
-                                'File allocated to job'],
- event_FILE_ALLOCATED_RESET  : ['FILE_ALLOCATED_RESET',
-                                'File set back to unallocated from allocated'],
- event_FILE_SET_TO_FAILED    : ['FILE_SET_TO_FAILED',
-                                'Too many attempts to process file: failed'],
- event_FILE_CREATED          : ['FILE_CREATED',
-                                'Output file created in job'],
- event_FILE_OUTPUTTING_RESET : ['FILE_OUTPUTTING_RESET',
-                                'File set back to unallocated from outputting'],
- event_FILE_UPLOADED          : ['FILE_UPLOADED',
-                                'Output file uploaded in job'],
-
- # AWT events
- event_AWT_READ_OK     : ['AWT_READ_OK',
-                          'AWT read test succeeds'],
- event_AWT_READ_FAIL   : ['AWT_READ_FAIL',
-                          'AWT read test fails'],
- event_AWT_WRITE_OK    : ['AWT_WRITE_OK',
-                          'AWT write test succeeds'],
- event_AWT_WRITE_FAIL  : ['AWT_WRITE_FAIL',
-                          'AWT write test fails']
-             }
 
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \

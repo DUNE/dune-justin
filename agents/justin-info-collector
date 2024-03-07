@@ -135,7 +135,8 @@ def processOneFileXML(sitesDict, fileName):
 
   try:
 # NASTY HACKY FIX FOR BAD XML FROM OSG!!!
-    xmlStr = open(fileName).read().replace('comment"','comment="')
+#    xmlStr = open(fileName).read().replace('comment"','comment="')
+    xmlStr = open(fileName).read()
     xmlDocument = xml.dom.minidom.parseString(xmlStr)
   except Exception as e:
     logLine('Parsing XML file %s fails with: %s' % (fileName, str(e)))
