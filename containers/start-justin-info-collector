@@ -43,6 +43,11 @@ if [ -f /var/run/justin/overrides/dev.conf ] ; then
   cp -f /var/run/justin/overrides/dev.conf /etc/justin.d/
 fi
 cp -f /etc/justin-secrets/secrets.conf /etc/justin.d/
+
+# This updates the list of event codes, which can only 
+# change with a new release of the justIN Python code, 
+# so we only need to do this at start-up time
+/usr/sbin/justin-check-db >/var/log/justin/justin-check-db.log 2>&1
  
 # Run daemon in the foreground
 if [ -x /var/run/justin/overrides/justin-info-collector ] ; then

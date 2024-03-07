@@ -86,6 +86,7 @@ RUN pip3 install pygal==3.0.0
 RUN pip3 install M2Crypto==0.39.0
 
 # Copy justIN scripts and configs into place
+COPY database/justin-check-db     /usr/sbin/
 COPY agents/justin-info-collector /usr/sbin/
 COPY agents/justin-finder         /usr/sbin/
 COPY agents/justin-finder-fnal    /usr/sbin/
@@ -95,7 +96,7 @@ COPY agents/justin-info-collector.service /usr/lib/systemd/system/
 COPY agents/justin-finder.service         /usr/lib/systemd/system/
 COPY agents/justin-finder-fnal.service    /usr/lib/systemd/system/
 COPY agents/justin-job-factory.service    /usr/lib/systemd/system/
- 
+
 RUN  mkdir -p             /opt/rucio/etc/
 COPY containers/rucio.cfg /opt/rucio/etc/rucio.cfg
 
