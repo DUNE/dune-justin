@@ -449,6 +449,9 @@ for line in open('/proc/cpuinfo','r').readlines():
 getJobscriptDict['os_release'] \
   = open('/etc/redhat-release','r').readlines()[0].strip()
 getJobscriptDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
+
+#os.system('nvidia-smi')
+
 getJobscriptDict['site_name']   = siteName
 getJobscriptDict['entry_name']  = entryName
 

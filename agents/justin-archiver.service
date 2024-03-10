@@ -1,0 +1,12 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN Archiver daemon
+Documentation=man:justin-archiver(8)
+
+[Service]
+Type=forking
+PIDFile=/var/run/justin/archiver.pid
+ExecStart=/usr/sbin/justin-archiver
+
+[Install]
+#WantedBy=multi-user.target

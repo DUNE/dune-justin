@@ -5,7 +5,7 @@
   included in defaults
 - Event type IDs are generated using exec() from a list in __init__.py
 - justin-check-db to be run when the justin-info-collector container starts
-  checks the event types in then code are also in the DB table event_types
+  and checks the event types in the code are also in the DB table event_types
 - entry_has_gpus and always_has_gpus added to entries table in DB
 
 ## 01.00.00

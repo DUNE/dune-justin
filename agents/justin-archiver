@@ -1,0 +1,714 @@
+#!/usr/bin/env python3
+#
+# justin-archiver - justIN Archiver agent
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import ssl
+import stat
+import json
+import time
+import base64
+import urllib.request
+import pathlib
+import tempfile
+import xml.dom.minidom
+
+# Needs MySQL-python RPM
+import MySQLdb
+
+import justin
+
+archiveRowID = 0
+sleepSeconds = 3600
+
+class justinError(Exception):
+  pass
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+def insertArchiveRow(workflowID, rowName, rowValue):
+  global archiveRowID
+
+  justin.insertUpdate('INSERT INTO archived_workflows '
+                      'SET workflow_id=%d,row_id=%d,'
+                      'row_name="%s",row_value="%s"'
+                      % (workflowID, archiveRowID, rowName, 
+                         rowValue.replace('\\','\\\\').replace('"','\\"') ))
+  archiveRowID += 1
+
+def archiveOneWorkflow(workflowID):
+# Process one workflow and its stages and archive to database
+# Exceptions are dealt with by the caller to this function
+#
+# FOR 00.12 ONWARDS REPLACE request WITH workflow BELOW
+
+  global archiveRowID
+  archiveRowID = 0
+ 
+  workflowRow = justin.select("SELECT requests.description,requests.state,"
+           "principal_name AS user_name,"
+           "requests.created,requests.submitted,requests.started,"
+           "requests.checking,requests.finished,mql,"
+           "requests.refind_seconds,requests.refind_start_time,"
+           "requests.refind_end_time,scopes.scope_name "
+           "FROM requests "
+           "LEFT JOIN scopes ON scopes.scope_id=requests.scope_id "
+           "LEFT JOIN users ON users.user_id=requests.user_id "
+           "LEFT JOIN principal_names "
+           'ON principal_names.pn_id=users.main_pn_id '
+           "WHERE request_id=%d" % workflowID, justOne = True)
+
+  insertArchiveRow(workflowID, 'Description', workflowRow['description'])
+  insertArchiveRow(workflowID, 'State',       workflowRow['state'])
+  insertArchiveRow(workflowID, 'MQL',         workflowRow['mql'])
+  
+  if workflowRow['scope_name']:
+    insertArchiveRow(workflowID, 'Scope', workflowRow['scope_name'])
+
+  if workflowRow['refind_seconds'] == 0:
+    insertArchiveRow(workflowID, 'Finding', 'once')
+  else:
+    insertArchiveRow(workflowID, 'Finding', 
+                     'every %d hour(s), %s to %s'
+                     % (int(workflowRow['refind_seconds'] / 3600), 
+                        workflowRow['refind_start_time'],
+                        workflowRow['refind_end_time'])
+                    )
+  insertArchiveRow(workflowID, 'Created by', workflowRow['user_name'])
+                    
+  insertArchiveRow(workflowID, 'Created', 
+                   spaceForUnixEpoch(workflowRow['created']))
+
+  insertArchiveRow(workflowID, 'Submitted', 
+                   spaceForUnixEpoch(workflowRow['submitted']))
+
+  insertArchiveRow(workflowID, 'Started', 
+                   spaceForUnixEpoch(workflowRow['started']))
+
+  insertArchiveRow(workflowID, 'Finished', 
+                   spaceForUnixEpoch(workflowRow['finished']))
+
+  numStages = justin.select('SELECT COUNT(*) FROM stages WHERE '
+                            'request_id=%d' % workflowID, justOne = True)
+                            
+  for stageID in range(1, numStages + 1):
+     archiveOneStage(workflowID, stageID)
+
+#IF WE GOT THIS FAR WE MUST NOW MARK THE workflow AS ARCHIVED!!!
+
+
+def archiveOneStage(workflowID, stageID):
+# Process one stage and archive to database
+# Exceptions are dealt with by the caller to this function
+#
+# FOR 00.12 ONWARDS REPLACE request WITH workflow BELOW
+
+  global archiveRowID
+  
+  query = ("SELECT "
+           "stages.stage_rank,"
+           "stages.processors,"
+           "stages.wall_seconds,"
+           "stages.rss_bytes,"
+           "stages.max_distance,"
+           "stages.max_files_per_job,"
+           "stages_jobscripts.jobscript,"
+           "jobscript_name,"
+           "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
+           "requests_scopes.scope_name AS requests_scope_name,"
+           "principal_name AS user_name "
+           "FROM stages "
+           "LEFT JOIN requests "
+           "ON requests.request_id=stages.request_id "
+           "LEFT JOIN scopes AS requests_scopes "
+           "ON requests.scope_id=requests_scopes.scope_id "
+           "LEFT JOIN stages_jobscripts "
+           "ON stages_jobscripts.request_id=stages.request_id "
+           "AND stages_jobscripts.stage_id=stages.stage_id "
+           "LEFT JOIN jobscripts_library "
+           "ON jobscripts_library.jobscript_id=stages.jobscript_id "
+           "LEFT JOIN scopes AS jobscripts_scopes "
+           "ON jobscripts_scopes.scope_id=jobscripts_library.scope_id "
+           "LEFT JOIN users ON users.user_id=jobscripts_library.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
+           "WHERE stages.request_id=%d AND stages.stage_id=%d" %
+           (workflowID, stageID))
+
+  stageRow = justin.select(query, justOne = True)
+
+  if stageRow['requests_scope_name']:
+    scopeName = stageRow['requests_scope_name']
+  else:
+    scopeName = ''
+  
+  insertArchiveRow(workflowID, 'Stage %d: Rank' % stageID, 
+                   str(stageRow["stage_rank"]))
+
+  insertArchiveRow(workflowID, 'Stage %d: Processors' % stageID, 
+                   str(stageRow["processors"]))
+
+  insertArchiveRow(workflowID, 'Stage %d: Wall seconds' % stageID, 
+                   str(stageRow["wall_seconds"]))
+
+  insertArchiveRow(workflowID, 'Stage %d: RSS bytes' % stageID, 
+                   '%s (%d MB)' % (stageRow["rss_bytes"], 
+                                   int(stageRow["rss_bytes"]) / 1048576))
+
+  insertArchiveRow(workflowID, 'Stage %d: Max distance for inputs' % stageID, 
+                   str(stageRow["max_distance"]))
+        
+  # Output RSEs
+  query = ("SELECT rse_name "
+           "FROM stages_output_storages "
+           "LEFT JOIN storages "
+           "ON stages_output_storages.rse_id=storages.rse_id "
+           "WHERE request_id=%d AND stage_id=%d "
+           "ORDER BY rse_name" %
+           (workflowID, stageID))
+
+  rseRows = justin.select(query)
+
+  if (len(rseRows) == 0):
+    s = ("(any)")
+  else:
+    s = ''
+    for rseRow in rseRows:
+      s += ("%s " % rseRow['rse_name'])
+        
+  insertArchiveRow(workflowID, 'Stage %d: Output RSEs' % stageID, s)
+    
+  # Output patterns
+  query = ("SELECT destination,file_pattern,"
+           "for_next_stage,lifetime_seconds "
+           "FROM stages_outputs "
+           "WHERE request_id=%d AND stage_id=%d "
+           "ORDER BY destination,file_pattern" %
+           (workflowID, stageID))
+
+  patternRows = justin.db.select(query)
+
+  if patternRows:
+    output += ("<h2>Output patterns</h2>")
+    output += ('<table><tr><th>Destination</th><th>Pattern</th>'
+               '<th>Lifetime</th><th>For next stage</th></tr>') 
+
+    for patternRow in patternRows:
+      if patternRow['destination'].startswith('https://'):
+        output += ("<tr><td>%s</td><td>%s</td>"
+                   "<td> </td><td> </td></tr>" 
+                   % (patternRow["destination"],
+                      html.escape(patternRow["file_pattern"], quote=True)))
+      else:
+        output += ("<tr><td>Rucio %s:%s</td><td>%s</td>"
+                   "<td>%d</td><td>%s</td></tr>" 
+                   % (stageRow["requests_scope_name"],
+                      patternRow["destination"],
+                      html.escape(patternRow["file_pattern"], quote=True),
+                      patternRow["lifetime_seconds"],
+                      bool(patternRow["for_next_stage"])))
+
+    output += ('</table>')
+
+  # Environment
+  query = ("SELECT env_name,env_value "
+           "FROM stages_environment "
+           "WHERE request_id=%d AND stage_id=%d "
+           "ORDER BY env_name" %
+           (requestID, stageID))
+
+  envRows = justin.db.select(query)
+
+  if envRows:
+    output += '<!-- %s -->\n' % str(time.time())
+    output += ('<h2>Environment variables</h2>')
+    output += ('<table><tr><th>Name</th><th>Value</th></tr>')
+ 
+    for envRow in envRows:
+      output += ("<tr><td>%s</td><td>%s</td></tr>" %
+                 (html.escape(envRow["env_name"]),
+                  html.escape(envRow["env_value"])))
+
+    output += ('</table>') 
+
+
+  # Get counts of file states for all stages
+  stateCounts= {         'recorded'    : 0,
+                         'finding'     : 0,
+                         'unallocated' : 0,
+                         'allocated'   : 0,
+                         'outputting'  : 0,
+                         'processed'   : 0,
+                         'notfound'    : 0,
+                         'failed'      : 0,
+                         'output'      : 0  }
+  
+  query = ('SELECT state,COUNT(*) AS count '
+           'FROM files WHERE request_id=%d AND stage_id=%d GROUP BY state' 
+           % (workflowID, stageID))
+### DOES THIS GROUP BY WORK CORRECTLY???
+             
+  stateRows = justin.db.select(query)
+  
+  for stateRow in stateRows:
+    stateCounts[stateRow['state']] = stateRow['count']
+
+  insertArchiveRow(workflowID, 'Stage %d: Total files' % stageID, 
+                     str(stateCounts['finding'] +
+                         stateCounts['unallocated'] +
+                         stateCounts['allocated'] +
+                         stateCounts['outputting'] +
+                         stateCounts['processed'] +
+                         stateCounts['notfound'] +
+                         stateCounts['failed']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Finding files' % stageID, 
+                     str(stateCounts['finding']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Unallocated files' % stageID, 
+                     str(stateCounts['unallocated']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Allocated files' % stageID, 
+                     str(stateCounts['allocated']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Outputting files' % stageID, 
+                     str(stateCounts['outputting']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Processed files' % stageID, 
+                     str(stateCounts['processed']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Not Found files' % stageID, 
+                     str(stateCounts['notfound']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Failed files' % stageID, 
+                     str(stateCounts['failed']))
+
+  # Get counts of job states for all stages
+  stateCounts = {        'processing'        : 0,
+                         'outputting'        : 0,
+                         'finished'          : 0,
+                         'aborted'           : 0,
+                         'stalled'           : 0,
+                         'jobscript_error'   : 0,
+                         'outputting_failed' : 0  }
+
+  query = ('SELECT allocation_state,COUNT(*) AS count '
+           'FROM jobs '
+           'WHERE request_id=%d AND stage_id=%d'
+           'GROUP BY allocation_state' % (requestID, stageID))
+             
+  stateRows = justin.db.select(query)
+  
+  for stateRow in stateRows:
+    stateCounts[stateRow['allocation_state']] = stateRow['count']
+
+  insertArchiveRow(workflowID, 'Stage %d: Total jobs' % stageID,
+                  str(stateCounts['processing'] +
+                      stateCounts['outputting'] +
+                      stateCounts['finished'] +
+                      stateCounts['aborted'] +
+                      stateCounts['stalled'] +
+                      stateCounts['jobscript_error'] +
+                      stateCounts['outputting_failed']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Processing jobs' % stageID,
+                     str(stateCounts['processing']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Outputting jobs' % stageID,
+                     str(stateCounts['outputting']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Finished jobs' % stageID,
+                     str(stateCounts['finished']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Aborted jobs' % stageID,
+                     str(stateCounts['aborted']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Stalled jobs' % stageID,
+                     str(stateCounts['stalled']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Jobscript Error jobs' % stageID,
+                     str(stateCounts['jobscript_error']))
+
+  insertArchiveRow(workflowID, 'Stage %d: Outputting Failed jobs' % stageID,
+                   str(stateCounts['outputting_failed']))
+
+
+
+
+
+
+
+
+
+  # Progress chart based on file process_time values
+
+  query = ('SELECT site_name,processed_hour,'
+           'count(*) AS processed_count '
+           'FROM files '
+           'LEFT JOIN sites ON sites.site_id=files.processed_site_id '
+           'WHERE request_id=%d AND stage_id=%d AND '
+           'state="processed" GROUP BY processed_hour,processed_site_id '
+           'ORDER BY processed_hour'
+           % (requestID, stageID))
+
+  binRows = justin.db.select(query)
+
+  if binRows:
+    firstHour   = binRows[0]['processed_hour']
+    lastHour    = binRows[-1]['processed_hour']
+    hoursPerBin = int((1 + lastHour - firstHour) / 20.0 + 0.999)
+    numBins     = int((1 + lastHour - firstHour) / hoursPerBin + 0.999)
+
+    # Add padding before and after data
+    firstHour -= hoursPerBin
+    lastHour  += hoursPerBin
+    numBins   += 2
+    bins       = {}
+
+    for binRow in binRows:
+
+      if binRow['site_name'] not in bins:
+        bins[binRow['site_name']] = [0] * numBins
+
+      i = int((binRow['processed_hour'] - firstHour) / hoursPerBin)
+      bins[binRow['site_name']][i] += binRow['processed_count']
+
+    chart = justinStackedLine(1000, 
+                           firstHour * 3600,
+                           hoursPerBin,
+                           numBins)
+  
+    chart.title = 'Files processed'
+    
+    for siteName in bins:
+      chart.add(siteName, bins[siteName], fill = True, show_dots = False)
+
+    output += ('<a href="' + chart.render_data_uri() + '" target="_blank" '
+               'style="text-decoration: none">' + 
+               '<figure style="width:%dpx; display: inline-block">'  
+               % chart.imageSize)
+
+    output += chart.render().decode('utf-8')
+    output += '</figure></a> '
+
+  # RSE pie charts
+  output += '<!-- %s start of RSE pie chart -->\n' % str(time.time())
+
+  query = ('SELECT rse_name,COUNT(*) AS replica_count FROM replicas '
+           'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
+           'WHERE request_id=%d AND stage_id=%d '
+           'GROUP BY replicas.rse_id ORDER BY replica_count DESC'
+           % (requestID, stageID))
+
+  justin.db.select(query)
+  replicaRows = justin.db.select(query)
+
+  if replicaRows:
+
+    totalReplicas = 0
+    for replicaRow in replicaRows:
+      totalReplicas += replicaRow['replica_count']
+
+    chart = pygal.Pie(style=pygal.style.LightColorizedStyle, 
+                      legend_at_bottom=True,
+                      width=800)    
+    chart.title = 'Replicas per RSE'
+
+    for replicaRow in replicaRows:
+      chart.add('%s (%d%%)' 
+                % (replicaRow['rse_name'], 
+                   int((100.0 * replicaRow['replica_count']) / totalReplicas)), 
+                replicaRow['replica_count'])
+
+    output += ('<a href="' + chart.render_data_uri() + '" target="_blank" '
+               'style="text-decoration: none">' + 
+               '<figure style="width:%dpx; display: inline-block">'  
+               % 800)
+
+    output += chart.render().decode('utf-8')
+    output += '</figure></a> '
+
+  # RSE counts
+  rseCounts = {}
+
+  query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
+           'LEFT JOIN storages ON storages.rse_id=events.rse_id '
+           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'GROUP BY events.rse_id ORDER BY file_count DESC' %
+           (requestID, stageID, justin.db.event_FILE_ALLOCATED))
+
+  output += '<!-- %s SELECT ALLOCATED -->\n' % str(time.time())
+  justin.db.cur.execute(query)
+  rseRows = justin.db.cur.fetchall()
+
+  for rseRow in rseRows:
+
+    if rseRow['rse_name'] not in rseCounts:
+      rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
+
+    rseCounts[rseRow['rse_name']]['inputs'] = rseRow['file_count']
+
+  query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
+           'LEFT JOIN storages ON storages.rse_id=events.rse_id '
+           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'GROUP BY events.rse_id ORDER BY file_count DESC' %
+           (requestID, stageID, justin.db.event_FILE_CREATED))
+
+  output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
+  justin.db.cur.execute(query)
+  rseRows = justin.db.cur.fetchall()
+  
+  for rseRow in rseRows:
+  
+    if rseRow['rse_name'] not in rseCounts:
+      rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
+
+    rseCounts[rseRow['rse_name']]['outputs'] = rseRow['file_count']
+    
+  if rseCounts:
+    output += ("<h2>RSEs used</h2>")
+    output += ('<table><tr><th>Name</th><th>Inputs</th><th>Outputs</th></tr>')
+
+    for rseName in rseCounts:
+      output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
+            (rseName,
+             rseCounts[rseName]['inputs'],
+             rseCounts[rseName]['outputs']
+            ))
+
+    output += ('</table>') 
+
+  # Reset event counts
+
+  resetCounts = {}
+
+  query = ('SELECT site_name,COUNT(*) AS site_count FROM events '
+           'LEFT JOIN sites ON sites.site_id=events.site_id '
+           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'GROUP BY site_name ORDER BY site_count DESC' %
+           (requestID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
+
+  output += '<!-- %s -->\n' % str(time.time())
+  justin.db.cur.execute(query)
+  resetRows = justin.db.cur.fetchall()
+  
+  for resetRow in resetRows:
+  
+    if resetRow['site_name'] not in resetCounts:
+      resetCounts[resetRow['site_name']] = { 'allocated': 0, 'outputting': 0 }
+
+    resetCounts[resetRow['site_name']]['allocated'] = resetRow['site_count']
+
+  query = ('SELECT site_name,COUNT(*) AS site_count FROM events '
+           'LEFT JOIN sites ON sites.site_id=events.site_id '
+           'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
+           'GROUP BY site_name ORDER BY site_count DESC' %
+           (requestID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
+
+  output += '<!-- %s -->\n' % str(time.time())
+  justin.db.cur.execute(query)
+  resetRows = justin.db.cur.fetchall()
+  
+  for resetRow in resetRows:
+  
+    if resetRow['site_name'] not in resetCounts:
+      resetCounts[resetRow['site_name']] = { 'allocated': 0, 'outputting': 0 }
+
+    resetCounts[resetRow['site_name']]['outputting'] = resetRow['site_count']
+
+  if resetCounts:
+    output += ("<h2>File reset events, by site</h2>")
+    output += ('<table><tr><th>Site</th><th>Allocated</th><th>Outputting</th></tr>')
+
+    for siteName in resetCounts:
+      output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
+            (siteName,
+             resetCounts[siteName]['allocated'],
+             resetCounts[siteName]['outputting']
+            ))
+
+    output += ('</table>') 
+
+  output += ("<h2>Jobscript</h2>")
+
+  if stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
+    output += ('<p><i>Copied from '
+               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
+               ' when the stage was created.</i></p>'
+               % (stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
+                  stageRow['jobscripts_scope_name'], stageRow['jobscript_name']))
+  elif stageRow['user_name'] and stageRow['jobscript_name']:
+    output += ('<p><i>Copied from '
+               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
+               ' when the stage was created.</i></p>'
+               % (stageRow['user_name'], stageRow['jobscript_name'],
+                  stageRow['user_name'], stageRow['jobscript_name']))
+
+  output += ('<pre style="white-space: pre-wrap;">') 
+
+  output += (html.escape(
+   stageRow["jobscript"].encode('ascii',errors='ignore').decode(), 
+   quote=True))
+  
+  output += ('</pre>') 
+
+  output += footer()
+  return output
+
+def archiveWorkflows():
+  # Find workflows which still need to be archived and save them to 
+  # archived_workflows
+
+  # FOR 00.12 ONWARDS CHANGE request TO workflow BELOW
+
+  try:
+    workflows = justin.select('SELECT request_id FROM requests '
+                              'WHERE NOT archived AND state="finished" '
+                              'ORDER BY request_id')
+  except Exception as e:
+    logLine('Failed to get list of unarchived workflows: ' + str(e))
+    return
+
+  for workflow in workflows:
+    try:
+      archiveOneWorkflow(workflows['request_id'])
+    except Exception as e:
+      logLine('Failed processing workflow %d: %s' 
+              % (workflow['request_id'], str(e))
+    else
+      justin.db.conn.commit()
+
+def oneCycle():
+
+  archiveWorkflows()
+
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+
+  if (os.fork() != 0):
+    sys.exit() # first parent
+
+  else:
+    os.chdir("/")
+    os.setsid()
+    os.umask(0)
+
+    if os.fork() != 0:
+      sys.exit() # second parent
+
+    else:
+
+      try:
+        os.makedirs(justin.conf.justinRunDir,         
+                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+      except:
+        pass
+        
+      try:
+        f = open(justin.conf.justinRunDir + '/archiver.pid', 'w')
+        f.write(str(os.getpid()) + '\n')
+        f.close()
+      except:
+        print('Failed to create '+justin.conf.justinRunDir+'/archiver.pid - exiting')
+        sys.exit(1)
+
+      # Close stdin now
+      si = open('/dev/null', 'r')
+      os.dup2(si.fileno(), sys.stdin.fileno())
+
+      while True:
+
+        # Ensure /var/log/justin directory exists
+        try:
+          os.makedirs('/var/log/justin', 
+                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+        except:
+          pass
+
+        # Close and reopen stdout->log file, in case of logrotate
+        try:
+          close(so)
+        except:
+          pass
+
+        so = open('/var/log/justin/archiver', 'a+')
+        os.dup2(so.fileno(), sys.stdout.fileno())
+
+        # Close and reopen stderr->log file, in case of logrotate
+        try:
+          close(se)
+        except:
+          pass
+          
+        se = open('/var/log/justin/archiver', 'a+')
+        os.dup2(se.fileno(), sys.stderr.fileno())
+
+        try:
+          pf = open(justin.conf.justinRunDir + '/archiver.pid', 'r')
+          pid = int(pf.read().strip())
+          pf.close()
+
+          if pid != os.getpid():
+            print('new ' + justin.conf.justinRunDir + '/archiver.pid - exiting')
+            break
+
+        except:
+          print('no ' + justin.conf.justinRunDir + '/archiver.pid - exiting')
+          break
+
+        # Fork a subprocess to run each cycle
+        cyclePid = os.fork()
+
+        if cyclePid == 0:
+          logLine('=============== Start cycle ===============')
+          
+          justin.conf.readConf()
+          
+          try:
+            justin.db.conn = MySQLdb.connect(host=justin.conf.mysqlHostname, 
+                                  user=justin.conf.mysqlUsername,
+                                  passwd=justin.conf.mysqlPassword, 
+                                  db=justin.conf.mysqlDbName)
+            justin.db.conn.autocommit(False)
+            justin.db.cur = justin.db.conn.cursor(MySQLdb.cursors.DictCursor)
+          except Exception as e:
+            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
+          else:
+            try:
+              oneCycle()
+            except Exception as e:
+              print('Cycle fails with exception ' + str(e))
+
+          logLine('================ End cycle ================')
+          sys.exit(0)
+
+        # wait for cyclePid subprocess to finish
+        os.waitpid(cyclePid, 0)
+
+        # wait the allotted time between cycles
+        time.sleep(sleepSeconds)
+
+      sys.exit(0) # if we break out of the while loop then we exit
+
