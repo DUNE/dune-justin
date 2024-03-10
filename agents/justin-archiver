@@ -34,8 +34,14 @@ import MySQLdb
 
 import justin
 
-archiveRowID = 0
-sleepSeconds = 3600
+workflowRowNumber = None
+sleepSeconds      = 3600
+
+def spaceForUnixEpoch(s):
+  if str(s) == justin.unixEpoch:
+    return '&nbsp;'
+  else:
+    return str(s)
 
 class justinError(Exception):
   pass
@@ -45,14 +51,14 @@ def logLine(text):
   sys.stdout.flush()
 
 def insertArchiveRow(workflowID, rowName, rowValue):
-  global archiveRowID
-
+  global workflowRowNumber
+  
   justin.insertUpdate('INSERT INTO archived_workflows '
-                      'SET workflow_id=%d,row_id=%d,'
+                      'SET workflow_id=%d,row_number=%d,'
                       'row_name="%s",row_value="%s"'
-                      % (workflowID, archiveRowID, rowName, 
+                      % (workflowID, workflowRowNumber, rowName, 
                          rowValue.replace('\\','\\\\').replace('"','\\"') ))
-  archiveRowID += 1
+  workflowRowNumber += 1
 
 def archiveOneWorkflow(workflowID):
 # Process one workflow and its stages and archive to database
@@ -60,8 +66,8 @@ def archiveOneWorkflow(workflowID):
 #
 # FOR 00.12 ONWARDS REPLACE request WITH workflow BELOW
 
-  global archiveRowID
-  archiveRowID = 0
+  global workflowRowNumber
+  workflowRowNumber = 0
  
   workflowRow = justin.select("SELECT requests.description,requests.state,"
            "principal_name AS user_name,"
@@ -109,8 +115,17 @@ def archiveOneWorkflow(workflowID):
   numStages = justin.select('SELECT COUNT(*) FROM stages WHERE '
                             'request_id=%d' % workflowID, justOne = True)
                             
-  for stageID in range(1, numStages + 1):
-     archiveOneStage(workflowID, stageID)
+#  for stageID in range(1, numStages + 1):
+#     archiveOneStage(workflowID, stageID)
+
+  try:
+    justin.insertUpdate('UPDATE requests SET '
+                        'archived=TRUE WHERE request_id=%d' 
+                        % workflowID)
+  except Exception as e:
+    logLine('Failed to update workflow %d as archived - exiting'
+            % workflowID)
+    sys.exit(1)
 
 #IF WE GOT THIS FAR WE MUST NOW MARK THE workflow AS ARCHIVED!!!
 
@@ -121,7 +136,7 @@ def archiveOneStage(workflowID, stageID):
 #
 # FOR 00.12 ONWARDS REPLACE request WITH workflow BELOW
 
-  global archiveRowID
+  global workflowRowID
   
   query = ("SELECT "
            "stages.stage_rank,"
@@ -589,11 +604,11 @@ def archiveWorkflows():
 
   for workflow in workflows:
     try:
-      archiveOneWorkflow(workflows['request_id'])
+      archiveOneWorkflow(workflow['request_id'])
     except Exception as e:
       logLine('Failed processing workflow %d: %s' 
-              % (workflow['request_id'], str(e))
-    else
+              % (workflow['request_id'], str(e)))
+    else:
       justin.db.conn.commit()
 
 def oneCycle():

@@ -44,5 +44,17 @@ if [ -f /var/run/justin/overrides/dev.conf ] ; then
 fi
 cp -f /etc/justin-secrets/secrets.conf /etc/justin.d/
 
+if [ -x /var/run/justin/overrides/justin-wsgi-dashboard ] ; then
+  cp -f /var/run/justin/overrides/justin-wsgi-dashboard /var/www/wsgi/
+fi
+
+if [ -x /var/run/justin/overrides/justin-wsgi-allocator ] ; then
+  cp -f /var/run/justin/overrides/justin-wsgi-allocator /var/www/wsgi/
+fi
+
+if [ -x /var/run/justin/overrides/justin-wsgi-ui ] ; then
+  cp -f /var/run/justin/overrides/justin-wsgi-ui /var/www/wsgi/
+fi
+
 # Run daemon in the foreground
 /usr/sbin/httpd -DFOREGROUND

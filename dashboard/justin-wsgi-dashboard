@@ -241,7 +241,9 @@ def startResponseOK(startResponse, output, contentType = 'text/html',
                  ('Content-Disposition', contentDisposition)
                 ])
 
-
+def startResponseRedirect(startResponse, url):
+  # HTTP redirect
+  startResponse('302 Found', [('Location', url)] )
 
 def spaceForUnixEpoch(s):
   if str(s) == justin.unixEpoch:
@@ -990,8 +992,6 @@ def showWorkflow(environ, user, cgiValues):
   except:
     return errorPage(environ, user, "workflow_id must be given")
   
-  output = header(environ, user, "justIN: Workflow %d" % workflowID)
-
   query = ("SELECT workflows.description,workflows.state,"
            "principal_name AS user_name,"
            "workflows.created,workflows.submitted,workflows.started,"
@@ -1009,10 +1009,15 @@ def showWorkflow(environ, user, cgiValues):
            "WHERE workflow_id=%d "
            "ORDER BY workflow_id" % workflowID)
 
-  justin.cur.execute(query)
-  workflowRow = justin.cur.fetchone()
+  workflowRow = justin.select(query, justOne = True)
+
+  if workflowRow is None:
+    # This workflow was not found!
+    return ('/dashboard/?method=show-archived-workflow&workflow_id=%d'
+            % workflowID)
   
-  state = workflowRow['state']
+  output = header(environ, user, "justIN: Workflow %d" % workflowID)
+  state  = workflowRow['state']
 
   output += "<h1>Workflow %d</h1>" % workflowID
   output += '<table>'
@@ -1240,6 +1245,39 @@ def showWorkflow(environ, user, cgiValues):
             stateCounts[stageRow['stage_id']]['outputting_failed']))
 
   output += ('</table>')
+  output += footer()
+  return output
+
+def showArchivedWorkflow(environ, user, cgiValues):
+  try:
+    workflowID = int(cgiValues['workflow_id'])
+  except:
+    return errorPage(environ, user, "workflow_id must be given")
+  
+  output = header(environ, user, "justIN: Archived workflow %d" % workflowID)
+
+  query = ('SELECT row_name,row_value FROM archived_workflows '
+           'WHERE workflow_id=%d' % workflowID)
+
+  try:
+    rows = justin.select(query)
+  except Exception as e:
+    return errorPage(environ, user, 
+                     'Database error getting workflow %d: %s' 
+                      % (workflowID, str(e)))
+    
+  output += "<h1>Archived workflow %d</h1>" % workflowID
+
+  if not rows:
+    output += '<p>Workflow not found</p>'
+  else:
+    output += '<table>'
+    for row in rows:  
+      output += ('<tr><td>%s</td><td>%s</td></tr>'
+                 % (html.escape(row['row_name'], quote=True),
+                    html.escape(row['row_value'], quote=True)))
+    output += '</table>'
+
   output += footer()
   return output
 
@@ -3947,6 +3985,9 @@ def application(environ, startResponse):
   elif method == "show-workflow":
     output = showWorkflow(environ, user, cgiValues)
 
+  elif method == "show-archived-workflow":
+    output = showArchivedWorkflow(environ, user, cgiValues)
+
   elif method == "show-stage":
     output = showStage(environ, user, cgiValues)
 
@@ -4000,15 +4041,12 @@ def application(environ, startResponse):
 
   # Valid method was found, so return the string it output
 
-  if 'format' in cgiValues and cgiValues['format'] in ['csv','json']:
-    # Easier to just view in browser and then save with their preferred filename?
+  if output.startswith('/') or output.startswith('http'):
+    # The method wants a redirect
+    startResponseRedirect(startResponse, output)
+  elif 'format' in cgiValues and cgiValues['format'] in ['csv','json']:
+    # Easiest to view in browser and then save with their preferred filename?
     startResponseOK(startResponse, output, contentType = 'text/plain')
-#  if 'format' in cgiValues and cgiValues['format'] == 'csv':
-#    startResponseOK(startResponse, output, contentType = 'text/csv',
-#                    contentDisposition = 'attachment; filename="saved.csv"')
-#  elif 'format' in cgiValues and cgiValues['format'] == 'json':
-#    startResponseOK(startResponse, output, contentType = 'application/json',
-#                    contentDisposition = 'attachment; filename="saved.json"')
   else:
     startResponseOK(startResponse, output)
   return [output.encode('UTF-8')]
