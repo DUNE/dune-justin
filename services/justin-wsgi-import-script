@@ -50,23 +50,20 @@ except Exception as e:
 else:
   print('Connected to %s database' % justin.mysqlDbName, file=sys.stderr)
 
-
 #
 # Load X.509 proxy files into global strings
 #
-
-try:
-  with open(justin.jobsNoRolesProxyFile, 'rb') as f:
-    justin.jobsNoRolesProxyString = f.read()
-except:
-  print('Failed loading X.509 proxy from %s : %s'
-        % (justin.jobsNoRolesProxyFile, str(e)), file=sys.stderr)
-
-try:
-  with open(justin.jobsProductionProxyFile, 'rb') as f:
-    justin.jobsProductionProxyString = f.read()
-except:
-  print('Failed loading X.509 proxy from %s : %s'
-        % (justin.jobsProductionProxyFile, str(e)), file=sys.stderr)
-  
+#try:
+#  with open(justin.jobsNoRolesProxyFile, 'rb') as f:
+#    justin.jobsNoRolesProxyString = f.read()
+#except:
+#  print('Failed loading X.509 proxy from %s : %s'
+#        % (justin.jobsNoRolesProxyFile, str(e)), file=sys.stderr)
+#
+#try:
+#  with open(justin.jobsProductionProxyFile, 'rb') as f:
+#    justin.jobsProductionProxyString = f.read()
+#except:
+#  print('Failed loading X.509 proxy from %s : %s'
+#        % (justin.jobsProductionProxyFile, str(e)), file=sys.stderr)
 

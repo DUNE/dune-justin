@@ -118,6 +118,7 @@ COPY services/httpd.justin.conf         /etc/httpd/conf.d/
 COPY dashboard/justin-get-output        /var/lib/justin/
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY dashboard/*.png                    /var/www/html/
+COPY *.md                               /var/www/html/docs/
 COPY docs/*.md                          /var/www/html/docs/
 
 COPY containers/02_dune_condor.conf     /etc/condor/config.d/

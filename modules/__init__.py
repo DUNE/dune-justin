@@ -603,3 +603,18 @@ def fixPfn(pfn):
     pfn = pfn.replace(old, new)
     
   return pfn
+
+def checkProxyStrings():
+  try:
+    with open(jobsNoRolesProxyFile, 'rb') as f:
+      jobsNoRolesProxyString = f.read()
+  except:
+    print('Failed loading X.509 proxy from %s : %s'
+          % (jobsNoRolesProxyFile, str(e)), file=sys.stderr)
+
+  try:
+    with open(jobsProductionProxyFile, 'rb') as f:
+      jobsProductionProxyString = f.read()
+  except:
+    print('Failed loading X.509 proxy from %s : %s'
+          % (jobsProductionProxyFile, str(e)), file=sys.stderr)

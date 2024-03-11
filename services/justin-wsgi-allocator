@@ -1968,8 +1968,8 @@ def application(environ, startResponse):
   # and reset autocommit
   justin.conn.rollback()
   justin.conn.autocommit(False)
-#  row = justin.select('SELECT @@autocommit', justOne = True)
-#  print('autocommit=' + str(row), file=sys.stderr)
+
+  justin.checkProxyStrings()
 
   if environ['REQUEST_URI'].startswith('/api/get-classads'):
     return getClassadsCall(startResponse, environ)

@@ -1015,9 +1015,7 @@ def listArchivedWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   for row in rows[:pageLength]:
     output += ('<tr><td><a href="/dashboard/?method=show-archived-workflow'
           '&workflow_id=%d">%d</a></td>'
-          '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
-          '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
-          '</tr>' % 
+          '<td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
           (row["workflow_id"], row["workflow_id"],
            html.escape(row["description"], quote=True),
            row["user_name"],
@@ -1331,8 +1329,9 @@ def showArchivedWorkflow(environ, user, cgiValues):
                       row['row_value']))
       elif row['row_value'].startswith('#!/'):
         # Assume jobscript
-        output += ('<tr><td colspan=2><pre>%s</pre></td></tr>'
-                   % html.escape(row['row_name'], quote=True))
+        output += ('<tr><td colspan=2>Jobscript<br>'
+                   '<pre>%s</pre></td></tr>'
+                   % html.escape(row['row_value'], quote=True))
       else:
         output += ('<tr><td>%s</td><td>%s</td></tr>'
                    % (html.escape(row['row_name'], quote=True),

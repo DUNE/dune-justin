@@ -8,6 +8,7 @@
   and checks the event types in the code are also in the DB table event_types
 - entry_has_gpus and always_has_gpus added to entries table in DB
 - Add archived workflow pages
+- Allow jobscripts to come from GitHub repos (DUNE/dist-comp#152)
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24
