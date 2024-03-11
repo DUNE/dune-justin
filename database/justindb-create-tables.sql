@@ -177,10 +177,10 @@ CREATE TABLE IF NOT EXISTS `archived_workflows` (
 
 CREATE TABLE IF NOT EXISTS `archived_workflows_rows` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
-  `row_id` smallint unsigned NOT NULL,
+  `row_number` smallint unsigned NOT NULL,
   `row_name` varchar(255) NOT NULL,
   `row_value` text NOT NULL,
-  UNIQUE KEY `row_id` (`workflow_id`,`row_id`),
+  UNIQUE KEY `row_number` (`workflow_id`,`row_number`),
   INDEX `row_name` (`row_name`,`workflow_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
