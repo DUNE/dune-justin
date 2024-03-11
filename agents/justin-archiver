@@ -103,7 +103,7 @@ def insertArchiveRow(workflowID, rowName, rowValue):
 
   rowValue = rowValue.encode('ascii',errors='ignore').decode()
   
-  justin.insertUpdate('INSERT INTO archived_workflows '
+  justin.insertUpdate('INSERT INTO archived_workflows_rows '
                       'SET workflow_id=%d,row_number=%d,'
                       'row_name="%s",row_value="%s"'
                       % (workflowID, workflowRowNumber, rowName, 
@@ -132,6 +132,17 @@ def archiveOneWorkflow(workflowID):
            "LEFT JOIN principal_names "
            'ON principal_names.pn_id=users.main_pn_id '
            "WHERE request_id=%d" % workflowID, justOne = True)
+
+  query = ('INSERT INTO archived_workflows SET '
+           'workflow_id=%d,description="%s",user_name="%s",'
+           'state="%s",created="%s"' 
+           % (workflowID, 
+              workflowRow['description'],
+              workflowRow['user_name'],
+              workflowRow['state'],
+              workflowRow['created']))
+
+  justin.insertUpdate(query)
 
   if workflowRow['description'].strip():
     insertArchiveRow(workflowID, 'Description', workflowRow['description'])
@@ -582,7 +593,7 @@ def archiveOneStage(workflowID, stageID):
 
 def archiveWorkflows():
   # Find workflows which still need to be archived and save them to 
-  # archived_workflows
+  # archived_workflows_rows
 
   # FOR 00.12 ONWARDS CHANGE request TO workflow BELOW
 
