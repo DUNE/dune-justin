@@ -346,9 +346,13 @@ def mainPage(environ, user):
      'uri'       : '/dashboard/?method=awt-results',
      'text'      : 'Automated Workflow Tests' },
    { 'startRow'  : True,
-     'endRow'    : True,
+     'endRow'    : False,
      'uri'       : '/dashboard/?method=list-scopes',
      'text'      : 'Scopes' },
+   { 'startRow'  : False,
+     'endRow'    : True,
+     'uri'       : '/dashboard/?method=list-archived-workflows',
+     'text'      : 'Archived workflows' },
    { 'startRow'  : True,
      'endRow'    : False,
      'uri'       : '/dashboard/?method=list-sites',
@@ -986,6 +990,51 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   
   return output
 
+def listArchivedWorkflows(environ, user, cgiValues, pageNumber, pageLength):
+
+  output = header(environ, user, "justIN: Archived workflows")
+
+  output += "<h1>Archived workflows</h1>"
+  
+  query = ('SELECT workflow_id,description,user_name,'
+           'state,created FROM archived_workflows '
+           'ORDER BY workflow_id DESC LIMIT %d,%d' %
+           (pageNumber * pageLength, pageLength + 1))
+
+  justin.cur.execute(query)
+  rows = justin.cur.fetchall()
+
+  output += makePager(pageNumber, pageLength, len(rows), 
+                      "/dashboard/?method=list-archived-workflows"
+                      "&page_number=%d&page_length=%d") 
+             
+  output += '<p><table>'
+  output += ('<tr><th>Workflow ID</th><th>Description</th><th>User</th>'
+             '<th>State</th><th>Created</th></tr>')
+
+  for row in rows[:pageLength]:
+    output += ('<tr><td><a href="/dashboard/?method=show-archived-workflow'
+          '&workflow_id=%d">%d</a></td>'
+          '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
+          '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
+          '</tr>' % 
+          (row["workflow_id"], row["workflow_id"],
+           html.escape(row["description"], quote=True),
+           row["user_name"],
+           row["state"],
+           row['created']
+          )
+         )
+
+  output += "</table>"
+  
+  output += makePager(pageNumber, pageLength, len(rows), 
+                      "/dashboard/?method=list-archived-workflows"
+                      "&page_number=%d&page_length=%d")
+  output += footer()
+  
+  return output
+
 def showWorkflow(environ, user, cgiValues):
   try:
     workflowID = int(cgiValues['workflow_id'])
@@ -1256,7 +1305,7 @@ def showArchivedWorkflow(environ, user, cgiValues):
   
   output = header(environ, user, "justIN: Archived workflow %d" % workflowID)
 
-  query = ('SELECT row_name,row_value FROM archived_workflows '
+  query = ('SELECT row_name,row_value FROM archived_workflows_rows '
            'WHERE workflow_id=%d' % workflowID)
 
   try:
@@ -1273,9 +1322,22 @@ def showArchivedWorkflow(environ, user, cgiValues):
   else:
     output += '<table>'
     for row in rows:  
-      output += ('<tr><td>%s</td><td>%s</td></tr>'
-                 % (html.escape(row['row_name'], quote=True),
-                    html.escape(row['row_value'], quote=True)))
+      if row['row_value'].startswith('<?xml '):
+        # Assume inline SVG
+        output += ('<tr><td>%s</td><td>'
+                   '<figure style="width:800px; display: inline-block">'
+                   '%s</figure></td></tr>'
+                   % (html.escape(row['row_name'], quote=True),
+                      row['row_value']))
+      elif row['row_value'].startswith('#!/'):
+        # Assume jobscript
+        output += ('<tr><td colspan=2><pre>%s</pre></td></tr>'
+                   % html.escape(row['row_name'], quote=True))
+      else:
+        output += ('<tr><td>%s</td><td>%s</td></tr>'
+                   % (html.escape(row['row_name'], quote=True),
+                      html.escape(row['row_value'], quote=True)))
+
     output += '</table>'
 
   output += footer()
@@ -3982,6 +4044,9 @@ def application(environ, startResponse):
   elif method == "list-workflows":
     output = listWorkflows(environ, user, cgiValues, pageNumber, pageLength)
 
+  elif method == "list-archived-workflows":
+    output = listArchivedWorkflows(environ, user, cgiValues, 
+                                   pageNumber, pageLength)
   elif method == "show-workflow":
     output = showWorkflow(environ, user, cgiValues)
 
