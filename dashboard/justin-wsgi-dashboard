@@ -1306,7 +1306,7 @@ def showArchivedWorkflow(environ, user, cgiValues):
   output = header(environ, user, "justIN: Archived workflow %d" % workflowID)
 
   query = ('SELECT row_name,row_value FROM archived_workflows_rows '
-           'WHERE workflow_id=%d' % workflowID)
+           'WHERE workflow_id=%d ORDER BY row_number' % workflowID)
 
   try:
     rows = justin.select(query)
