@@ -166,6 +166,17 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
 
 CREATE TABLE IF NOT EXISTS `archived_workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `user_name` varchar(255) NOT NULL,
+  `state` varchar(255) NOT NULL,
+  `created` datetime NOT NULL,
+  PRIMARY KEY (`workflow_id`),
+  INDEX `user_name` (`user_name`),
+  INDEX `created` (`created`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `archived_workflows_rows` (
+  `workflow_id` mediumint(8) unsigned NOT NULL,
   `row_id` smallint unsigned NOT NULL,
   `row_name` varchar(255) NOT NULL,
   `row_value` text NOT NULL,

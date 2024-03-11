@@ -2,7 +2,7 @@
 #
 # justin-archiver - justIN Archiver agent
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import json
 import time
 import base64
 import urllib.request
+import pygal
 import pathlib
 import tempfile
 import xml.dom.minidom
@@ -34,8 +35,61 @@ import MySQLdb
 
 import justin
 
-archiveRowID = 0
-sleepSeconds = 3600
+workflowRowNumber = None
+sleepSeconds      = 3600
+
+class justinStackedLine(pygal.StackedLine):
+
+  def __init__(self, imageSize, firstTime, hoursPerBin, numBins,
+               legend_at_bottom_columns=3):
+    self.imageSize = imageSize
+    pygal.StackedLine.__init__(self, include_x_axis=True, 
+                               stroke_style={'width': 2}, 
+                               show_x_guides=True, 
+                               style=pygal.style.LightColorizedStyle, 
+                               x_label_rotation=30, 
+                               width=800, 
+                               height=500, 
+                               x_title='Bin start times',
+                               y_title='Number per bin',
+#                               legend_at_bottom=True, 
+                               legend_at_bottom_columns=legend_at_bottom_columns)
+    self.x_labels = [ time.strftime('%b-%d %H:%M', 
+                                    time.gmtime(
+                             i * hoursPerBin * 3600 + firstTime
+                                               ))
+                        for i in range(0, numBins) ]
+
+  def _points(self, x_pos):
+        # Unfilled series to be overlayed rather than stacked
+        """
+        Convert given data values into drawable points (x, y)
+        and interpolated points if interpolate option is specified
+        """
+        for series_group in (self.series, self.secondary_series):
+            accumulation = [0] * self._len
+            for serie in series_group[::-1 if self.stack_from_top else 1]:
+              if serie.fill == False: # <--- this is the significant change
+                serie.points = [ (x_pos[i], v) for i, v in enumerate(serie.values) ]
+                if serie.points and self.interpolate:
+                    serie.interpolated = self._interpolate(x_pos, serie.values)
+                else:
+                    serie.interpolated = []                
+              else:
+                accumulation = list(map(sum, zip(accumulation, serie.values)))
+                serie.points = [
+                    (x_pos[i], v)
+                    for i, v in enumerate(accumulation)]
+                if serie.points and self.interpolate:
+                    serie.interpolated = self._interpolate(x_pos, accumulation)
+                else:
+                    serie.interpolated = []
+
+def spaceForUnixEpoch(s):
+  if str(s) == justin.unixEpoch:
+    return '&nbsp;'
+  else:
+    return str(s)
 
 class justinError(Exception):
   pass
@@ -45,14 +99,17 @@ def logLine(text):
   sys.stdout.flush()
 
 def insertArchiveRow(workflowID, rowName, rowValue):
-  global archiveRowID
+  global workflowRowNumber
 
+  rowValue = rowValue.encode('ascii',errors='ignore').decode()
+  
   justin.insertUpdate('INSERT INTO archived_workflows '
-                      'SET workflow_id=%d,row_id=%d,'
+                      'SET workflow_id=%d,row_number=%d,'
                       'row_name="%s",row_value="%s"'
-                      % (workflowID, archiveRowID, rowName, 
+                      % (workflowID, workflowRowNumber, rowName, 
                          rowValue.replace('\\','\\\\').replace('"','\\"') ))
-  archiveRowID += 1
+
+  workflowRowNumber += 1
 
 def archiveOneWorkflow(workflowID):
 # Process one workflow and its stages and archive to database
@@ -60,8 +117,8 @@ def archiveOneWorkflow(workflowID):
 #
 # FOR 00.12 ONWARDS REPLACE request WITH workflow BELOW
 
-  global archiveRowID
-  archiveRowID = 0
+  global workflowRowNumber
+  workflowRowNumber = 0
  
   workflowRow = justin.select("SELECT requests.description,requests.state,"
            "principal_name AS user_name,"
@@ -76,9 +133,11 @@ def archiveOneWorkflow(workflowID):
            'ON principal_names.pn_id=users.main_pn_id '
            "WHERE request_id=%d" % workflowID, justOne = True)
 
-  insertArchiveRow(workflowID, 'Description', workflowRow['description'])
-  insertArchiveRow(workflowID, 'State',       workflowRow['state'])
-  insertArchiveRow(workflowID, 'MQL',         workflowRow['mql'])
+  if workflowRow['description'].strip():
+    insertArchiveRow(workflowID, 'Description', workflowRow['description'])
+
+  insertArchiveRow(workflowID, 'State', workflowRow['state'])
+  insertArchiveRow(workflowID, 'MQL',   workflowRow['mql'])
   
   if workflowRow['scope_name']:
     insertArchiveRow(workflowID, 'Scope', workflowRow['scope_name'])
@@ -106,14 +165,20 @@ def archiveOneWorkflow(workflowID):
   insertArchiveRow(workflowID, 'Finished', 
                    spaceForUnixEpoch(workflowRow['finished']))
 
-  numStages = justin.select('SELECT COUNT(*) FROM stages WHERE '
+  row = justin.select('SELECT COUNT(*) AS count FROM stages WHERE '
                             'request_id=%d' % workflowID, justOne = True)
                             
-  for stageID in range(1, numStages + 1):
+  for stageID in range(1, row['count'] + 1):
      archiveOneStage(workflowID, stageID)
 
-#IF WE GOT THIS FAR WE MUST NOW MARK THE workflow AS ARCHIVED!!!
-
+  try:
+    justin.insertUpdate('UPDATE requests SET '
+                        'archived=TRUE WHERE request_id=%d' 
+                        % workflowID)
+  except Exception as e:
+    logLine('Failed to update workflow %d as archived - exiting'
+            % workflowID)
+    sys.exit(1)
 
 def archiveOneStage(workflowID, stageID):
 # Process one stage and archive to database
@@ -121,7 +186,7 @@ def archiveOneStage(workflowID, stageID):
 #
 # FOR 00.12 ONWARDS REPLACE request WITH workflow BELOW
 
-  global archiveRowID
+  global workflowRowID
   
   query = ("SELECT "
            "stages.stage_rank,"
@@ -207,48 +272,44 @@ def archiveOneStage(workflowID, stageID):
   patternRows = justin.db.select(query)
 
   if patternRows:
-    output += ("<h2>Output patterns</h2>")
-    output += ('<table><tr><th>Destination</th><th>Pattern</th>'
-               '<th>Lifetime</th><th>For next stage</th></tr>') 
-
+    n = 1
     for patternRow in patternRows:
       if patternRow['destination'].startswith('https://'):
-        output += ("<tr><td>%s</td><td>%s</td>"
-                   "<td> </td><td> </td></tr>" 
-                   % (patternRow["destination"],
-                      html.escape(patternRow["file_pattern"], quote=True)))
+        insertArchiveRow(workflowID, 
+                         'Stage %d pattern %d' % (stageID, n),
+                         patternRow["file_pattern"] + 
+                         ' to ' + patternRow["destination"]) 
+      
       else:
-        output += ("<tr><td>Rucio %s:%s</td><td>%s</td>"
-                   "<td>%d</td><td>%s</td></tr>" 
-                   % (stageRow["requests_scope_name"],
-                      patternRow["destination"],
-                      html.escape(patternRow["file_pattern"], quote=True),
-                      patternRow["lifetime_seconds"],
-                      bool(patternRow["for_next_stage"])))
-
-    output += ('</table>')
+        insertArchiveRow(workflowID, 
+                         'Stage %d pattern %d' % (stageID, n),
+                         '%s to %s:%s lifetime=%ds%s'  
+                         % (patternRow["file_pattern"],
+                            stageRow["requests_scope_name"],
+                            patternRow["destination"],
+                            patternRow["lifetime_seconds"],
+                            ' and for next stage'
+                            if bool(patternRow["for_next_stage"]) 
+                            else ''
+                           ))
+      n += 1
 
   # Environment
   query = ("SELECT env_name,env_value "
            "FROM stages_environment "
            "WHERE request_id=%d AND stage_id=%d "
            "ORDER BY env_name" %
-           (requestID, stageID))
+           (workflowID, stageID))
 
   envRows = justin.db.select(query)
 
   if envRows:
-    output += '<!-- %s -->\n' % str(time.time())
-    output += ('<h2>Environment variables</h2>')
-    output += ('<table><tr><th>Name</th><th>Value</th></tr>')
- 
+    l = []
     for envRow in envRows:
-      output += ("<tr><td>%s</td><td>%s</td></tr>" %
-                 (html.escape(envRow["env_name"]),
-                  html.escape(envRow["env_value"])))
+      l.append('%s=%s' % (envRow["env_name"], envRow["env_value"]))    
 
-    output += ('</table>') 
-
+    insertArchiveRow(workflowID,
+                     'Stage %d environment' % stageID, ' '.join(l))
 
   # Get counts of file states for all stages
   stateCounts= {         'recorded'    : 0,
@@ -312,8 +373,8 @@ def archiveOneStage(workflowID, stageID):
 
   query = ('SELECT allocation_state,COUNT(*) AS count '
            'FROM jobs '
-           'WHERE request_id=%d AND stage_id=%d'
-           'GROUP BY allocation_state' % (requestID, stageID))
+           'WHERE request_id=%d AND stage_id=%d '
+           'GROUP BY allocation_state' % (workflowID, stageID))
              
   stateRows = justin.db.select(query)
   
@@ -350,16 +411,7 @@ def archiveOneStage(workflowID, stageID):
   insertArchiveRow(workflowID, 'Stage %d: Outputting Failed jobs' % stageID,
                    str(stateCounts['outputting_failed']))
 
-
-
-
-
-
-
-
-
   # Progress chart based on file process_time values
-
   query = ('SELECT site_name,processed_hour,'
            'count(*) AS processed_count '
            'FROM files '
@@ -367,7 +419,7 @@ def archiveOneStage(workflowID, stageID):
            'WHERE request_id=%d AND stage_id=%d AND '
            'state="processed" GROUP BY processed_hour,processed_site_id '
            'ORDER BY processed_hour'
-           % (requestID, stageID))
+           % (workflowID, stageID))
 
   binRows = justin.db.select(query)
 
@@ -401,22 +453,16 @@ def archiveOneStage(workflowID, stageID):
     for siteName in bins:
       chart.add(siteName, bins[siteName], fill = True, show_dots = False)
 
-    output += ('<a href="' + chart.render_data_uri() + '" target="_blank" '
-               'style="text-decoration: none">' + 
-               '<figure style="width:%dpx; display: inline-block">'  
-               % chart.imageSize)
+    insertArchiveRow(workflowID, 
+                     'Stage %d files processed' % stageID,
+                     chart.render().decode('utf-8'))
 
-    output += chart.render().decode('utf-8')
-    output += '</figure></a> '
-
-  # RSE pie charts
-  output += '<!-- %s start of RSE pie chart -->\n' % str(time.time())
-
+  # RSE pie chart
   query = ('SELECT rse_name,COUNT(*) AS replica_count FROM replicas '
            'LEFT JOIN storages ON replicas.rse_id=storages.rse_id '
            'WHERE request_id=%d AND stage_id=%d '
            'GROUP BY replicas.rse_id ORDER BY replica_count DESC'
-           % (requestID, stageID))
+           % (workflowID, stageID))
 
   justin.db.select(query)
   replicaRows = justin.db.select(query)
@@ -438,24 +484,19 @@ def archiveOneStage(workflowID, stageID):
                    int((100.0 * replicaRow['replica_count']) / totalReplicas)), 
                 replicaRow['replica_count'])
 
-    output += ('<a href="' + chart.render_data_uri() + '" target="_blank" '
-               'style="text-decoration: none">' + 
-               '<figure style="width:%dpx; display: inline-block">'  
-               % 800)
+    insertArchiveRow(workflowID, 
+                     'Stage %d replicas per RSE' % stageID,
+                     chart.render().decode('utf-8'))
 
-    output += chart.render().decode('utf-8')
-    output += '</figure></a> '
-
-  # RSE counts
+  # RSE counts
   rseCounts = {}
 
   query = ('SELECT rse_name,events.rse_id,COUNT(*) AS file_count FROM events '
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_ALLOCATED))
+           (workflowID, stageID, justin.db.event_FILE_ALLOCATED))
 
-  output += '<!-- %s SELECT ALLOCATED -->\n' % str(time.time())
   justin.db.cur.execute(query)
   rseRows = justin.db.cur.fetchall()
 
@@ -470,48 +511,39 @@ def archiveOneStage(workflowID, stageID):
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_CREATED))
+           (workflowID, stageID, justin.db.event_FILE_CREATED))
 
-  output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
   justin.db.cur.execute(query)
   rseRows = justin.db.cur.fetchall()
   
-  for rseRow in rseRows:
-  
+  for rseRow in rseRows:  
     if rseRow['rse_name'] not in rseCounts:
       rseCounts[rseRow['rse_name']] = { 'inputs': 0, 'outputs': 0 }
 
     rseCounts[rseRow['rse_name']]['outputs'] = rseRow['file_count']
     
   if rseCounts:
-    output += ("<h2>RSEs used</h2>")
-    output += ('<table><tr><th>Name</th><th>Inputs</th><th>Outputs</th></tr>')
-
     for rseName in rseCounts:
-      output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
-            (rseName,
-             rseCounts[rseName]['inputs'],
-             rseCounts[rseName]['outputs']
-            ))
+      insertArchiveRow(workflowID, 
+                       'Stage %d, RSE %s' % (stageID, rseName),
+                       'inputs=%d outputs=%d' 
+                       % (rseCounts[rseName]['inputs'],
+                          rseCounts[rseName]['outputs'])
+                      )
 
-    output += ('</table>') 
-
-  # Reset event counts
-
+  # Reset event counts
   resetCounts = {}
 
   query = ('SELECT site_name,COUNT(*) AS site_count FROM events '
            'LEFT JOIN sites ON sites.site_id=events.site_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
+           (workflowID, stageID, justin.db.event_FILE_ALLOCATED_RESET))
 
-  output += '<!-- %s -->\n' % str(time.time())
   justin.db.cur.execute(query)
   resetRows = justin.db.cur.fetchall()
   
-  for resetRow in resetRows:
-  
+  for resetRow in resetRows:  
     if resetRow['site_name'] not in resetCounts:
       resetCounts[resetRow['site_name']] = { 'allocated': 0, 'outputting': 0 }
 
@@ -521,9 +553,8 @@ def archiveOneStage(workflowID, stageID):
            'LEFT JOIN sites ON sites.site_id=events.site_id '
            'WHERE request_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY site_name ORDER BY site_count DESC' %
-           (requestID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
+           (workflowID, stageID, justin.db.event_FILE_OUTPUTTING_RESET))
 
-  output += '<!-- %s -->\n' % str(time.time())
   justin.db.cur.execute(query)
   resetRows = justin.db.cur.fetchall()
   
@@ -535,43 +566,19 @@ def archiveOneStage(workflowID, stageID):
     resetCounts[resetRow['site_name']]['outputting'] = resetRow['site_count']
 
   if resetCounts:
-    output += ("<h2>File reset events, by site</h2>")
-    output += ('<table><tr><th>Site</th><th>Allocated</th><th>Outputting</th></tr>')
-
     for siteName in resetCounts:
-      output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
-            (siteName,
-             resetCounts[siteName]['allocated'],
-             resetCounts[siteName]['outputting']
-            ))
+      insertArchiveRow(workflowID, 
+                       'Stage %d, file resets at %s' % (stageID, siteName),
+                       'allocated=%d outputting=%d' 
+                       % (resetCounts[siteName]['allocated'],
+                          resetCounts[siteName]['outputting'])
+                      )
 
-    output += ('</table>') 
+  insertArchiveRow(workflowID, 
+                   'Stage %d jobscript' % stageID,
+                   stageRow["jobscript"])
 
-  output += ("<h2>Jobscript</h2>")
-
-  if stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
-    output += ('<p><i>Copied from '
-               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
-               ' when the stage was created.</i></p>'
-               % (stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
-                  stageRow['jobscripts_scope_name'], stageRow['jobscript_name']))
-  elif stageRow['user_name'] and stageRow['jobscript_name']:
-    output += ('<p><i>Copied from '
-               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
-               ' when the stage was created.</i></p>'
-               % (stageRow['user_name'], stageRow['jobscript_name'],
-                  stageRow['user_name'], stageRow['jobscript_name']))
-
-  output += ('<pre style="white-space: pre-wrap;">') 
-
-  output += (html.escape(
-   stageRow["jobscript"].encode('ascii',errors='ignore').decode(), 
-   quote=True))
-  
-  output += ('</pre>') 
-
-  output += footer()
-  return output
+#           stageRow["jobscript"].encode('ascii',errors='ignore').decode())
 
 def archiveWorkflows():
   # Find workflows which still need to be archived and save them to 
@@ -581,19 +588,21 @@ def archiveWorkflows():
 
   try:
     workflows = justin.select('SELECT request_id FROM requests '
-                              'WHERE NOT archived AND state="finished" '
-                              'ORDER BY request_id')
+                              'WHERE NOT archived '
+                              'AND state="finished" '
+                              'AND request_id<>%d '
+                              'ORDER BY request_id' % justin.awtRequestID)
   except Exception as e:
     logLine('Failed to get list of unarchived workflows: ' + str(e))
     return
 
   for workflow in workflows:
     try:
-      archiveOneWorkflow(workflows['request_id'])
+      archiveOneWorkflow(workflow['request_id'])
     except Exception as e:
       logLine('Failed processing workflow %d: %s' 
-              % (workflow['request_id'], str(e))
-    else
+              % (workflow['request_id'], str(e)))
+    else:
       justin.db.conn.commit()
 
 def oneCycle():
