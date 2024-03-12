@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
+#
+# This script must be rerun every time modules/events_list.py is changed
+#
 
 import sys
 sys.path.insert(1, '../modules')
-import events
+from events_list import *
 
 f = open('event_types.md','w')
 
@@ -19,11 +22,8 @@ in the Dashboard.
 |------|----|-----------|
 """)
 
-for eventTypeID in events.eventTypes:
-
-  f.write('|%d|%s|%s|\n' % (eventTypeID,  
-                          events.eventTypes[eventTypeID][0],  
-                          events.eventTypes[eventTypeID][1]))  
+for (eventLabel, eventTypeID, eventText) in eventsList:
+  f.write('|%d|%s|%s|\n' % (eventTypeID, eventLabel, eventText))  
                         
 f.write("""
 

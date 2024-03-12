@@ -106,6 +106,7 @@ COPY agents/justin-wrapper-job /var/lib/justin/
 RUN mkdir /usr/lib/python3.9/site-packages/justin
 COPY modules/__init__.py       /usr/lib/python3.9/site-packages/justin/
 COPY modules/justin_version.py /usr/lib/python3.9/site-packages/justin/
+COPY modules/events_list.py    /usr/lib/python3.9/site-packages/justin/
 
 RUN mkdir -p /var/www/wsgi/ /var/www/html/docs/
 RUN mkdir -p /var/run/justin/last-updates/ /etc/justin.d/

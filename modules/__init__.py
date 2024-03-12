@@ -15,7 +15,8 @@
 #
 
 from justin.justin_version import *
-__all__ = [ 'justin_version' ]
+from justin.events_list import *
+__all__ = [ 'justin_version', 'events_list' ]
 
 import os
 import io
@@ -133,98 +134,6 @@ awtWorkflowID = 1
 awtFileID     = 1
 
 maxAllocations = 6
-
-# This list of sequences is just used to define the types of events
-# We use exec() later on to create variables for each event which will
-# fail at runtime if you get the names wrong in the code
-eventsList = [
-
-# Finder events
-('FILE_ADDED',
- 201,
- 'File added to first stage by finder'), 
-('REPLICA_ADDED',
- 202,
- 'Replica added for file by finder'),
-('REPLICA_STAGING_REQUESTED',
- 203,
- 'Finder requestss replica staging'),
-('REPLICA_STAGING_DONE',
- 204,
- 'Replica staging requested by finder done'),
-('REPLICA_STAGING_CANCELLED ', 
- 205,
- 'Replica staging cancelled by finder'),
-
-# Job events
-('JOB_SUBMITTED', 
- 301,
- 'Job submitted by factory'),
-('JOB_STARTED', 
- 302,
- 'Job started running at site'),
-('JOB_PROCESSING', 
- 303,
- 'Job began processing files'),
-('JOB_OUTPUTTING', 
- 304,
- 'Job began outputting files to storage'),
-('JOB_FINISHED', 
- 305,
- 'Job finished'),
-('JOB_NOTUSED', 
- 306,
- 'Job was not allocated a stage'),
-('JOB_ABORTED', 
- 307,
- 'Job aborted'),
-('JOB_STALLED_HEARTBEAT', 
- 308,
- 'Job stalls with missing heartbeats'),
-('JOB_SCRIPT_ERROR', 
- 309,
- 'Error raised by the jobscript'),
-('JOB_OUTPUTTING_FAILED', 
- 310,
- 'Job outputting failed'),
-('JOB_STALLED_HTCONDOR', 
- 311,
- 'Job stalls as absent from HTCondor'),
-
-# File events
-('FILE_ALLOCATED', 
- 401,
- 'File allocated to job'),
-('FILE_ALLOCATED_RESET', 
- 402,
- 'File set back to unallocated from allocated'),
-('FILE_SET_TO_FAILED', 
- 403,
- 'Too many attempts to process file: failed'),
-('FILE_CREATED', 
- 404,
- 'Output file created in job'),
-('FILE_OUTPUTTING_RESET', 
- 405,
- 'File set back to unallocated from outputting'),
-('FILE_UPLOADED', 
- 406,
- 'Output file uploaded in job'),
-
-# AWT events 
-('AWT_READ_OK', 
- 501,
- 'AWT read test succeeds'),
-('AWT_READ_FAIL', 
- 502,
- 'AWT read test fails'),
-('AWT_WRITE_OK', 
- 503,
- 'AWT write test succeeds'),
-('AWT_WRITE_FAIL', 
- 504,
- 'AWT write test fails')
-]
 
 # Catch all events
 event_UNDEFINED = 0
