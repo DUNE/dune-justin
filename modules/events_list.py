@@ -43,7 +43,7 @@ eventsList = [
  105,
  'Workflow marked finished by user '),
 
-# Workflow / stage / file events in Finder
+# Workflow/stage/file/replica set-up/finish events in Finder
 ('FILE_ADDED',
  201,
  'File added to first stage by Finder'), 
@@ -59,11 +59,14 @@ eventsList = [
 ('REPLICA_STAGING_CANCELLED ', 
  205,
  'Replica staging cancelled by Finder'),
-('WORKFLOW_FINISHED_BY_FINDER',
+('WORKFLOW_STARTED_BY_FINDER',
  206,
+ 'Finder starts the workflow running'),
+('WORKFLOW_FINISHED_BY_FINDER',
+ 207,
  'Workflow marked finished by Finder'),
 
-# Job events
+# Job-level events
 ('JOB_SUBMITTED', 
  301,
  'Job submitted by factory'),
@@ -98,7 +101,7 @@ eventsList = [
  311,
  'Job stalls as absent from HTCondor'),
 
-# File events during running
+# File-level events during running
 ('FILE_ALLOCATED', 
  401,
  'File allocated to job'),
