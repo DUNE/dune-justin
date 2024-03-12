@@ -23,22 +23,45 @@
 # 
 eventsList = [
 
-# Finder events
+# Workflow / stage events in dashboard or command
+('WORKFLOW_CREATED',
+ 101,
+ 'Workflow created'),
+('STAGE_CREATED',
+ 102,
+ 'Stage created'),
+('WORKFLOW_SUBMITTED',
+ 103,
+ 'Workflow has been submitted'),
+('WORKFLOW_PAUSED',
+ 104,
+ 'Workflow has been paused'),
+('WORKFLOW_RESTARTED',
+ 105,
+ 'Workflow has been restarted'),
+('WORKFLOW_FINISHED_BY_USER',
+ 105,
+ 'Workflow marked finished by user '),
+
+# Workflow / stage / file events in Finder
 ('FILE_ADDED',
  201,
- 'File added to first stage by finder'), 
+ 'File added to first stage by Finder'), 
 ('REPLICA_ADDED',
  202,
- 'Replica added for file by finder'),
+ 'Replica added for file by Finder'),
 ('REPLICA_STAGING_REQUESTED',
  203,
- 'Finder requestss replica staging'),
+ 'Finder requests replica staging'),
 ('REPLICA_STAGING_DONE',
  204,
- 'Replica staging requested by finder done'),
+ 'Replica staging requested by Finder is done'),
 ('REPLICA_STAGING_CANCELLED ', 
  205,
- 'Replica staging cancelled by finder'),
+ 'Replica staging cancelled by Finder'),
+('WORKFLOW_FINISHED_BY_FINDER',
+ 206,
+ 'Workflow marked finished by Finder'),
 
 # Job events
 ('JOB_SUBMITTED', 
@@ -75,7 +98,7 @@ eventsList = [
  311,
  'Job stalls as absent from HTCondor'),
 
-# File events
+# File events during running
 ('FILE_ALLOCATED', 
  401,
  'File allocated to job'),
@@ -107,5 +130,26 @@ eventsList = [
  'AWT write test succeeds'),
 ('AWT_WRITE_FAIL', 
  504,
- 'AWT write test fails')
+ 'AWT write test fails'),
+
+# Site and storage events
+('SITE_ENABLED', 
+ 601,
+ 'Site is marked as enabled for jobs'),
+('SITE_DISABLED', 
+ 602,
+ 'Site is marked as disabled for jobs'),
+('STORAGE_READ_ENABLED', 
+ 603,
+ 'RSE is marked as enabled for reading'),
+('STORAGE_READ_DISABLED', 
+ 604,
+ 'RSE is marked as disabled for reading'),
+('STORAGE_WRITE_ENABLED', 
+ 605,
+ 'RSE is marked as enabled for writing'),
+('STORAGE_WRITE_DISABLED', 
+ 606,
+ 'RSE is marked as disabled for writing')
+
 ]
