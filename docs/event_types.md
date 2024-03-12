@@ -20,7 +20,8 @@ in the Dashboard.
 |203|REPLICA_STAGING_REQUESTED|Finder requests replica staging|
 |204|REPLICA_STAGING_DONE|Replica staging requested by Finder is done|
 |205|REPLICA_STAGING_CANCELLED |Replica staging cancelled by Finder|
-|206|WORKFLOW_FINISHED_BY_FINDER|Workflow marked finished by Finder|
+|206|WORKFLOW_STARTED_BY_FINDER|Finder starts the workflow running|
+|207|WORKFLOW_FINISHED_BY_FINDER|Workflow marked finished by Finder|
 |301|JOB_SUBMITTED|Job submitted by factory|
 |302|JOB_STARTED|Job started running at site|
 |303|JOB_PROCESSING|Job began processing files|
