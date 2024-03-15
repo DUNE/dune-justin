@@ -1363,6 +1363,7 @@ def showStage(environ, user, cgiValues):
            "stages.rss_bytes,"
            "stages.max_distance,"
            "stages_jobscripts.jobscript,"
+           "stages.jobscript_github,"
            "jobscript_name,"
            "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
            "workflows_scopes.scope_name AS workflows_scope_name,"
@@ -1845,7 +1846,18 @@ def showStage(environ, user, cgiValues):
 
   output += ("<h2>Jobscript</h2>")
 
-  if stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
+  if stageRow['jobscript_github']:
+    try:
+      (orgRepoPath, tag) = stageRow['jobscript_github'].split(':', 1)
+      (org, repo, path)  = orgRepoPath.split('/', 2)
+    except:
+      pass
+    else:
+      output += ('<p><i>Copied from '
+                 '<a href="https://github.com/%s/%s/blob/%s/%s">%s</a> '
+                 'on GitHub</i></p>' 
+                 % (org, repo, tag, path, stageRow['jobscript_github']))
+  elif stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
     output += ('<p><i>Copied from '
                '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
                ' when the stage was created.</i></p>'

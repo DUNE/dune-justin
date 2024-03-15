@@ -765,7 +765,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   jobscriptID     = 0
   jobscriptGitHub = ''
   jsid            = jsonDict.get('jobscript_id',     '')
-  githubTagPath   = jsonDict.get('jobscript_github', '')
+  githubPathTag   = jsonDict.get('jobscript_github', '')
 
   if not jobscript and jsid:    
     response = justin.lookupJobscript(jsid)
@@ -775,28 +775,31 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     jobscript   = response['jobscript']
     jobscriptID = response['jobscript_id']
 
-  if not jobscript and githubTagPath:
-    if justin.stringIsURL(githubTagPath):
-      return ('400 Bad Reques', 
-              'GitHub reference must be just TAG:ORG/PATH/../FILE'      
+  if not jobscript and githubPathTag:
+    if not justin.stringIsURL(githubPathTag):
+      return ('400 Bad Request', 
+              'GitHub reference must be just ORG/PATH/../FILE:TAG')
     try:
-      (tag, orgRepoPath) = githubTagPath.split(':', 1)
+      (orgRepoPath, tag) = githubPathTag.split(':', 1)
       (org, repo, path)  = orgRepoPath.split('/', 2)
     except:
-      return ('400 Bad Reques', 'GitHub reference must be TAG:ORG/PATH/../FILE'
+      return ('400 Bad Request', 
+              'GitHub reference must be ORG/PATH/../FILE:TAG')
 
-    jobscriptGitHub = '%s:%s/%s/%s' % (tag, org, repo, path)
+    jobscriptGitHub = '%s/%s/%s:%s' % (org, repo, path, tag)
 
-    httpRequest  = urllib.request.Request(
-     'https://raw.githubusercontent.com/%s/%s/%s/%s' % (org, repo, tag, path))
+    url = ('https://raw.githubusercontent.com/%s/%s/%s/%s' 
+           % (org, repo, tag, path))
+    httpRequest  = urllib.request.Request(url)
     sslContext                = ssl.SSLContext()
-    sslContext.verify_mode    = ssl.CERT_REQUIRED
-    sslContext.check_hostname = True
+#    sslContext.verify_mode    = ssl.CERT_REQUIRED
+#    sslContext.check_hostname = True
 
     try:
       response = urllib.request.urlopen(httpRequest, context = sslContext)
-    except:
-      return ('400 Bad Request', 'Get jobscript from GitHub fails')
+    except Exception as e:
+      return ('400 Bad Request', 
+              'Get jobscript from GitHub URL %s fails: %s' % (url, str(e)))
 
     if response.status != 200:
       return ('400 Bad Request', 

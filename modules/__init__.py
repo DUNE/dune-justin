@@ -514,6 +514,8 @@ def fixPfn(pfn):
   return pfn
 
 def checkProxyStrings():
+  global jobsNoRolesProxyString, jobsProductionProxyString
+  
   try:
     with open(jobsNoRolesProxyFile, 'rb') as f:
       jobsNoRolesProxyString = f.read()

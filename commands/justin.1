@@ -109,7 +109,7 @@ excludes a workflow from the workflow allocation process.
 
 .HP
 .B "create-stage --workflow-id ID --stage-id ID 
-.B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github TAG:ORG/PATH 
+.B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
 .B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
 .B [--output-pattern PATTERN:DESTINATION]
 .B [--output-pattern-next-stage PATTERN:DATASET] [--output-rse NAME] 
@@ -132,7 +132,7 @@ is taken from justIN's Jobscripts Library using a JSID jobscript identifier,
 or a reference to a tag or revison hash in GitHub is given. 
 A JSID is in the form SCOPE:NAME or USER:NAME, where USER includes
 an '@' character. 
-A GitHub reference takes the form TAG:PATH where TAG is a git tag or
+A GitHub reference takes the form PATH:TAG where TAG is a git tag or
 SHA1 revision hash, and PATH is the path to the jobscript file in GitHub's
 URL space, of the form ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .
 In all three sccenarios, a copy of the current text of the jobscript
@@ -221,7 +221,7 @@ this stage.
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
 .B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
 .B [--refind-interval-hours HOURS] 
-.B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github TAG:ORG/PATH
+.B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
 .B [--wall-seconds N]
 .B [--rss-mb N] [--processors N] [--max-distance DIST]
 .B [--output-pattern PATTERN:DESTINATION] [--output-rse NAME] 
