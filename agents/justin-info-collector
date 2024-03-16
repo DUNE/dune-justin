@@ -83,6 +83,23 @@ def getJsonURL(url):
 
   return responseDict
 
+def executeMetaCatCommand(args):
+
+  for i in range(1, 4):
+    ret = os.system(
+     'export X509_USER_PROXY=%s ; '
+     'export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune ; '
+     'export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app ; '
+     '/usr/local/bin/metacat auth login -m x509 dunepro ; '
+     '/usr/local/bin/metacat %s' % (justin.jobsProductionProxyFile, args))
+     
+    if ret == 0:
+      break
+
+    time.sleep(1) 
+
+  return ret
+
 def updateJwks():
   logLine('Start update of JWT keys')
 
@@ -855,6 +872,69 @@ def updateStorages():
 
   justin.conn.commit()
 
+def updateLogsDatasets():
+  # Ensure that logs datasets exists for each RSE
+  # like justin-logs:logstgz-1710000000-MANCHESTER
+  logLine('---- Start updateLogsDatasets ----')
+
+  try:
+    rseRows = justin.select('SELECT rse_id,rse_name FROM storages '
+                            'WHERE NOT decommissioned AND rse_id<>%d AND '
+                            'rucio_write AND justin_write'
+                            % justin.MonteCarloRseID)
+  except:
+    logLine('Failed to get list of RSEs')
+    return
+  
+  try:
+    logLine('Try to create DID and Rule Rucio clients')
+    didClient  = rucio.client.didclient.DIDClient()
+    ruleClient = rucio.client.ruleclient.RuleClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+
+  periodStartTime = 1000000 * int(time.time() / 1000000)
+  
+  for t in range(periodStartTime, periodStartTime + 2000001, 1000000):
+    for rseRow in rseRows:
+      datasetName = 'logstgz-%d-%s' % (t, rseRow['rse_name'])
+
+      try:
+        didClient.get_did('justin-logs',datasetName)
+
+      except rucio.common.exception.DataIdentifierNotFound:
+        logLine('justin-logs:%s does not yet exist - creating' % datasetName)
+        executeMetaCatCommand('dataset create justin-logs:%s' % datasetName)
+        try:
+          didClient.add_dataset(scope = 'justin-logs', name = datasetName)
+        except Exception as e:
+          logLine('Failed creating dataset justin-logs:%s - %s'
+                  % (datasetName, str(e)))
+          continue
+
+      except:
+        logLine('Failed checking if justin-logs:%s exists' % datasetName)
+        continue
+
+      try:
+        l = list(ruleClient.list_replication_rules({'scope' : 'justin-logs',
+                                                    'name'  : datasetName   }))
+      except:
+        l = []
+
+      if len(l) == 0:
+        try:
+          ruleClient.add_replication_rule(
+                     dids = [ {'scope' : 'justin-logs',
+                               'name'  : datasetName} ], 
+                     copies = 1, 
+                     rse_expression = rseRow['rse_name'],
+                     lifetime = 4000000)
+        except Exception as e:
+          logLine('Failed creating rule for justin-logs:%s - %s'
+                  % (datasetName, str(e)))
+
 # Make sure HTCondor accounting groups are in database
 def updateGroupsHTCondor():
   logLine('---- Start updateGroupsHTCondor ----')
@@ -1052,6 +1132,7 @@ def oneCycle():
   if lastUpdateStorages + updateStoragesInterval < time.time():
     pathlib.Path('/var/run/justin/last-updates/storages').touch(exist_ok=True)
     updateStorages()
+    updateLogsDatasets()
     updateGroupsHTCondor()
     updateGroupsWLCG()
     updateScopes()

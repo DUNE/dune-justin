@@ -824,12 +824,13 @@ for (rse,scheme) in jobscriptDict['output_rses'][:3]:
   ret = executeJustinRucioUpload('--rse %s '
                                  '--protocol %s '
                                  '--scope justin-logs '
-                                 '--dataset workflow_%d '
+                                 '--dataset logstgz-%d-%s '
                                  '--timeout 1200 '
                                  '%s' 
                                  % (rse, 
                                     scheme, 
-                                    workflowID, 
+                                    1000000 * int(time.time() / 1000000),
+                                    rse,
                                     tgzName))
   if ret == 0:
     logLine('Uploaded justin-logs:%s to %s' % (tgzName, rse))

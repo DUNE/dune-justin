@@ -497,31 +497,27 @@ def makeJobscriptDict(jsonDict, jobDict):
                                         pfn))
                         
   # Create an ordered output RSE list specific to this stage
-  #
-  # When the occupancy figures are usable this needs to have 
-  #  'storages.occupancy < 1.0 AND ' added to WHERE and 
-  #  storages.occupancy added to ORDER BY
   try:
     query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
-             'FROM storages '
-             'LEFT JOIN stages_output_storages '
-             'ON (storages.rse_id=stages_output_storages.rse_id '
-             'AND stages_output_storages.workflow_id=%d '
-             'AND stages_output_storages.stage_id=%d) '
+             'FROM stages_output_storages '
+             'LEFT JOIN storages '
+             'ON stages_output_storages.rse_id=storages.rse_id '
              'LEFT JOIN sites_storages '
-             'ON (storages.rse_id=sites_storages.rse_id '
+             'ON (stages_output_storages.rse_id=sites_storages.rse_id '
              'AND sites_storages.site_id=%d) '
              'WHERE '
+             'stages_output_storages.workflow_id=%d AND '
+             'stages_output_storages.stage_id=%d AND '
              'sites_storages.distance IS NOT NULL AND '
              'storages.rucio_write AND '
              'storages.justin_write AND '
              'storages.occupancy < 1.0 AND '
              'NOT storages.decommissioned '
-             'ORDER BY (stages_output_storages.rse_id IS NULL),'
-             'distance,RAND()' 
-             % (jsonDict['workflow_id'],
-                jsonDict['stage_id'],
-                jobDict['site_id']
+             'ORDER BY stages_output_storages.preferred DESC,'
+             'distance,storages.occupancy,RAND()'
+             % (jobDict['site_id'],
+                jsonDict['workflow_id'],
+                jsonDict['stage_id']
                )
             )
 

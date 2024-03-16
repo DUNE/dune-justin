@@ -892,6 +892,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
   didClient  = rucio.client.didclient.DIDClient()
 
+  patternID = 1
   for (forNextStage, pattern, destination) in outputPatterns:
 
     if not justin.stringIsFilePattern(pattern):
@@ -933,11 +934,12 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         justin.insertUpdate('INSERT INTO stages_outputs SET '
               'workflow_id=%d,'
               'stage_id=%d,'
+              'pattern_id=%d,'
               'destination="%s",'
               'file_pattern="%s",'
               'lifetime_seconds=%d,'
               'for_next_stage=%s' % 
-              (workflowID, stageID,
+              (workflowID, stageID, patternID,
                destination,
                pattern,
                lifetimeDays * 86400,
@@ -945,26 +947,45 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
               )
              )
 
+        patternID += 1
+
     except Exception as e:
         return ('500 Internal Server Error',
                 'Error adding stage output: ' + str(e))
 
+  # Store a lowercase version of the preferred output RSEs
+  preferredRseNames = []
   if jsonDict['output_rse']:
     for rseName in jsonDict['output_rse']:
-    
       if not justin.stringIsSite(rseName):
         return ('400 Bad Request', 'Invalid RSE name')
+      else:
+        preferredRseNames.append(rseName.lower())
 
-      try:        
-        justin.insertUpdate('INSERT INTO stages_output_storages SET '
+  # Get a list of all non-decommissioned RSEs
+  try:
+    rseRows = justin.select('SELECT rse_id,rse_name FROM storages '
+                            'WHERE NOT decommissioned AND rse_id<>%d'
+                            % justin.MonteCarloRseID)
+  except Exception as e:
+    return ('500 Internal Server Error',
+            'Error getting list of RSEs: ' + str(e))
+
+  # We go through all found RSEs, adding them, marking the preferred ones
+  for rseRow in rseRows:
+    try:
+      justin.insertUpdate('INSERT INTO stages_output_storages SET '
               'workflow_id=%d,'
               'stage_id=%d,'
-              'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s")' % 
-              (workflowID, stageID, rseName))
+              'rse_id=%d,'
+              'preferred=%d' %
+              (workflowID, stageID, rseRow['rse_id'],
+               True if rseRow['rse_name'].lower() in preferredRseNames 
+               else False))
 
-      except Exception as e:
-        return ('500 Internal Server Error', 
-                'Error adding output RSE: ' + str(e))
+    except Exception as e:
+      return ('500 Internal Server Error', 
+              'Error adding output RSE: ' + str(e))
 
   if jsonDict['env']:
     for envNameValue in jsonDict['env']:    

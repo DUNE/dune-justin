@@ -668,10 +668,11 @@ def findSubmittedWorkflows():
                                stageOutput['lifetime_seconds'],
                                rseExpression) )
 
-    datasetsToCreate.add( ('justin-logs', 
-                           'workflow_%d' % workflow['workflow_id'],
-                           604800,
-                           justin.rseDisksExpression) )
+# THIS IS NOW DONE WITH PER-RSE DATASETS IN THE INFO COLLECTOR
+#    datasetsToCreate.add( ('justin-logs', 
+#                           'workflow_%d' % workflow['workflow_id'],
+#                           604800,
+#                           justin.rseDisksExpression) )
 
   if datasetsToCreate:
     try:

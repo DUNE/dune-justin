@@ -1417,7 +1417,7 @@ def showStage(environ, user, cgiValues):
   output += ('<tr><td>Output RSEs</td>'
         '<td>')
         
-  query = ("SELECT rse_name "
+  query = ("SELECT rse_name,preferred "
            "FROM stages_output_storages "
            "LEFT JOIN storages "
            "ON stages_output_storages.rse_id=storages.rse_id "
@@ -1428,14 +1428,15 @@ def showStage(environ, user, cgiValues):
   output += '<!-- %s -->\n' % str(time.time())
   justin.cur.execute(query)
   rseRows = justin.cur.fetchall()
-  
-  if (len(rseRows) == 0):
-    output += ("(any)")
-  else:
-    for rseRow in rseRows:
-      output += ("%s " % rseRow['rse_name'])
-        
-  output += ('</td></tr>')
+
+  storagesList = []  
+  for rseRow in rseRows:
+    storagesList.append("%s%s%s" % 
+                        ('<b>' if rseRow['preferred'] else '',
+                         rseRow['rse_name'],
+                         '</b>' if rseRow['preferred'] else ''))
+       
+  output += ', '.join(storagesList) + '</td></tr>'
         
   if stageRow["workflows_scope_name"]:
     output += ('<tr><td>Scope</td>'
@@ -1445,11 +1446,11 @@ def showStage(environ, user, cgiValues):
     
   # Output patterns
 
-  query = ("SELECT destination,file_pattern,"
+  query = ("SELECT pattern_id,destination,file_pattern,"
            "for_next_stage,lifetime_seconds "
            "FROM stages_outputs "
            "WHERE workflow_id=%d AND stage_id=%d "
-           "ORDER BY destination,file_pattern" %
+           "ORDER BY pattern_id" %
            (workflowID, stageID))
 
   output += '<!-- %s -->\n' % str(time.time())
@@ -1457,19 +1458,20 @@ def showStage(environ, user, cgiValues):
 
   if patternRows:
     output += ("<h2>Output patterns</h2>")
-    output += ('<table><tr><th>Destination</th><th>Pattern</th>'
+    output += ('<table><tr><th>&nbsp;</th><th>Destination</th><th>Pattern</th>'
                '<th>Lifetime</th><th>For next stage</th></tr>') 
 
     for patternRow in patternRows:
       if patternRow['destination'].startswith('https://'):
-        output += ("<tr><td>%s</td><td>%s</td>"
+        output += ("<tr><td>%d</td><td>%s</td><td>%s</td>"
                    "<td> </td><td> </td></tr>" 
-                   % (patternRow["destination"],
+                   % (patternRow["pattern_id"], patternRow["destination"],
                       html.escape(patternRow["file_pattern"], quote=True)))
       else:
-        output += ("<tr><td>Rucio %s:%s</td><td>%s</td>"
+        output += ("<tr><td>%d</td><td>Rucio %s:%s</td><td>%s</td>"
                    "<td>%d</td><td>%s</td></tr>" 
-                   % (stageRow["workflows_scope_name"],
+                   % (patternRow["pattern_id"],
+                      stageRow["workflows_scope_name"],
                       patternRow["destination"],
                       html.escape(patternRow["file_pattern"], quote=True),
                       patternRow["lifetime_seconds"],

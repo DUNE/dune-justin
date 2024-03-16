@@ -288,16 +288,21 @@ CREATE TABLE IF NOT EXISTS `stages` (
 CREATE TABLE IF NOT EXISTS `stages_outputs` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
+  `pattern_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
   `destination` varchar(512) NOT NULL,
-  `for_next_stage` tinyint(1) NOT NULL DEFAULT '0'
+  `for_next_stage` tinyint(1) NOT NULL DEFAULT '0',
+  UNIQUE KEY `workflow_stage_pattern` (`workflow_id`,`stage_id`,`pattern_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_output_storages` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `rse_id` smallint(5) unsigned NOT NULL
+  `rse_id` smallint(5) unsigned NOT NULL,
+  `preferred` tinyint(1) NOT NULL DEFAULT TRUE,
+# THIS DEFAULT SHOULD BE CHANGED TO FALSE AS SOON AS 01.01 is deployed
+  UNIQUE KEY `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_environment` (
