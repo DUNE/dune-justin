@@ -796,7 +796,9 @@ except:
 
 tgzName = jobsubJobID.replace('@','-') + '.logs.tgz'
 try:
-  ret = os.system('cd home/workspace ; tar zcf ../../%s *.log' % tgzName)
+  ret = os.system('cd home/workspace ; '
+                  'tar --transform="s,^,%s/," zcf ../../%s *.log' 
+                  % (jobsubJobID.replace('@','-'), tgzName))
 except Exception as e:
   logLine('tar zcf %s *.log fails %s' % (tgzName, str(e)))
   ret = 1

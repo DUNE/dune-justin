@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+#
+# justin-fetchlogs - get the logs.tgz for a justIN job
+#
+# Copyright 2013-24, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import shutil
+import logging
+import argparse
+import rucio.client.downloadclient
+
+# We suppress warnings from the way Rucio/urllib3 are being built at the moment
+# This should be removed if and when they are built properly
+#import urllib3
+#urllib3.disable_warnings()
+
+#
+# PROGRAM MAIN !!!
+# 
+
+parser = argparse.ArgumentParser(prog='justin-fetchlogs',
+  usage='justin-fetchlogs [--help] [--unpack] [--timout SECONDS] JOBSUBID '
+        'See the justin-fetchlogs(1) man page for detailed help '
+        'and command syntax\n')
+                                 
+parser.add_argument("jobsubid",
+                    type = str,
+                    help = "Jobsub ID")
+
+parser.add_argument("-v", 
+                    "--verbose",
+                    action = "store_true",
+                    help = "Verbose logging")
+
+parser.add_argument("--unpack",
+                    action='store_true',
+                    help = "unpack as well as download")
+
+parser.add_argument("--timeout",
+                    type = int,
+                    help = "Timeout limit in seconds")
+try:
+  args = vars(parser.parse_args())
+except:
+  sys.exit(1)
+
+try:
+  timeout = int(args['timeout'])
+except:
+  timeout = 60
+
+try:
+  if args['verbose']:
+    logging.basicConfig(level = logging.DEBUG)
+  else:
+    # Suppress everything to get rid of scary warnings from Glib etc
+    os.close(2)
+
+  client         = rucio.client.Client(timeout = timeout)
+  downloadClient = rucio.client.downloadclient.DownloadClient(client)
+
+  downloadClient.download_dids([ 
+         { 'did' : 'justin-logs:%s.logs.tgz' % args['jobsubid'].replace('@','-'),
+           'transfer_timeout' : timeout,
+           'no_subdir' : True } ])
+
+  if args['unpack']:
+    shutil.unpack_archive(args['jobsubid'].replace('@','-') + '.logs.tgz')
+    
+  sys.exit(0)
+except Exception as e:
+  print('justin-fetchlogs fails: ' + str(e))
+  if not args['verbose']:
+    print('Rerun with --verbose to get all the debugging messages!')
+  sys.exit(99)
