@@ -2,7 +2,7 @@
 This man page is distributed along with the 
 [justin command](justin_command.md) itself.
 
-    JUSTIN(2023)							  JUSTIN(2023)
+    JUSTIN(2024)							  JUSTIN(2024)
     
     NAME
            justin - justIN workflow system utility command
@@ -104,24 +104,30 @@ This man page is distributed along with the
     
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
-    	      FILENAME|--jobscript-id JSID [--wall-seconds N] [--rss-mb N]
-    	      [--processors N] [--max-distance DIST] [--output-pattern
-    	      PATTERN:DESTINATION] [--output-pattern-next-stage
-    	      PATTERN:DATASET] [--output-rse NAME] [--lifetime-days DAYS]
-    	      [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
+    	      [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance
+    	      DIST] [--output-pattern PATTERN:DESTINATION]
+    	      [--output-pattern-next-stage PATTERN:DATASET] [--output-rse
+    	      NAME] [--lifetime-days DAYS] [--env NAME=VALUE] [--classad
+    	      NAME=VALUE]
     	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
     	      workflow must have at least one stage.
     
     	      Each stage must have a jobscript shell script associated with
-    	      it, given by the --jobscript or --jobscript-id options.  Either
-    	      the full, local path to the jobscript file is given, or the
-    	      jobscript is taken from justIN's Jobscripts Library using a JSID
-    	      jobscript identifier.  The JSID is in the form SCOPE:NAME or
-    	      USER:NAME, where USER includes an '@' character. In either case,
-    	      a copy of the current text of the jobscript is cached in the
-    	      stage definition and executed on worker nodes to process the
-    	      stage's files.
+    	      it, given by the --jobscript or --jobscript-id or
+    	      --jobscript-github options.  Either the full, local path to the
+    	      jobscript file is given, or the jobscript is taken from justIN's
+    	      Jobscripts Library using a JSID jobscript identifier, or a
+    	      reference to a tag or revison hash in GitHub is given.  A JSID
+    	      is in the form SCOPE:NAME or USER:NAME, where USER includes an
+    	      '@' character.  A GitHub reference takes the form PATH:TAG where
+    	      TAG is a git tag or SHA1 revision hash, and PATH is the path to
+    	      the jobscript file in GitHub's URL space, of the form
+    	      ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .  In all three
+    	      sccenarios, a copy of the current text of the jobscript is
+    	      cached in the stage definition and executed on worker nodes to
+    	      process the stage's files.
     
     	      If the maximum wallclock time needed is not given by
     	      --wall-seconds then the default of 80000 seconds is used. The
@@ -180,11 +186,11 @@ This man page is distributed along with the
     	      exist, then the lifetime-days option is required.
     
     	      If one or more options --output-rse NAME is given, then the RSE
-    	      used for uploads of output files will be chosen from that list
-    	      of RSEs, with preference given to RSEs which are closer in
-    	      distance. If this option is not used, or none of the given RSEs
-    	      are available, then the default algorithm for choosing the
-    	      closest available RSE is used.
+    	      used for uploads of output files and log tgz files will be
+    	      chosen from that list of RSEs, with preference given to RSEs
+    	      which are closer in distance. If this option is not used, or
+    	      none of the given RSEs are available, then the default algorithm
+    	      for choosing the closest available RSE is used.
     
     	      --env NAME=VALUE can be used one or more times to set
     	      environment variables when the stage's jobscript is executed.
@@ -196,10 +202,10 @@ This man page is distributed along with the
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] --jobscript
-    	      FILENAME|--jobscript-id JSID [--wall-seconds N] [--rss-mb N]
-    	      [--processors N] [--max-distance DIST] [--output-pattern
-    	      PATTERN:DESTINATION] [--output-rse NAME] [--lifetime-days DAYS]
-    	      [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
+    	      [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance
+    	      DIST] [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
+    	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -382,4 +388,4 @@ This man page is distributed along with the
     SEE ALSO
            bash(1)
     
-    justIN Manual			    justin			  JUSTIN(2023)
+    justIN Manual			    justin			  JUSTIN(2024)

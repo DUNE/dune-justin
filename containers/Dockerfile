@@ -45,14 +45,14 @@ RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
 RUN yum install -y make which nano procps-ng python3-pip
 RUN yum install -y python3-devel gcc swig openssl-devel
 
-RUN yum install -y httpd mod_ssl 
+RUN yum install -y httpd mod_ssl certbot
 # Force prefork rather than a threaded mpm module
 RUN sed -i -e 's:^LoadModule mpm.*:#&:' -e \
  's:^#LoadModule mpm_prefork_module.*:LoadModule mpm_prefork_module modules/mod_mpm_prefork.so:' \
  /etc/httpd/conf.modules.d/00-mpm.conf 
 # The container image mod_ssl does not have a %post to generate these files:
-RUN ln -sf /etc/justin-secrets/justin.cert.pem /etc/pki/tls/certs/localhost.crt
-RUN ln -sf /etc/justin-secrets/justin.key.pem /etc/pki/tls/private/localhost.key
+RUN ln -sf /etc/grid-security/justin.cert.pem /etc/pki/tls/certs/localhost.crt
+RUN ln -sf /etc/grid-security/justin.key.pem /etc/pki/tls/private/localhost.key
 RUN yum install -y python3-mod_wsgi
 
 RUN yum install -y python3-markdown

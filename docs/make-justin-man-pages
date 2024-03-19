@@ -23,6 +23,18 @@ mandoc -T ascii ../commands/justin.1 | col -b | sed 's/.*/    &/'
 (
 
 cat <<EOF
+# justin-fetchlogs command man page
+This man page is distributed along with the 
+justin-fetchlogs command itself.
+
+EOF
+mandoc -T ascii ../commands/justin-fetchlogs.1 | col -b | sed 's/.*/    &/'
+
+) > justin-fetchlogs.man_page.md
+
+(
+
+cat <<EOF
 # justin-test-jobscript command man page
 This man page is distributed along with the 
 justin-test-jobscripts command itself.

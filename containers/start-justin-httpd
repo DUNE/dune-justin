@@ -41,8 +41,37 @@ fi
 
 if [ -f /var/run/justin/overrides/dev.conf ] ; then
   cp -f /var/run/justin/overrides/dev.conf /etc/justin.d/
+elif [ -f /var/run/justin/overrides/int.conf ] ; then
+  cp -f /var/run/justin/overrides/int.conf /etc/justin.d/
 fi
 cp -f /etc/justin-secrets/secrets.conf /etc/justin.d/
+
+pro_dev=`grep -h '^pro_dev' /etc/justin.d/*.conf|sed 's/^.*= *\([a-z]*\)/\1/'`
+if [ "$pro_dev" = "" ] ; then
+  pro_dev=pro
+fi
+
+ln -sf /etc/justin-secrets/justin-allocator-$pro_dev.dune.hep.ac.uk.cert.pem \
+       /etc/grid-security/justin-allocator.cert.pem
+ln -sf /etc/justin-secrets/justin-allocator-$pro_dev.dune.hep.ac.uk.key.pem \
+       /etc/grid-security/justin-allocator.key.pem
+
+ln -sf /etc/justin-secrets/justin-ui-$pro_dev.dune.hep.ac.uk.cert.pem \
+       /etc/grid-security/justin-ui.cert.pem
+ln -sf /etc/justin-secrets/justin-ui-$pro_dev.dune.hep.ac.uk.key.pem \
+       /etc/grid-security/justin-ui.key.pem
+
+ln -sf \
+ /etc/justin-secrets/letsencrypt-$pro_dev/live/justin-$pro_dev.dune.hep.ac.uk/fullchain.pem \
+ /etc/grid-security/justin.cert.pem
+ln -sf \
+ /etc/justin-secrets/letsencrypt-$pro_dev/live/justin-$pro_dev.dune.hep.ac.uk/privkey.pem \
+ /etc/grid-security/justin.key.pem
+
+echo "#!/bin/sh" > /etc/cron.daily/run-certbot
+echo "certbot --config-dir /etc/justin-secrets/letsencrypt-$pro_dev renew >/var/log/run-certbot.log 2>&1" \
+ >> /etc/cron.daily/run-certbot
+chmod +x /etc/cron.daily/run-certbot
 
 if [ -x /var/run/justin/overrides/justin-wsgi-dashboard ] ; then
   cp -f /var/run/justin/overrides/justin-wsgi-dashboard /var/www/wsgi/

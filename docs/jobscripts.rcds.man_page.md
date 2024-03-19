@@ -2,7 +2,7 @@
 This man page is distributed along with the 
 justin-cvmfs-upload command itself.
 
-    JUSTIN(2023)							  JUSTIN(2023)
+    JUSTIN(2024)							  JUSTIN(2024)
     
     NAME
            justin-cvmfs-upload - upload files to cvmfs via RCDS for justIN
@@ -11,7 +11,7 @@ justin-cvmfs-upload command itself.
            justin-cvmfs-upload [--help] [--verbose] TAR_FILE
     
     DESCRIPTION
-           justin-cvmfs-upload is a command-line utility for upload one or more
+           justin-cvmfs-upload is a command-line utility for uploading one or more
            files contained in a tar archive file to cvmfs using the Fermilab Rapid
            Code Distribution Service (RCDS). The full cvmfs path is then output by
            the command.
@@ -54,4 +54,4 @@ justin-cvmfs-upload command itself.
     SEE ALSO
            justin(1)
     
-    justIN Manual		      justin-cvmfs-upload		  JUSTIN(2023)
+    justIN Manual		      justin-cvmfs-upload		  JUSTIN(2024)

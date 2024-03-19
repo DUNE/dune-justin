@@ -2,14 +2,14 @@
 This man page is distributed along with the 
 justin-test-jobscripts command itself.
 
-    JUSTIN(2023)							  JUSTIN(2023)
+    JUSTIN(2024)							  JUSTIN(2024)
     
     NAME
            justin-test-jobscript - interactive testing of justIN jobscripts
     
     SYNOPSIS
-           justin-test-jobscript [--help] --jobscript FILENAME --mql MQL [--env
-           NAME=VALUE]
+           justin-test-jobscript [--help] --jobscript FILENAME --mql
+           MQL|--monte-carlo COUNT [--env NAME=VALUE]
     
     DESCRIPTION
            justin-test-jobscript is a command-line utility to test jobscripts
@@ -42,7 +42,13 @@ justin-test-jobscripts command itself.
     	      MetaCat MQL expression use to find input files.
     	      justin-test-jobscript uses the justin show-replicas command to
     	      find the replicas using MetaCat and Rucio queries by the justIN
-    	      service.
+    	      service.	This option is required if --monte-carlo is not given.
+    
+    
+           --monte-carlo COUNT
+    	      This causes a Monte Carlo counter file to be given to the
+    	      jobscript instead of an input file found from MetaCat.  This
+    	      option is required if --mql is not given.
     
     
            --env NAME=VALUE
@@ -73,4 +79,4 @@ justin-test-jobscripts command itself.
     SEE ALSO
            justin(1)
     
-    justIN Manual		     justin-test-jobscript		  JUSTIN(2023)
+    justIN Manual		     justin-test-jobscript		  JUSTIN(2024)
