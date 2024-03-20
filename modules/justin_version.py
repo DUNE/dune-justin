@@ -1,2 +1,2 @@
 # This file must by valid Python AND valid Bash!
-justinVersion='00.14.02'
+justinVersion='01.00.00'
