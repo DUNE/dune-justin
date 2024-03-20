@@ -1424,6 +1424,8 @@ def application(environ, startResponse):
   justin.conn.rollback()
   justin.conn.autocommit(False)
 
+  checkProxyStrings()
+
   if environ['REQUEST_URI'] == '/api/info/scopes.csv':
     return scopesInfo(startResponse)
 
