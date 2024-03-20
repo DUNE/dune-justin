@@ -61,23 +61,12 @@ source ${add_config_line_source}
 
 #----------MAIN SCRIPT----------#
 
-export HAS_INNER_APPTAINER=False
-if [ -x /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer ]
-then
-  /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer \
-    shell --shell /usr/bin/true \
-  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:osg3.6  
-  if [ $? = 0 ] ; then
-    export HAS_INNER_APPTAINER=True
-  fi
-fi
-
 ( echo '==== justin-get-classads glidein_config ===='
   cat "${glidein_config}" 
   echo '==== justin-get-classads printenv ===='
   printenv ) > justin-get-classads-posted.txt
 
-for prodev in pro dev
+for prodev in pro dev int
 do
   http_code=`curl --silent --insecure \
     --data-binary @justin-get-classads-posted.txt \

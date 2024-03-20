@@ -62,14 +62,14 @@ ln -sf /etc/justin-secrets/justin-ui-$pro_dev.dune.hep.ac.uk.key.pem \
        /etc/grid-security/justin-ui.key.pem
 
 ln -sf \
- /etc/justin-secrets/letsencrypt-$pro_dev/live/justin-$pro_dev.dune.hep.ac.uk/fullchain.pem \
+ /etc/justin-letsencrypt/live/justin-$pro_dev.dune.hep.ac.uk/fullchain.pem \
  /etc/grid-security/justin.cert.pem
 ln -sf \
- /etc/justin-secrets/letsencrypt-$pro_dev/live/justin-$pro_dev.dune.hep.ac.uk/privkey.pem \
+ /etc/justin-letsencrypt/live/justin-$pro_dev.dune.hep.ac.uk/privkey.pem \
  /etc/grid-security/justin.key.pem
 
 echo "#!/bin/sh" > /etc/cron.daily/run-certbot
-echo "certbot --config-dir /etc/justin-secrets/letsencrypt-$pro_dev renew >/var/log/run-certbot.log 2>&1" \
+echo "certbot --config-dir /etc/justin-letsencrypt renew >/var/log/run-certbot.log 2>&1" \
  >> /etc/cron.daily/run-certbot
 chmod +x /etc/cron.daily/run-certbot
 

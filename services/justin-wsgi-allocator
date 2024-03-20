@@ -170,14 +170,6 @@ def getClassadsCall(startResponse, environ):
     raise RuntimeError('Quotes in siteName')
 
   try:
-    # This is only used to create a ClassAd, not in the caching
-    i = inputString.rindex('HAS_INNER_APPTAINER=')
-    hasInnerApptainer = bool(inputString[i+20:].split('\n')[0])
-  except Exception as e:
-    return httpError(startResponse, 
-               '400 Bad Request', 'Failed to get hasInnerApptainer: ' + str(e))
-
-  try:
     row = justin.select('SELECT rank_text,'
                         'TIMESTAMPDIFF(SECOND, cache_time, NOW()) AS seconds,'
                         'sites.site_id FROM sites '
@@ -210,7 +202,7 @@ def getClassadsCall(startResponse, environ):
   else:
     justinRank = 'My.JUSTIN_PRO_Rank'
 
-   # Return ClassAds to be published by the pilot/glidein
+  # Return ClassAds to be published by the pilot/glidein
   # Non-justIN jobs get rank 0 or 101
   # If a justIN job has a stage not listed in the rankText dictionary
   # then it gets rank Undefined which equals 0
@@ -222,14 +214,12 @@ def getClassadsCall(startResponse, environ):
              "isUndefined(My.GLIDEIN_PS_JUSTIN_%s_Stage_Ranks_Raw)"
              "?My.JUSTIN_%s_Stage_Ranks_Raw"
              ":My.GLIDEIN_PS_JUSTIN_%s_Stage_Ranks_Raw\n"
-           "JUSTIN_%s_Has_Inner_Apptainer %s\n"
            "JUSTIN_%s_Rank isUndefined(Target.JUSTIN_%s_Stage)"
              "?%d:My.JUSTIN_%s_Stage_Ranks[Target.JUSTIN_%s_Stage]\n"
            "Rank %s\n"
               % (proDevUpper, int(time.time()),
                  proDevUpper, rankText,
                  proDevUpper, proDevUpper, proDevUpper, proDevUpper,
-                 proDevUpper, hasInnerApptainer,
                  proDevUpper, proDevUpper, 
                    101 if (random.random() < justin.nonJustinFraction) else 0,
                    proDevUpper, proDevUpper,

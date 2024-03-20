@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS `stages_output_storages` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `rse_id` smallint(5) unsigned NOT NULL,
-  `preferred` tinyint(1) NOT NULL DEFAULT TRUE,
+  `preferred` tinyint(1) NOT NULL DEFAULT FALSE,
 # THIS DEFAULT SHOULD BE CHANGED TO FALSE AS SOON AS 01.01 is deployed
   UNIQUE KEY `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

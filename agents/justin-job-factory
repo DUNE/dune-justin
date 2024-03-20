@@ -133,18 +133,10 @@ def submitJobs(numberToSubmit,
   finally:
     wrapperFile.close()
 
-# ONLY RELY ON Desired_Entries 
-#  if needsInnerApptainer:
-#    innerApptainerTest = ('(isUndefined(target.JUSTIN_%s_Has_Inner_Apptainer) == TRUE || target.JUSTIN_%s_Has_Inner_Apptainer == TRUE) && '
-#                          % (justin.proDev.upper(), justin.proDev.upper()))
-#  else:
-#    innerApptainerTest = ''
-
   if not justin.htcondorSchedds:
     logLine('schedds missing from [htcondor] section of config')
     return
     
-#  'justin-prod-sched01.dune.hep.ac.uk'
   scheddHostname = random.choice(justin.htcondorSchedds)
   submitFile = ''
   
