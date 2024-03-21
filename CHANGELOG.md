@@ -9,6 +9,13 @@
 - entry_has_gpus and always_has_gpus added to entries table in DB
 - Add archived workflow pages
 - Allow jobscripts to come from GitHub repos (DUNE/dist-comp#152)
+- Automatic logs.tgz files created in 4m second per-RSE datasets which keep
+  logs on the original RSE. Also justin-fetchlogs command added.
+  (Both in DUNE/dist-comp#137)
+- Letsencrypt/certbot renewals done within justin-httpd container
+  Files kept in /etc/justin-letsencrypt/ mounted from the host.
+- Support for integration instance added
+- MetaCat server URLs can now be set in the configuration
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24

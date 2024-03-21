@@ -1,7 +1,7 @@
 CREATE DATABASE IF NOT EXISTS `justindb`;
 USE `justindb`;
 
-CREATE USER IF NOT EXISTS 'dunejustin'@'%' IDENTIFIED BY RANDOM PASSWORD;
+CREATE USER IF NOT EXISTS 'dunejustin'@'%' IDENTIFIED BY PASSWORD 'badbadbadbadbadbadbadbadbadbadbadbadbadba';
 GRANT ALL ON justindb.* TO 'dunejustin'@'%';
 
 CREATE TABLE IF NOT EXISTS `stages_jobscripts` (

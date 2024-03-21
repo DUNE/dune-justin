@@ -2122,17 +2122,9 @@ def showFile(environ, user, cgiValues):
              '&workflow_id=%d">List file events</a> &nbsp; &nbsp; '
              % (urllib.parse.quote_plus(fileDID), workflowID))
 
-  # THIS IS A BIT OF HACK WHILE HAVE OLD DATASETS AROUND
-  if workflowID > 400 and ':' in fileDID:
-    output += ('<a href="'
-     'https://metacat.fnal.gov:9443/dune_meta_prod/app/gui/show_file?did=%s">'
-     'Find in MetaCat</a>' % urllib.parse.quote_plus(fileDID))
-
-  elif ':' in fileDID:
-    # This test skips monte-carlo-NNNNNN counter DIDs
-    output += ('<a href="'
-     'https://metacat.fnal.gov:9443/dune_meta_demo/app/gui/show_file?did=%s">'
-     'Find in Demo MetaCat</a>' % urllib.parse.quote_plus(fileDID))
+  if ':' in fileDID:
+    output += ('<a href="%s/gui/show_file?did=%s">Find in MetaCat</a>' % 
+       (justin.metacatServerInputsURL, urllib.parse.quote_plus(fileDID))
 
   output += '</td></tr>'
 

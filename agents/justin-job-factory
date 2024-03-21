@@ -113,10 +113,13 @@ def submitJobs(numberToSubmit,
 
   justinJobSecret = secrets.token_urlsafe(64)
 
-  for (p, s) in (('###justin_job_secret###',  justinJobSecret),
-                 ('###justin_prodev###',      justin.proDev),
-                 ('###justin_workflow_id###', str(workflowID)),
-                 ('###justin_stage_id###',    str(stageID))
+  for (p, s) in (
+   ('###justin_job_secret###',                 justinJobSecret),
+   ('###justin_prodev###',                     justin.proDev),
+   ('###justin_workflow_id###',                str(workflowID)),
+   ('###justin_stage_id###',                   str(stageID)),
+   ('###justin_metacat_auth_server_url###',    justin.metacatAuthServerURL),
+   ('###justin_metacat_server_outputs_url###', justin.metacatServerOutputsURL),
                 ):
     wrapperText = wrapperText.replace(p,s)
 

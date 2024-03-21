@@ -132,8 +132,8 @@ def executeMetaCatCommand(args):
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
      'setup python v3_9_13 ; setup metacat ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
-     'export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune ; '
-     'export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app ; '
+     'export METACAT_AUTH_SERVER_URL=###metacat_auth_server_url### ; '
+     'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
      'metacat auth login -m x509 dunepro ; '
      'metacat %s 2>&1' % args)
      

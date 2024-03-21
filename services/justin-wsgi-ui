@@ -235,9 +235,8 @@ def queryMetaCat(mql):
 
   try:
     response = urllib.request.urlopen(
-              "https://metacat.fnal.gov:9443/dune_meta_prod/app/data/query?"
-              "with_meta=no&with_provenance=no",
-              data = mql.encode() )
+                  "%s/data/query?with_meta=no&with_provenance=no" 
+                  % justin.metacatServerInputsURL, data = mql.encode() )
 
     if response.status != 200:
       print("Reading files list from MetaCat for %s fails with HTTP code %d"

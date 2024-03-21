@@ -65,6 +65,10 @@ agentUsername       = None
 proDev              = None
 htcondorSchedds     = None
 
+metacatAuthServerURL    = None
+metacatServerInputsURL  = None
+metacatServerOutputsURL = None
+
 ## Global database connection
 conn = None
 cur  = None
@@ -255,6 +259,21 @@ def readConf():
   except:
     htcondorSchedds = [ 'justin-prod-sched01.dune.hep.ac.uk',
                         'justin-prod-sched02.dune.hep.ac.uk' ]
+
+  try:
+    metacatAuthServerURL = parser.get('metacat','auth_server_url').strip()
+  except:
+    metacatAuthServerURL = 'https://metacat.fnal.gov:8143/auth/dune'
+
+  try:
+    metacatServerInputsURL =parser.get('metacat','server_inputs_url').strip()
+  except:
+    metacatServerInputsURL ='https://metacat.fnal.gov:9443/dune_meta_prod/app'
+
+  try:
+    metacatServerOutputsURL =parser.get('metacat','server_outputs_url').strip()
+  except:
+    metacatServerOutputsURL ='https://metacat.fnal.gov:9443/dune_meta_prod/app'
 
 # Try to find the text of a jobscript from the Jobscripts Library 
 # given a JSID
