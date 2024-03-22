@@ -2124,7 +2124,7 @@ def showFile(environ, user, cgiValues):
 
   if ':' in fileDID:
     output += ('<a href="%s/gui/show_file?did=%s">Find in MetaCat</a>' % 
-       (justin.metacatServerInputsURL, urllib.parse.quote_plus(fileDID))
+       (justin.metacatServerInputsURL, urllib.parse.quote_plus(fileDID)))
 
   output += '</td></tr>'
 

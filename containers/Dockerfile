@@ -109,9 +109,8 @@ COPY modules/justin_version.py /usr/lib/python3.9/site-packages/justin/
 COPY modules/events_list.py    /usr/lib/python3.9/site-packages/justin/
 
 RUN mkdir -p /var/www/wsgi/ /var/www/html/docs/
-RUN mkdir -p /var/run/justin/last-updates/ /etc/justin.d/
+RUN mkdir -p /var/run/justin/last-updates/ 
 
-COPY containers/users.conf              /etc/justin.d/ 
 COPY services/justin-wsgi-import-script /var/www/wsgi/
 COPY services/justin-wsgi-ui            /var/www/wsgi/
 COPY services/justin-wsgi-allocator     /var/www/wsgi/

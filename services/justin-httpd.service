@@ -13,6 +13,7 @@ ExecStartPre=-/usr/bin/docker stop %N
 ExecStartPre=-/usr/bin/docker rm %N
 ExecStart=/usr/bin/docker run --rm --name %N --privileged \
   --env=CONTAINER_NAME=%N \
+  --volume /etc/justin.d:/etc/justin.d \
   --volume /etc/justin-secrets:/etc/justin-secrets \
   --volume /etc/justin-letsencrypt:/etc/justin-letsencrypt \
   --volume /var/log/httpd:/var/log/httpd \
