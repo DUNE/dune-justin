@@ -39,6 +39,8 @@ import pygal
 # needs python36-markdown RPM
 import markdown
 
+import metacat.webapi
+
 import justin
 
 timeNow = None 
@@ -2127,8 +2129,24 @@ def showFile(environ, user, cgiValues):
        (justin.metacatServerInputsURL, urllib.parse.quote_plus(fileDID)))
 
   output += '</td></tr>'
-
   output += "</table>"  
+
+  try:
+    (scope, name) = fileDID.split(':',1)
+
+    metacatClient = \
+          metacat.webapi.MetaCatClient(justin.metacatServerOutputsURL)
+
+    j = metacatClient.get_file(namespace = scope, name = name,
+                               with_metadata = True, with_provenance = True, 
+                               with_datasets = True)
+
+    output += ('<h2>MetaCat file info</h2>\n<pre>\n' + 
+               pprint.pformat(j) + '</pre>\n')
+  except Exception as e:
+#    output += '<!-- ' + str(e) + ' -->'
+    pass
+
   output += footer()
   return output
 

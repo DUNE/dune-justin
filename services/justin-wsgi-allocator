@@ -744,6 +744,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     justin.insertUpdate('UPDATE entries SET last_get_jobscript_time=NOW()%s '
                         'WHERE entry_id=%d' 
                         % (entryApptainerSQL, jobDict['entry_id']))
+    justin.conn.commit()
   except:
     updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
                            jobState    = 'aborted')
