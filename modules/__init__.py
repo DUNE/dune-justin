@@ -182,7 +182,8 @@ def readConf():
   try:
     mysqlHostname = parser.get('database','hostname').strip()
   except:
-    mysqlHostname = 'justin-db-pro.dune.hep.ac.uk'
+    # In case of misconfiguration, the default is dev
+    mysqlHostname = 'justin-db-dev.dune.hep.ac.uk'
 
   try:
     mysqlPassword = parser.get('database','password').strip()
@@ -241,7 +242,8 @@ def readConf():
   try:
     proDev = parser.get('agents','pro_dev').strip()
   except:
-    proDev = 'pro'
+    # In case of misconfiguration, the default is dev
+    proDev = 'dev'
 
   try:
     nonJustinFraction = float(
