@@ -119,8 +119,9 @@ def submitJobs(numberToSubmit,
    ('###justin_workflow_id###',                str(workflowID)),
    ('###justin_stage_id###',                   str(stageID)),
    ('###justin_metacat_auth_server_url###',    justin.metacatAuthServerURL),
-   ('###justin_metacat_server_outputs_url###', justin.metacatServerOutputsURL),
+   ('###justin_metacat_server_outputs_url###', justin.metacatServerOutputsURL)
                 ):
+    logLine('Replace %s with %s' % (p, str(s)))
     wrapperText = wrapperText.replace(p,s)
 
   try:    

@@ -154,7 +154,8 @@ def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
-         nonJustinFraction, htcondorSchedds
+         nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
+         metacatServerInputsURL, metacatServerOutputsURL
 
   parser = configparser.RawConfigParser()
 

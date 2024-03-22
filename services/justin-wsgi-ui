@@ -582,6 +582,12 @@ def createWorkflow(jsonDict, user, simple = False):
     return ('500 Internal Server Error', 
             'Error creating workflow: ' + str(e))
 
+  if (justin.proDev != 'pro' and workflowID >= 1000) or \
+     (justin.proDev != 'int' and workflowID >= 600):
+    return ('500 Internal Server Error', 
+            'The %s database needs resetting - too many workflows created' 
+            % justin.proDev)
+
   return ('200 OK', workflowID)
 
 def createWorkflowCmd(startResponse, jsonDict, user):
