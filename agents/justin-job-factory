@@ -392,6 +392,7 @@ def workflowJobs():
    "AND NOT storages.decommissioned "
    "AND sites.site_id IS NOT NULL "
    "AND sites.enabled "
+   "AND NOT entries.entry_has_gpus "
    "%s "
    "ORDER BY sites_storages.distance,files.file_id "
          % (stageRow['max_distance'],

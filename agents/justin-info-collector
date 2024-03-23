@@ -153,8 +153,6 @@ def cleanupNodeXML(node):
 def processOneFileXML(sitesDict, fileName):
 
   try:
-# NASTY HACKY FIX FOR BAD XML FROM OSG!!!
-#    xmlStr = open(fileName).read().replace('comment"','comment="')
     xmlStr = open(fileName).read()
     xmlDocument = xml.dom.minidom.parseString(xmlStr)
   except Exception as e:
@@ -248,35 +246,25 @@ def processOneFileXML(sitesDict, fileName):
 
       # If we found the necessary GLIDEIN values, then carry on
       if (siteName and jobsubSiteName and processors and rssBytes and
-          wallSeconds and ('DUNE' in voList)):
+          wallSeconds and (('DUNE' in voList) or ('DUNEGPU' in voList)):
 
         if siteName not in sitesDict:
-          logLine("Create maxima for %s:%s to %d bytes, %d processors" %
-                  (siteName, entryName, rssBytes, processors))
+          logLine("Add %s" % siteName)
 
           sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
                                   'wlcg_site_name'        : wlcgSiteName,
-                                  'largest_rss_bytes'     : rssBytes,
-                                  'largest_processors'    : processors,
-                                  'smallest_wall_seconds' : wallSeconds,
                                   'entries'               : []
                                 }
 
-        sitesDict[siteName]['entries'].append({ 'entry_name'  : entryName,
-                                                'gatekeeper'  : gatekeeper,
-                                                'max_rss_bytes'   : rssBytes,
-                                                'max_wall_seconds': wallSeconds,
-                                                'max_processors'  : processors
-                                              })
-
-        if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
-          logLine("Update maxima for %s:%s to %d bytes, %d processors from %s"
-                  % (siteName, entryName, rssBytes, processors, fileName))
-          sitesDict[siteName]['largest_rss_bytes']    = rssBytes
-          sitesDict[siteName]['largest_processors']   = processors
-          
-        if wallSeconds < sitesDict[siteName]['smallest_wall_seconds']:
-          sitesDict[siteName]['smallest_wall_seconds'] = wallSeconds
+        logLine('Add %s:%s' % (siteName, entryName))
+        sitesDict[siteName]['entries'].append(
+               { 'entry_name'      : entryName,
+                 'gatekeeper'      : gatekeeper,
+                 'max_rss_bytes'   : rssBytes,
+                 'max_wall_seconds': wallSeconds,
+                 'max_processors'  : processors,
+                 'entry_has_gpus'  : True if 'DUNEGPU' in voList else False
+               })
 
 def processOneFileYAML(sitesDict, fileName):
 
@@ -322,10 +310,6 @@ def processOneFileYAML(sitesDict, fileName):
           except:
             voList = []
           
-        if 'DUNE' not in voList:
-          logLine('%s does not support DUNE - ignoring' % entryName)
-          continue
-
         # GLIDEIN_Site = justIN jobsubSiteName
         try:
           jobsubSiteName = yamlDict[osgSiteName][osgGatekeeper]\
@@ -401,36 +385,27 @@ def processOneFileYAML(sitesDict, fileName):
           except:
             wallSeconds = 86400
 
+        if ('DUNE' not in voList) and ('DUNEGPU' not in voList):
+          logLine('%s does not support DUNE - ignoring' % entryName)
+          continue
+
         # Add to sitesDict if not already there
         if siteName not in sitesDict:
-          logLine("Create maxima for %s:%s to %d bytes, %d processors" %
-                  (siteName, entryName, rssBytes, processors))
+          logLine("Add %s" % siteName)
 
           sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
                                   'wlcg_site_name'        : wlcgSiteName,
-                                  'largest_rss_bytes'     : rssBytes,
-                                  'largest_processors'    : processors,
-                                  'smallest_wall_seconds' : wallSeconds,
                                   'entries'               : []
                                 }
 
-        sitesDict[siteName]['entries'].append({ 'entry_name'  : entryName,
-                                                'gatekeeper'  : osgGatekeeper,
-                                                'max_rss_bytes'   : rssBytes,
-                                                'max_wall_seconds': wallSeconds,
-                                                'max_processors'  : processors
-                                              })
-
-        # Add as maximas for rss_bytes and processors
-        if rssBytes > sitesDict[siteName]['largest_rss_bytes']:
-          logLine("Update maxima for %s:%s to %d bytes, %d processors from %s"
-                  % (siteName, entryName, rssBytes, processors, fileName))
-          sitesDict[siteName]['largest_rss_bytes']    = rssBytes
-          sitesDict[siteName]['largest_processors']   = processors
-          
-        # Add as miniumum wall seconds
-        if wallSeconds < sitesDict[siteName]['smallest_wall_seconds']:
-          sitesDict[siteName]['smallest_wall_seconds'] = wallSeconds
+        sitesDict[siteName]['entries'].append(
+              { 'entry_name'      : entryName,
+                'gatekeeper'      : osgGatekeeper,
+                'max_rss_bytes'   : rssBytes,
+                'max_wall_seconds': wallSeconds,
+                'max_processors'  : processors,
+                'entry_has_gpus'  : True if 'DUNEGPU' in voList else False                
+              })
 
 def buildSites(sitesDict):
 
@@ -477,9 +452,6 @@ def updateSites():
       justinSiteRow['entry_id']
 
   for siteName in sitesDict:
-    maxProcessors  = sitesDict[siteName]['largest_processors']
-    maxRssBytes    = sitesDict[siteName]['largest_rss_bytes']
-    maxWallSeconds = int(sitesDict[siteName]['smallest_wall_seconds'] * 0.95)
 
     if siteName == 'CERN':
       country = 'CERN'
@@ -497,18 +469,12 @@ def updateSites():
                'site_name="%s",'
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
-               'max_processors=%d,'
-               'max_rss_bytes=%d,'
-               'max_wall_seconds=%d,'
                'country="%s",'
                'region="%s",'
                'last_osg_seen_time=NOW() '
                % (siteName, 
                   sitesDict[siteName]['jobsub_site_name'], 
                   sitesDict[siteName]['wlcg_site_name'],
-                  maxProcessors,
-                  maxRssBytes,
-                  maxWallSeconds,
                   country,
                   region)
               )
@@ -525,18 +491,12 @@ def updateSites():
       query = ('UPDATE sites SET '
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
-               'max_processors=%d,'
-               'max_rss_bytes=%d,'
-               'max_wall_seconds=%d,'
                'country="%s",'
                'region="%s",'
                'last_osg_seen_time=NOW() '
                'WHERE site_name="%s"'
                % (sitesDict[siteName]['jobsub_site_name'],
                   sitesDict[siteName]['wlcg_site_name'],
-                  maxProcessors,
-                  maxRssBytes,
-                  maxWallSeconds,
                   country,
                   region,
                   siteName
@@ -557,13 +517,15 @@ def updateSites():
                    'max_processors=%d,'
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
+                   'entry_has_gpus=%d,'
                    'last_osg_seen_time=NOW() '
                    % (entryDict['entry_name'], 
                       entryDict['gatekeeper'],
                       justinSiteIDs[siteName],
-                      maxProcessors,
-                      maxRssBytes,
-                      maxWallSeconds)
+                      entryDict['max_processors'],
+                      entryDict['max_rss_bytes'],
+                      entryDict['max_wall_seconds'],
+                      entryDict['entry_has_gpus'])
                   )
           try:
             newID = justin.insertUpdate(query)
@@ -581,13 +543,15 @@ def updateSites():
                    'max_processors=%d,'
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
+                   'entry_has_gpus=%d,'
                    'last_osg_seen_time=NOW() '
                    'WHERE entry_name="%s"'
                    % (entryDict['gatekeeper'],
                       justinSiteIDs[siteName],
-                      maxProcessors,
-                      maxRssBytes,
-                      maxWallSeconds,
+                      entryDict['max_processors'],
+                      entryDict['max_rss_bytes'],
+                      entryDict['max_wall_seconds'],
+                      entryDict['entry_has_gpus'],
                       entryDict['entry_name']
                      )
                   )
@@ -598,12 +562,9 @@ def updateSites():
                   % (entryDict['entry_name'], str(e)))
             continue
 
-       logLine('Entry: %s, %d processors, %d bytes, %s seconds' %
-            (entryDict['entry_name'], maxProcessors, maxRssBytes, 
-             maxWallSeconds))
+       logLine('Entry: %s' % entryDict['entry_name'])
 
-    logLine('Site: %s, %d processors, %d bytes, %s seconds' %
-            (siteName, maxProcessors, maxRssBytes, maxWallSeconds))
+    logLine('Site: %s' % siteName)
 
   justin.conn.commit()
 

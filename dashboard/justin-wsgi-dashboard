@@ -2664,8 +2664,7 @@ def listSites(environ, user, cgiValues):
   
   query = ("SELECT DATE(last_osg_seen_time) AS osg_date,"
            "last_get_jobscript_time,"
-           "site_name,sites.enabled,sites.max_rss_bytes,"
-           "sites.max_processors,sites.max_wall_seconds,"
+           "site_name,sites.enabled,"
            "wlcg_site_name,always_inner_apptainer "
            "FROM sites "
            "WHERE sites.site_id > 0 ORDER BY site_name")
@@ -2679,8 +2678,6 @@ def listSites(environ, user, cgiValues):
         '<th>Enabled?</th>'
         '<th>Last job</th>'
         '<th>Seen in OSG</th>'
-        '<th>RSS (MB) / Processors</th>'
-        '<th>Max Wall Seconds</th>'
         '<th>Always has<br>inner<br>apptainer</th>'
         '<th colspan=3>&nbsp;</th>'
         '</tr>')
@@ -2696,8 +2693,6 @@ def listSites(environ, user, cgiValues):
           '<td style="font-weight: %s">%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
-          '<td style="text-align: right">%d / %d = %d</td>'
-          '<td style="text-align: right">%d (%d hours)</td>'
           '<td>%s</td>'
           '<td><a '
           'href="https://dune-cric.cern.ch/core/experimentsite/detail/%s/">'
@@ -2714,12 +2709,6 @@ def listSites(environ, user, cgiValues):
              'TRUE' if siteRow['enabled'] else 'False',
              lastGetStageStr,
              siteRow['osg_date'],
-             int(siteRow['max_rss_bytes'] / 1048576),
-              siteRow['max_processors'],
-              int((siteRow['max_rss_bytes'] 
-                    / siteRow['max_processors']) / 1048576),
-             siteRow['max_wall_seconds'], 
-                int(siteRow['max_wall_seconds'] / 3600),
              ('' if (siteRow['always_inner_apptainer'] == 1) 
                  else bool(siteRow['always_inner_apptainer'])),
              siteRow['site_name'],
@@ -2928,7 +2917,7 @@ def showSite(environ, user, cgiValues):
 
   query = ('SELECT entry_name,gatekeeper,max_processors,max_rss_bytes,'
            'max_wall_seconds,always_inner_apptainer,'
-           'DATE(last_osg_seen_time) AS osg_date '
+           'DATE(last_osg_seen_time) AS osg_date,entry_has_gpus '
            'FROM entries '
            'WHERE entries.site_id=%d '
            'ORDER BY entry_name' % siteRow['site_id'])
@@ -2943,6 +2932,7 @@ def showSite(environ, user, cgiValues):
         '<th>RSS (MB) / processors</th>'
         '<th>Wall seconds limit</th>'
         '<th>Always has inner apptainer</th>'
+        '<th>GPUs</th>'
         '<th>Seen in OSG config</th>'
         '</tr>')
   
@@ -2952,6 +2942,7 @@ def showSite(environ, user, cgiValues):
           '<td>%s</td>'
           '<td>%d / %d = %d</td>'
           '<td>%d (%d hours)</td>'
+          '<td>%s</td>'
           '<td>%s</td>'
           '<td>%s</td>'
           '</tr>\n'
@@ -2965,6 +2956,7 @@ def showSite(environ, user, cgiValues):
                int(entryRow["max_wall_seconds"] / 3600),
              ('' if (entryRow['always_inner_apptainer'] == 1) 
                  else bool(entryRow['always_inner_apptainer'])),
+             str(entryRow['entry_has_gpus']),
              entryRow['osg_date']
             )
          )    
