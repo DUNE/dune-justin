@@ -15,6 +15,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [justin command](justin_command.md)
     - [man page](justin_command.man_page.md)
     - [Standalone setup](justin_command.standalone.md)
+    - [justin-fetchlogs man page](justin-fetchlogs.man_page.md)
 - [Monte Carlo workflows](monte_carlo.md)
 - [Jobscripts](jobscripts.md)
     - [Interactive testing](jobscripts.interactive_tests.md)
@@ -32,6 +33,8 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 
 ## Reference 
 
+- [Current change log](CHANGELOG.md)
+- [Integration instance](integration_instance.md)
 - [Event types](event_types.md)
 - [Wrapper jobs](wrapper_jobs.md)
 - [Files](files.md)
