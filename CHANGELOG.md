@@ -16,6 +16,7 @@
   Files kept in /etc/justin-letsencrypt/ mounted from the host.
 - Support for integration instance added
 - MetaCat server URLs can now be set in the configuration
+- MetaCat file info shown directly on justIN dashboard file pages
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24
