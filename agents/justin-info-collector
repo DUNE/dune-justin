@@ -245,8 +245,8 @@ def processOneFileXML(sitesDict, fileName):
                 voList = xmlAttr.getAttribute('value').split(',')
 
       # If we found the necessary GLIDEIN values, then carry on
-      if (siteName and jobsubSiteName and processors and rssBytes and
-          wallSeconds and (('DUNE' in voList) or ('DUNEGPU' in voList)):
+      if (siteName and jobsubSiteName and processors and rssBytes and 
+          wallSeconds and (('DUNE' in voList) or ('DUNEGPU' in voList))):
 
         if siteName not in sitesDict:
           logLine("Add %s" % siteName)

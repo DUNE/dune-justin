@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   `processed_site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `creator_justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `allocations` tinyint(1) unsigned NOT NULL DEFAULT 0,
+  `max_allocations` tinyint(1) unsigned NOT NULL DEFAULT 6,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`,`file_did`),
   INDEX `justin_job_id` (`justin_job_id`,`workflow_id`,`stage_id`),

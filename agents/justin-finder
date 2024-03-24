@@ -830,7 +830,7 @@ def resetFilesForJob(justinJobID,
     # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
     #  CHECKS FOR FILE IN THE outputting STATE)
     try:
-      query = ('SELECT file_id,allocations,file_did,state '
+      query = ('SELECT file_id,allocations,max_allocations,file_did,state '
                'FROM files '
                'WHERE (state="allocated" OR state="outputting") '
                'AND justin_job_id=%d '
@@ -846,8 +846,8 @@ def resetFilesForJob(justinJobID,
     
     for fileRow in fileRows: 
     
-      if fileRow['allocations'] >= justin.maxAllocations:
-        # Reached max allocations allowed per file
+      if fileRow['allocations'] >= fileRow['max_allocations']:
+        # Reached max allocations allowed for this file
         # Mark file as failed in case it is the file causing the problem
         # (eg pathological file causes memory to balloon leading to the site
         # killing the job, and to us the job just appears stalled.)

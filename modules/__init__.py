@@ -137,8 +137,6 @@ rseCountriesRegions = {
 awtWorkflowID = 1
 awtFileID     = 1
 
-maxAllocations = 6
-
 # Catch all events
 event_UNDEFINED = 0
 eventTypes = { event_UNDEFINED : ['UNDEFINED', 'Undefined'] }

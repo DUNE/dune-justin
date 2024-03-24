@@ -1917,8 +1917,8 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
   query = ("SELECT files.file_did,files.state,"
            "CAST(event_time AS char) AS last_allocation_time,"
            "storages.rse_name,jobs.jobsub_id,"
-           "sites.site_name,"
-           "allocations,jobs.jobscript_exit AS last_jobscript_exit "
+           "sites.site_name,allocations,max_allocations,"
+           "jobs.jobscript_exit AS last_jobscript_exit "
            "FROM files "
            "LEFT JOIN events"
            " ON files.justin_job_id=events.justin_job_id AND"
@@ -1955,12 +1955,13 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   for fileRow in filesRows[:pageLength]:
       output += ('<tr><td><a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
-          '%s</a></td><td>%d</td><td>%s</td>' % 
+          '%s</a></td><td>%d/%d</td><td>%s</td>' % 
           (workflowID, 
            stageID, 
            urllib.parse.quote(fileRow["file_did"], safe=''),
            html.escape(fileRow["file_did"], quote=True),
-           fileRow["allocations"], fileRow["state"]
+           fileRow["allocations"], fileRow["max_allocations"], 
+           fileRow["state"]
           )
          )
          
@@ -2026,7 +2027,8 @@ def showFile(environ, user, cgiValues):
   output += ("<h1>File %s</h1>"
              % html.escape(fileDID, quote=True))
   
-  query = ('SELECT file_id,state,processed_time,size_bytes '
+  query = ('SELECT file_id,state,processed_time,size_bytes,'
+           'allocations,max_allocations '
            'FROM files '
            'WHERE workflow_id=%d %s AND file_did="%s"' %
            (workflowID, 
@@ -2103,7 +2105,10 @@ def showFile(environ, user, cgiValues):
 
   output += '</td></tr>'
 
-  output += '<tr><td>Allocations</td><td>'
+  output += ('<tr><td>Allocations</td><td>%d / %d</td></tr>' 
+             % (fileRow['allocations'], fileRow['max_allocations']))
+
+  output += '<tr><td>Jobs</td><td>' 
   
   for jobRow in jobsRows:
   
@@ -2956,7 +2961,7 @@ def showSite(environ, user, cgiValues):
                int(entryRow["max_wall_seconds"] / 3600),
              ('' if (entryRow['always_inner_apptainer'] == 1) 
                  else bool(entryRow['always_inner_apptainer'])),
-             str(entryRow['entry_has_gpus']),
+             str(bool(entryRow['entry_has_gpus'])),
              entryRow['osg_date']
             )
          )    
@@ -3493,8 +3498,8 @@ def downloadCsvJson(environ, user, cgiValues, method):
     query = ("SELECT files.file_did,files.state,"
              "CAST(event_time AS CHAR) AS last_allocation_time,"
              "storages.rse_name,jobs.jobsub_id,"
-             "sites.site_name,"
-             "allocations,jobs.jobscript_exit AS last_jobscript_exit "
+             "sites.site_name,allocations,max_allocations,"
+             "jobs.jobscript_exit AS last_jobscript_exit "
              "FROM files "
              "LEFT JOIN events"
              " ON files.justin_job_id=events.justin_job_id AND"

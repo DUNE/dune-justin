@@ -1289,7 +1289,7 @@ def updateFileProcessing(fileIDList,
     if state == 'unprocessed':
       # If already at max allocations, go to failed rather than unallocated!
       query = ('UPDATE files SET '
-               'state=IF(allocations < ' + str(justin.maxAllocations) + ','
+               'state=IF(allocations < max_allocations,'
                '"unallocated","failed") '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
@@ -1480,8 +1480,7 @@ def recordResultsMethod(startResponse, jsonDict):
     # Do file allocation resets
     try:
       justin.insertUpdate('UPDATE files SET '
-                          'state=IF(allocations < ' + 
-                          str(justin.maxAllocations) + ','
+                          'state=IF(allocations < max_allocations,' 
                           '"unallocated","failed") '
                           'WHERE justin_job_id=%d AND '
                           '(state="allocated" OR state="outputting")' 
