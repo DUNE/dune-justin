@@ -2673,6 +2673,9 @@ def listSites(environ, user, cgiValues):
   output = header(environ, user, "justIN: Sites")
 
   output += ("<h1>Sites</h1>")
+
+  output += ('<p>List <a href="/dashboard/?method=list-entries">all '
+             'entries</a>.</p>')
   
   query = ("SELECT DATE(last_osg_seen_time) AS osg_date,"
            "last_get_jobscript_time,"
@@ -2726,6 +2729,90 @@ def listSites(environ, user, cgiValues):
              siteRow['site_name'],
              siteRow['wlcg_site_name'],
              siteRow['site_name']
+            )
+         )    
+
+  output += ("</table>")
+  output += footer()
+  return output
+
+def listEntries(environ, user, cgiValues):
+      
+  output = header(environ, user, "justIN: Entries")
+
+  output += ("<h1>Entries</h1>")
+  
+  output += ('<p>List <a href="/dashboard/?method=list-sites">all '
+             'sites</a>.</p>')
+  
+  query = ("SELECT DATE(entries.last_osg_seen_time) AS osg_date,"
+           "entries.last_get_jobscript_time,"
+           "site_name,sites.enabled,entry_name,"
+           "gatekeeper,entry_has_gpus,"
+           "entries.always_inner_apptainer,"
+           "entries.max_processors,entries.max_rss_bytes,"
+           "entries.max_wall_seconds "
+           "FROM entries "
+           "LEFT JOIN sites ON sites.site_id=entries.site_id "
+           "WHERE sites.site_id > 0 ORDER BY site_name,entry_name")
+  
+  entryRows = justin.select(query)
+
+  output += ('<table class="center">')
+  
+  output += ('<tr>'
+        '<th>Site name</th>'
+        '<th>Entry name</th>'
+        '<th>Gatekeeper</th>'
+        '<th>RSS(MiB) / processors</th>'        
+        '<th>Wall seconds limit?</th>'
+        '<th>GPUs</th>'
+        '<th>Last job</th>'
+        '<th>Seen in OSG</th>'
+        '<th>Always has<br>inner<br>apptainer</th>'
+        '</tr>')
+
+  lastSiteName = ''
+  for entryRow in entryRows:  
+    if str(entryRow['last_get_jobscript_time']) == justin.unixEpoch:
+      lastGetStageStr = '&nbsp;'
+    else:
+      lastGetStageStr = str(entryRow['last_get_jobscript_time'])
+
+    if entryRow['site_name'] == lastSiteName:
+      output += '<tr><td>&nbsp;</td>'
+    else:
+      lastSiteName = entryRow['site_name']
+      output += ('<tr>'
+              '<td style="font-weight: %s">'
+              '<a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+              % ('bold' if entryRow['enabled'] else 'normal',
+                 entryRow['site_name'], entryRow['site_name'],
+                )
+                )    
+  
+    output += ('<td>%s</td>'
+               '<td>%s</td>'
+               '<td>%d&nbsp;/&nbsp;%d =&nbsp;%d</td>'
+               '<td>%d (%d&nbsp;hours)</td>'
+               '<td>%s</td>'
+               '<td>%s</td>'
+               '<td>%s</td>'
+               '<td>%s</td>'
+               '</tr>'
+          % (insertWBR(entryRow['entry_name']), 
+             insertWBR(entryRow['gatekeeper']),
+             int(entryRow["max_rss_bytes"] / 1048576),
+               entryRow['max_processors'],
+               int(entryRow["max_rss_bytes"] / 
+                   (1048576 * entryRow['max_processors'])),
+             entryRow['max_wall_seconds'],
+               int(entryRow["max_wall_seconds"] / 3600),
+             'TRUE' if entryRow['entry_has_gpus'] else 'False',
+             lastGetStageStr,
+             entryRow['osg_date'],
+             '' if (entryRow['always_inner_apptainer'] == 1) 
+                else bool(entryRow['always_inner_apptainer'])
             )
          )    
 
@@ -4100,6 +4187,9 @@ def application(environ, startResponse):
 
   elif method == "list-sites":
     output = listSites(environ, user, cgiValues)
+
+  elif method == "list-entries":
+    output = listEntries(environ, user, cgiValues)
 
   elif method == "list-storages":
     output = listStorages(environ, user, cgiValues)
