@@ -26,6 +26,7 @@ import json
 import time
 import ssl
 import shlex
+import shutil
 import urllib.request
 import argparse
 import platform
@@ -58,6 +59,7 @@ commands = [ "create-workflow",
              "fail-files",
              "show-replicas", 
              "show-jobs",
+             "fetch-logs",
              "whoami",
              "time" ]
 
@@ -189,6 +191,10 @@ parser.add_argument("--state",
                     type = str,
                     help = "Restrict output by state")
 
+parser.add_argument("--unpack",
+                    action = 'store_true',
+                    help = "Unpack tgz file")
+
 parser.add_argument("--url",
                     type = str,
                     help = "justIN service to contact")
@@ -232,9 +238,7 @@ if jsonDict['verbose']:
 if jsonDict['url']:
   url = jsonDict['url']
 else:
-#  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
-# CHANGE BACK TO pro WHEN WE HAVE A CHANCE!
-  url = 'https://justin-ui.dune.hep.ac.uk/api/commands'
+  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
 
 try:
   (session, secret) = open(sessionFile, 'r').read().split()
@@ -348,19 +352,27 @@ except urllib.error.URLError as e:
     print(message, file=sys.stderr)
     sys.exit(1)
 
-  if int(httpCode / 100) == 4:
+  if int(httpCode / 100) in (4, 5):
     message = e.read().decode('utf-8')
     print(message, file=sys.stderr)
     sys.exit(2)
 
   print('Connection error: ' + str(e), file=sys.stderr)
   sys.exit(21)
-  
-#if response.status != 200:
-#  if jsonDict['verbose']:
-#    print(response.read().decode('utf-8'), file=sys.stderr)
-#  sys.exit(20)
-  
-print(response.read().decode('utf-8'), end='')
-sys.exit(0)
- 
+
+if jsonDict['command'] == 'fetch-logs':
+  try:
+    open(jsonDict['jobsub_id'].replace('@','-') + 
+              '.logs.tgz', 'wb').write(response.read())
+  except Exception as e:
+    print('Failed to write out logs.tgz file:' + str(e), file=sys.stderr)
+    sys.exit(23)
+
+  if jsonDict['unpack']:
+    shutil.unpack_archive(jsonDict['jobsub_id'].replace('@','-')+'.logs.tgz')
+
+  sys.exit(0)
+else:
+  print(response.read().decode('utf-8'), end='')
+  sys.exit(0)
+v

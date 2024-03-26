@@ -311,6 +311,19 @@ up using Rucio.
 Show jobs identified by Jobsub ID or Workflow ID (and optionally Stage ID). Job 
 state can also be given to further filter the jobs listed. For each job,
 the Jobsub ID, Workflow ID, Stage ID, State, and creation time are shown.
+.RE
+.HP
+.B "fetch-logs --jobsub-id ID [--unpack]"
+.br
+Download and optionally unpack the logs.tgz file for a given job. The
+file is placed in the current directory and if the 
+.B --unpack 
+option is given, it will be unpacked into a directory named for the job.
+This subcommand uses justIN authentication and does not require that you
+have an X.509 proxy or use the Rucio client. However, it is not as efficient
+as the standalone 
+.B justin-fetch-logs
+command.
 
 .SH JOBSCRIPTS
 

@@ -29,9 +29,11 @@ import string
 import socket
 import urllib
 import secrets
+import tempfile
 import datetime
 import urllib.request
 import rucio.client
+import rucio.client.downloadclient
 
 import justin
 
@@ -1288,6 +1290,52 @@ def showJobsCmd(startResponse, jsonDict):
    
   return httpOK(startResponse, outputString)
 
+def fetchLogsCmd(startResponse, jsonDict):
+
+  try:
+    jobsubID = jsonDict['jobsub_id']
+  except:
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Jobsub ID must be given')
+
+  if not justin.stringIsJobsubID(jobsubID):
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Not a valid jobsub ID')
+
+  try:
+    client         = rucio.client.Client(timeout = 60)
+    downloadClient = rucio.client.downloadclient.DownloadClient(client)
+  except Exception as e:
+    print('Failed to connect to Rucio: ' + str(e), file=sys.stderr)
+    return httpError(startResponse, '500 Internal Server Error', 
+                     'justIN server failed to connect to Rucio')
+    
+  try:
+    tmpDir = tempfile.TemporaryDirectory()
+    downloadClient.download_dids([
+         { 'did' : 'justin-logs:%s.logs.tgz' % jobsubID.replace('@','-'),
+           'transfer_timeout' : 60,
+           'base_dir'         : tmpDir.name,
+           'no_subdir'        : True } ])
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Fetching logs.tgz fails with Rucio error: ' + str(e))
+
+  try:
+    message = open(tmpDir.name + 
+                   '/%s.logs.tgz' % jobsubID.replace('@','-'), 'rb').read()
+  except:
+    return httpError(startResponse, '500 Internal Server Error', 
+                     'justIN server failed to read spooled logs.tgz')
+
+  startResponse('200 OK',
+                [('Content-type',   'application/gzip'),
+                 ('Content-length', str(len(message)))
+                ])
+
+  return [message]
+
 #
 # Start of utility functions
 #
@@ -1571,6 +1619,9 @@ def application(environ, startResponse):
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)
+
+  if jsonDict['command'] == 'fetch-logs':
+    return fetchLogsCmd(startResponse, jsonDict)
 
   return httpError(startResponse,
                    '400 Bad Request', 

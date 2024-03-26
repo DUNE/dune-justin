@@ -44,6 +44,7 @@ RUN yum install -y git joe util-linux-user
 RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
 RUN yum install -y make which nano procps-ng python3-pip
 RUN yum install -y python3-devel gcc swig openssl-devel
+RUN yum install -y gfal2-all python3-gfal2
 
 RUN yum install -y httpd mod_ssl certbot
 # Force prefork rather than a threaded mpm module
@@ -77,7 +78,7 @@ RUN /bin/echo -e '"dune" "voms2.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=I
 RUN yum install -y python3-condor
 
 # Some things do not have suitable RPMs
-RUN pip3 install rucio
+RUN pip3 install rucio-clients
 RUN pip3 install metacat
 RUN pip3 install pygal==3.0.0
 

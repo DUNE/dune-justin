@@ -280,6 +280,15 @@ This man page is distributed along with the
     	      jobs listed. For each job, the Jobsub ID, Workflow ID, Stage ID,
     	      State, and creation time are shown.
     
+           fetch-logs --jobsub-id ID [--unpack]
+    	      Download and optionally unpack the logs.tgz file for a given
+    	      job. The file is placed in the current directory and if the
+    	      --unpack option is given, it will be unpacked into a directory
+    	      named for the job.  This subcommand uses justIN authentication
+    	      and does not require that you have an X.509 proxy or use the
+    	      Rucio client. However, it is not as efficient as the standalone
+    	      justin-fetch-logs command.
+    
     
     JOBSCRIPTS
            The user jobscripts supplied when creating a stage are shell scripts

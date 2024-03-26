@@ -29,6 +29,7 @@ import json
 import secrets
 import base64
 import pprint
+import textwrap
 import urllib
 import urllib.parse
 import urllib.request
@@ -96,6 +97,14 @@ class justinStackedLine(pygal.StackedLine):
                     serie.interpolated = self._interpolate(x_pos, accumulation)
                 else:
                     serie.interpolated = []
+
+def insertWBR(s):
+  a = textwrap.wrap(text=s, width=20, drop_whitespace=False)
+
+  for i in range(0, len(a)):
+    a[i] = a[i].replace('<', '&lt;').replace('>', '&gt')
+
+  return '<wbr>'.join(a)
 
 def header(environ, user, title):
 
@@ -976,7 +985,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
            html.escape(row["description"], quote=True),
            row["user_name"],
            row["state"],
-           html.escape(row["mql"], quote=True),
+           insertWBR(row["mql"]),
            spaceForUnixEpoch(row['created']),
            spaceForUnixEpoch(row['submitted']),
            spaceForUnixEpoch(row['started']),
@@ -1955,11 +1964,11 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   for fileRow in filesRows[:pageLength]:
       output += ('<tr><td><a href="/dashboard/?method=show-file&workflow_id=%d&stage_id=%d&file_did=%s">'
-          '%s</a></td><td>%d/%d</td><td>%s</td>' % 
+          '%s</a></td><td>%d / %d</td><td>%s</td>' % 
           (workflowID, 
            stageID, 
            urllib.parse.quote(fileRow["file_did"], safe=''),
-           html.escape(fileRow["file_did"], quote=True),
+           insertWBR(fileRow["file_did"]),
            fileRow["allocations"], fileRow["max_allocations"], 
            fileRow["state"]
           )
@@ -2021,11 +2030,9 @@ def showFile(environ, user, cgiValues):
   except:
     stageID = None
 
-  output = header(environ, user, "justIN: File %s" 
-                  % html.escape(fileDID, quote=True))
+  output = header(environ, user, "justIN: File %s" % insertWBR(fileDID))
 
-  output += ("<h1>File %s</h1>"
-             % html.escape(fileDID, quote=True))
+  output += ("<h1>File %s</h1>" % insertWBR(fileDID))
   
   query = ('SELECT file_id,state,processed_time,size_bytes,'
            'allocations,max_allocations '
@@ -2093,15 +2100,15 @@ def showFile(environ, user, cgiValues):
     if replicaRow["lan_pfn"]:
       output += ('<small>%s (wan): %s </small><br>' % 
             (replicaRow["rse_name"], 
-             replicaRow["wan_pfn"]))
+             insertWBR(replicaRow["wan_pfn"])))
       output += ('<small>%s (lan): %s </small><br>' % 
             (replicaRow["rse_name"], 
-             replicaRow["lan_pfn"]))
+             insertWBR(replicaRow["lan_pfn"])))
 
     else:
       output += ('<small>%s: %s </small><br>' % 
             (replicaRow["rse_name"], 
-             replicaRow["wan_pfn"]))
+             insertWBR(replicaRow["wan_pfn"])))
 
   output += '</td></tr>'
 

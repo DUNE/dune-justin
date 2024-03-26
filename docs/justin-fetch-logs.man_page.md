@@ -1,20 +1,25 @@
-# justin-fetchlogs command man page
+# justin-fetch-logs command man page
 This man page is distributed along with the 
 justin-fetchlogs command itself.
 
     JUSTIN(2024)							  JUSTIN(2024)
     
     NAME
-           justin-fetchlogs - justIN utility to get logs.tgz file for a given job,
-           from Rucio managed storage
+           justin-fetch-logs - justIN utility to get logs.tgz file for a given
+           job, from Rucio managed storage
     
     SYNOPSIS
-           justin-fetchlogs [--help] [--verbose] [--timeout SECONDS] [--unpack]
+           justin-fetch-logs [--help] [--verbose] [--timeout SECONDS] [--unpack]
            JOBSUBID
     
     DESCRIPTION
-           justin-fetchlogs is a command-line utility to download and optionally
+           justin-fetch-logs is a command-line utility to download and optionally
            unpack the logs.tgz file for a given justIN job.
+    
+           This command is more efficient than the justin fetch-logs subcommand
+           since the logs.tgz file comes directly from the storage where it was
+           uploaded by the job. However, it requires that you have an X.509 proxy
+           that Rucio can use to fetch the file.
     
     
     OPTIONS
@@ -36,7 +41,7 @@ justin-fetchlogs command itself.
     
            JOBSUBID
     	      The Jobsub ID of the justIN job for which to retrieve the
-    	      logs.tgz file. The file is put in the current directiry.
+    	      logs.tgz file. The file is put in the current directory.
     
     
     AUTHOR
@@ -46,4 +51,4 @@ justin-fetchlogs command itself.
     SEE ALSO
            justin(1)
     
-    justIN Manual		       justin-fetchlogs 		  JUSTIN(2024)
+    justIN Manual		       justin-fetch-logs		  JUSTIN(2024)

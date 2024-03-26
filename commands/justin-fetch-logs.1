@@ -1,13 +1,19 @@
-.TH JUSTIN  "2024" "justin-fetchlogs" "justIN Manual"
+.TH JUSTIN  "2024" "justin-fetch-logs" "justIN Manual"
 .SH NAME
-.B justin-fetchlogs
+.B justin-fetch-logs
 \- justIN utility to get logs.tgz file for a given job, from Rucio managed storage
 .SH SYNOPSIS
-.B justin-fetchlogs [--help] [--verbose] [--timeout SECONDS] [--unpack] JOBSUBID
+.B justin-fetch-logs [--help] [--verbose] [--timeout SECONDS] [--unpack] JOBSUBID
 .SH DESCRIPTION
-.B justin-fetchlogs
+.B justin-fetch-logs
 is a command-line utility to download and optionally unpack the logs.tgz
 file for a given justIN job.
+
+This command is more efficient than the 
+.B justin fetch-logs
+subcommand since the logs.tgz file comes directly from the storage where it
+was uploaded by the job. However, it requires that you have an X.509 proxy
+that Rucio can use to fetch the file.
 
 .SH OPTIONS
 

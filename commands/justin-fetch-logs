@@ -22,12 +22,8 @@ import sys
 import shutil
 import logging
 import argparse
+import rucio.client
 import rucio.client.downloadclient
-
-# We suppress warnings from the way Rucio/urllib3 are being built at the moment
-# This should be removed if and when they are built properly
-#import urllib3
-#urllib3.disable_warnings()
 
 #
 # PROGRAM MAIN !!!
