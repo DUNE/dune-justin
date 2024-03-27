@@ -110,7 +110,7 @@ excludes a workflow from the workflow allocation process.
 .HP
 .B "create-stage --workflow-id ID --stage-id ID 
 .B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
-.B [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance DIST] 
+.B [--wall-seconds N] [--rss-mib N] [--processors N] [--max-distance DIST] 
 .B [--output-pattern PATTERN:DESTINATION]
 .B [--output-pattern-next-stage PATTERN:DATASET] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
@@ -145,10 +145,10 @@ then the default of 80000
 seconds is used. The value used is available to jobscripts as
 $JUSTIN_WALL_SECONDS.
 If the maximum amount of resident memory needed is not given by 
-.B --rss-mb
+.B --rss-mib
 then the default of 2000MiB is used. The resident memory corresponds to the 
 physical memory managed by HTCondor's ResidentSetSize value and is available
-to jobscripts as $JUSTIN_RSS_MB.
+to jobscripts as $JUSTIN_RSS_MIB.
 If the script can make use of multiple processors then 
 .B --processors
 can be used to give the number needed, with a default of 1 if not given. The
@@ -224,7 +224,7 @@ this stage.
 .B [--refind-interval-hours HOURS] 
 .B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
 .B [--wall-seconds N]
-.B [--rss-mb N] [--processors N] [--max-distance DIST]
+.B [--rss-mib N] [--processors N] [--max-distance DIST]
 .B [--output-pattern PATTERN:DESTINATION] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
 .br

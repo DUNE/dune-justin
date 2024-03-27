@@ -141,7 +141,8 @@ parser.add_argument("--wall-seconds",
                     type = int,
                     help = "Maximum wall seconds")
 
-parser.add_argument("--rss-mb",
+parser.add_argument("--rss-mib",
+                    "--rss-mb",
                     type = float,
                     help = "Maximum RSS MiB")
 

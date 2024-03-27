@@ -105,8 +105,8 @@ This man page is distributed along with the
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
     	      FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
-    	      [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance
-    	      DIST] [--output-pattern PATTERN:DESTINATION]
+    	      [--wall-seconds N] [--rss-mib N] [--processors N]
+    	      [--max-distance DIST] [--output-pattern PATTERN:DESTINATION]
     	      [--output-pattern-next-stage PATTERN:DATASET] [--output-rse
     	      NAME] [--lifetime-days DAYS] [--env NAME=VALUE] [--classad
     	      NAME=VALUE]
@@ -133,10 +133,10 @@ This man page is distributed along with the
     	      --wall-seconds then the default of 80000 seconds is used. The
     	      value used is available to jobscripts as $JUSTIN_WALL_SECONDS.
     	      If the maximum amount of resident memory needed is not given by
-    	      --rss-mb then the default of 2000MiB is used. The resident
+    	      --rss-mib then the default of 2000MiB is used. The resident
     	      memory corresponds to the physical memory managed by HTCondor's
     	      ResidentSetSize value and is available to jobscripts as
-    	      $JUSTIN_RSS_MB.  If the script can make use of multiple
+    	      $JUSTIN_RSS_MIB.	If the script can make use of multiple
     	      processors then --processors can be used to give the number
     	      needed, with a default of 1 if not given. The value used is
     	      available to jobscripts as $JUSTIN_PROCESSORS.
@@ -203,9 +203,10 @@ This man page is distributed along with the
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] --jobscript
     	      FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
-    	      [--wall-seconds N] [--rss-mb N] [--processors N] [--max-distance
-    	      DIST] [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
-    	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      [--wall-seconds N] [--rss-mib N] [--processors N]
+    	      [--max-distance DIST] [--output-pattern PATTERN:DESTINATION]
+    	      [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]
+    	      [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two

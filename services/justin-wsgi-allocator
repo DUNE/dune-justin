@@ -1749,16 +1749,18 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Missing jobsub_id in JSON')
 
   try:
-    query = ('SELECT justin_job_id,workflow_id,stage_id,site_id,job_state '
-             'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
+    query = ('SELECT justin_job_id,workflow_id,stage_id,site_id,entry_id,'
+             'job_state FROM jobs '
+             'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.select(query, justOne = True)
 
     justinJobID  = int(row['justin_job_id'])
-    workflowID = int(row['workflow_id'])
-    stageID   = int(row['stage_id'])
-    siteID    = int(row['site_id'])
-    jobState  = row['job_state']
+    workflowID   = int(row['workflow_id'])
+    stageID      = int(row['stage_id'])
+    siteID       = int(row['site_id'])
+    entryID      = int(row['entry_id'])
+    jobState     = row['job_state']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',

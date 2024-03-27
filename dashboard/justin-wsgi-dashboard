@@ -1418,7 +1418,7 @@ def showStage(environ, user, cgiValues):
         '<td>%s</td></tr>' % stageRow["wall_seconds"])
 
   output += ('<tr><td>RSS bytes</td>'
-        '<td>%s (%d MB)</td></tr>' % 
+        '<td>%s (%d MiB)</td></tr>' % 
         (stageRow["rss_bytes"], 
          int(stageRow["rss_bytes"]) / 1048576))
 
@@ -2286,7 +2286,7 @@ def showJob(environ, user, cgiValues):
              'Processors</td><td>%d</td></tr>'
              % jobRow["requested_processors"])
 
-  output += ('<tr><td>RSS bytes</td><td>%d (%d MB)</td></tr>'
+  output += ('<tr><td>RSS bytes</td><td>%d (%d MiB)</td></tr>'
              % (jobRow["requested_rss_bytes"],
                 int(jobRow["requested_rss_bytes"]) / 1048576))
 
@@ -2336,7 +2336,7 @@ def showJob(environ, user, cgiValues):
                % jobRow["processors"])
 
     output += ('<tr><td>RSS bytes</td>'
-               '<td>%s (%d MB)</td></tr>' 
+               '<td>%s (%d MiB)</td></tr>' 
                % (jobRow["rss_bytes"], 
                   int(jobRow["rss_bytes"]) / 1048576))
 
@@ -3047,7 +3047,7 @@ def showSite(environ, user, cgiValues):
   output += ('<tr>'
         '<th>Entry</th>'
         '<th>Gatekeeper</th>'
-        '<th>RSS (MB) / processors</th>'
+        '<th>RSS (MiB) / processors</th>'
         '<th>Wall seconds limit</th>'
         '<th>Always has inner apptainer</th>'
         '<th>GPUs</th>'
@@ -3202,8 +3202,11 @@ def showEntry(environ, user, cgiValues):
   
   output += ('<tr><td>Entry</td><td>%s</td></tr>' 
              % entryName)
+
+  output += ('<tr><td>Gatekeeper</td><td>%s</td></tr>' 
+             % entryRow['gatekeeper'])
   
-  output += ('<tr><td>RSS (MB) / processors</td><td>%d / %d = %d</td></tr>'
+  output += ('<tr><td>RSS (MiB) / processors</td><td>%d / %d = %d</td></tr>'
              % (int(entryRow["max_rss_bytes"] / 1048576),
                 entryRow['max_processors'],
                 int(entryRow["max_rss_bytes"] / 
