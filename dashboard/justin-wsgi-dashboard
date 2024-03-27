@@ -2308,8 +2308,9 @@ def showJob(environ, user, cgiValues):
 
   if jobRow["entry_name"]:
     output += ('<tr><td>Entry</td>'
-               '<td colspan="2">%s</td></tr>'
-               % jobRow["entry_name"])
+               '<td colspan="2"><a href="/dashboard/?method=show-entry'
+               '&entry_name=%s">%s</a></td></tr>'
+               % (jobRow["entry_name"], jobRow["entry_name"]))
   else:
     output += '<tr><td>Entry</td><td colspan="2"> </td></tr>'
 
@@ -2498,6 +2499,16 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       urlTemplate += '&site_name=' + siteName
       titleSuffixes.append('Site %s' % siteName)
 
+  try:
+    entryName = cgiValues["entry_name"]
+  except:
+    pass
+  else:
+    if entryName and justin.stringIsSite(entryName):
+      filters.append('entries.entry_name="%s"' % entryName)
+      urlTemplate += '&entry_name=' + entryName
+      titleSuffixes.append('Entry %s' % entryName)
+
   filter = ' AND '.join(filters)
 
   if filter:
@@ -2535,7 +2546,8 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     except Exception as e:
       output += str(e)
   
-  query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,sites.site_name,"
+  query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
+           "sites.site_name,entries.entry_name,"
            "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
            "jobs.finished_time,jobs.jobsub_state,jobs.jobscript_exit,"
            "principal_names.principal_name AS user_name "
@@ -2545,6 +2557,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "%s "
            "ORDER BY jobs.justin_job_id DESC LIMIT %d,%d" %
            (filter, pageNumber * pageLength, pageLength + 1)
@@ -2560,7 +2573,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   output += ('<tr>'
         '<th>Jobsub ID</th>'
         '<th>Job state</th>'
-        '<th>Site</th>'
+        '<th>Site / Entry</th>'
         '<th>User</th>'
         '<th>Workflow</th>'
         '<th>Stage</th>'
@@ -2599,8 +2612,14 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   
     if jobRow['site_name']:
       siteNameStr = ('<td><a href="/dashboard/?method=show-site&site_name=%s">'
-                     '%s</a></td>' 
-                     % (jobRow['site_name'], jobRow['site_name']))
+                     '%s</a>%s</td>' 
+                     % (jobRow['site_name'], jobRow['site_name'], 
+                        ('<br><a href="/dashboard/?method=show-entry&'
+                         'entry_name=%s">%s</a>' 
+                         % (jobRow['entry_name'], jobRow['entry_name'])
+                        ) if jobRow['entry_name'] else ''
+                       )
+                    )
     else:
       siteNameStr = '<td> </td>'
 
@@ -3037,7 +3056,8 @@ def showSite(environ, user, cgiValues):
   
   for entryRow in entryRows:  
     output += ('<tr>'
-          '<td><a href="http://gfactory-2.opensciencegrid.org/factory/monitor/factoryEntryStatusNow.html?entry=%s">%s</a></td>'
+          '<td><a href="/dashboard/?method=show-entry&entry_name=%s">'
+          '%s</a></td>'
           '<td>%s</td>'
           '<td>%d / %d = %d</td>'
           '<td>%d (%d hours)</td>'
@@ -3132,6 +3152,130 @@ def showSite(environ, user, cgiValues):
                (storageRow['rse_name'], siteName))
 
   output += ("</table>")
+
+  output += footer()
+  return output
+
+def showEntry(environ, user, cgiValues):
+      
+  try:
+    entryName = cgiValues["entry_name"]
+  except:
+    return errorPage(environ, user, "entry_name must be given")
+    
+  if not justin.stringIsSite(entryName):
+    return errorPage(environ, user, "Invalid entry name!")
+        
+  output = header(environ, user, "justIN: Entry " + entryName)
+
+  output += ("<h1>Entry %s</h1>" % entryName)
+  
+  query = ('SELECT DATE(entries.last_osg_seen_time) AS osg_date,'
+           'entries.last_get_jobscript_time,'
+           'site_name,jobsub_site_name,wlcg_site_name,'
+           'sites.enabled,'
+           'sites.country,'
+           'sites.region,'
+           'sites.last_submitted_time,'
+           'sites.last_get_jobscript_time,'
+           'sites.last_awt_time,'
+           'entries.gatekeeper,'
+           'entries.max_rss_bytes,'
+           'entries.max_processors,entries.max_wall_seconds,'
+           'wlcg_site_name,entries.always_inner_apptainer,'
+           'entries.entry_has_gpus,'
+           'entries.file_name,entries.raw_config '
+           'FROM entries '
+           'LEFT JOIN sites '
+           'ON sites.site_id=entries.site_id '
+           'WHERE entry_name="%s"' % entryName)
+
+  entryRow = justin.select(query, justOne = True)
+
+  output += ('<table>')
+  
+  output += ('<tr><td>Site</td><td>'
+             '<a href="/dashboard/?method=show-site&site_name=%s">%s</a> '
+             '(%s)</td></tr>' 
+             % (entryRow['site_name'], entryRow['site_name'], 
+                'enabled' if entryRow['enabled'] else 'not enabled'))
+  
+  output += ('<tr><td>Entry</td><td>%s</td></tr>' 
+             % entryName)
+  
+  output += ('<tr><td>RSS (MB) / processors</td><td>%d / %d = %d</td></tr>'
+             % (int(entryRow["max_rss_bytes"] / 1048576),
+                entryRow['max_processors'],
+                int(entryRow["max_rss_bytes"] / 
+                    (1048576 * entryRow['max_processors'])
+                   )
+               )
+            )
+
+  output += ('<tr><td>Wall seconds limit</td><td>%d (%d hours)</td></tr>'
+             % (entryRow['max_wall_seconds'],
+                int(entryRow["max_wall_seconds"] / 3600)
+               )
+            )
+
+  output += ('<tr><td>Seen in OSG config</td><td>%s</td></tr>'
+             % entryRow['osg_date'])
+
+  output += ('<tr><td>Last submitted</td><td>%s</td></tr>' 
+             % entryRow['last_submitted_time'])
+
+  if str(entryRow['last_get_jobscript_time']) == justin.unixEpoch:
+    lastGetJobscriptStr = '&nbsp;'
+  else:
+    lastGetJobscriptStr = str(entryRow['last_get_jobscript_time'])
+
+  output += ('<tr><td>Last job started</td><td>%s</td></tr>' 
+             % lastGetJobscriptStr)
+
+  output += ('<tr><td>Always has inner apptainer</td>'
+             '<td>%s</td></tr>' % 
+             ('' if (entryRow['always_inner_apptainer'] == 1)
+                 else bool(entryRow['always_inner_apptainer'])))
+
+  output += ('<tr><td>Has GPUs</td><td>%s</td></tr>' 
+             % str(bool(entryRow['entry_has_gpus'])))
+
+  output += ('<tr><td>Jobs</td><td>'
+             '<a href="/dashboard/?method=list-jobs&entry_name=%s">All</a> ' 
+             % entryName)
+
+  for state in ['submitted', 'started', 'processing', 'outputting',
+                'finished', 'notused', 'aborted', 'stalled', 
+                'jobscript_error', 'outputting_failed']:
+    output += ('<a href="/dashboard/?method=list-jobs&job_state=%s&'
+               'entry_name=%s">%s</a> ' 
+               % (state, entryName, state.capitalize()))
+
+  output += ('<a href="/dashboard/?method=list-jobs&workflow_id=%d'
+             '&stage_id=1&entry_name=%s">AWT</a></td></tr>'
+             % (justin.awtWorkflowID, entryName))
+  
+  output += ('<tr><td>Events</td>'
+             '<td><a href="/dashboard/?method=list-events&entry_name=%s'
+             '">All</a> &nbsp; ' % entryName)
+
+  output += ('<a href="/dashboard/?method=list-events&entry_name=%s&'
+             'awt_events=True">AWT</a></td></tr>' % entryName)
+
+  output += ('<tr><td>Pilot factory status page</td>'
+             '<td><a href="http://gfactory-2.opensciencegrid.org/factory/monitor/factoryEntryStatusNow.html?entry=%s">%s</a></td></tr>'
+             % (entryName, entryName))
+         
+  output += ("</table>")
+
+  output += ('<p>Raw configuration from '
+             '<a href="https://github.com/opensciencegrid/osg-gfactory/blob/'
+             'master/%s">opensciencegrid/osg-gfactory/%s</a>'
+             % (entryRow['file_name'], entryRow['file_name']))
+
+  output += ('<pre style="white-space: pre-wrap;">') 
+  output += html.escape(entryRow["raw_config"], quote=True)  
+  output += ('</pre>') 
 
   output += footer()
   return output
@@ -3429,6 +3573,15 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
       queryList += '&site_name=' + siteName
 
   try:
+    entryName = cgiValues["entry_name"]
+  except:
+    pass
+  else:
+    if entryName:
+      whereList.append('entry_name="%s"' % entryName)
+      queryList += '&entry_name=' + entryName
+
+  try:
     awtEvents = bool(cgiValues["awt_events"])
   except:
     pass
@@ -3451,11 +3604,12 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   output += ("<h1>Events</h1>")
   
   query = ('SELECT event_id,event_type_id,events.workflow_id,events.stage_id,'
-           'file_did,jobsub_id,site_name,rse_name,event_time '
+           'file_did,jobsub_id,site_name,entry_name,rse_name,event_time '
            'FROM events '
            'LEFT JOIN files ON events.file_id=files.file_id '
            'LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id '
            'LEFT JOIN sites ON events.site_id=sites.site_id '
+           'LEFT JOIN entries ON events.entry_id=entries.entry_id '
            'LEFT JOIN storages ON events.rse_id=storages.rse_id '
            '%s '
            'ORDER BY event_id DESC LIMIT %d,%d' % 
@@ -3475,7 +3629,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 <th>Workflow</th><th>Stage</th>
 <th>File DID</th>
 <th>Jobsub ID</th>
-<th>Site</th>
+<th>Site / Entry</th>
 <th>RSE</th>
 </tr>""")
 
@@ -3528,8 +3682,15 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
       output += ('<td>&nbsp;</td>')
          
     if eventRow['site_name']: 
-      output += ('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
-            % (eventRow['site_name'], eventRow['site_name']))
+      output += \
+       ('<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a>%s</td>'
+            % (eventRow['site_name'], eventRow['site_name'], 
+               ('<br><a href="/dashboard/?method=show-entry&entry_name=%s">'
+                '%s</a>' 
+                % (eventRow['entry_name'], eventRow['entry_name'])
+               ) if eventRow['entry_name'] else ''
+              )
+       )
     else:
       output += ('<td>&nbsp;</td>')
          
@@ -4199,6 +4360,9 @@ def application(environ, startResponse):
 
   elif method == "show-site":
     output = showSite(environ, user, cgiValues)
+
+  elif method == "show-entry":
+    output = showEntry(environ, user, cgiValues)
 
   elif method == "show-storage":
     output = showStorage(environ, user, cgiValues)

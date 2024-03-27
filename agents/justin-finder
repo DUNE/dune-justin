@@ -824,7 +824,8 @@ def resetFilesForJob(justinJobID,
                      jobsubID,
                      workflowID,
                      stageID,
-                     siteID):   
+                     siteID,
+                     entryID):   
 
     # Then find the file(s) allocated to this stalled or aborted job 
     # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
@@ -876,7 +877,8 @@ def resetFilesForJob(justinJobID,
                           stageID = stageID,
                           fileID = fileRow['file_id'],
                           justinJobID = justinJobID,
-                          siteID = siteID)
+                          siteID = siteID,
+                          entryID = entryID)
       else:
       
         try:
@@ -907,7 +909,8 @@ def resetFilesForJob(justinJobID,
                           stageID = stageID,
                           fileID = fileRow['file_id'],
                           justinJobID = justinJobID,
-                          siteID = siteID)
+                          siteID = siteID,
+                          entryID = entryID)
 
           logLine('Reset file %s in %d,%d to unallocated for job %s' % 
                   (fileRow['file_did'], workflowID,
@@ -926,7 +929,7 @@ def findStalledAbortedJobs():
 
   try:
     query = ('SELECT workflow_id,stage_id,justin_job_id,jobsub_id,site_id,'
-             'job_state '
+             'entry_id,job_state '
              'FROM jobs '
              'WHERE ((job_state="started" OR '
              'job_state="processing" OR '
@@ -971,7 +974,8 @@ def findStalledAbortedJobs():
                       workflowID = jobRow['workflow_id'],
                       stageID = jobRow['stage_id'],
                       justinJobID = jobRow['justin_job_id'],
-                      siteID = jobRow['site_id'])
+                      siteID = jobRow['site_id'],
+                      entryID = jobRow['entry_id'])
     else:
       # An aborted, error, failed state, so just reset has_allocations
       try:
@@ -989,7 +993,8 @@ def findStalledAbortedJobs():
                      jobsubID    = jobRow['jobsub_id'],
                      workflowID  = jobRow['workflow_id'],
                      stageID     = jobRow['stage_id'],
-                     siteID      = jobRow['site_id'])
+                     siteID      = jobRow['site_id'],
+                     entryID     = jobRow['entry_id'])
 
   # Everything went ok so commit
   justin.conn.commit()
@@ -1192,7 +1197,7 @@ def findStalledCondorJobs():
     
   # Get a list of waiting/running jobs
   query = ('SELECT jobsub_id,job_state,justin_job_id,workflow_id,stage_id,'
-           'site_id FROM jobs WHERE job_state IN '
+           'site_id,entry_id FROM jobs WHERE job_state IN '
            '("submitted","started","processing","outputting")')
 
   dbJobRows = justin.select(query)
@@ -1232,16 +1237,18 @@ def findStalledCondorJobs():
         sys.exit(0)
 
       justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HTCONDOR,
-                      workflowID = dbJobRow['workflow_id'],
-                      stageID = dbJobRow['stage_id'],
+                      workflowID  = dbJobRow['workflow_id'],
+                      stageID     = dbJobRow['stage_id'],
                       justinJobID = dbJobRow['justin_job_id'],
-                      siteID = dbJobRow['site_id'])
+                      siteID      = dbJobRow['site_id'],
+                      entryID     = dbJobRow['entry_id'])
 
       resetFilesForJob(justinJobID = dbJobRow['justin_job_id'],
                        jobsubID    = dbJobRow['jobsub_id'],
                        workflowID  = dbJobRow['workflow_id'],
                        stageID     = dbJobRow['stage_id'],
-                       siteID      = dbJobRow['site_id'])
+                       siteID      = dbJobRow['site_id'],
+                       entryID     = dbJobRow['entry_id'])
 
   # All ok, so commit it all to the DB
   justin.conn.commit()

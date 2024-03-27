@@ -398,6 +398,8 @@ def logEvent(eventTypeID = event_UNDEFINED,
              justinJobID = 0,
              siteID = 0,
              siteName = None,
+             entryID = 0,
+             entryName = None,
              rseID = 0,
              rseName = None,
              seconds = 0.0):
@@ -407,6 +409,12 @@ def logEvent(eventTypeID = event_UNDEFINED,
                 % siteName)
   else:
     siteExpr = str(siteID)
+
+  if entryName:
+    entryExpr = ('(SELECT entry_id FROM entries WHERE entries.entry_name="%s")' 
+                % entryName)
+  else:
+    entryExpr = str(entryID)
 
   if rseName:
     rseExpr = ('(SELECT rse_id FROM storages WHERE storages.rse_name="%s")' 
@@ -422,6 +430,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'file_id=%d,'
              'justin_job_id=%d,'
              'site_id=%s,'
+             'entry_id=%s,'
              'rse_id=%s,'
              'seconds=%.3f,'
              'event_time=NOW()' %
@@ -431,6 +440,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
               fileID,
               justinJobID,
               siteExpr,
+              entryExpr,
               rseExpr,
               seconds))
 

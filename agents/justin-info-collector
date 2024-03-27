@@ -30,6 +30,7 @@ import urllib.request
 import pathlib
 import tempfile
 import warnings
+import traceback
 import subprocess
 import xml.dom.minidom
 
@@ -263,7 +264,10 @@ def processOneFileXML(sitesDict, fileName):
                  'max_rss_bytes'   : rssBytes,
                  'max_wall_seconds': wallSeconds,
                  'max_processors'  : processors,
-                 'entry_has_gpus'  : True if 'DUNEGPU' in voList else False
+                 'entry_has_gpus'  : True if 'DUNEGPU' in voList else False,
+                 'file_name'       : fileName.split('/')[-1],
+                 'raw_config'      : xmlEntry.toprettyxml(indent="    ",
+                                                  encoding="UTF-8").decode() 
                })
 
 def processOneFileYAML(sitesDict, fileName):
@@ -286,9 +290,6 @@ def processOneFileYAML(sitesDict, fileName):
         logLine('%s:%s has no BEST_FIT - ignoring' 
                 % (osgSiteName,osgGatekeeper))
         continue
-
-#      print(osgGatekeeper)
-#      print(yamlDict[osgSiteName][osgGatekeeper])
     
       for entryName in yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT']:
         if (not yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT'][entryName] 
@@ -347,7 +348,7 @@ def processOneFileYAML(sitesDict, fileName):
         except:
           try:
             wlcgSiteName = yamlDict[osgSiteName]['common_entry_fields']\
-                             ['attrs']['GLIDEIN_ResourceName']['value']
+                             ['attrs']['GLIDEIN_ResourceName']['value'] 
           except:
             wlcgSiteName = ''
 
@@ -398,13 +399,23 @@ def processOneFileYAML(sitesDict, fileName):
                                   'entries'               : []
                                 }
 
+        rawConfig = { entryName : 
+             yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT'][entryName] }
+  
+        if 'common_entry_fields' in yamlDict[osgSiteName]:
+          rawConfig['common_entry_fields'] = \
+                         yamlDict[osgSiteName]['common_entry_fields']
+
         sitesDict[siteName]['entries'].append(
               { 'entry_name'      : entryName,
                 'gatekeeper'      : osgGatekeeper,
                 'max_rss_bytes'   : rssBytes,
                 'max_wall_seconds': wallSeconds,
                 'max_processors'  : processors,
-                'entry_has_gpus'  : True if 'DUNEGPU' in voList else False                
+                'entry_has_gpus'  : True if 'DUNEGPU' in voList else False,
+                'file_name'       : 'OSG_autoconf/' + fileName.split('/')[-1],
+                'raw_config'      : json.dumps(rawConfig, 
+                                             sort_keys = True, indent = 4)
               })
 
 def buildSites(sitesDict):
@@ -430,6 +441,8 @@ def updateSites():
 
   sitesDict = {}
   buildSites(sitesDict)
+
+  logLine(str(sitesDict))
 
   try:
     justinSiteRows = justin.select('SELECT site_name,sites.site_id,'
@@ -478,7 +491,6 @@ def updateSites():
                   country,
                   region)
               )
-
       try:
         newID = justin.insertUpdate(query)
       except Exception as e:
@@ -509,6 +521,7 @@ def updateSites():
         continue
 
     for entryDict in sitesDict[siteName]['entries']:
+       logLine('Insert/update ' + entryDict['entry_name'])
        if entryDict['entry_name'] not in justinEntryIDs:
           query = ('INSERT INTO entries SET '
                    'entry_name="%s",'
@@ -518,6 +531,8 @@ def updateSites():
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
                    'entry_has_gpus=%d,'
+                   'file_name="%s",'
+                   'raw_config="%s",'
                    'last_osg_seen_time=NOW() '
                    % (entryDict['entry_name'], 
                       entryDict['gatekeeper'],
@@ -525,8 +540,12 @@ def updateSites():
                       entryDict['max_processors'],
                       entryDict['max_rss_bytes'],
                       entryDict['max_wall_seconds'],
-                      entryDict['entry_has_gpus'])
+                      entryDict['entry_has_gpus'],
+                      entryDict['file_name'],
+             entryDict['raw_config'].replace('\\','\\\\').replace('"','\\"'))
                   )
+
+          logLine(query)
           try:
             newID = justin.insertUpdate(query)
           except Exception as e:
@@ -544,6 +563,8 @@ def updateSites():
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
                    'entry_has_gpus=%d,'
+                   'file_name="%s",'
+                   'raw_config="%s",'
                    'last_osg_seen_time=NOW() '
                    'WHERE entry_name="%s"'
                    % (entryDict['gatekeeper'],
@@ -552,14 +573,17 @@ def updateSites():
                       entryDict['max_rss_bytes'],
                       entryDict['max_wall_seconds'],
                       entryDict['entry_has_gpus'],
+                      entryDict['file_name'],
+             entryDict['raw_config'].replace('\\','\\\\').replace('"','\\"'),
                       entryDict['entry_name']
                      )
                   )
+          logLine(query)
           try:
             justin.insertUpdate(query)
           except Exception as e:
             logLine('Failed inserting/updating %s: %s' 
-                  % (entryDict['entry_name'], str(e)))
+                    % (entryDict['entry_name'], str(e)))
             continue
 
        logLine('Entry: %s' % entryDict['entry_name'])
@@ -1227,6 +1251,7 @@ if __name__ == '__main__':
               os.setuid(p[2])              
               oneCycle()
             except Exception as e:
+              traceback.print_exc()
               print('Cycle fails with exception ' + str(e))
 
             justin.conn.close()

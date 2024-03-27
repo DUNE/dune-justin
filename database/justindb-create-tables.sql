@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `entry_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `rse_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `event_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -118,6 +119,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   INDEX `file_id` (`file_id`,`event_id`),
   INDEX `justin_job_id` (`justin_job_id`,`event_id`),
   INDEX `site_id` (`site_id`,`event_id`),
+  INDEX `entry_id` (`entry_id`,`event_id`),
   INDEX `rse_id` (`rse_id`,`event_id`),
   INDEX `user_id` (`user_id`,`event_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
@@ -236,6 +238,8 @@ CREATE TABLE IF NOT EXISTS `entries` (
   `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
   `last_osg_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_get_jobscript_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `file_name` varchar(255) NOT NULL DEFAULT '',
+  `raw_config` text NOT NULL DEFAULT '',
   PRIMARY KEY (`entry_id`),
   UNIQUE KEY `entry_name` (`entry_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

@@ -557,7 +557,8 @@ def makeJobscriptDict(jsonDict, jobDict):
   return jobscriptDict
 
 def updateTerminalJobState(justinJobID = 0, jobState = '', 
-                           workflowID = 0, stageID = 0, siteID = 0):
+                           workflowID = 0, stageID = 0, siteID = 0,
+                           entryID = 0):
 
 # Update job_state with one of the terminal states
 # THIS DOES A COMMIT TOO AND MUST ONLY BE USED IMMEDIATELY BEFORE
@@ -587,7 +588,8 @@ def updateTerminalJobState(justinJobID = 0, jobState = '',
                     workflowID  = workflowID, 
                     stageID     = stageID,
                     justinJobID = justinJobID,
-                    siteID      = siteID
+                    siteID      = siteID,
+                    entryID     = entryID
                    )
 
     justin.conn.commit()
@@ -789,7 +791,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                     workflowID = jsonDict['workflow_id'],
                     stageID = jsonDict['stage_id'],
                     justinJobID = jobDict['justin_job_id'],
-                    siteID = jobDict['site_id']
+                    siteID = jobDict['site_id'],
+                    entryID = jobDict['entry_id']
                    )
 
     if jsonDict['workflow_id']==justin.awtWorkflowID:
@@ -798,7 +801,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                       workflowID = jsonDict['workflow_id'],
                       stageID = jsonDict['stage_id'],
                       justinJobID = jobDict['justin_job_id'],
-                      siteID = jobDict['site_id']
+                      siteID = jobDict['site_id'],
+                      entryID = jobDict['entry_id']
                      )
 
   except Exception as e:
@@ -914,6 +918,7 @@ def jobAbortedMethod(startResponse, jsonDict):
                     stageID      = jobDict['stage_id'],
                     justinJobID  = jobDict['justin_job_id'],
                     siteID       = jobDict['site_id'],
+                    entryID      = jobDict['entry_id'],
                     rseName      = rseName
                    )
 
@@ -1181,6 +1186,7 @@ def findBestFile(jobDict):
                      fileID         = replicaRows[0]['file_id'],
                      justinJobID    = jobDict['justin_job_id'],
                      siteID         = jobDict['site_id'],
+                     entryID        = jobDict['entry_id'],
                      rseID          = replicaRows[0]['rse_id'])
 
   # If storage is at the same site and a lan PFN is given, use it
@@ -1252,7 +1258,8 @@ def getFileMethod(startResponse, jsonDict):
                         workflowID  = jobDict['workflow_id'],
                         stageID     = jobDict['stage_id'],
                         justinJobID = jobDict['justin_job_id'],
-                        siteID      = jobDict['site_id']
+                        siteID      = jobDict['site_id'],
+                        entryID     = jobDict['entry_id']
                        )
 
     except Exception as e:
@@ -1322,7 +1329,8 @@ def processOutputDids(outputDids, workflowID, stageID, justinJobID):
                         'stage_id='           + str(stageID + 1)
                        )
 
-def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
+def saveAwtResults(justinJobID, siteID, entryID, 
+                   jobscriptLog, hasInnerApptainer):
 
 # REMOVE prints FOR PRODUCTION
   print('Start saveAwtResults', file=sys.stderr)
@@ -1352,6 +1360,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
                         stageID = 1,
                         justinJobID = justinJobID,
                         siteID = siteID,
+                        entryID = entryID,
                         rseName = lineSplitted[2]
                        )
 
@@ -1363,6 +1372,7 @@ def saveAwtResults(justinJobID, siteID, jobscriptLog, hasInnerApptainer):
                         stageID = 1,
                         justinJobID = justinJobID,
                         siteID = siteID,
+                        entryID = entryID,
                         rseName = lineSplitted[2]
                        )
 
@@ -1405,7 +1415,7 @@ def recordResultsMethod(startResponse, jsonDict):
       
   try:
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
-             'jobs.site_id, users.access_token, '
+             'jobs.site_id, jobs.entry_id, users.access_token, '
              'jobs.has_inner_apptainer, jobs.job_state '
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
@@ -1418,6 +1428,7 @@ def recordResultsMethod(startResponse, jsonDict):
     workflowID        = int(row['workflow_id'])
     stageID           = int(row['stage_id'])
     siteID            = int(row['site_id'])
+    entryID           = int(row['entry_id'])
     userAccessToken   = row['access_token']
     hasInnerApptainer = row['has_inner_apptainer']
     jobState          = row['job_state']
@@ -1448,6 +1459,7 @@ def recordResultsMethod(startResponse, jsonDict):
   if workflowID == justin.awtWorkflowID:
     saveAwtResults(justinJobID, 
                    siteID, 
+                   entryID,
                    jsonDict['jobscript_log'],
                    hasInnerApptainer)
 
@@ -1469,7 +1481,8 @@ def recordResultsMethod(startResponse, jsonDict):
                       workflowID   = workflowID,
                       stageID      = stageID,
                       justinJobID  = justinJobID,
-                      siteID       = siteID
+                      siteID       = siteID,
+                      entryID      = entryID
                      )
 
     except Exception as e:
@@ -1592,7 +1605,8 @@ def recordResultsMethod(startResponse, jsonDict):
                     workflowID  = workflowID,
                     stageID     = stageID,
                     justinJobID = justinJobID,
-                    siteID      = siteID
+                    siteID      = siteID,
+                    entryID     = entryID
                    )
 
   except Exception as e:
@@ -1801,6 +1815,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                       fileID = fileRow['file_id'],
                       justinJobID = justinJobID,
                       siteID = siteID,
+                      entryID = entryID,
                       rseName = rseName,
                       seconds = seconds
                      )
@@ -1830,7 +1845,8 @@ def confirmResultsMethod(startResponse, jsonDict):
                          stageID = stageID,
                          fileID = file_id,
                          justinJobID = justinJobID,
-                         siteID = siteID
+                         siteID = siteID,
+                         entryID = entryID
                         )
 
     except Exception as e:
@@ -1850,7 +1866,8 @@ def confirmResultsMethod(startResponse, jsonDict):
                     workflowID = workflowID,
                     stageID = stageID,
                     justinJobID = justinJobID,
-                    siteID = siteID
+                    siteID = siteID,
+                    entryID = entryID
                    )
   except:
     return httpError(startResponse, 
