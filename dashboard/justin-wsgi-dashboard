@@ -2810,7 +2810,8 @@ def listEntries(environ, user, cgiValues):
                 )
                 )    
   
-    output += ('<td>%s</td>'
+    output += ('<td><a href="/dashboard/?method=show-entry&entry_name=%s">'
+               '%s</a></td>'
                '<td>%s</td>'
                '<td>%d&nbsp;/&nbsp;%d =&nbsp;%d</td>'
                '<td>%d (%d&nbsp;hours)</td>'
@@ -2819,7 +2820,8 @@ def listEntries(environ, user, cgiValues):
                '<td>%s</td>'
                '<td>%s</td>'
                '</tr>'
-          % (insertWBR(entryRow['entry_name']), 
+          % (entryRow['entry_name'],
+             insertWBR(entryRow['entry_name']),
              insertWBR(entryRow['gatekeeper']),
              int(entryRow["max_rss_bytes"] / 1048576),
                entryRow['max_processors'],
@@ -3194,15 +3196,15 @@ def showEntry(environ, user, cgiValues):
 
   output += ('<table>')
   
+  output += ('<tr><td>Entry</td><td>%s</td></tr>' 
+             % entryName)
+
   output += ('<tr><td>Site</td><td>'
              '<a href="/dashboard/?method=show-site&site_name=%s">%s</a> '
              '(%s)</td></tr>' 
              % (entryRow['site_name'], entryRow['site_name'], 
                 'enabled' if entryRow['enabled'] else 'not enabled'))
   
-  output += ('<tr><td>Entry</td><td>%s</td></tr>' 
-             % entryName)
-
   output += ('<tr><td>Gatekeeper</td><td>%s</td></tr>' 
              % entryRow['gatekeeper'])
   
