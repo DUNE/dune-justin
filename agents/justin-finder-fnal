@@ -1,10 +1,8 @@
-# THIS NEEDS UPDATING FOR pfn -> (wan_pfn,lan_pfn)
-
 #!/usr/bin/env python3
 #
 # justin-finder-fnal - justIN Finder agent for FNAL
 # 
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +61,7 @@ def createReplicasPins(rseID):
   # Make a list of up to maxFileFindsPerCycle replicas which have no
   # row in replicas_pins table but are at FNAL
 
-  query = ('SELECT replicas.replica_id,pfn,files.file_id FROM replicas '
+  query = ('SELECT replicas.replica_id,lan_pfn,files.file_id FROM replicas '
            'LEFT JOIN files ON files.file_id=replicas.file_id '
            'LEFT JOIN replicas_pins '
            'ON replicas_pins.replica_id=replicas.replica_id '
@@ -90,7 +88,7 @@ def createReplicasPins(rseID):
       logLine('Insert into replicas_pins fails: '  + str(e))
       continue
         
-    logLine('Created %s entry in replicas_pins' % replica['pfn'])
+    logLine('Created %s entry in replicas_pins' % replica['lan_pfn'])
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
@@ -102,7 +100,7 @@ def sendPinRequest(pfnsPath):
   # and https://docs.google.com/document/d/14sdrRmJts5JYBFKSvedKCxT1tcrWtWchR-PJhxdunT8/
   # for details of the API
   #
-  # Note: dCache needs all values at strings!
+  # Note: dCache needs all values as strings!
   #
 
   jsonDict = { "activity"  : "PIN",
@@ -188,13 +186,13 @@ def pinReplicas(rseID):
   
   if oldPins >= maxPins:
     # Bail out if we are at the limit before we even start
-    logLine('Do not workflow any more pins: %d now and limit is %d' %
+    logLine('Do not request any more pins: %d now and limit is %d' %
               (oldPins, maxPins))
     return
 
   newPins = 0
 
-  query = ('SELECT replicas_pins.replica_id,pfn,'
+  query = ('SELECT replicas_pins.replica_id,lan_pfn,'
            'files.workflow_id,files.stage_id,files.file_id '
            'FROM replicas_pins '
            'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
@@ -228,7 +226,7 @@ def pinReplicas(rseID):
               (oldPins + newPins, maxPins))
       break
   
-    pfnsPath = pfnToPnfsPath(replica['pfn'])
+    pfnsPath = pfnToPnfsPath(replica['lan_pfn'])
     pinURL   = sendPinRequest(pfnsPath)
     
     if pinURL:
@@ -249,11 +247,11 @@ def pinReplicas(rseID):
         justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas_pins for %s: %s' %
-                (replica['pfn'], str(e)))
+                (replica['lan_pfn'], str(e)))
                 
       newPins += 1
       logLine('Requested pin for %s and receive workflow URL %s' % 
-              (replica['pfn'], pinURL))
+              (replica['lan_pfn'], pinURL))
 
       justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_REQUESTED,
                       workflowID = replica['workflow_id'],
@@ -301,7 +299,7 @@ def checkPinWorkflows(rseID):
 
   # Make a list of up to maxFileFindsPerCycle waiting pins to work on 
 
-  query = ('SELECT replicas_pins.replica_id,pfn,pin_ref,pin_expire_time,'
+  query = ('SELECT replicas_pins.replica_id,lan_pfn,pin_ref,pin_expire_time,'
            'UNIX_TIMESTAMP(pin_expire_time) AS pin_expire_unixtime,'
            'files.workflow_id,files.stage_id,files.file_id '
            'FROM replicas_pins '
@@ -335,7 +333,7 @@ def checkPinWorkflows(rseID):
       continue
     
     if 'status' not in jsonDict:
-      logLine('status missing from pin check for %s' % pin['pfn'])
+      logLine('status missing from pin check for %s' % pin['lan_pfn'])
       continue
     
     if jsonDict['status'] == 'COMPLETED':
@@ -357,11 +355,11 @@ def checkPinWorkflows(rseID):
         justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas and pins for %s: %s' %
-                (pin['pfn'], str(e)))
+                (pin['lan_pfn'], str(e)))
         return
     
       logLine('Updated replica %s to be pinned and accessible until %s' %
-              (pin['pfn'], pin['pin_expire_time']))
+              (pin['lan_pfn'], pin['pin_expire_time']))
 
       justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_DONE,
                       workflowID = pin['workflow_id'],
@@ -372,7 +370,7 @@ def checkPinWorkflows(rseID):
     else:
 # THE CANCELLED STATE ALSO NEEDS TO BE HANDLED.
       logLine('Request %s for pfn %s is still in state %s' %
-              (pin['pin_ref'], pin['pfn'], jsonDict['status']))
+              (pin['pin_ref'], pin['lan_pfn'], jsonDict['status']))
 
       try:
         query = ('UPDATE replicas_pins SET '
@@ -385,7 +383,7 @@ def checkPinWorkflows(rseID):
 
       except Exception as e:
         logLine('Failed updating recheck time for %s: %s' %
-                (pin['pfn'], str(e)))
+                (pin['lan_pfn'], str(e)))
        
   # All ok, so commit it all to the DB
   justin.conn.commit()
@@ -430,7 +428,7 @@ def releasePins(rseID):
 
 
   # Find pins that have expired or are of a processed or failed file
-  query = ('SELECT replicas_pins.replica_id,pfn,pin_ref,'
+  query = ('SELECT replicas_pins.replica_id,lan_pfn,pin_ref,'
            'files.workflow_id,files.stage_id,files.file_id '
            'FROM replicas_pins '
            'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
@@ -475,10 +473,10 @@ def releasePins(rseID):
         justin.cur.execute(query)
     except Exception as e:
         logLine('Failed delete pin and updating replica info for %s: %s' %
-                (pin['pfn'], str(e)))
+                (pin['lan_pfn'], str(e)))
         return
     
-    logLine('Deleted pin of %s' % pin['pfn'])
+    logLine('Deleted pin of %s' % pin['lan_pfn'])
 
     justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_CANCELLED,
                     workflowID = pin['workflow_id'],
@@ -525,15 +523,22 @@ def oneCycle():
 
 if __name__ == '__main__':
 
-  if (os.fork() != 0):
+  if len(sys.argv) > 1 and sys.argv[1] == '--container':
+    notContainer = False
+  else:
+    notContainer = True
+
+  if notContainer and os.fork() != 0:
     sys.exit() # first parent
 
   else:
     os.chdir("/")
-    os.setsid()
     os.umask(0)
 
-    if os.fork() != 0:
+    if notContainer:
+      os.setsid()
+
+    if notContainer and os.fork() != 0:
       sys.exit() # second parent
 
     else:

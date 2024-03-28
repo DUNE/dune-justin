@@ -120,7 +120,7 @@ def submitJobs(numberToSubmit,
    ('###justin_prodev###',                     justin.proDev),
    ('###justin_workflow_id###',                str(workflowID)),
    ('###justin_stage_id###',                   str(stageID)),
-   ('###justin_jobscript_image###',            justin.jobscriptImage),
+   ('###justin_jobscript_image###',            jobscriptImage),
    ('###justin_metacat_auth_server_url###',    justin.metacatAuthServerURL),
    ('###justin_metacat_server_outputs_url###', justin.metacatServerOutputsURL)
                 ):
@@ -488,7 +488,7 @@ def awtJobsToSites():
                  needsInnerApptainer  = False,
                  jobscriptImage       = (justin.jobscriptImagePrefix + '/' + 
                                          justin.jobscriptImageSuffix + ':' +
-                                         justin.jobscriptImageVersion)
+                                         justin.jobscriptImageVersion),
                  accountingGroup      = 'group_dune.prod_mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,

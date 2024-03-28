@@ -974,7 +974,7 @@ if confirmDict['status'] != 200:
 #  ret = executeMetaCatCommand("file update-meta --metadata "
 #         "'{\"dune.output_status\":\"confirmed\"}' "
 #         "--files %s" % ','.join(rucioUploadedDIDs))
-logLine('Using metacat file update intead of update-meta to set all '
+logLine('Using metacat file update instead of update-meta to set all '
         'output files to confirmed!')
 
 try:
