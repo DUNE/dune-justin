@@ -36,10 +36,11 @@ import subprocess
 
 awtWorkflowID   = 1
 
-# Three globals used again and again
+# Globals used again and again
 siteName        = 'XX_UNKNOWN'
 jobsubJobID     = None
 justinJobSecret = '###justin_job_secret###'
+jobscriptImage  = '###justin_jobscript_image###'
 workflowID      = ###justin_workflow_id###
 stageID         = ###justin_stage_id###
 
@@ -473,8 +474,7 @@ for line in open(os.environ['_CONDOR_MACHINE_AD'],'r').readlines():
 logLine('==== Before try apptainer ====')
 getJobscriptDict['has_inner_apptainer'] = (0 == os.system(
    '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer '
-   'shell --shell /usr/bin/hostname '
-   '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest'
+   'shell --shell /usr/bin/hostname %s' % jobscriptImage
    ))
 logLine('==== After try apptainer ====')
 
@@ -652,9 +652,8 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
   '--containall '
   '--bind /cvmfs '
   '--workdir %s '
-  '--home %s/home:/home '
-  '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest '
-  % (justinWorkdir, justinWorkdir),
+  '--home %s/home:/home %s'
+  % (justinWorkdir, justinWorkdir, jobscriptImage),
   stdout=subprocess.PIPE,
   shell=True 
   )

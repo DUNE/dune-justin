@@ -284,6 +284,7 @@ CREATE TABLE IF NOT EXISTS `stages` (
   `processors` tinyint(3) unsigned NOT NULL,
   `jobscript_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `jobscript_github` varchar(255) NOT NULL DEFAULT '',
+  `jobscript_image` varchar(255) NOT NULL DEFAULT '',
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,
   `rss_bytes` bigint(20) unsigned DEFAULT NULL,
   `max_distance` float NOT NULL DEFAULT 0.0,

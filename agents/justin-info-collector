@@ -93,8 +93,9 @@ def executeMetaCatCommand(args):
      'export METACAT_SERVER_URL=%s ; '
      '/usr/local/bin/metacat auth login -m x509 dunepro ; '
      '/usr/local/bin/metacat %s' % 
-     (justin.metacatAuthServerURL, justin.metacatServerOutputsURL,
-      justin.jobsProductionProxyFile, args))
+     (justin.jobsProductionProxyFile, 
+      justin.metacatAuthServerURL, justin.metacatServerOutputsURL,
+      args))
      
     if ret == 0:
       break

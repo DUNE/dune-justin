@@ -117,6 +117,10 @@ jobStallSeconds = 3660
 
 defaultScopeName = 'usertests'
 
+jobscriptImageSuffix  = None
+jobscriptImagePrefix  = None 
+jobscriptImageVersion = None 
+
 rseCountriesRegions = { 
                         'BR'  : 'South_America',
                         'CA'  : 'North_America',
@@ -153,7 +157,8 @@ def readConf():
          cilogonClientID, cilogonSecret, agentUsername,  \
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
-         metacatServerInputsURL, metacatServerOutputsURL
+         metacatServerInputsURL, metacatServerOutputsURL, \
+         jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion
 
   parser = configparser.RawConfigParser()
 
@@ -249,6 +254,25 @@ def readConf():
                          parser.get('agents','non_justin_fraction').strip())
   except:
     nonJustinFraction = 0.5
+
+  # Default apptainer image in cvmfs is 'prefix/suffix:latest'
+  try:
+    jobscriptImagePrefix = parser.get('agents',
+                                      'jobscript_image_prefix').strip()
+  except:
+    jobscriptImagePrefix = '/cvmfs/singularity.opensciencegrid.org/fermilab'
+
+  try:
+    jobscriptImageSuffix = parser.get('agents',
+                                      'jobscript_image_suffix').strip()
+  except:
+    jobscriptImageSuffix = 'fnal-wn-sl7'
+
+  try:
+    jobscriptImageVersion = parser.get('agents',
+                                       'jobscript_image_version').strip()
+  except:
+    jobscriptImageVersion = 'latest'
 
   try:
     a = parser.get('htcondor','schedds').strip()

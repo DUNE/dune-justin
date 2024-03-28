@@ -820,6 +820,10 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     return ('400 Bad Request',
             '--jobscript or --jobscript-id or --jobscript-github must by given')
 
+  # Just use the defaults specified in the configuration files for now
+  jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
+                    justin.jobscriptImageSuffix + ':' + 
+                    justin.jobscriptImageVersion)
   try:
     justin.insertUpdate('INSERT INTO stages SET '
                         'stage_priority=50,'
@@ -827,12 +831,14 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                         'stage_id=%d,'
                         'jobscript_id=%d,'
                         'jobscript_github="%s",'
+                        'jobscript_image="%s",'
                         'processors=%d,'
                         'wall_seconds=%d,'
                         'rss_bytes=%d,'
                         'max_distance=%f' 
                         % (workflowID, stageID, 
                            jobscriptID, jobscriptGitHub,
+                           jobscriptImage,
                            processors, wallSeconds, 
                            rssBytes, maxDistance))
           

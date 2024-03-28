@@ -19,6 +19,9 @@
 - Support for integration instance added
 - MetaCat server URLs can now be set in the configuration
 - MetaCat file info shown directly on justIN dashboard file pages
+- Pages listing entries and showing status of an individual entry, including
+  XML pilot factory configuration.
+- Default Apptainer image for jobscripts can be given in configuration
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24

@@ -2693,7 +2693,7 @@ def listSites(environ, user, cgiValues):
 
   output += ("<h1>Sites</h1>")
 
-  output += ('<p>List <a href="/dashboard/?method=list-entries">all '
+  output += ('<p>Or list <a href="/dashboard/?method=list-entries">all '
              'entries</a>.</p>')
   
   query = ("SELECT DATE(last_osg_seen_time) AS osg_date,"
@@ -2761,7 +2761,7 @@ def listEntries(environ, user, cgiValues):
 
   output += ("<h1>Entries</h1>")
   
-  output += ('<p>List <a href="/dashboard/?method=list-sites">all '
+  output += ('<p>Or list <a href="/dashboard/?method=list-sites">all '
              'sites</a>.</p>')
   
   query = ("SELECT DATE(entries.last_osg_seen_time) AS osg_date,"

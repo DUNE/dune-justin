@@ -76,6 +76,7 @@ def logLine(text):
 def submitJobs(numberToSubmit,
                userName,
                needsInnerApptainer,
+               jobscriptImage,
                accountingGroup,
                workflowID,
                stageID,
@@ -91,10 +92,11 @@ def submitJobs(numberToSubmit,
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s %s w%ds%d %d %s %s %s %d %d %d' %
+  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d' %
           (numberToSubmit,
                userName,
                needsInnerApptainer,
+               jobscriptImage,
                accountingGroup,
                workflowID,
                stageID,
@@ -118,6 +120,7 @@ def submitJobs(numberToSubmit,
    ('###justin_prodev###',                     justin.proDev),
    ('###justin_workflow_id###',                str(workflowID)),
    ('###justin_stage_id###',                   str(stageID)),
+   ('###justin_jobscript_image###',            justin.jobscriptImage),
    ('###justin_metacat_auth_server_url###',    justin.metacatAuthServerURL),
    ('###justin_metacat_server_outputs_url###', justin.metacatServerOutputsURL)
                 ):
@@ -317,7 +320,7 @@ def workflowJobs():
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
      'wlcg_group_name,stages.processors,stages.wall_seconds,stages.rss_bytes,'
-     'principal_names.principal_name,condor_group_name '
+     'principal_names.principal_name,condor_group_name,jobscript_image '
      'FROM workflows '
      'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
      'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
@@ -456,6 +459,7 @@ def workflowJobs():
                    userName             = stageRow['principal_name'],
                    needsInnerApptainer  = (stageRow['wlcg_group_name'] 
                                            != '/dune/production'),
+                   jobscriptImage       = stageRow['jobscript_image'],
                    accountingGroup      = condorGroupName,
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
@@ -466,11 +470,6 @@ def workflowJobs():
                    requestedProcessors  = stageRow['processors'],
                    requestedRssBytes    = stageRow['rss_bytes'],
                    requestedWallSeconds = stageRow['wall_seconds'])
-
-#       logLine('%d processors %d MB has %d submitted and %d unallocated' % 
-#            (processors, 
-#             int((bytesPerProcessor * processors) / (1024 * 1024)),
-#             numberSubmitted, numberUnallocated))
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
@@ -487,6 +486,9 @@ def awtJobsToSites():
       submitJobs(numberToSubmit       = 1,
                  userName             = 'dunepro',
                  needsInnerApptainer  = False,
+                 jobscriptImage       = (justin.jobscriptImagePrefix + '/' + 
+                                         justin.jobscriptImageSuffix + ':' +
+                                         justin.jobscriptImageVersion)
                  accountingGroup      = 'group_dune.prod_mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
