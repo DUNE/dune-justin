@@ -397,8 +397,6 @@ def findReplicas():
       pfnDict['pfn'] = pfn
       repsDict[rep['scope']+':'+rep['name']].append(pfnDict)
 
-#  logLine('repsDict: ' + str(repsDict))
-                      
   # Go through the files again, pulling out the replica info obtained 
   # for the file's DID
   for fileRow in fileRows:
@@ -431,7 +429,7 @@ def findReplicas():
     # These go into the SAME rses dictionary so separate LAN and WAN
     # replica information is merged into one data dictionary
     for pfnDict in pfnsList:
-        if pfnDict['type'] != 'DISK':
+        if pfnDict['type'] != 'DISK' and pfnDict['rse'] != 'FNAL_DCACHE':
           continue
 
         if pfnDict['rse'] not in rses:
@@ -495,7 +493,7 @@ def findReplicas():
             logLine('Try to insert AWT file: %s %s' 
                     % (wanPFN, lanPFN))
 
-            query = ('INSERT INTO replicas SET '              
+            query = ('INSERT INTO replicas SET '
                      'workflow_id=%d,stage_id=%d,'
                      'rse_id=%d,file_id=%d,'
                      'wan_pfn="%s",lan_pfn="%s"' %
@@ -541,9 +539,6 @@ def findReplicas():
             logLine('Failed inserting replica: ' + str(e))
             # We give up if this happens, without the commit
             return
-           
-#        # Add workflow/stage to the list to have updated stats at the end
-#        workflowsStages.add((fileRow['workflow_id'], fileRow['stage_id']))
 
     if replicasInserted:
       # If we got this far, then we found all the replicas for this 

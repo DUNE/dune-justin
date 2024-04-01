@@ -127,6 +127,7 @@ COPY containers/justin-client.cnf       /etc/my.cnf.d/
 
 COPY containers/start-justin-httpd          /usr/sbin/
 COPY containers/start-justin-finder         /usr/sbin/
+COPY containers/start-justin-finder-fnal    /usr/sbin/
 COPY containers/start-justin-job-factory    /usr/sbin/
 COPY containers/start-justin-info-collector /usr/sbin/
 

@@ -25,6 +25,7 @@ import stat
 import json
 import time
 import socket
+import traceback
 import urllib.request
 import tempfile
 
@@ -53,7 +54,7 @@ def logLine(text):
     
 def createReplicasPins(rseID):
   # Create EMPTY rows in replicas_pins for replicas that will need pins
-  # pinReplicas() below manages when to (re)try the real pin workflows
+  # pinReplicas() below manages when to (re)try the real pin requests
 
   # Find replicas at an RSE where pinning is necessary
   logLine('Look for replicas needing rows in replicas_pins')
@@ -61,7 +62,7 @@ def createReplicasPins(rseID):
   # Make a list of up to maxFileFindsPerCycle replicas which have no
   # row in replicas_pins table but are at FNAL
 
-  query = ('SELECT replicas.replica_id,lan_pfn,files.file_id FROM replicas '
+  query = ('SELECT replicas.replica_id,wan_pfn,files.file_id FROM replicas '
            'LEFT JOIN files ON files.file_id=replicas.file_id '
            'LEFT JOIN replicas_pins '
            'ON replicas_pins.replica_id=replicas.replica_id '
@@ -71,8 +72,7 @@ def createReplicasPins(rseID):
            'ORDER BY replicas.replica_id LIMIT ' + str(maxFileFindsPerCycle))
 
   try:
-    justin.cur.execute(query)
-    replicas = justin.cur.fetchall()
+    replicas = justin.select(query)
   except Exception as e:
     logLine('Reading list of replica_pins rows to create fails: '  + str(e))
     return
@@ -88,13 +88,13 @@ def createReplicasPins(rseID):
       logLine('Insert into replicas_pins fails: '  + str(e))
       continue
         
-    logLine('Created %s entry in replicas_pins' % replica['lan_pfn'])
+    logLine('Created %s entry in replicas_pins' % replica['wan_pfn'])
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
 def sendPinRequest(pfnsPath):
-  # Send a pin workflow to FNAL dCache using the bulk API
+  # Send a pin request to FNAL dCache using the bulk API
   #
   # See https://indico.cern.ch/event/1006673/contributions/4225445/attachments/2188118/3697487/bulk-request.pdf
   # and https://docs.google.com/document/d/14sdrRmJts5JYBFKSvedKCxT1tcrWtWchR-PJhxdunT8/
@@ -103,13 +103,15 @@ def sendPinRequest(pfnsPath):
   # Note: dCache needs all values as strings!
   #
 
-  jsonDict = { "activity"  : "PIN",
-               "target"    : pfnsPath,
+  jsonDict = { "activity"         : "PIN",
+               "target"           : pfnsPath,
+               "clear_on_success" : True,
+               "clear_on_failure" : True,
                "arguments" : { "lifetime"      : str(pinSeconds),
                                "lifetime-unit" : "SECONDS" } }
 
   httpRequest = urllib.request.Request(
-                   'https://fndca1.fnal.gov:3880/api/v1/bulk-workflows',
+                   'https://fndca1.fnal.gov:3880/api/v1/bulk-requests',
                    data = json.dumps(jsonDict).encode(),
                    headers = { 'User-Agent' : 'justin-finder-fnal',
                                'Content-Type' : 'application/json' },
@@ -125,12 +127,12 @@ def sendPinRequest(pfnsPath):
     response = urllib.request.urlopen(httpRequest, context = sslContext)
 
     if response.status != 201:
-      logLine('Bulk workflow to dCache fails with HTTP code %d and error: %s' 
+      logLine('Bulk request to dCache fails with HTTP code %d and error: %s' 
               % (response.status, response.read().decode('utf-8')) )
       return None
 
   except Exception as e:
-    logLine("Bulk workflow to dCache fails with: " + str(e))
+    logLine("Bulk request to dCache fails with: " + str(e))
     return None
 
   # This is the pin reference, as a URL which can be accessed
@@ -149,7 +151,7 @@ def pfnToPnfsPath(pfn):
     return None
     
   # Note that this prefix removes the double slash after dune!
-  return '/pnfs/fnal.gov/usr/dune' + pfn[len(fnalPrefix):]
+  return '/pnfs/dune/' + pfn[len(fnalPrefix):]
 
 def countPins(rseID):
 
@@ -179,7 +181,7 @@ def pinReplicas(rseID):
   newPins = 0  
   oldPins = countPins(rseID)
   
-  logLine('Currently there are %s workflowed pins' % str(oldPins))
+  logLine('Currently there are %s requested pins' % str(oldPins))
   
   if oldPins is None:
     return
@@ -192,7 +194,7 @@ def pinReplicas(rseID):
 
   newPins = 0
 
-  query = ('SELECT replicas_pins.replica_id,lan_pfn,'
+  query = ('SELECT replicas_pins.replica_id,wan_pfn,'
            'files.workflow_id,files.stage_id,files.file_id '
            'FROM replicas_pins '
            'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
@@ -222,11 +224,11 @@ def pinReplicas(rseID):
   
     # Do not create too many pins overall!
     if oldPins + newPins >= maxPins:
-      logLine('Stop workflowing pins: %d now and limit is %d' %
+      logLine('Stop requesting pins: %d now and limit is %d' %
               (oldPins + newPins, maxPins))
       break
   
-    pfnsPath = pfnToPnfsPath(replica['lan_pfn'])
+    pfnsPath = pfnToPnfsPath(replica['wan_pfn'])
     pinURL   = sendPinRequest(pfnsPath)
     
     if pinURL:
@@ -247,11 +249,11 @@ def pinReplicas(rseID):
         justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas_pins for %s: %s' %
-                (replica['lan_pfn'], str(e)))
+                (replica['wan_pfn'], str(e)))
                 
       newPins += 1
-      logLine('Requested pin for %s and receive workflow URL %s' % 
-              (replica['lan_pfn'], pinURL))
+      logLine('Requested pin for %s and receive request URL %s' % 
+              (replica['wan_pfn'], pinURL))
 
       justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_REQUESTED,
                       workflowID = replica['workflow_id'],
@@ -262,7 +264,7 @@ def pinReplicas(rseID):
       justin.conn.commit()
 
 def checkPinRequest(pinURL):
-  # Send a pin workflow to FNAL dCache using the bulk API
+  # Send a pin request to FNAL dCache using the bulk API
   #
   # See https://indico.cern.ch/event/1006673/contributions/4225445/attachments/2188118/3697487/bulk-request.pdf
   # and https://docs.google.com/document/d/14sdrRmJts5JYBFKSvedKCxT1tcrWtWchR-PJhxdunT8/
@@ -279,12 +281,12 @@ def checkPinRequest(pinURL):
     response = urllib.request.urlopen(pinURL, context = sslContext)
 
     if response.status != 200:
-      logLine('Bulk workflow to dCache fails with HTTP code %d and error: %s' 
+      logLine('Bulk request to dCache fails with HTTP code %d and error: %s' 
               % (reponse.status, response.read().decode('utf-8')) )
       return None
 
   except Exception as e:
-    logLine("Bulk workflow to dCache fails with: " + str(e))
+    logLine("Bulk request to dCache fails with: " + str(e))
     return None
 
   try:
@@ -293,13 +295,13 @@ def checkPinRequest(pinURL):
   except:
     return None
   
-def checkPinWorkflows(rseID):
-  # Check on the status of pins we workflowed and update in DB once available
-  logLine('Checking pin workflows to see if they are completed')
+def checkPinRequests(rseID):
+  # Check on the status of pins we requested and update in DB once available
+  logLine('Checking pin requests to see if they are completed')
 
   # Make a list of up to maxFileFindsPerCycle waiting pins to work on 
 
-  query = ('SELECT replicas_pins.replica_id,lan_pfn,pin_ref,pin_expire_time,'
+  query = ('SELECT replicas_pins.replica_id,wan_pfn,pin_ref,pin_expire_time,'
            'UNIX_TIMESTAMP(pin_expire_time) AS pin_expire_unixtime,'
            'files.workflow_id,files.stage_id,files.file_id '
            'FROM replicas_pins '
@@ -322,7 +324,7 @@ def checkPinWorkflows(rseID):
   
   if not waitingPins:
     # Nothing to do
-    logLine('No waiting pin workflows')
+    logLine('No waiting pin requests')
     return
  
   for pin in waitingPins:
@@ -333,7 +335,7 @@ def checkPinWorkflows(rseID):
       continue
     
     if 'status' not in jsonDict:
-      logLine('status missing from pin check for %s' % pin['lan_pfn'])
+      logLine('status missing from pin check for %s' % pin['wan_pfn'])
       continue
     
     if jsonDict['status'] == 'COMPLETED':
@@ -355,11 +357,11 @@ def checkPinWorkflows(rseID):
         justin.cur.execute(query)
       except Exception as e:
         logLine('Failed updating replicas and pins for %s: %s' %
-                (pin['lan_pfn'], str(e)))
+                (pin['wan_pfn'], str(e)))
         return
     
       logLine('Updated replica %s to be pinned and accessible until %s' %
-              (pin['lan_pfn'], pin['pin_expire_time']))
+              (pin['wan_pfn'], pin['pin_expire_time']))
 
       justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_DONE,
                       workflowID = pin['workflow_id'],
@@ -370,7 +372,7 @@ def checkPinWorkflows(rseID):
     else:
 # THE CANCELLED STATE ALSO NEEDS TO BE HANDLED.
       logLine('Request %s for pfn %s is still in state %s' %
-              (pin['pin_ref'], pin['lan_pfn'], jsonDict['status']))
+              (pin['pin_ref'], pin['wan_pfn'], jsonDict['status']))
 
       try:
         query = ('UPDATE replicas_pins SET '
@@ -383,13 +385,13 @@ def checkPinWorkflows(rseID):
 
       except Exception as e:
         logLine('Failed updating recheck time for %s: %s' %
-                (pin['lan_pfn'], str(e)))
+                (pin['wan_pfn'], str(e)))
        
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
 def deletePin(pinURL):
-  # Send a delete pin workflow to FNAL dCache using the bulk API
+  # Send a delete pin request to FNAL dCache using the bulk API
   #
   # See https://indico.cern.ch/event/1006673/contributions/4225445/attachments/2188118/3697487/bulk-request.pdf
   # and https://docs.google.com/document/d/14sdrRmJts5JYBFKSvedKCxT1tcrWtWchR-PJhxdunT8/
@@ -408,12 +410,12 @@ def deletePin(pinURL):
                                       context = sslContext)
 
     if response.status != 204:
-      logLine('Bulk delete workflow to dCache for %s fails with HTTP code %d and error: %s' 
+      logLine('Bulk delete request to dCache for %s fails with HTTP code %d and error: %s' 
               % (pinURL, reponse.status, response.read().decode('utf-8')) )
       return None
 
   except Exception as e:
-    logLine("Bulk delete workflow to dCache for %s fails with: %s" 
+    logLine("Bulk delete request to dCache for %s fails with: %s" 
             % (pinURL, str(e)))
     return None
 
@@ -423,25 +425,23 @@ def deletePin(pinURL):
     return None
   
 def releasePins(rseID):
-  # Check on the status of pins we workflowed and update in DB once available
-  logLine('Checking pin workflows to see if they can be deleted')
+  # Check on the status of unexpired pins we requested and update in DB 
+  # once available
+  logLine('Checking unexpired pin requests to see if they can be deleted')
 
-
-  # Find pins that have expired or are of a processed or failed file
-  query = ('SELECT replicas_pins.replica_id,lan_pfn,pin_ref,'
+  # Find pins that have not yet expired but are of a processed or failed file
+  query = ('SELECT replicas_pins.replica_id,wan_pfn,pin_ref,'
            'files.workflow_id,files.stage_id,files.file_id '
            'FROM replicas_pins '
            'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
            'LEFT JOIN files ON replicas.file_id=files.file_id '
            'WHERE rse_id=' + str(rseID) + ' '
-           'AND pin_expire_time > "%s" '
-           'AND (pin_expire_time < NOW() OR files.state="processed" OR '
-           'files.state="failed")'
-           'ORDER BY replicas_pins.replica_id' % justin.unixEpoch)
+           'AND pin_expire_time > NOW() '
+           'AND (files.state="processed" OR files.state="failed")'
+           'ORDER BY replicas_pins.replica_id')
 
   try:
-    justin.cur.execute(query)
-    unwantedPins = justin.cur.fetchall()
+    unwantedPins = justin.select(query)
   except Exception as e:
     logLine('Reading list of unwanted FNAL replica pins fails with: ' 
             + str(e))
@@ -449,7 +449,7 @@ def releasePins(rseID):
   
   if not unwantedPins:
     # Nothing to do 
-    logLine('No unwanted pin workflows')
+    logLine('No unwanted pin requests')
     return
  
   for pin in unwantedPins:
@@ -463,20 +463,79 @@ def releasePins(rseID):
         query = ('DELETE FROM replicas_pins WHERE replica_id=%d' %
                  pin['replica_id'])
 
-        justin.cur.execute(query)
+        justin.insertUpdate(query)
 
         query = ('UPDATE replicas SET '
                  'accessible_until="%s" '
                  'WHERE replica_id=%d' % 
                  (justin.unixEpoch, pin['replica_id']))
 
-        justin.cur.execute(query)
+        justin.insertUpdate(query)
     except Exception as e:
         logLine('Failed delete pin and updating replica info for %s: %s' %
-                (pin['lan_pfn'], str(e)))
+                (pin['wan_pfn'], str(e)))
         return
     
-    logLine('Deleted pin of %s' % pin['lan_pfn'])
+    logLine('Deleted unwanted pin of %s (%s)' 
+            % (pin['wan_pfn'], pin['pin_ref']))
+
+    justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_CANCELLED,
+                    workflowID = pin['workflow_id'],
+                    stageID = pin['stage_id'],
+                    fileID = pin['file_id'],
+                    rseID = rseID)
+
+  # All ok, so commit it all to the DB
+  justin.conn.commit()
+
+def removeExpiredPins(rseID):
+  # Find expired pins and remove them
+  logLine('Finding and removing expired pins')
+
+  # Find pins that have expired by now
+  query = ('SELECT replicas_pins.replica_id,wan_pfn,pin_ref,'
+           'files.workflow_id,files.stage_id,files.file_id '
+           'FROM replicas_pins '
+           'LEFT JOIN replicas ON replicas_pins.replica_id=replicas.replica_id '
+           'LEFT JOIN files ON replicas.file_id=files.file_id '
+           'WHERE rse_id=%d AND '
+           'pin_expire_time > "%s" AND pin_expire_time < NOW() '
+           'ORDER BY replicas_pins.replica_id' 
+           % (rseID, justin.unixEpoch))
+
+  try:
+    unwantedPins = justin.select(query)
+  except Exception as e:
+    logLine('Reading list of expired FNAL replica pins fails with: ' 
+            + str(e))
+    return
+  
+  if not unwantedPins:
+    # Nothing to do 
+    logLine('No expired pins')
+    return
+ 
+  for pin in unwantedPins:
+    try:
+        query = ('DELETE FROM replicas_pins WHERE replica_id=%d' %
+                 pin['replica_id'])
+
+        justin.insertUpdate(query)
+
+        query = ('UPDATE replicas SET '
+                 'accessible_until="%s" '
+                 'WHERE replica_id=%d' % 
+                 (justin.unixEpoch, pin['replica_id']))
+
+        justin.insertUpdate(query)
+    except Exception as e:
+        logLine('Failed delete pin and updating replica info for %s: %s' %
+                (pin['wan_pfn'], str(e)))
+        return
+
+    logLine(str(pin))    
+    logLine('Deleted expired pin of %s (%s)' 
+            % (pin['wan_pfn'], pin['pin_ref']))
 
     justin.logEvent(eventTypeID = justin.event_REPLICA_STAGING_CANCELLED,
                     workflowID = pin['workflow_id'],
@@ -512,10 +571,13 @@ def oneCycle():
   pinReplicas(fnalRseID)
   
   # Check for pinned replicas and update accessible_until
-  checkPinWorkflows(fnalRseID)
+  checkPinRequests(fnalRseID)
 
   # Release pins of replicas of files which are now processed
   releasePins(fnalRseID)
+
+  # Release pins of replicas of files which are now processed
+  removeExpiredPins(fnalRseID)
 
 #
 # PROGRAM MAIN
@@ -628,6 +690,7 @@ if __name__ == '__main__':
               os.setuid(p[2])
               oneCycle()
             except Exception as e:
+              traceback.print_exc()
               print('Cycle fails with exception ' + str(e))
 
             justin.conn.close()

@@ -419,6 +419,7 @@ def updateMetadataTmp(fileScope, fileName,
     f.write(json.dumps(metadata, indent = 4, sort_keys = True))
   
 ########################################################################
+os.environ['TZ'] = 'UTC0'
 logLine('====Start of justin-wrapper-job====')
 
 for i in sorted(os.environ):
@@ -438,6 +439,9 @@ os.makedirs('home/workspace')
 for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
   os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
              '###justin_prodev###/NULL/jobutils/' + i, 'home/' + i)
+
+# Log the visible IP addresses and interfaces
+os.system('/usr/sbin/ip addr')
 
 # Assemble values to send to allocator
 getJobscriptDict = { 'method' : 'get_jobscript' }
@@ -552,7 +556,7 @@ with open('home/justin-jobscript-env.sh','w') as f:
     f.write('export %s="%s"\n' % (n,v))
 
 # REMOVE THIS
-  f.write('export JUSTIN_PRO_DEV=###justin_prodev###\n')
+#  f.write('export JUSTIN_PRO_DEV=###justin_prodev###\n')
 # ^^^^^^^^^^^
 
   f.write('export JUSTIN_ALLOCATOR='
