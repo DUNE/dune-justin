@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start justin-finder-fnal, for execution inside the justin container
+# Start justin-finder-tape, for execution inside the justin container
 #
 # Copyright 2013-24 Andrew McNab for the University of Manchester
 # 
@@ -40,8 +40,8 @@ echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 #fi
 
 # Run daemon in the foreground
-if [ -x /var/run/justin/overrides/justin-finder-fnal ] ; then
-  /var/run/justin/overrides/justin-finder-fnal --container
+if [ -x /var/run/justin/overrides/justin-finder-tape ] ; then
+  /var/run/justin/overrides/justin-finder-tape --container
 else
-  /usr/sbin/justin-finder-fnal --container
+  /usr/sbin/justin-finder-tape --container
 fi

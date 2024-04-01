@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# justin-finder-fnal - justIN Finder agent for FNAL
+# justin-findertape - justIN Finder agent for FNAL
 # 
 # Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
@@ -113,7 +113,7 @@ def sendPinRequest(pfnsPath):
   httpRequest = urllib.request.Request(
                    'https://fndca1.fnal.gov:3880/api/v1/bulk-requests',
                    data = json.dumps(jsonDict).encode(),
-                   headers = { 'User-Agent' : 'justin-finder-fnal',
+                   headers = { 'User-Agent' : 'justin-findertape',
                                'Content-Type' : 'application/json' },
                    method = 'POST')
 
@@ -613,11 +613,11 @@ if __name__ == '__main__':
         pass
         
       try:
-        f = open('/var/run/justin/finder-fnal.pid', 'w')
+        f = open('/var/run/justin/findertape.pid', 'w')
         f.write(str(os.getpid()) + '\n')
         f.close()
       except:
-        print('Failed to create /var/run/justin/finder-fnal.pid - exiting')
+        print('Failed to create /var/run/justin/findertape.pid - exiting')
         sys.exit(1)
 
       # Close stdin now
@@ -639,7 +639,7 @@ if __name__ == '__main__':
         except:
           pass
 
-        so = open('/var/log/justin/finder-fnal', 'a+')
+        so = open('/var/log/justin/findertape', 'a+')
         os.dup2(so.fileno(), sys.stdout.fileno())
 
         # Close and reopen stderr->log file, in case of logrotate
@@ -648,20 +648,20 @@ if __name__ == '__main__':
         except:
           pass
           
-        se = open('/var/log/justin/finder-fnal', 'a+')
+        se = open('/var/log/justin/findertape', 'a+')
         os.dup2(se.fileno(), sys.stderr.fileno())
 
         try:
-          pf = open('/var/run/justin/finder-fnal.pid', 'r')
+          pf = open('/var/run/justin/findertape.pid', 'r')
           pid = int(pf.read().strip())
           pf.close()
 
           if pid != os.getpid():
-            print('new /var/run/justin/finder-fnal.pid - exiting')
+            print('new /var/run/justin/findertape.pid - exiting')
             break
 
         except:
-          print('no /var/run/justin/finder-fnal.pid - exiting')
+          print('no /var/run/justin/findertape.pid - exiting')
           break
 
         # Fork a subprocess to run each cycle
