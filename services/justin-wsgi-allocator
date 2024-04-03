@@ -852,7 +852,8 @@ def sendHeartbeatMethod(startResponse, jsonDict):
 def jobAbortedMethod(startResponse, jsonDict):
 
   try:
-    httpCode = int(jsonDict['http_code'])
+    # Default event type ID is just the abort_code
+    eventTypeID = int(jsonDict['abort_code'])
   except:
     return httpError(startResponse, 
                      '400 Bad Request', 
@@ -878,28 +879,31 @@ def jobAbortedMethod(startResponse, jsonDict):
                      'Cannot set job to aborted as job already in %s state' 
                      % jobDict['job_state'])
 
-  # All ok, now process the message
+  # Work out the job state to set, from the given event type ID
 
-  if httpCode == 404 and jsonDict['aborted_method'] == 'get_jobscript':
-    state = 'notused'
-    eventTypeID = justin.event_JOB_NOTUSED
-  elif jsonDict['aborted_method'] == 'jobscript_error':
+  if eventTypeID == justin.event_JOB_SCRIPT_ERROR:
     state = 'jobscript_error'
-    eventTypeID = justin.event_JOB_SCRIPT_ERROR
-  elif jsonDict['aborted_method'] in [ 'rucio_attach', 'rucio_upload',
-                                       'metacat_declare' ]:
-# WANT TO RESET FILE ALLOCATIONS TOO?
+    
+  elif eventTypeID in [ justin.event_JOB_ABORT_CREATING_LOGS_TGZ,
+                        justin.event_JOB_ABORT_METACAT_LOGS_CREATION,
+                        justin.event_JOB_ABORT_METACAT_LOGS_REGISTRATION,
+                        justin.event_JOB_ABORT_RUCIO_UPLOAD_LOGS,
+                        justin.event_JOB_ABORT_WEBDAV_UPLOAD,
+                        justin.event_JOB_ABORT_CREATING_METADATA,
+                        justin.event_JOB_ABORT_METACAT_REGISTRATION,
+                        justin.event_JOB_ABORT_RUCIO_UPLOAD_FILE,
+                        justin.event_JOB_ABORT_METACAT_UPLOADED ]:
+# WANT TO RESET FILE ALLOCATIONS TOO HERE?
     state = 'outputting_failed'
-    eventTypeID = justin.event_JOB_OUTPUTTING_FAILED
   else:
     state = 'aborted'
-    eventTypeID = justin.event_JOB_ABORTED
 
-  print('Job %s aborted: %d %s' % (str(jsonDict['jobsub_id']),
-                                   eventTypeID,
-                                   str(jsonDict['aborted_method'])),
+  print('Job %s aborted: %d %s' 
+        % (str(jsonDict['jobsub_id']),
+           eventTypeID,
+           str(jsonDict['aborted_method'])),
         file=sys.stderr)
- 
+
   try:
     justin.insertUpdate(
              'UPDATE jobs SET job_state="%s",'

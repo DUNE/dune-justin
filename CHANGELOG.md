@@ -1,7 +1,7 @@
 # Changelog
 
 ## 01.01.00
-- justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched01.dune.hep.ac.uk
+- justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched02.dune.hep.ac.uk
   included in defaults
 - Event type IDs are generated using exec() from a list in __init__.py
 - justin-check-db to be run when the justin-info-collector container starts

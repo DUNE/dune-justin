@@ -33,6 +33,17 @@ in the Dashboard.
 |309|JOB_SCRIPT_ERROR|Error raised by the jobscript|
 |310|JOB_OUTPUTTING_FAILED|Job outputting failed|
 |311|JOB_STALLED_HTCONDOR|Job stalls as absent from HTCondor|
+|312|JOB_ABORT_RECORDING_RESULT|Job aborted when recording results|
+|313|JOB_ABORT_CREATING_LOGS_TGZ|Job aborted when creating logs.tgz|
+|314|JOB_ABORT_METACAT_LOGS_CREATION|Job aborted when creating logs.tgz JSON|
+|315|JOB_ABORT_METACAT_LOGS_REGISTRATION|Job aborted when registering logs.tgz|
+|316|JOB_ABORT_RUCIO_UPLOAD_LOGS|Job aborted when uploading logs.tgz|
+|317|JOB_ABORT_WEBDAV_UPLOAD|Job aborted during WebDAV upload|
+|318|JOB_ABORT_UPDATE_METADATA|Job aborted updating metadata|
+|319|JOB_ABORT_METACAT_REGISTRATION|Job aborted during file MetaCat registration|
+|320|JOB_ABORT_RUCIO_UPLOAD|Job aborted during file Rucio upload|
+|321|JOB_ABORT_METACAT_UPLOADED|Job aborted during MetaCat set uploaded|
+|322|JOB_ABORT_METACAT_CONFIRMED|Job aborted during MetaCat set confirmed|
 |401|FILE_ALLOCATED|File allocated to job|
 |402|FILE_ALLOCATED_RESET|File set back to unallocated from allocated|
 |403|FILE_SET_TO_FAILED|Too many attempts to process file: failed|

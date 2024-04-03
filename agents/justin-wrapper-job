@@ -109,10 +109,10 @@ def sendJsonURL(url, sendDict):
   receivedDict['response'] = responseString
   return receivedDict
 
-def jobAborted(httpCode, abortedMethod, rseName):
+def jobAborted(abortCode, abortedMethod, rseName):
 
   jobAbortedDict = { "method"         : "job_aborted",
-                     "http_code"      : httpCode,
+                     "abort_code"     : abortCode,
                      "aborted_method" : abortedMethod,
                      "rse_name"       : rseName
                    }
@@ -120,7 +120,7 @@ def jobAborted(httpCode, abortedMethod, rseName):
   sendJsonURL(
     'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
     '/api/allocator/job_aborted_'
-     + str(httpCode),
+     + str(abortCode),
     jobAbortedDict)
 
   time.sleep(10)    
@@ -431,6 +431,23 @@ entryName   = os.environ.get('GLIDEIN_Entry_Name', 'XX_UNKNOWN')
 jobPID      = os.getpid()
 
 justinWorkdir = os.environ['PWD']
+
+# Check our cvmfs paths are mountable
+for i in [ '/cvmfs/grid.cern.ch',
+           '/cvmfs/dune.osgstorage.org',
+           '/cvmfs/dune.opensciencegrid.org',
+           '/cvmfs/larsoft.opensciencegrid.org',
+           '/cvmfs/fifeuser1.opensciencegrid.org',
+           '/cvmfs/fifeuser2.opensciencegrid.org',
+           '/cvmfs/fifeuser3.opensciencegrid.org',
+           '/cvmfs/fifeuser4.opensciencegrid.org' ]:
+  try:
+    s = os.stat(i)
+  except Exception as e:
+    logLine('Failed checking %s - %s' % (i, str(e)))
+    jobAborted(323, 'Failed checking ' + i, '')
+
+  logLine('Check passed: %s' % i)
 
 # Make $HOME directory and workspace subdirectory for Apptainer/Singularity
 os.makedirs('home/workspace')
@@ -785,7 +802,7 @@ if resultsResponseDict['status'] == 410:
   sys.exit(0)
 
 if resultsResponseDict['status'] != 200:
-  jobAborted(resultsResponseDict['status'], 'record_results', '')
+  jobAborted(312, 'record_results', '')
 
 # Create a logs.tgz file and upload with rucio
 # At the very least jobscript.log and ClassAds logs will be there
@@ -807,7 +824,7 @@ except Exception as e:
   ret = 1
   
 if ret:
-  jobAborted(900, 'create_logs_tgz', '')
+  jobAborted(313, 'create_logs_tgz', '')
 
 # First try to register logs with MetaCat
 logLine('Register justin-logs:%s with MetaCat' % tgzName)
@@ -816,12 +833,12 @@ try:
                              + tgzName + '","size":0}')
 except:
   logLine('Failed to create tmp.json for justin-logs:%s' % tgzName)
-  jobAborted(900, 'metacat_logs_creation', '')
+  jobAborted(314, 'metacat_logs_creation', '')
   
 ret = executeMetaCatCommand('file declare --json -f tmp.json "dune:all"')
 if ret:
   logLine('Failed to register justin-logs:%s in MetaCat' % tgzName)
-  jobAborted(900, 'metacat_logs_registration', '')
+  jobAborted(315, 'metacat_logs_registration', '')
 
 for (rse,scheme) in jobscriptDict['output_rses'][:3]:
   logLine('Upload justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
@@ -845,11 +862,11 @@ for (rse,scheme) in jobscriptDict['output_rses'][:3]:
 
 if ret:
   logLine('Failed to upload justin-logs:%s' % tgzName)
-  jobAborted(900, 'rucio_upload_logs_tgz', '')
+  jobAborted(316, 'rucio_upload_logs_tgz', '')
 
 # No other uploads if the jobscript returned an error 
 if jobscriptOutcome.returncode != 0:
-  jobAborted(900, 'jobscript_error', '')
+  jobAborted(308, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
 logLine('Output RSEs: ' + str(jobscriptDict['output_rses']))
@@ -876,7 +893,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
                     'home/workspace/' + fileName,
                     destination)
     except:
-      jobAborted(900, 'webdav_upload', '')
+      jobAborted(317, 'webdav_upload', '')
     
     confirmResultsDict['output_urls'].append(destination + '/' + fileName)
   elif jobscriptDict['output_rses']:
@@ -890,7 +907,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
       fileAdler32 = calculateAdler32('home/workspace/' + fileName)
     except Exception as e:
       logLine('updateMetadataTmp() fails ' + str(e))
-      jobAborted(900, 'update_metadata', '')
+      jobAborted(318, 'create_metadata', '')
 
     # First try to register with MetaCat
     ret = executeMetaCatCommand('file declare --json -f tmp.json '
@@ -902,7 +919,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
 
     if ret:
       logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))
-      jobAborted(900, 'metacat_registration', '')
+      jobAborted(319, 'metacat_registration', '')
 
     # If that succeeds, then try to register/upload with rucio    
     for (rse,scheme) in jobscriptDict['output_rses'][:3]:
@@ -931,7 +948,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
 
     if ret:
       logLine('Failed to upload %s:%s' % (fileScope, fileName))
-      jobAborted(900, 'rucio_upload', '')
+      jobAborted(320, 'rucio_upload', '')
 
     # Update MetaCat output_status for this file to uploaded
     try:
@@ -941,7 +958,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
     except Exception as e:
       logLine('Failed to set %s:%s to output_status=uploaded' 
               % (fileScope, fileName))
-      jobAborted(900, 'set_uploaded', '')
+      jobAborted(321, 'set_uploaded', '')
 
     rucioUploadedDIDs.append(fileScope + ':' + fileName)
 
@@ -970,7 +987,7 @@ if confirmDict['status'] == 410:
   sys.exit(0)
 
 if confirmDict['status'] != 200:
-  jobAborted(900, 'confirm_results', '')
+  jobAborted(322, 'confirm_results', '')
 
 ## Update MetaCat output_status for all files to confirmed
 ## THIS SHOULD WORK with update-meta IN ONE GO BUT DOES NOT!
