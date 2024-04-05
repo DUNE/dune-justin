@@ -420,6 +420,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              stageID = 0,
              fileID = 0,
              justinJobID = 0,
+             jobscriptExit = 0,
              siteID = 0,
              siteName = None,
              entryID = 0,
@@ -453,6 +454,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'stage_id=%d,'
              'file_id=%d,'
              'justin_job_id=%d,'
+             'jobscript_exit=%d,'
              'site_id=%s,'
              'entry_id=%s,'
              'rse_id=%s,'
@@ -463,6 +465,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
               stageID,
               fileID,
               justinJobID,
+              jobscriptExit,
               siteExpr,
               entryExpr,
               rseExpr,

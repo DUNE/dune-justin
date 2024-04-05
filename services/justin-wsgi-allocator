@@ -1481,12 +1481,13 @@ def recordResultsMethod(startResponse, jsonDict):
                           (jsonDict['jobscript_exit'],
                            jsonDict['jobsub_id']))
 
-      justin.logEvent(eventTypeID  = justin.event_JOB_SCRIPT_ERROR,
-                      workflowID   = workflowID,
-                      stageID      = stageID,
-                      justinJobID  = justinJobID,
-                      siteID       = siteID,
-                      entryID      = entryID
+      justin.logEvent(eventTypeID    = justin.event_JOB_SCRIPT_ERROR,
+                      workflowID     = workflowID,
+                      stageID        = stageID,
+                      justinJobID    = justinJobID,
+                      jobscriptExit  = jsonDict['jobscript_exit'],
+                      siteID         = siteID,
+                      entryID        = entryID
                      )
 
     except Exception as e:

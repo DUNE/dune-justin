@@ -136,6 +136,9 @@ eventsList = [
 ('JOB_ABORT_CVMFS_CHECKS',
  323,
  'Job aborted during cvmfs checks'),
+('JOB_ABORT_SCRIPT_ERROR',
+ 324,
+ 'Job aborted due to jobscript error'),
 
 # File-level events during running
 ('FILE_ALLOCATED', 

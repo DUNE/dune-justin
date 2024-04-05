@@ -866,7 +866,7 @@ if ret:
 
 # No other uploads if the jobscript returned an error 
 if jobscriptOutcome.returncode != 0:
-  jobAborted(308, 'jobscript_error', '')
+  jobAborted(324, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
 logLine('Output RSEs: ' + str(jobscriptDict['output_rses']))
