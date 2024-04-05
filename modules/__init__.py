@@ -373,7 +373,8 @@ def readConf():
         raise 
       htcondorSchedds.append(a.strip().lower())
   except:
-    htcondorSchedds = [ 'justin-prod-sched01.dune.hep.ac.uk' ]
+    htcondorSchedds = [ 'justin-prod-sched01.dune.hep.ac.uk',
+                        'justin-prod-sched02.dune.hep.ac.uk' ]
 
 # Try to find the text of a jobscript from the Jobscripts Library 
 # given a JSID
