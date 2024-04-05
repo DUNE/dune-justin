@@ -33,6 +33,8 @@ during the lifetime of the job. justin-get-file is itself a simple wrapper
 around the curl command and it would also be possible to access the 
 allocator service's REST API directly from an application.
 
+## Marking input files as processed
+
 Each file returned by justin-get-file is marked as allocated and will not be 
 processed by any other jobs. When the jobscript finishes, it must 
 leave files with lists of the files it processed in its 
@@ -58,3 +60,18 @@ be created in the jobscript's workspace directory and have filenames
 matching the patterns given by --output-pattern or 
 --output-pattern-next-stage when the stage was created.  The suffix 
 .json is appended to find the corresponding metadata files for MetaCat.
+
+## Jobscript exit codes
+
+All shell scripts return an exit code, either explicitly with the command
+`exit N` where N is the code, or implicitly in which case the exit code
+of the last command executed is returned.
+
+You can give explicit exit codes in the range 0 to 127. They are visible on
+the status page for each job and in the JOB_SCRIPT_ERROR events for your
+jobs.
+
+
+
+
+
