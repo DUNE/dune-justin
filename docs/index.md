@@ -38,6 +38,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [Event types](event_types.md)
 - [Wrapper jobs](wrapper_jobs.md)
 - [Files](files.md)
+- [File processing lifecycle](file_processing.md)
 - [Security model](security_model.md)
 - [Download statistics](download_statistics.md)
 

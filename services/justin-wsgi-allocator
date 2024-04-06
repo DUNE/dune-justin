@@ -881,7 +881,7 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   # Work out the job state to set, from the given event type ID
 
-  if eventTypeID == justin.event_JOB_SCRIPT_ERROR:
+  if eventTypeID == justin.event_JOB_ABORT_SCRIPT_ERROR:
     state = 'jobscript_error'
     
   elif eventTypeID in [ justin.event_JOB_ABORT_CREATING_LOGS_TGZ,

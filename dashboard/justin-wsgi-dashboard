@@ -3608,9 +3608,13 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   output += ("<h1>Events</h1>")
   
-  query = ('SELECT event_id,event_type_id,events.workflow_id,events.stage_id,'
-           'file_did,jobsub_id,site_name,entry_name,rse_name,event_time '
+  query = ('SELECT event_id,events.event_type_id,event_label,event_text,'
+           'events.workflow_id,events.stage_id,'
+           'file_did,jobsub_id,site_name,entry_name,rse_name,event_time,'
+           'events.jobscript_exit '
            'FROM events '
+           'LEFT JOIN event_types '
+           'ON events.event_type_id=event_types.event_type_id '
            'LEFT JOIN files ON events.file_id=files.file_id '
            'LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id '
            'LEFT JOIN sites ON events.site_id=sites.site_id '
@@ -3620,8 +3624,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
            'ORDER BY event_id DESC LIMIT %d,%d' % 
            (whereString, pageNumber * pageLength, pageLength + 1))
 
-  justin.cur.execute(query)
-  eventsRows = justin.cur.fetchall()
+  eventsRows = justin.select(query)
 
   output += makePager(pageNumber, pageLength, len(eventsRows),
              '/dashboard/?method=list-events&page_number=%d&page_length=%d'
@@ -3639,15 +3642,20 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 </tr>""")
 
   for eventRow in eventsRows[:pageLength]:
-    eventType = justin.eventTypes[eventRow['event_type_id']][0]
-    cellColor = '#FFDDDD' if ('FAIL' in eventType) else \
-                ('#DDFFDD' if 'OK' in eventType else 'white')
+    cellColor = '#FFDDDD' if ('FAIL' in eventRow['event_label']) else \
+                ('#DDFFDD' if 'OK' in eventRow['event_label'] else 'white')
 
-    output += ('<tr><td>%d</td><td style="background-color: %s">%s</td>'
+    if eventRow['event_type_id'] == justin.event_JOB_SCRIPT_ERROR:
+      labelSuffix = ' (%d)' % eventRow['jobscript_exit']
+    else:
+      labelSuffix = ''
+
+    output += ('<tr><td>%d</td><td style="background-color: %s">%s%s</td>'
                '<td>%s</td>' %
                (eventRow['event_id'], 
                 cellColor,
-                eventType,
+                eventRow['event_label'],
+                labelSuffix,
                 eventRow['event_time']
                )          
               )
