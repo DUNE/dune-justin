@@ -65,7 +65,7 @@ except Exception as e:
 
 for eventTypeID in justin.eventTypes:
   query = ('INSERT INTO event_types SET '
-           'event_label="%s",event_text="%s",event_type_id=%d '
+           'event_type_name="%s",event_text="%s",event_type_id=%d '
            'ON DUPLICATE KEY UPDATE event_type_id=event_type_id'
            % (justin.eventTypes[eventTypeID][0],
               justin.eventTypes[eventTypeID][1],

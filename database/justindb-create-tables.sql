@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS `events` (
 
 CREATE TABLE IF NOT EXISTS `event_types` (
   `event_type_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `event_label` varchar(255) NOT NULL DEFAULT '',
+  `event_type_name` varchar(255) NOT NULL DEFAULT '',
   `event_text` text NOT NULL DEFAULT '',
   PRIMARY KEY (`event_type_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;

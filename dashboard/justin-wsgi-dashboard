@@ -141,6 +141,8 @@ a {
   text-decoration: none;
 }
 
+label { white-space: nowrap; }
+
 #top_strip,#bottomstrip { 
   color: #FFFFFF;
   font-weight: bold;
@@ -3526,7 +3528,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   try:
     workflowID = int(cgiValues["workflow_id"])
   except:
-    pass
+    workflowID = ''
   else:
     if workflowID:
       whereList.append('events.workflow_id=%d' % workflowID)
@@ -3535,7 +3537,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    pass
+    stageID = ''
   else:
     if stageID:
       whereList.append('events.stage_id=%d' % stageID)
@@ -3543,8 +3545,11 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     jobsubID = cgiValues["jobsub_id"]
+
+    if not justin.stringIsJobsubID(jobsubID):
+      raise
   except:
-    pass
+    jobsubID = ''
   else:
     if jobsubID:
       whereList.append('jobsub_id="%s"' % jobsubID)
@@ -3552,8 +3557,11 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     fileDID = cgiValues["file_did"]
+
+    if not justin.stringIsDID(fileID):
+      raise
   except:
-    pass
+    fileDID = ''
   else:
     if fileDID:
       whereList.append('file_did="%s"' % fileDID)
@@ -3561,8 +3569,11 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     rseName = cgiValues["rse_name"]
+
+    if not justin.stringIsSite(rseName):
+      raise
   except:
-    pass
+    rseName = ''
   else:
     if rseName:
       whereList.append('rse_name="%s"' % rseName)
@@ -3570,8 +3581,11 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     siteName = cgiValues["site_name"]
+
+    if not justin.stringIsSite(siteName):
+      raise
   except:
-    pass
+    siteName = ''
   else:
     if siteName:
       whereList.append('site_name="%s"' % siteName)
@@ -3579,17 +3593,32 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   try:
     entryName = cgiValues["entry_name"]
+
+    if not justin.stringIsSite(entryName):
+      raise
   except:
-    pass
+    entryName = ''
   else:
     if entryName:
       whereList.append('entry_name="%s"' % entryName)
       queryList += '&entry_name=' + entryName
 
   try:
+    eventTypeName = cgiValues["event_type_name"]
+
+    if not justin.stringIsSite(eventTypeName):
+      raise
+  except:
+    eventTypeName = ''
+  else:
+    if eventTypeName:
+      whereList.append('event_type_name="%s"' % eventTypeName)
+      queryList += '&event_type_name=' + eventTypeName
+
+  try:
     awtEvents = bool(cgiValues["awt_events"])
   except:
-    pass
+    awtEvents = ''
   else:
     if awtEvents:
       whereList.append('event_type_id IN (%d,%d,%d,%d)' 
@@ -3603,12 +3632,90 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     whereString = ' WHERE ' + ' AND '.join(whereList)
   else:
     whereString = ''
-    
+
+  eventTypeRows = justin.select('SELECT event_type_name FROM event_types '
+                                'ORDER BY event_type_name')
+  siteRows      = justin.select('SELECT site_name FROM sites '
+                                'ORDER BY site_name')
+  entryRows     = justin.select('SELECT entry_name FROM entries '
+                                'ORDER BY entry_name')
+  rseRows       = justin.select('SELECT rse_name FROM storages '
+                                'ORDER BY rse_name')
+
   output = header(environ, user, "justIN: Events")
 
   output += ("<h1>Events</h1>")
+
+  output += ('<p><form method="get" formaction="/dashboard/">'
+    '<input type="hidden" name="method" value="list-events">'
+    '<label>Event&nbsp;Type:<select name="event_type_name">'
+    '<option value=""%s>ANY</option>'
+    % ('' if eventTypeName else ' selected'))
+
+  for eventTypeRow in eventTypeRows:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (eventTypeRow['event_type_name'],
+                  ' selected' 
+                  if eventTypeRow['event_type_name'] == eventTypeName
+                  else '',
+                  eventTypeRow['event_type_name']))
+                    
+  output += ('</select></label> '
+    '<label>Workflow&nbsp;ID:<input type="number" name="workflow_id" '
+    'min="1" max="9999" step="1" value="%s"></label> '
+    '<label>Stage&nbsp;ID:<input type="number" name="stage_id" min="1" '
+    'max="9" step="1" value="%s"></label> '
+    '<label>File&nbsp;DID:<input type="text" name="file_did" '
+    'value="%s"></label> '
+    '<label>Jobsub&nbsp;ID:<input type="text" name="jobsub_id" '
+    'value="%s" size="50"></label> '
+    '<label>Site:<select name="site_name">'
+    '<option value=""%s>ANY</option>'
+    % (str(workflowID), str(stageID), fileDID, jobsubID,
+       '' if siteName else ' selected'))
+
+  for siteRow in siteRows:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (siteRow['site_name'],
+                  ' selected' 
+                  if siteRow['site_name'] == siteName
+                  else '',
+                  siteRow['site_name']))
   
-  query = ('SELECT event_id,events.event_type_id,event_label,event_text,'
+  output += ('</select></label> '
+    '<label>Entry:<select name="entry_name">'
+    '<option value=""%s>ANY</option>'
+    % ('' if entryName else ' selected'))
+  
+  for entryRow in entryRows:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (entryRow['entry_name'],
+                  ' selected' 
+                  if entryRow['entry_name'] == entryName
+                  else '',
+                  entryRow['entry_name']))
+  
+  output += ('</select></label> '
+    '<label>RSE:<select name="rse_name">'
+    '<option value=""%s>ANY</option>'
+    % ('' if rseName else ' selected'))
+  
+  for rseRow in rseRows:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (rseRow['rse_name'],
+                  ' selected' 
+                  if rseRow['rse_name'] == rseName
+                  else '',
+                  rseRow['rse_name']))
+  
+  output += ('</select></label> '
+    '<input type="submit" value="Filter" '
+    'style="background: #E1703D; border-radius: 5px; padding: 5px; '
+    'color: white; font-weight: bold; font-size: 1em; border: 0; '
+    'cursor: pointer">'
+    '</form></p>\n')
+   
+  query = ('SELECT event_id,events.event_type_id,event_type_name,event_text,'
            'events.workflow_id,events.stage_id,'
            'file_did,jobsub_id,site_name,entry_name,rse_name,event_time,'
            'events.jobscript_exit '
@@ -3642,20 +3749,20 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 </tr>""")
 
   for eventRow in eventsRows[:pageLength]:
-    cellColor = '#FFDDDD' if ('FAIL' in eventRow['event_label']) else \
-                ('#DDFFDD' if 'OK' in eventRow['event_label'] else 'white')
+    cellColor = '#FFDDDD' if ('FAIL' in eventRow['event_type_name']) else \
+                ('#DDFFDD' if 'OK' in eventRow['event_type_name'] else 'white')
 
     if eventRow['event_type_id'] == justin.event_JOB_SCRIPT_ERROR:
-      labelSuffix = ' (%d)' % eventRow['jobscript_exit']
+      nameSuffix = ' (%d)' % eventRow['jobscript_exit']
     else:
-      labelSuffix = ''
+      nameSuffix = ''
 
     output += ('<tr><td>%d</td><td style="background-color: %s">%s%s</td>'
                '<td>%s</td>' %
                (eventRow['event_id'], 
                 cellColor,
-                eventRow['event_label'],
-                labelSuffix,
+                eventRow['event_type_name'],
+                nameSuffix,
                 eventRow['event_time']
                )          
               )
