@@ -469,7 +469,7 @@ for line in open(os.environ['_CONDOR_MACHINE_AD'],'r').readlines():
 
 logLine('==== Before try apptainer ====')
 getJobscriptDict['has_inner_apptainer'] = (0 == os.system(
-   '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer '
+   '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/1.2/bin/apptainer '
    'shell --shell /usr/bin/hostname '
    '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest'
    ))
@@ -644,7 +644,7 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
 
   jobscriptOutcome = subprocess.run(
   '/usr/bin/time -o time.txt -f "%%e %%U %%S %%M" '
-  '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell '
+  '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/1.2/bin/apptainer shell '
   '--shell /home/jobscript-wrapper.sh '
   '--containall '
   '--bind /cvmfs '
