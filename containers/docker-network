@@ -1,0 +1,3 @@
+# This is /etc/sysconfig/docker-network for the host NOT the container
+# It forces the docker0 MTU to match the eth0 MTU on STFC Cloud VMs
+DOCKER_NETWORK_OPTIONS="--mtu 1450"

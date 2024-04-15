@@ -160,23 +160,71 @@ def getClassadsCall(startResponse, environ):
                      '400 Bad Request', 'Failed to get inputString: ' + str(e))
 
   try:
+    i = inputString.index('GLIDEIN_UUID ')
+    glideinUUID = inputString[i+13:].split('\n')[0]
+
+    if not justin.stringNoQuotes(glideinUUID):
+      raise RuntimeError('Quotes in UUID')
+  except Exception as e:
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Failed to get UUID: ' + str(e))
+
+  try:
     i = inputString.index('GLIDEIN_DUNESite ')
     siteName = inputString[i+17:].split('\n')[0]
+
+    if not justin.stringNoQuotes(siteName):
+      raise RuntimeError('Quotes in siteName')
   except Exception as e:
     return httpError(startResponse, 
                      '400 Bad Request', 'Failed to get siteName: ' + str(e))
 
-  if not justin.stringNoQuotes(siteName):
-    raise RuntimeError('Quotes in siteName')
+  try:
+    i = inputString.index('GLIDEIN_Entry_Name ')
+    entryName = inputString[i+19:].split('\n')[0]
+
+    if not justin.stringNoQuotes(entryName):
+      raise RuntimeError('Quotes in entryName')
+  except Exception as e:
+    return httpError(startResponse, 
+                     '400 Bad Request', 'Failed to get entryName: ' + str(e))
 
   try:
+    i = inputString.index('HOSTNAME=')
+    pilotHostname = inputString[i+9:].split('\n')[0]
+
+    if not justin.stringNoQuotes(pilotHostname):
+      raise RuntimeError('Quotes in pilotHostname')
+  except Exception as e:
+    pilotHostname=''
+#    return httpError(startResponse, 
+#                     '400 Bad Request', 'Failed to get Hostname: ' + str(e))
+
+  try:
+    siteEntryRow = justin.select('SELECT '
+         '(SELECT site_id FROM sites WHERE site_name="%s") AS site_id,'
+         '(SELECT entry_id FROM entries WHERE entry_name="%s") AS entry_id'
+         % (siteName, entryName), justOne = True)
+
+    siteID  = int(siteEntryRow['site_id'])
+    entryID = int(siteEntryRow['entry_id'])
+  except Exception as e:
+    return httpError(startResponse, '404 Not Found', 'Not Found: ' + str(e))
+
+  try:
+    justin.insertUpdate('INSERT INTO pilot_events SET '
+                        'glidein_uuid="%s",entry_id=%d,hostname="%s",'
+                        'event_time=NOW()'
+                        % (glideinUUID, entryID, pilotHostname))
+  except:
+    pass
+    
+  try:
     row = justin.select('SELECT rank_text,'
-                        'TIMESTAMPDIFF(SECOND, cache_time, NOW()) AS seconds,'
-                        'sites.site_id FROM sites '
-                        'LEFT JOIN sites_ranks_cache '
-                        'ON sites_ranks_cache.site_id=sites.site_id '
-                        'WHERE sites.site_name="%s" AND cache_time IS NOT NULL'
-                        % siteName, justOne = True)
+                        'TIMESTAMPDIFF(SECOND, cache_time, NOW()) AS seconds '
+                        'FROM sites_ranks_cache '
+                        'WHERE site_id=%d AND cache_time IS NOT NULL'
+                        % siteID, justOne = True)
   except Exception as e:
     return httpError(startResponse, '404 Not Found', 'Not Found: ' + str(e))
 

@@ -45,6 +45,17 @@ CREATE TABLE IF NOT EXISTS `condor_groups` (
   PRIMARY KEY `condor_group_id` (`condor_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `pilot_events` (
+  `glidein_uuid` varchar(255) NOT NULL,
+  `entry_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `hostname` varchar(255) NOT NULL,
+  `event_time` datetime NOT NULL,
+  `event_message` varchar(255) NOT NULL DEFAULT '',
+  INDEX `entry_id` (`entry_id`,`event_time`),
+  INDEX `event_time` (`event_time`),
+  INDEX `hostname` (`entry_id`,`hostname`,`event_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `jobs` (
   `justin_job_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `factory_name` varchar(255) NOT NULL,
