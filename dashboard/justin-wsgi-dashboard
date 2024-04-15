@@ -2925,7 +2925,7 @@ def showSite(environ, user, cgiValues):
 
   output += ("<h1>Site %s</h1>" % siteName)
   
-  query = ('SELECT sites.site_id,DATE(last_osg_seen_time) AS osg_date,'
+  query = ('SELECT sites.site_id,last_osg_seen_time,'
            'last_get_jobscript_time,'
            'site_name,jobsub_site_name,wlcg_site_name,'
            'sites.enabled,'
@@ -2960,7 +2960,7 @@ def showSite(environ, user, cgiValues):
              % siteRow['region'])
 
   output += ('<tr><td colspan="2">Seen in OSG config</td><td>%s</td></tr>'
-             % siteRow['osg_date'])
+             % siteRow['last_osg_seen_time'])
 
   output += ('<tr><td colspan="2">Enabled?</td><td>%s'
         % bool(siteRow['enabled']))
