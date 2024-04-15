@@ -3556,9 +3556,18 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
       queryList += '&jobsub_id=' + jobsubID
 
   try:
+    jobscriptExit = int(cgiValues["jobscript_exit"])
+  except:
+    jobscriptExit = ''
+  else:
+    if jobscriptExit != '':
+      whereList.append('events.jobscript_exit=%d' % jobscriptExit)
+      queryList += '&jobscript_exit=' + str(jobscriptExit)
+
+  try:
     fileDID = cgiValues["file_did"]
 
-    if not justin.stringIsDID(fileID):
+    if not justin.stringIsDID(fileDID):
       raise
   except:
     fileDID = ''
@@ -3669,9 +3678,11 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     'value="%s"></label> '
     '<label>Jobsub&nbsp;ID:<input type="text" name="jobsub_id" '
     'value="%s" size="50"></label> '
+    '<label>Jobscript&nbsp;exit:<input type="number" name="jobscript_exit" '
+    'min="0" max="255" step="1" value="%s"></label> '
     '<label>Site:<select name="site_name">'
     '<option value=""%s>ANY</option>'
-    % (str(workflowID), str(stageID), fileDID, jobsubID,
+    % (str(workflowID), str(stageID), fileDID, jobsubID, str(jobscriptExit),
        '' if siteName else ' selected'))
 
   for siteRow in siteRows:
@@ -3752,7 +3763,8 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     cellColor = '#FFDDDD' if ('FAIL' in eventRow['event_type_name']) else \
                 ('#DDFFDD' if 'OK' in eventRow['event_type_name'] else 'white')
 
-    if eventRow['event_type_id'] == justin.event_JOB_SCRIPT_ERROR:
+    if eventRow['event_type_id'] in \
+        (justin.event_JOB_SCRIPT_ERROR, justin.event_JOB_ABORT_SCRIPT_ERROR):
       nameSuffix = ' (%d)' % eventRow['jobscript_exit']
     else:
       nameSuffix = ''

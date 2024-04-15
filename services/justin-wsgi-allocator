@@ -291,6 +291,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'jobs.requested_rss_bytes,'
              'jobs.requested_wall_seconds,'
              'jobs.has_inner_apptainer,'
+             'jobs.jobscript_exit,'
              'sites.site_name,'
              'sites.running_jobs,'
              'sites.enabled,'
@@ -344,6 +345,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
            "requested_rss_bytes"    : job['requested_rss_bytes'],
            "requested_wall_seconds" : job['requested_wall_seconds'],
            "has_inner_apptainer"    : job['has_inner_apptainer'],
+           "jobscript_exit"         : job['jobscript_exit'],
            "scope_name"             : job['scope_name'] 
                                       if job['scope_name'] else '',
            "wlcg_group_name"        : job['wlcg_group_name']
@@ -965,13 +967,14 @@ def jobAbortedMethod(startResponse, jsonDict):
     else:
       rseName = None
 
-    justin.logEvent(eventTypeID  = eventTypeID,
-                    workflowID   = jobDict['workflow_id'],
-                    stageID      = jobDict['stage_id'],
-                    justinJobID  = jobDict['justin_job_id'],
-                    siteID       = jobDict['site_id'],
-                    entryID      = jobDict['entry_id'],
-                    rseName      = rseName
+    justin.logEvent(eventTypeID   = eventTypeID,
+                    workflowID    = jobDict['workflow_id'],
+                    stageID       = jobDict['stage_id'],
+                    justinJobID   = jobDict['justin_job_id'],
+                    jobscriptExit = jobDict['jobscript_exit'],
+                    siteID        = jobDict['site_id'],
+                    entryID       = jobDict['entry_id'],
+                    rseName       = rseName
                    )
 
   except Exception as e:
