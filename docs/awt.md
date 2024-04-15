@@ -11,7 +11,10 @@ colours show whether the tests were successful for each combination of site
 and storage. The "Last AWT job" column shows how long ago an AWT job ran
 at each site and reported results, and so tests whether the sites are
 accessilble to justIN jobs. It also has a link to that job's page on the 
-justIN dashboard.
+justIN dashboard. The "Last OSG time" column shows how long ago each site
+was seen in the OSG pilot factory configurations, fetched by the 
+[justIN info collector agent](/docs/agents.info_collector.md) from the 
+[OSG pilot factory GitHub repo](https://github.com/opensciencegrid/osg-gfactory).
 
 Wrapper jobs are tagged for AWT and targetted at each known 
 [DUNE site](https://justin.dune.hep.ac.uk/dashboard/?method=list-sites),
@@ -82,7 +85,7 @@ At the end of the jobscript, it outputs a summary of the `xrdcp` and
 tested from this job. These final outputs are visible in the short Jobscript
 Log section at the foot of each job's page in the justIN dashboard.
 
-When the jobscript log is uploaded to the justIn allocator, it is parsed to
+When the jobscript log is uploaded to the justIN allocator, it is parsed to
 extract the test outcomes. These are stored in the justIN database and
 visible on the pages for each site and storage accessible from the lists
 of [all sites](https://justin.dune.hep.ac.uk/dashboard/?method=list-sites),

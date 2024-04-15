@@ -3974,7 +3974,7 @@ def awtResults(environ, user, cgiValues):
   output += ("<h1>Automated Workflow Tests</h1>")
 
   output += ('<p>Hover over each coloured box to see the most recent test '
-      'values for xrdcp read and rucio write, run in jobs at each site, '
+      'values for xrdcp read and rucio upload, run in jobs at each site, '
       'contacting each RSE.</p>'
       '<p>Exit code 0 = success. Other codes are failure modes.</p>'
       '<p>Green if read and write ok; orange if only read ok; red if '
@@ -3983,7 +3983,9 @@ def awtResults(environ, user, cgiValues):
       'justIN documentation.</p>' % awtGreyHours)
 
   query = ('SELECT site_name,enabled,'
-           'UNIX_TIMESTAMP(last_awt_time) AS lwt,jobs.jobsub_id '
+           'UNIX_TIMESTAMP(last_awt_time) AS lwt,'
+           'UNIX_TIMESTAMP(last_osg_seen_time) AS lot,'
+           'jobs.jobsub_id '
            'FROM sites '
            'LEFT JOIN jobs ON jobs.justin_job_id=sites.last_awt_job_id '
            'WHERE last_osg_seen_time > DATE_SUB(NOW(),INTERVAL %d DAY) '
@@ -3995,10 +3997,12 @@ def awtResults(environ, user, cgiValues):
   siteNames        = []
   enabledSiteNames = []
   lastJobTimes     = {}
+  lastOSGTimes     = {}
   lastJobIDs       = {}
   for siteRow in sitesRows:
     siteNames.append(siteRow['site_name'])
     lastJobTimes[siteRow['site_name']] = int(siteRow['lwt'])
+    lastOSGTimes[siteRow['site_name']] = int(siteRow['lot'])
 
     if siteRow['jobsub_id']:
       lastJobIDs[siteRow['site_name']] = siteRow['jobsub_id']
@@ -4051,7 +4055,9 @@ def awtResults(environ, user, cgiValues):
   # List of storages
   output += ('<tr><td> </td>'
         '<td><div style="writing-mode: vertical-lr">'
-        'Last&nbsp;AWT&nbsp;job</div></td>')
+        'Last&nbsp;AWT&nbsp;job</div></td>'
+        '<td><div style="writing-mode: vertical-lr">'
+        'Last&nbsp;OSG&nbsp;time</div></td>')
   
   for rseName in rseNames:  
     if rseName in outputRseNames:
@@ -4090,6 +4096,13 @@ def awtResults(environ, user, cgiValues):
     else:
       output += ('<td style="text-align: right">%s</td>' % 
             daysHoursMinutes(timeNow - lastJobTimes[siteName]))
+  
+    output += '\n<!-- %d %d -->\n' % (timeNow, lastOSGTimes[siteName])
+    if lastOSGTimes[siteName] == 0:
+      output += ('<td> </td>')
+    else:
+      output += ('<td style="text-align: right">%s</td>' % 
+            daysHoursMinutes(timeNow - lastOSGTimes[siteName]))
   
     for rseName in rseNames:
       (readResult, writeResult, jobsubID, finishedTime) = \
