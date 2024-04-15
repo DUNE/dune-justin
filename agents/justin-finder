@@ -1139,10 +1139,22 @@ def findStalledCondorJobs():
 
   nowTime = int(time.time())
 
-  # Gather details of HTCondor jobs from our list of schedds
+  # Get a list of waiting/running jobs
+  query = ('SELECT jobsub_id,job_state,justin_job_id,workflow_id,stage_id,'
+           'site_id,entry_id FROM jobs WHERE job_state IN '
+           '("submitted","started","processing","outputting")')
+
+  dbJobRows = justin.select(query)
+
+  # Make a set of unique HTCondor schedd names from the database
+  schedds = set()
+  for dbJobRow in dbJobRows:
+    schedds.add( dbJobRow.split('@',1)[1] )
+
+  # Gather details of HTCondor jobs from our set of schedds
   condorJobs = {}  
 
-  for scheddHostname in justin.htcondorSchedds:
+  for scheddHostname in schedds:
     try: 
       outcome = subprocess.run(
                ['/usr/bin/condor_q',
@@ -1190,13 +1202,9 @@ def findStalledCondorJobs():
     # If we get nothing at all then something must be going wrong
     logLine('Failed to find any job info from HTCondor')
     return
-    
-  # Get a list of waiting/running jobs
-  query = ('SELECT jobsub_id,job_state,justin_job_id,workflow_id,stage_id,'
-           'site_id,entry_id FROM jobs WHERE job_state IN '
-           '("submitted","started","processing","outputting")')
 
-  dbJobRows = justin.select(query)
+  # Go back to the list of jobs from the database and check each one
+  # against its HTCondor status
   for dbJobRow in dbJobRows:
     stalled = False
     
