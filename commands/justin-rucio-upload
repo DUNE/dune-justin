@@ -3,7 +3,7 @@
 # justin-rucio-upload - upload files to Rucio managed storage using the
 #                       extra options of the Rucio upload Python API
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,10 +40,6 @@ parser.add_argument("--rse",
                     type = str,
                     help = "RSE name")
 
-parser.add_argument("--protocol",
-                    type = str,
-                    help = "Protocol")
-
 parser.add_argument("--scope",
                     type = str,
                     help = "Scope of file and dataset")
@@ -52,9 +48,21 @@ parser.add_argument("--dataset",
                     type = str,
                     help = "Name of dataset without scope prefix")
 
+parser.add_argument("--protocol",
+                    type = str,
+                    help = "Protocol")
+
 parser.add_argument("--timeout",
                     type = int,
                     help = "Timeout limit in seconds")
+
+parser.add_argument("--tries",
+                    type = int,
+                    help = "Number of times to try Rucio calls")
+
+parser.add_argument("--no-check",
+                    action = "store_true",
+                    help = "Do not check Rucio registrations")
 
 try:
   args = vars(parser.parse_args())
@@ -65,10 +73,6 @@ if not args['rse']:
   print('--rse missing', file=sys.stderr)
   sys.exit(1)
 
-if not args['protocol']:
-  print('--protocol missing', file=sys.stderr)
-  sys.exit(1)
-
 if not args['scope']:
   print('--scope missing', file=sys.stderr)
   sys.exit(1)
@@ -77,28 +81,101 @@ if not args['dataset']:
   print('--dataset missing', file=sys.stderr)
   sys.exit(1)
 
+if not args['protocol']:
+  protocol = 'davs'
+else:
+  protocol = args['protocol']
+
 try:
   timeout = int(args['timeout'])
 except:
-  print('--timeout missing', file=sys.stderr)
-  sys.exit(1)
+  timeout = 60
 
 try:
-  logging.basicConfig(level = logging.DEBUG)
+  tries = int(args['tries'])
+except:
+  tries = 1
 
-  client       = rucio.client.Client(timeout = timeout)
-  uploadClient = rucio.client.uploadclient.UploadClient(client)
-  uploadDict   = { 'path'             : args['path'],
-                   'rse'              : args['rse'],
-                   'did_scope'        : args['scope'],
-                   'dataset_scope'    : args['scope'],
-                   'dataset_name'     : args['dataset'],
-                   'force_protocol'   : args['protocol'],
-                   'transfer_timeout' : timeout
-                 }
+try:
+  filename = args['path'].split('/')[-1]
+except:
+  print('Cannot extract filename from path', file=sys.stderr)
+  sys.exit(1)
 
-  ret = uploadClient.upload([uploadDict])
-  sys.exit(ret)
-except Exception as e:
-  print('justin-rucio-upload fails: ' + str(e), file=sys.stderr)
+logging.basicConfig(level = logging.DEBUG)
+
+for i in range(1, tries + 1):
+  try:
+    client       = rucio.client.Client(timeout = timeout)
+    uploadClient = rucio.client.uploadclient.UploadClient(client)
+    uploadDict   = { 'path'             : args['path'],
+                     'rse'              : args['rse'],
+                     'did_scope'        : args['scope'],
+                     'dataset_scope'    : args['scope'],
+                     'dataset_name'     : args['dataset'],
+                     'force_protocol'   : protocol,
+                     'transfer_timeout' : timeout
+                   }
+
+    ret = uploadClient.upload([uploadDict])
+  except Exception as e:
+    ret = None
+    print('Rucio upload fails: ' + str(e), file=sys.stderr)
+
+if ret is None:
+  # If an exception than exit with 99
   sys.exit(99)
+
+if ret:
+  # Exit with the return code of the last upload attempt
+  sys.exit(ret)
+
+if args['no_check']:
+  # If not running checks then exit immediately with 0 for success
+  sys.exit(0)
+
+# Check the file is registered in Rucio, with replica(s)
+for i in range(1, tries + 1):
+  try:
+    client    = rucio.client.Client(timeout = timeout)
+    repClient = rucio.client.replicaclient.ReplicaClient(client)
+
+    repGen = repClient.list_replicas([{'scope' : args['scope'],
+                                       'name'  : filename
+                                      }])
+    # Just one file anyway!
+    reps = next(repGen)
+  except Exception as e:
+    reps = None
+    print('Rucio list_replicas fails: ' + str(e), file=sys.stderr)
+
+if not reps or 'pfns' not in reps or not reps['pfns']:
+  # No replicas returned!
+  sys.exit(99)
+
+# Check the file is in the given dataset
+for i in range(1, tries + 1):
+  try:
+    client    = rucio.client.Client(timeout = timeout)
+    didClient = rucio.client.didclient.DIDClient(client)
+
+    parentGen = didClient.list_parent_dids(scope, filename)
+  except Exception as e:
+    parentGen = None
+    print('Rucio list_parent_dids fails: ' + str(e), file=sys.stderr)
+
+if not parentGen:
+  # No parents returned!
+  sys.exit(99)
+
+# Try to find the given dataset in the parents
+for parent in parentGen:
+  if ('scope' in parent and 
+      'name'  in parent and 
+      parent['scope'] == args['scope'] and 
+      parent['name']  == args['dataset']):
+    # Found the given dataset as a parent
+    sys.exit(0)
+
+# We didn't find the given dataset as a parent of the uploaded file!     
+sys.exit(99)

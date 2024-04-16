@@ -3,8 +3,9 @@
 .B justin-rucio-upload
 \- justIN utility to upload files with the Rucio upload API
 .SH SYNOPSIS
-.B justin-rucio-upload [--help] --rse RSE --scope SCOPE --protocol PROTOCOL
-.B --dataset DATASET PATH --timeout SECONDS
+.B justin-rucio-upload [--help] --rse RSE --scope SCOPE --dataset DATASET
+.B [--protocol PROTOCOL] [--timeout SECONDS] [--tries TRIES] [--no-check]
+.B PATH 
 .SH DESCRIPTION
 .B justin-rucio-upload
 is a command-line utility to upload a file using Rucio's upload API which
@@ -27,28 +28,40 @@ Show help message and exit.
 .HP 
 .B "--rse RSE"
 .br
-The name of the RSE.
+The name of the RSE. Required.
 
 .HP 
 .B "--scope SCOPE"
 .br
 The scope used for the uploaded file and the Rucio dataset to which it is
-attached.
-
-.HP 
-.B "--protocol PROTOCOL"
-.br
-The protocol used for the upload: davs, root, etc.
+attached. Required.
 
 .HP 
 .B "--dataset DATASET"
 .br
-The name suffix of the dataset, without the scope.
+The name suffix of the dataset, without the scope. Required.
+
+.HP 
+.B "--protocol PROTOCOL"
+.br
+Optionally gives the protocol used for the upload: davs, root, etc.
+Default davs.
 
 .HP 
 .B "--timeout SECONDS"
 .br
-Timeout in seconds to pass to Rucio.
+Optional timeout in seconds to pass to Rucio. Default 60.
+
+.HP 
+.B "--tries TRIES"
+.br
+Optionally gives number of times to try each Rucio call. Default 1.
+
+.HP 
+.B "--no-check"
+.br
+Optionally prevents checking the Rucio the file has successfully been 
+registered in Rucio with a replica and put in the given dataset.
 
 .SH AUTHOR
 Andrew McNab <Andrew.McNab@cern.ch>

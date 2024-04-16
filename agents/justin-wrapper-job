@@ -728,10 +728,10 @@ try:
   (t1, t2, t3, t4) = t.split()
   logLine('t1=%s,t2=%s,t3=%s,t4=%s,' % (t1,t2,t3,t4))
 
-  jobscriptRealSeconds = int(float(t1))
-  jobscriptUserSeconds = int(float(t2))
-  jobscriptSysSeconds  = int(float(t3))
-  jobscriptMaxRssKB    = int(t4)
+  jobscriptRealSeconds = int(float(t1.strip()))
+  jobscriptUserSeconds = int(float(t2.strip()))
+  jobscriptSysSeconds  = int(float(t3.strip()))
+  jobscriptMaxRssKB    = int(t4.strip())
 except Exception as e:
   logLine('Failed to get time output: ' + str(e))
   jobscriptRealSeconds = 0
