@@ -2,7 +2,7 @@
 #
 # make-justin-ups - package justIN commands for UPS in cvmfs
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,6 +32,10 @@
 # tar zxvf /tmp/justin.ups.XX.XX.XX.tgz 
 # cd
 # cvmfs_server publish dune.opensciencegrid.org
+#
+# If this is a dev or int version, replace with this line:
+#
+# testing/make-justin-ups --not-default
 #
 
 export JUSTIN_VERSION=00.13.06
@@ -84,8 +88,6 @@ cp $MJU_GIT_DIR/dune-justin/jobutils/justin-allocated-files \
    $MJU_GIT_DIR/dune-justin/jobutils/pdjson2metadata \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
 
-#   $MJU_GIT_DIR/dune-justin/jobutils/insert_extra_fields.py \
-
 cat <<EOF > $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/ups/justin.table
 FILE=TABLE
 PRODUCT=justin
@@ -132,6 +134,9 @@ echo
 export JUSTIN_TGZ_FILE=/tmp/justin.ups.$JUSTIN_VERSION.tgz
 
 ( cd $MJU_PRODUCTS
+  if [ "$1" = "--not-default" ] ; then
+    rm -Rf justin/current.chain
+  fi
   tar zcvf $JUSTIN_TGZ_FILE --exclude=__pycache__ justin )
 
 echo "$JUSTIN_TGZ_FILE"
