@@ -137,8 +137,7 @@ if args['no_check']:
 # Check the file is registered in Rucio, with replica(s)
 for i in range(1, tries + 1):
   try:
-    client    = rucio.client.Client(timeout = timeout)
-    repClient = rucio.client.replicaclient.ReplicaClient(client)
+    repClient = rucio.client.replicaclient.ReplicaClient()
 
     repGen = repClient.list_replicas([{'scope' : args['scope'],
                                        'name'  : filename
@@ -151,13 +150,12 @@ for i in range(1, tries + 1):
 
 if not reps or 'pfns' not in reps or not reps['pfns']:
   # No replicas returned!
-  sys.exit(99)
+  sys.exit(98)
 
 # Check the file is in the given dataset
 for i in range(1, tries + 1):
   try:
-    client    = rucio.client.Client(timeout = timeout)
-    didClient = rucio.client.didclient.DIDClient(client)
+    didClient = rucio.client.didclient.DIDClient()
 
     parentGen = didClient.list_parent_dids(scope, filename)
   except Exception as e:
@@ -166,7 +164,7 @@ for i in range(1, tries + 1):
 
 if not parentGen:
   # No parents returned!
-  sys.exit(99)
+  sys.exit(97)
 
 # Try to find the given dataset in the parents
 for parent in parentGen:
@@ -178,4 +176,5 @@ for parent in parentGen:
     sys.exit(0)
 
 # We didn't find the given dataset as a parent of the uploaded file!     
-sys.exit(99)
+print('Did not find the dataset as a parent!', file=sys.stderr)
+sys.exit(96)
