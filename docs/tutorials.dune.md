@@ -72,7 +72,8 @@ single stage workflows with the simple-workflow subcommand:
       --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00
 
 If you execute this command now, justIN will take the jobscript
-hello-world.jobscript from the justIN repo in GitHub
+hello-world.jobscript from the 
+[justIN repo in GitHub](https://github.com/DUNE/dune-justin/tree/main) 
 and execute it in 10 jobs which require no input data
 files (as if they were Monte Carlo jobs that start from scratch.) Normally 
 stages have a list of real input files on storages to process, but for cases
