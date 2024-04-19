@@ -652,7 +652,7 @@ if workflowID == awtWorkflowID:
 if getJobscriptDict['has_inner_apptainer']:
   # Wrapper to be run inside the container
   with open('home/jobscript-wrapper.sh','w') as f:
-    f.write('''#!/bin/sh
+    f.write('''#!/bin/bash
 export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
@@ -682,7 +682,7 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
 else:
   # Wrapper to be run outside a container
   with open('home/jobscript-wrapper.sh','w') as f:
-    f.write('''#!/bin/sh
+    f.write('''#!/bin/bash
 cd home
 export HOME="$PWD"
 export JUSTIN_PATH="$HOME"

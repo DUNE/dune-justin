@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Example jobscript that makes sha1sum checksums of all the files
 # referred to by the MQL expression give on the justin command line.

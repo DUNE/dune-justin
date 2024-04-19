@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Script for use within user's jobscript to get the DIDs of all files 
 # allocated to this job

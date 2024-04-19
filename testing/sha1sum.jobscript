@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 : <<'EOF'
 
 sha1sum jobscript for justIN. 

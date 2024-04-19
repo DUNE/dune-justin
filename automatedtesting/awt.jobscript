@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 :<<'EOF'
 justin simple-workflow \
   --rss-mb 2000 \

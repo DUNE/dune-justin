@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Example jobscript that runs lar for all the files
 # referred to by the MQL expression given on the justin command line.

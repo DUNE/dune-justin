@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # justin-create-x509-proxies - create X.509 proxies for justIN 
 #

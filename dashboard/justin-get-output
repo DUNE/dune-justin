@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Wrapper for condor_transfer_data etc
 # 
