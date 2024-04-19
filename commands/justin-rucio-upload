@@ -105,6 +105,7 @@ except:
 logging.basicConfig(level = logging.DEBUG)
 
 for i in range(1, tries + 1):
+  print('--- Upload try %d/%d' % (i, tries + 1), file=sys.stderr)
   try:
     client       = rucio.client.Client(timeout = timeout)
     uploadClient = rucio.client.uploadclient.UploadClient(client)
@@ -136,6 +137,7 @@ if args['no_check']:
 
 # Check the file is registered in Rucio, with replica(s)
 for i in range(1, tries + 1):
+  print('--- Replica check try %d/%d' % (i, tries + 1), file=sys.stderr)
   try:
     repClient = rucio.client.replicaclient.ReplicaClient()
 
@@ -154,6 +156,7 @@ if not reps or 'pfns' not in reps or not reps['pfns']:
 
 # Check the file is in the given dataset
 for i in range(1, tries + 1):
+  print('--- Dataset check try %d/%d' % (i, tries + 1), file=sys.stderr)
   try:
     didClient = rucio.client.didclient.DIDClient()
 

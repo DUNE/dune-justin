@@ -152,23 +152,16 @@ def executeMetaCatCommand(args):
   
 def executeJustinRucioUpload(args):
 
-  for i in range(1, 4):
-    cmd = (
+  cmd = (
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
      'setup python v3_9_13 ; setup rucio ; setup justin ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
-     'justin-rucio-upload %s 2>&1' % args)
+     'justin-rucio-upload --tries 3 %s 2>&1' % args)
 
-    logLine('Try %d/3 of executing these commands in a subshell: %s' % (i, cmd))
-    ret = os.system(cmd)
-
-    if ret == 0:
-      logLine('justin-rucio-upload returns %d - success' % ret)
-      break
-
-    logLine('justin-rucio-upload returns %d - try %d failed' % (ret, i))
-    time.sleep(1)
+  ret = os.system(cmd)
+  logLine('justin-rucio-upload returns %d - %s' 
+          % (ret, 'failed' if ret else 'ok'))
 
   return ret
 
