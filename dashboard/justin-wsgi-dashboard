@@ -3507,6 +3507,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
   else:
     whereString = ''
 
+  # These lists are used for the pull down menus in the filter HTML
   eventTypeRows = justin.select('SELECT event_type_name FROM event_types '
                                 'ORDER BY event_type_name')
   siteRows      = justin.select('SELECT site_name FROM sites '
@@ -3705,20 +3706,84 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
              '/dashboard/?method=list-events&page_number=%d&page_length=%d'
              + queryList)
 
+  output += ('<p>You can download this list as '
+               '<a href="/dashboard/?method=download-events%s'
+               '&format=csv&csvfile=">CSV</a> or '
+               '<a href="/dashboard/?method=download-events%s'
+               '&format=json">JSON</a> '
+               '(up to %d files included)</p>'
+               % (queryList,
+                  queryList,
+                  csvJsonMaxRows))
+
   output += footer()
   return output
 
 def downloadCsvJson(environ, user, cgiValues, method):
 
+  # Set up and validate all possible options
   try:
     workflowID = int(cgiValues["workflow_id"])
   except:
-    return errorPage(environ, user, "workflow_id must be given")
-  
+    workflowID = None
+
   try:
     stageID = int(cgiValues["stage_id"])
   except:
-    return errorPage(environ, user, "stage_id must be given")
+    stageID = None
+
+  try:
+    jobsubID = cgiValues["jobsub_id"]
+
+    if not justin.stringIsJobsubID(jobsubID):
+      raise
+  except:
+    jobsubID = None
+
+  try:
+    jobscriptExit = int(cgiValues["jobscript_exit"])
+  except:
+    jobscriptExit = None
+
+  try:
+    fileDID = cgiValues["file_did"]
+
+    if not justin.stringIsDID(fileDID):
+      raise
+  except:
+    fileDID = None
+
+  try:
+    rseName = cgiValues["rse_name"]
+
+    if not justin.stringIsSite(rseName):
+      raise
+  except:
+    rseName = None
+
+  try:
+    siteName = cgiValues["site_name"]
+
+    if not justin.stringIsSite(siteName):
+      raise
+  except:
+    siteName = None
+
+  try:
+    entryName = cgiValues["entry_name"]
+
+    if not justin.stringIsSite(entryName):
+      raise
+  except:
+    entryName = None
+
+  try:
+    eventTypeName = cgiValues["event_type_name"]
+
+    if not justin.stringIsSite(eventTypeName):
+      raise
+  except:
+    eventTypeName = None
 
   if 'format' in cgiValues:
     format = cgiValues['format']
@@ -3729,6 +3794,10 @@ def downloadCsvJson(environ, user, cgiValues, method):
     return errorPage(environ, user, "format must be csv or json")
 
   if method == 'download-file-states':
+
+    if workflowID is None or stageID is None:
+      return errorPage(environ, user, "workflow_id and stage_id must be given")
+
     # CSV or JSON file with states of input files for a workflow/stage
     stateFilter = ''
     stateText = ''
@@ -3760,7 +3829,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              "LEFT JOIN jobs ON jobs.justin_job_id=files.justin_job_id "
              "LEFT JOIN sites ON jobs.site_id=sites.site_id "
              "WHERE files.workflow_id=%d AND files.stage_id=%d %s "
-             "ORDER BY files.file_id DESC LIMIT %d" % 
+             "ORDER BY files.file_id LIMIT %d" % 
              (justin.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
               csvJsonMaxRows))
  
@@ -3769,6 +3838,9 @@ def downloadCsvJson(environ, user, cgiValues, method):
 
   elif method == 'download-input-file-stats':
     # CSV or JSON file with stats of input files for a workflow/stage
+
+    if workflowID is None or stageID is None:
+      return errorPage(environ, user, "workflow_id and stage_id must be given")
 
     query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
              'jobscript_real_seconds AS seconds,distance,'
@@ -3785,14 +3857,19 @@ def downloadCsvJson(environ, user, cgiValues, method):
              'LEFT JOIN sites ON events.site_id=sites.site_id '
              'WHERE files.state="processed" '
              'AND files.workflow_id=%d '
-             'AND files.stage_id=%d' %
-             (justin.event_FILE_ALLOCATED, workflowID, stageID))
+             'AND files.stage_id=%d '
+             'ORDER BY files.file_id LIMIT %d' %
+             (justin.event_FILE_ALLOCATED, workflowID, stageID, 
+              csvJsonMaxRows))
 
     fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
                   'seconds','distance','job_finish_time']
 
   elif method == 'download-output-file-stats':
     # CSV or JSON file with stats of output files for a workflow/stage
+
+    if workflowID is None or stageID is None:
+      return errorPage(environ, user, "workflow_id and stage_id must be given")
 
     query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
              'seconds,distance,CAST(event_time AS CHAR) AS job_finish_time '
@@ -3806,12 +3883,72 @@ def downloadCsvJson(environ, user, cgiValues, method):
              'LEFT JOIN sites ON events.site_id=sites.site_id '
              'WHERE event_type_id=%d '
              'AND events.workflow_id=%d '
-             'AND events.stage_id=%d' %
-             (justin.event_FILE_CREATED, workflowID, stageID))
+             'AND events.stage_id=%d '
+             'ORDER BY files.file_id LIMIT %d' %
+             (justin.event_FILE_CREATED, workflowID, stageID, csvJsonMaxRows))
 
     fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
                   'seconds','distance','job_finish_time']
 
+  elif method == 'download-events':
+    # CSV or JSON file with stats of events
+
+    whereList = []
+     
+    if workflowID is not None:
+      whereList.append('events.workflow_id=%d' % workflowID)
+
+    if stageID is not None:
+      whereList.append('events.stage_id=%d' % stageID)
+
+    if jobsubID is not None:
+      whereList.append('jobsub_id="%s"' % jobsubID)
+
+    if jobscriptExit is not None:
+      whereList.append('events.jobscript_exit=%d' % jobscriptExit)
+
+    if fileDID is not None:
+      whereList.append('file_did="%s"' % fileDID)
+
+    if rseName is not None:
+      whereList.append('rse_name="%s"' % rseName)
+
+    if siteName is not None:
+      whereList.append('site_name="%s"' % siteName)
+
+    if entryName is not None:
+      whereList.append('entry_name="%s"' % entryName)
+
+    if eventTypeName is not None:
+      whereList.append('event_type_name="%s"' % eventTypeName)
+
+    if whereList:
+      whereString = ' WHERE ' + ' AND '.join(whereList)
+    else:
+      whereString = ''
+
+    query = ('SELECT event_id,event_type_name,'
+             'events.workflow_id,events.stage_id,'
+             'file_did,jobsub_id,site_name,entry_name,rse_name,'
+             'CAST(event_time AS CHAR) AS event_time,'
+             'events.jobscript_exit '
+             'FROM events '
+           'LEFT JOIN event_types '
+           'ON events.event_type_id=event_types.event_type_id '
+           'LEFT JOIN files ON events.file_id=files.file_id '
+           'LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id '
+           'LEFT JOIN sites ON events.site_id=sites.site_id '
+           'LEFT JOIN entries ON events.entry_id=entries.entry_id '
+           'LEFT JOIN storages ON events.rse_id=storages.rse_id '
+           '%s '
+           'ORDER BY event_id LIMIT %d' % 
+           (whereString, csvJsonMaxRows))
+
+    fieldsList = ['event_id', 'event_time', 'event_type_name',
+                  'workflow_id', 'stage_id', 'jobsub_id',
+                  'site_name', 'entry_name', 'file_did', 'rse_name', 
+                  'jobscript_exit']
+ 
   else:  
     return errorPage(environ, user, "Download method not recognised!")
 
@@ -3826,7 +3963,9 @@ def downloadCsvJson(environ, user, cgiValues, method):
       outputFields = []
 
       for field in fieldsList:
-        if type(row[field]) is str:
+        if row[field] is None:
+           outputFields.append('')
+        elif type(row[field]) is str:
           outputFields.append('"' + row[field] + '"')
         else:
           outputFields.append(str(row[field]))

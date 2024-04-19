@@ -155,17 +155,33 @@ def submitJobs(numberToSubmit,
   if workflowID == justin.awtWorkflowID:
     # Flag justIN AWT jobs
     submitFile += ('+JUSTIN_%s_AWT = True\n' 
-                   'requirements = '
-  '((isUndefined(target.GLIDEIN_Site) == FALSE) && '
-  ' (stringListIMember(target.GLIDEIN_Site,my.Desired_Sites)))\n'
+                   'Requirements = ('
+  '(target.HAS_Singularity==true) && '
+  '(target.HAS_CVMFS_dune_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_larsoft_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser1_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser2_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser3_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser4_opensciencegrid_org==true) && '
+  '(isUndefined(target.GLIDEIN_Site) == FALSE) && '
+  '(stringListIMember(target.GLIDEIN_Site,my.Desired_Sites))'
+  ')\n'
                    % justin.proDev.upper())
   else:
     # Only include stage and entries ClassAds if not an AWT job
     submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"\n' 
                    '+Desired_Entries = "%s"\n'
-                   'requirements = '
-  '((isUndefined(target.GLIDEIN_Entry_Name) == FALSE) && '
-  ' (stringListIMember(target.GLIDEIN_Entry_Name,my.Desired_Entries)))\n'
+                   'Requirements = ('
+  '(target.HAS_Singularity==true) && '
+  '(target.HAS_CVMFS_dune_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_larsoft_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser1_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser2_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser3_opensciencegrid_org==true) && '
+  '(target.HAS_CVMFS_fifeuser4_opensciencegrid_org==true) && '
+  '(isUndefined(target.GLIDEIN_Entry_Name) == FALSE) && '
+  '(stringListIMember(target.GLIDEIN_Entry_Name,my.Desired_Entries))'
+  ')\n'
                    % (justin.proDev.upper(), 
                       workflowID, stageID, desiredEntryNames))
 

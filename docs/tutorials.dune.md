@@ -69,13 +69,17 @@ justIN allows workflows to consist of multiple stages, but you can create
 single stage workflows with the simple-workflow subcommand:
 
     justin simple-workflow --monte-carlo 10 \
-      --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00
+      --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00.00
 
-If you execute this command now, justIN will take the jobscript
+If you execute this command now, justIN will take 
 hello-world.jobscript from the 
-[justIN repo in GitHub](https://github.com/DUNE/dune-justin/tree/main) 
+[01.00.00 tag of the justIN repo in GitHub](https://github.com/DUNE/dune-justin/tree/01.00) 
 and execute it in 10 jobs which require no input data
-files (as if they were Monte Carlo jobs that start from scratch.) Normally 
+files (as if they were Monte Carlo jobs that start from scratch.) 
+This mechanism allows you and your group to manage jobscripts in your own 
+GitHub repos, with proper versioning, tags, branches etc.
+
+Normally 
 stages have a list of real input files on storages to process, but for cases
 where we want to run a certain number of jobs without inputs from storage,
 justIN creates virtual counter files for you, and allocates these to jobs
@@ -87,7 +91,7 @@ find logs, jobs status etc. Please take note of that ID now.
 You can use
 
     justin show-jobscript \
-       --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00
+       --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00.00
 
 to display the script these 10 jobs are running for you. And 
 
@@ -139,7 +143,7 @@ To start with, run this command to view the dc4-vd-coldbox-bottom.jobscript
 jobscript:
 
     justin show-jobscript --jobscript-git \
-      DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00
+      DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00
 
 The comments at the top explain how to use the jobscript to process some
 VD coldbox files. For this tutorial though, please use these commands:
@@ -151,7 +155,7 @@ VD coldbox files. For this tutorial though, please use these commands:
     justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript-git \
-       DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00 \
+       DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
     --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
@@ -224,7 +228,7 @@ Fermilab username.
     justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript-git \
-       DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00 \
+       DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
     --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
@@ -287,7 +291,7 @@ but this time use a local file and run it interactively. First get a copy
 of the jobscript in your current directory:
 
     justin show-jobscript --jobscript-git \
-      DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00 \
+      DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
       > my-dc4-vd-coldbox-bottom.jobscript
 
 Have a look at it with your favourite text editor and maybe add an extra
@@ -414,9 +418,9 @@ just hard code it in your jobscripts. But it's simpler to pass the
 environment variable itself to jobscripts. 
 
 Look at this example jobscript:
-
+ 
     justin show-jobscript --jobscript-git \
-      DUNE/dune-justin/testing/cvmfs-hello-world.jobscript:01.00
+      DUNE/dune-justin/testing/cvmfs-hello-world.jobscript:01.00.00
 
 The important lines are right at the end:
 
@@ -433,7 +437,7 @@ This command creates a workflow to run it:
     justin simple-workflow --monte-carlo 1 \
      --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
      --jobscript-git \
-        DUNE/dune-justin/testing/cvmfs-hello-world.jobscript:01.00
+        DUNE/dune-justin/testing/cvmfs-hello-world.jobscript:01.00.00
 
 The `--env` line takes the `$INPUT_TAR_DIR_LOCAL` value from your computer
 and then tells justIN to set an environment variable with the same name
