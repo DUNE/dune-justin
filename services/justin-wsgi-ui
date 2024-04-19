@@ -140,51 +140,75 @@ def showStagesCmd(startResponse, jsonDict):
 
 def showJobscriptCmd(startResponse, jsonDict):
 
-  try:
-    jsid = jsonDict['jobscript_id'].lower()
-  except:
-    jsid = None
+  if jsonDict['jobscript_git']:
+    # git reference given, so try to go with that
 
-  try:
-    workflowID = int(jsonDict['workflow_id'])
-  except:
-    workflowID = 0
+    gitPathTag = jsonDict['jobscript_git']
 
-  try:
-    stageID = int(jsonDict['stage_id'])
-  except:
-    stageID = 0
+    if not justin.stringIsURL(gitPathTag):
+      return ('400 Bad Request', 
+              'GitHub reference must be just ORG/PATH/../FILE:TAG')
+    try:
+      (orgRepoPath, tag) = gitPathTag.split(':', 1)
+      (org, repo, path)  = orgRepoPath.split('/', 2)
+    except:
+      return ('400 Bad Request', 
+              'GitHub reference must be ORG/PATH/../FILE:TAG')
 
-  if (jsid and (workflowID or stageID)) or \
-     (not jsid and (not workflowID or not stageID)):
-    return httpError(startResponse,
-                     '400 Bad Request', 
-          '--jobscript-id OR --workflow-id/--stage-id must be given')
+    jobscriptGit = '%s/%s/%s:%s' % (org, repo, path, tag)
 
-  if jsid:
-    # From Jobscripts Library with JSID
-    response = justin.lookupJobscript(jsid)
-    
-    if response['error']:
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       response['error'])
-      
-    jobscript = response['jobscript']
+    url = ('https://raw.githubusercontent.com/%s/%s/%s/%s' 
+           % (org, repo, tag, path))
+    httpRequest  = urllib.request.Request(url)
+    sslContext                = ssl.SSLContext()
+#    sslContext.verify_mode    = ssl.CERT_REQUIRED
+#    sslContext.check_hostname = True
+
+    try:
+      response = urllib.request.urlopen(httpRequest, context = sslContext)
+    except Exception as e:
+      return ('400 Bad Request', 
+              'Get jobscript from GitHub URL %s fails: %s' % (url, str(e)))
+
+    if response.status != 200:
+      return ('400 Bad Request', 
+              'Get jobscript response not 200, code=%d' % response.status)
+
+    try:
+      jobscript = response.read().decode('utf-8')
+    except Exception as e:
+      return ('400 Bad Request', 'Failed to get jobscript from response')
 
   else:
-    # From stage with workflowID and stageID
-    query = ('SELECT jobscript FROM stages_jobscripts '
-             'WHERE workflow_id=%d AND stage_id=%d'
-             % (workflowID, stageID))
-  
+    # No git reference, so try workflow/stage
+
     try:
-      row = justin.select(query, justOne = True)
-      jobscript = row['jobscript']
-    except Exception as e:
-      return httpError(startResponse, 
-                      '500 Internal Server Error', 
-                      'Error reading justIN database ' + str(e))
+      workflowID = int(jsonDict['workflow_id'])
+    except:
+      workflowID = 0
+
+    try:
+      stageID = int(jsonDict['stage_id'])
+    except:
+      stageID = 0
+
+    if not workflowID or not stageID:
+      return httpError(startResponse,
+                       '400 Bad Request', 
+       'Either --jobscript-git or --workflow-id and --stage-id must be given')
+
+     # From stage with workflowID and stageID
+     query = ('SELECT jobscript FROM stages_jobscripts '
+              'WHERE workflow_id=%d AND stage_id=%d'
+              % (workflowID, stageID))
+  
+     try:
+       row = justin.select(query, justOne = True)
+       jobscript = row['jobscript']
+     except Exception as e:
+       return httpError(startResponse, 
+                        '500 Internal Server Error', 
+                        'Error reading justIN database ' + str(e))
 
   if not jobscript.endswith('\n'):
     jobscript += '\n'
@@ -767,32 +791,23 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   else:
     maxDistance = 0.0
 
-  jobscript       = jsonDict.get('jobscript',        '')
-  jobscriptID     = 0
-  jobscriptGitHub = ''
-  jsid            = jsonDict.get('jobscript_id',     '')
-  githubPathTag   = jsonDict.get('jobscript_github', '')
+  jobscript    = jsonDict.get('jobscript', '')
+  jobscriptID  = 0
+  jobscriptGit = ''
+  gitPathTag   = jsonDict.get('jobscript_git', '')
 
-  if not jobscript and jsid:    
-    response = justin.lookupJobscript(jsid)
-    if response['error']:
-      return ('400 Bad Request', response['error'])
-
-    jobscript   = response['jobscript']
-    jobscriptID = response['jobscript_id']
-
-  if not jobscript and githubPathTag:
-    if not justin.stringIsURL(githubPathTag):
+  if not jobscript and gitPathTag:
+    if not justin.stringIsURL(gitPathTag):
       return ('400 Bad Request', 
               'GitHub reference must be just ORG/PATH/../FILE:TAG')
     try:
-      (orgRepoPath, tag) = githubPathTag.split(':', 1)
+      (orgRepoPath, tag) = gitPathTag.split(':', 1)
       (org, repo, path)  = orgRepoPath.split('/', 2)
     except:
       return ('400 Bad Request', 
               'GitHub reference must be ORG/PATH/../FILE:TAG')
 
-    jobscriptGitHub = '%s/%s/%s:%s' % (org, repo, path, tag)
+    jobscriptGit = '%s/%s/%s:%s' % (org, repo, path, tag)
 
     url = ('https://raw.githubusercontent.com/%s/%s/%s/%s' 
            % (org, repo, tag, path))
@@ -818,7 +833,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
   if not jobscript:
     return ('400 Bad Request',
-            '--jobscript or --jobscript-id or --jobscript-github must by given')
+            '--jobscript or --jobscript-git must by given')
 
   # Just use the defaults specified in the configuration files for now
   jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
@@ -829,15 +844,14 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                         'stage_priority=50,'
                         'workflow_id=%d,'
                         'stage_id=%d,'
-                        'jobscript_id=%d,'
-                        'jobscript_github="%s",'
+                        'jobscript_git="%s",'
                         'jobscript_image="%s",'
                         'processors=%d,'
                         'wall_seconds=%d,'
                         'rss_bytes=%d,'
                         'max_distance=%f' 
                         % (workflowID, stageID, 
-                           jobscriptID, jobscriptGitHub,
+                           jobscriptGit,
                            jobscriptImage,
                            processors, wallSeconds, 
                            rssBytes, maxDistance))
@@ -1065,131 +1079,6 @@ def createStageCmd(startResponse, jsonDict, user):
     return httpOK(startResponse, message)
 
   return httpError(startResponse, code, message)
-
-def createJobscriptCmd(startResponse, jsonDict, user):
-  # Add a named jobscript to the jobscripts library NOT to a stage
-
-  if 'jobscript' in jsonDict and jsonDict['jobscript']:
-    jobscript = jsonDict['jobscript'] + '\n'
-  else:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'Uploaded jobscript is required')
-
-  if 'name' in jsonDict and jsonDict['name']:
-    name = jsonDict['name'].lower()
-  else:
-    return httpError(startResponse, 
-                     '400 Bad Request', 
-                     'You must give a name for the jobscript')
-
-  if not justin.stringIsDomain(name):
-    return httpError(startResponse,
-                     '400 Bad Request', 
-                     'Jobscript name can only be characters a-z 0-9 - _ .')
-
-  if 'description' in jsonDict and jsonDict['description']:
-    description = jsonDict['description']
-  else:
-    description = ''
-
-  if 'scope' in jsonDict and jsonDict['scope']:
-    # --scope option given, so find the scope
-    scopeName = jsonDict['scope'].lower()
-
-    if not justin.stringIsDomain(scopeName):
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       'Scope name can only be characters a-z 0-9 - _ .')
-
-    try:
-      scopeRow = justin.select('SELECT scope_id,wlcg_group_name '
-                           'FROM scopes '
-                           'LEFT JOIN wlcg_groups '
-                           'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                           'WHERE scope_name="%s"' % scopeName,
-                           justOne=True)
-      scopeID       = int(scopeRow['scope_id'])
-      wlcgGroupName = scopeRow['wlcg_group_name']
-    except Exception as e:
-      print('Finding scope fails: ' + str(e), file=sys.stderr)
-      return httpError(startResponse,
-                       '400 Bad Request', 
-                       'Failed to find scope %s in justIN database' % scopeName) 
-
-    if not wlcgGroupName:
-      return httpError(startResponse,
-                       '403 Forbidden',
-                       'Scope %s has no group defined and cannot yet be '
-                       'used via justIN' % scopeName)
-
-    if wlcgGroupName not in user['wlcg_groups']:
-      return httpError(startResponse,
-                       '403 Forbidden', 
-                       'You need to be in group %s to use scope %s' 
-                       % (wlcgGroupName, scopeName))
-
-    jobscriptIdentifier = scopeName + ':' + name
-    jobscriptUserID = 0
-  else:
-    # No scope, so set user_id instead
-    scopeID = 0
-    jobscriptUserID = user['user_id']
-    jobscriptIdentifier = user['user_name'] + ':' + name
-
-  try:
-    # Check if jobscript with this user/scope and name exists already
-    row = justin.select('SELECT jobscript_id FROM jobscripts_library '
-                           'WHERE user_id=%d AND scope_id=%d AND '
-                           'jobscript_name="%s"'
-                           % (jobscriptUserID, scopeID, name), justOne = True)
-
-    jobscriptID = int(row['jobscript_id'])
-
-  except Exception as e:
-    print(str(e), file=sys.stderr)
-    # If not present, create one from scratch
-    try:
-      justin.insertUpdate('INSERT INTO jobscripts_library SET '
-                             'scope_id=%d,'
-                             'user_id=%d,'
-                             'author_id=%d,'
-                             'jobscript_name="%s",'
-                             'jobscript="%s",'
-                             'description="%s",'
-                             'created_time=NOW()'
-                       % (scopeID,
-                          jobscriptUserID,
-                          user['user_id'],
-                          name,
-                          jobscript.replace('\\','\\\\').replace('"','\\"'),
-                          description.replace('\\','\\\\').replace('"','\\"')
-                         ))
-
-    except Exception as e:
-      return httpError(startResponse, 
-                       '500 Internal Server Error', 
-                       'Error adding jobscript to library: ' + str(e))   
-  else:
-    # Already there, so update it with the new values
-    try:
-      justin.insertUpdate('UPDATE jobscripts_library SET '
-                             'jobscript="%s",'
-                             'author_id=%d,'
-                             'description="%s",'
-                             'created_time=NOW() '
-                             'WHERE jobscript_id=%d '
-                       % (jobscript.replace('\\','\\\\').replace('"','\\"'),
-                          user['user_id'],
-                          description.replace('\\','\\\\').replace('"','\\"'),
-                          jobscriptID))
-
-    except Exception as e:
-      return httpError(startResponse, 
-                       '500 Internal Server Error', 
-                       'Error updating jobscript in library: ' + str(e))
-
-  return httpOK(startResponse, jobscriptIdentifier + '\n')
 
 def failFilesCmd(startResponse, jsonDict, user):
 

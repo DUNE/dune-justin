@@ -375,10 +375,6 @@ def mainPage(environ, user):
      'uri'       : '/dashboard/?method=list-storages',
      'text'      : 'Storages' },
    { 'startRow'  : True,
-     'endRow'    : False,
-     'uri'       : '/dashboard/?method=list-jobscripts',
-     'text'      : 'Jobscripts' },
-   { 'startRow'  : False,
      'endRow'    : True,
      'uri'       : '/docs/',
      'text'      : 'Documentation' }
@@ -843,115 +839,6 @@ to visit.</p>
   
   return output
 
-def listJobscripts(environ, user, cgiValues, pageNumber, pageLength):
-
-  output = header(environ, user, "justIN: Jobscripts Library")
-
-  output += "<h1>Jobscripts Library</h1>"
-
-  if user and user['user_name']:
-    output += ('<p><i>Public jobscripts with scopes and your own jobscripts '
-               'with prefix %s</i></p>\n' % user['user_name'])
-
-    query = ('SELECT scope_name,jobscripts_library.description,'
-             'authors_principals.principal_name AS author_name,'
-             'users_principals.principal_name AS jobscript_user_name,'
-             'created_time,jobscript_name '
-             'FROM jobscripts_library '
-             'LEFT JOIN users AS authors '
-             'ON jobscripts_library.author_id=authors.user_id '
-             'LEFT JOIN principal_names AS authors_principals '
-             'ON authors_principals.pn_id=authors.main_pn_id '
-             'LEFT JOIN users AS jobscripts_users '
-             'ON jobscripts_library.user_id=jobscripts_users.user_id '
-             'LEFT JOIN principal_names AS users_principals '
-             'ON users_principals.pn_id=jobscripts_users.main_pn_id '
-             'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
-             'WHERE jobscripts_library.user_id=0 '
-             'OR users_principals.principal_name="%s" '
-             'ORDER BY created_time DESC LIMIT %d,%d' %
-             (user['user_name'], pageNumber * pageLength, pageLength + 1))
-
-  else:
-    query = ('SELECT scope_name,jobscripts_library.description,'
-             'authors_principals.principal_name AS author_name,'
-             'created_time,jobscript_name '
-             'FROM jobscripts_library '
-             'LEFT JOIN users AS authors '
-             'ON jobscripts_library.author_id=authors.user_id '
-             'LEFT JOIN principal_names AS authors_principals '
-             'ON authors_principals.pn_id=authors.main_pn_id '
-             'LEFT JOIN scopes ON jobscripts_library.scope_id=scopes.scope_id '
-             'WHERE jobscripts_library.user_id=0 '
-             'ORDER BY created_time DESC LIMIT %d,%d' %
-             (pageNumber * pageLength, pageLength + 1))
- 
-  rows = justin.select(query)
-
-  output += makePager(pageNumber, pageLength, len(rows), 
-                      "%s?method=list-jobscripts&page_number=%d&page_length=%d") 
-             
-  output += '<p><table class="center">'
-  output += ('<tr><th>Jobscript</th><th>Description</th><th>Author</th>'
-             '<th>Created</th><tr>')
-
-  for row in rows[:pageLength]:
-    if row["scope_name"]:
-      prefix = row["scope_name"]
-    else:
-      prefix = row["jobscript_user_name"]
-
-    output += ('<tr><td><a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">'
-               '%s:%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
-               '</tr>'
-               % (prefix, row["jobscript_name"], 
-                  prefix, row["jobscript_name"], 
-                  html.escape(row["description"], quote=True),
-                  row["author_name"],
-                  row['created_time']
-                 )
-              )
-
-  output += "</table>"
-  
-  output += makePager(pageNumber, pageLength, len(rows), 
-                      "%s?method=list-jobscripts&page_number=%d&page_length=%d")
-  output += footer()
-  
-  return output
-
-def showJobscript(environ, user, cgiValues):
-
-  try:
-    jsid = str(cgiValues["jobscript_id"]).lower()
-  except:
-    return errorPage(environ, user, "jobscript_id must be given")
-
-  response = justin.lookupJobscript(jsid)
-  if response['error']:
-    return errorPage(environ, user, response['error'])
-
-  output = header(environ, user, "justIN: Jobscript %s" % jsid)
-  output += '<!-- %s -->\n' % str(time.time())
-  output += ("<h1>Jobscript %s</h1>\n" % jsid)
-
-  output += ("<p><i>Created on %s by %s</i><br>%s</p>\n"
-             % (response['created_time'], 
-                response['authorname'],
-                html.escape(response['description'], quote=True)))
-
-  output += ("<h2>Jobscript</h2>")
-  output += ('<pre style="white-space: pre-wrap;">') 
-
-  output += (html.escape(
-   response["jobscript"].encode('ascii',errors='ignore').decode(), 
-   quote=True))
-  
-  output += ('</pre>') 
-
-  output += footer()
-  return output
-
 def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
 
   output = header(environ, user, "justIN: Workflows")
@@ -1376,11 +1263,8 @@ def showStage(environ, user, cgiValues):
            "stages.rss_bytes,"
            "stages.max_distance,"
            "stages_jobscripts.jobscript,"
-           "stages.jobscript_github,"
-           "jobscript_name,"
-           "jobscripts_scopes.scope_name AS jobscripts_scope_name,"
-           "workflows_scopes.scope_name AS workflows_scope_name,"
-           "principal_name AS user_name "
+           "stages.jobscript_git,"
+           "workflows_scopes.scope_name AS workflows_scope_name "
            "FROM stages "
            "LEFT JOIN workflows "
            "ON workflows.workflow_id=stages.workflow_id "
@@ -1389,13 +1273,6 @@ def showStage(environ, user, cgiValues):
            "LEFT JOIN stages_jobscripts "
            "ON stages_jobscripts.workflow_id=stages.workflow_id "
            "AND stages_jobscripts.stage_id=stages.stage_id "
-           "LEFT JOIN jobscripts_library "
-           "ON jobscripts_library.jobscript_id=stages.jobscript_id "
-           "LEFT JOIN scopes AS jobscripts_scopes "
-           "ON jobscripts_scopes.scope_id=jobscripts_library.scope_id "
-           "LEFT JOIN users ON users.user_id=jobscripts_library.user_id "
-           "LEFT JOIN principal_names "
-           "ON principal_names.pn_id=users.main_pn_id "
            "WHERE stages.workflow_id=%d AND stages.stage_id=%d" %
            (workflowID, stageID))
 
@@ -1861,9 +1738,9 @@ def showStage(environ, user, cgiValues):
 
   output += ("<h2>Jobscript</h2>")
 
-  if stageRow['jobscript_github']:
+  if stageRow['jobscript_git']:
     try:
-      (orgRepoPath, tag) = stageRow['jobscript_github'].split(':', 1)
+      (orgRepoPath, tag) = stageRow['jobscript_git'].split(':', 1)
       (org, repo, path)  = orgRepoPath.split('/', 2)
     except:
       pass
@@ -1871,19 +1748,7 @@ def showStage(environ, user, cgiValues):
       output += ('<p><i>Copied from '
                  '<a href="https://github.com/%s/%s/blob/%s/%s">%s</a> '
                  'on GitHub</i></p>' 
-                 % (org, repo, tag, path, stageRow['jobscript_github']))
-  elif stageRow['jobscripts_scope_name'] and stageRow['jobscript_name']:
-    output += ('<p><i>Copied from '
-               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
-               ' when the stage was created.</i></p>'
-               % (stageRow['jobscripts_scope_name'], stageRow['jobscript_name'],
-                  stageRow['jobscripts_scope_name'], stageRow['jobscript_name']))
-  elif stageRow['user_name'] and stageRow['jobscript_name']:
-    output += ('<p><i>Copied from '
-               '<a href="/dashboard/?method=show-jobscript&jobscript_id=%s:%s">%s:%s</a>'
-               ' when the stage was created.</i></p>'
-               % (stageRow['user_name'], stageRow['jobscript_name'],
-                  stageRow['user_name'], stageRow['jobscript_name']))
+                 % (org, repo, tag, path, stageRow['jobscript_git']))
 
   output += ('<pre style="white-space: pre-wrap;">') 
 
@@ -4454,12 +4319,6 @@ def application(environ, startResponse):
   
   elif method == "authorized":
     output = authorizedPage(environ, user)
-
-  elif method == "list-jobscripts":
-    output = listJobscripts(environ, user, cgiValues, pageNumber, pageLength)
-
-  elif method == "show-jobscript":
-    output = showJobscript(environ, user, cgiValues)
 
   elif method == "list-workflows":
     output = listWorkflows(environ, user, cgiValues, pageNumber, pageLength)

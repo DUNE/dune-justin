@@ -104,9 +104,9 @@ This man page is distributed along with the
     
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
-    	      FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
-    	      [--wall-seconds N] [--rss-mib N] [--processors N]
-    	      [--max-distance DIST] [--output-pattern PATTERN:DESTINATION]
+    	      FILENAME|--jobscript-github ORG/PATH:TAG [--wall-seconds N]
+    	      [--rss-mib N] [--processors N] [--max-distance DIST]
+    	      [--output-pattern PATTERN:DESTINATION]
     	      [--output-pattern-next-stage PATTERN:DATASET] [--output-rse
     	      NAME] [--lifetime-days DAYS] [--env NAME=VALUE] [--classad
     	      NAME=VALUE]
@@ -115,19 +115,16 @@ This man page is distributed along with the
     	      workflow must have at least one stage.
     
     	      Each stage must have a jobscript shell script associated with
-    	      it, given by the --jobscript or --jobscript-id or
-    	      --jobscript-github options.  Either the full, local path to the
-    	      jobscript file is given, or the jobscript is taken from justIN's
-    	      Jobscripts Library using a JSID jobscript identifier, or a
-    	      reference to a tag or revison hash in GitHub is given.  A JSID
-    	      is in the form SCOPE:NAME or USER:NAME, where USER includes an
-    	      '@' character.  A GitHub reference takes the form PATH:TAG where
-    	      TAG is a git tag or SHA1 revision hash, and PATH is the path to
-    	      the jobscript file in GitHub's URL space, of the form
-    	      ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .  In all three
-    	      sccenarios, a copy of the current text of the jobscript is
-    	      cached in the stage definition and executed on worker nodes to
-    	      process the stage's files.
+    	      it, given by the --jobscript or --jobscript-github options.
+    	      Either the full, local path to the jobscript file is given, or a
+    	      reference to a tag or revison hash in GitHub is given.  A GitHub
+    	      reference takes the form PATH:TAG where TAG is a git tag or SHA1
+    	      revision hash, and PATH is the path to the jobscript file in
+    	      GitHub's URL space, of the form
+    	      ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .  In both
+    	      scenarios, a copy of the current text of the jobscript is cached
+    	      in the stage definition and executed on worker nodes to process
+    	      the stage's files.
     
     	      If the maximum wallclock time needed is not given by
     	      --wall-seconds then the default of 80000 seconds is used. The
@@ -202,11 +199,10 @@ This man page is distributed along with the
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] --jobscript
-    	      FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
-    	      [--wall-seconds N] [--rss-mib N] [--processors N]
-    	      [--max-distance DIST] [--output-pattern PATTERN:DESTINATION]
-    	      [--output-rse NAME] [--lifetime-days DAYS] [--env NAME=VALUE]
-    	      [--classad NAME=VALUE]
+    	      FILENAME|--jobscript-github ORG/PATH:TAG [--wall-seconds N]
+    	      [--rss-mib N] [--processors N] [--max-distance DIST]
+    	      [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
+    	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -222,27 +218,9 @@ This man page is distributed along with the
     	      distance value.
     
     
-           create-jobscript [--description DESC] [--scope SCOPE] --name NAME
-    	      --jobscript FILENAME
-    	      Creates a named jobscript in the Jobscripts Library, with an
-    	      optional description. The jobscript is created with the
-    	      specified scope if one is given. Otherwise the jobscript is
-    	      created under your user name. The jobscript identifier is
-    	      returned on success, in the form SCOPE:NAME or USER:NAME.
-    	      Jobscript names must be unique for each scope or user name. If a
-    	      jobscript already exists for the given scope or user name it is
-    	      overwritten.
-    
-           show-jobscript --jobscript-id JSID
            show-jobscript --workflow-id ID --stage-id ID
-    	      Show a jobscript, referenced either by a jobscript identifier or
-    	      by workflow and stage. If an identifier is given, the jobscript
-    	      is taken from the Jobscripts Library. The JSID identifier
-    	      consists of USER:NAME or SCOPE:NAME, where NAME is the jobscript
-    	      name, USER is the user name of any user and contains an '@'
-    	      character, and SCOPE is a Rucio scope name known to justIN.
-    	      Alternatively, if workflow and stage are given, then the
-    	      jobscript cached for that workflow and stage is shown.
+    	      Show a jobscript, referenced by workflow and stage.
+    
     
            show-stage-outputs --workflow-id ID --stage-id ID
     	      Shows the datasets to be assigned and the patterns used to find

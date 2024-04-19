@@ -124,12 +124,8 @@ parser.add_argument("--refind-interval-hours",
 parser.add_argument("--jobscript",
                     type = str,
                     help = "Specify a jobscript file")
-
-parser.add_argument("--jobscript-id",
-                    type = str,
-                    help = "Specify a jobscript JSID")
-
-parser.add_argument("--jobscript-github",
+ 
+parser.add_argument("--jobscript-git",
                     type = str,
                     help = "Specify a jobscript in GitHub")
 

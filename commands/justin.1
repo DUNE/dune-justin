@@ -109,7 +109,7 @@ excludes a workflow from the workflow allocation process.
 
 .HP
 .B "create-stage --workflow-id ID --stage-id ID 
-.B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
+.B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
 .B [--wall-seconds N] [--rss-mib N] [--processors N] [--max-distance DIST] 
 .B [--output-pattern PATTERN:DESTINATION]
 .B [--output-pattern-next-stage PATTERN:DATASET] [--output-rse NAME] 
@@ -123,19 +123,14 @@ Each stage must have a jobscript shell script associated with it,
 given by the
 .B --jobscript
 or
-.B --jobscript-id
-or
-.B --jobscript-github
+.B --jobscript-git
 options. 
-Either the full, local path to the jobscript file is given, or the jobscript
-is taken from justIN's Jobscripts Library using a JSID jobscript identifier,
+Either the full, local path to the jobscript file is given, 
 or a reference to a tag or revison hash in GitHub is given. 
-A JSID is in the form SCOPE:NAME or USER:NAME, where USER includes
-an '@' character. 
 A GitHub reference takes the form PATH:TAG where TAG is a git tag or
 SHA1 revision hash, and PATH is the path to the jobscript file in GitHub's
 URL space, of the form ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .
-In all three sccenarios, a copy of the current text of the jobscript
+In both scenarios, a copy of the current text of the jobscript
 is cached in the stage definition and executed on worker nodes to process 
 the stage's files. 
 
@@ -222,7 +217,7 @@ this stage.
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
 .B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
 .B [--refind-interval-hours HOURS] 
-.B --jobscript FILENAME|--jobscript-id JSID|--jobscript-github ORG/PATH:TAG
+.B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
 .B [--wall-seconds N]
 .B [--rss-mib N] [--processors N] [--max-distance DIST]
 .B [--output-pattern PATTERN:DESTINATION] [--output-rse NAME] 
@@ -245,29 +240,14 @@ of the output gives the workflow ID, stage ID,, min processors,
 max processors, max wallclock seconds, max RSS bytes, and the max distance
 value.
 
-.HP
-.B "create-jobscript [--description DESC] [--scope SCOPE] --name NAME 
-.B --jobscript FILENAME
-.br
-Creates a named jobscript in the Jobscripts Library, with an optional 
-description. The jobscript is created with the specified scope if one is
-given. Otherwise the jobscript is created under your user name. The jobscript
-identifier is returned on success, in the form SCOPE:NAME or USER:NAME. 
-Jobscript names must be unique for each scope or user name. If a jobscript
-already exists for the given scope or user name it is overwritten.
 .P
-.B "show-jobscript --jobscript-id JSID"
+.B "show-jobscript --jobscript-git ORG/PATH:TAG"
 .br
 .B "show-jobscript --workflow-id ID --stage-id ID"
 .RS
-Show a jobscript, referenced either by a jobscript identifier
-or by workflow and stage. If an identifier is given, the jobscript is taken from
-the Jobscripts Library. The JSID identifier consists of USER:NAME or
-SCOPE:NAME, where NAME is the jobscript name, USER is the user name of
-any user and contains an '@' character, and SCOPE is a Rucio scope name
-known to justIN. Alternatively, if workflow and stage are given, then the 
-jobscript cached for that workflow and stage is shown.
-.RE
+Show the given jobscript, either by GitHub reference or by workflow and
+stage.
+
 .HP
 .B "show-stage-outputs --workflow-id ID --stage-id ID"
 .br
@@ -329,7 +309,21 @@ command.
 
 The user jobscripts supplied when creating a stage are shell scripts
 which the wrapper jobs execute on the worker nodes matched to that stage.
-They are started in an empty workspace directory.
+
+When specifying a jobscript to the justin command, 
+either the full, local path to the jobscript file is given, 
+or a reference to a tag or revison hash in GitHub is given. 
+(Other git repository services may be added in the future.)
+
+A GitHub reference takes the form PATH:TAG where TAG is a git tag or
+SHA1 revision hash, and PATH is the path to the jobscript file in GitHub's
+URL space, of the form 
+ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .
+In both scenarios, a copy of the current text of the jobscript
+is cached in the stage definition and executed on worker nodes to process 
+the stage's files. 
+
+Jobscripts are run in an empty workspace directory.
 Several environment variables are made available to the
 scripts, all prefixed with JUSTIN_, including $JUSTIN_WORKFLOW_ID, 
 $JUSTIN_STAGE_ID and

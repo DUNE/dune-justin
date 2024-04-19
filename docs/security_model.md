@@ -45,13 +45,8 @@ membership when a user asks justIN to create files within a scope. This only
 covers writing and file creation: every DUNE member is able to read DUNE
 files.
 
-The scopes are also used to control write access to jobscripts in the 
-[Jobscripts Library](jobscripts_library.md) and the ability to modify 
-workflows to process files. Each 
-jobscript in the library must be associated with a scope and each workflow
-may be assigned to a scope and that must be the case if the workflow needs
-to create files within a scope. This allows working group production teams,
-for example, to collaborate on jobscripts and on managing running workflows.
+The scopes are also used to control write the 
+ability to modify workflows to process files. 
 
 ## Credentials in justIN jobs
 

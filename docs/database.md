@@ -46,7 +46,6 @@ The database is implemented as a MySQL/Mariadb SQL database.
 | jobs                   |
 | jobs_logs              |
 | jobs_outputs           |
-| jobscripts_library     |
 | jwt_keys               |
 | principal_names        |
 | replicas               |

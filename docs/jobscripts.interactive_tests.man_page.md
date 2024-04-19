@@ -57,13 +57,10 @@ justin-test-jobscripts command itself.
     
     
     EXAMPLE
-           In this example we make a local copy of a jobscript from the Jobscripts
-           Library and then run it using the justin-test-jobscript command, using
-           the jobscript's $NUM_EVENTS variable to limit processing to the first
-           event of the input file.
+           In this example run a local copy of a jobscript using the
+           justin-test-jobscript command, using the jobscript's $NUM_EVENTS
+           variable to limit processing to the first event of the input file.
     
-           justin show-jobscript --jobscript-id dc4-vd-coldbox-top:default \
-    	 > my-dc4-vd-coldbox-top.jobscript
     
            justin-test-jobscript --mql \
     	"files from dc4:dc4 where core.run_type='dc4-vd-coldbox-top' limit 10" \
