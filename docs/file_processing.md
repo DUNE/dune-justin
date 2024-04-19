@@ -8,7 +8,8 @@ page explains the lifecycle of input and output files during that process.
 ### Input files
 
 For real input files, the justIN Finder agent discovers input file DIDs from 
-MetaCat with an MQL and stores them in the justIN database, associated with
+[MetaCat](https://metacat.readthedocs.io/en/latest/) 
+with an MQL and stores them in the justIN database, associated with
 the workflow in question, and in the finding state. 
 The Finder agent then uses Rucio to look up the 
 Physical File Names (PFNs) of the replicas of each file, and stores them

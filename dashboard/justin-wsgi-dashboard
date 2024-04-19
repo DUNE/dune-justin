@@ -1751,15 +1751,16 @@ def showStage(environ, user, cgiValues):
 
   if stageRow['jobscript_git']:
     try:
-      (orgRepoPath, tag) = stageRow['jobscript_git'].split(':', 1)
-      (org, repo, path)  = orgRepoPath.split('/', 2)
+      (gitSite, orgRepoPath, tag) = stageRow['jobscript_git'].split(':', 2)
+      (org, repo, path)           = orgRepoPath.split('/', 2)
     except:
       pass
     else:
       output += ('<p><i>Copied from '
-                 '<a href="https://github.com/%s/%s/blob/%s/%s">%s</a> '
+                 '<a href="https://%s/%s/%s/blob/%s/%s">%s/%s/%s:%s</a> '
                  'on GitHub</i></p>' 
-                 % (org, repo, tag, path, stageRow['jobscript_git']))
+                 % (gitSite, org, repo, tag, path, 
+                             org, repo, path, tag))
 
   output += ('<pre style="white-space: pre-wrap;">') 
 

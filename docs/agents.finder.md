@@ -6,7 +6,9 @@ the state of workflows, files, replicas and jobs.
 
 It processes workflows using the specified MQL expression to generate a
 list of input files for the first stage of the workflow, either by submitting
-a true MQL query to MetaCat, or it submits a query to Rucio to obtain a list
+a true MQL query to 
+[MetaCat](https://metacat.readthedocs.io/en/latest/), 
+or it submits a query to Rucio to obtain a list
 of files in a given dataset, or it creates a list of virtual counter files
 to keep track of [Monte Carlo](monte_carlo.md) productions.
 

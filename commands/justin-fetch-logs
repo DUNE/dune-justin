@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# justin-fetchlogs - get the logs.tgz for a justIN job
+# justin-fetch-logs - get the logs.tgz for a justIN job
 #
 # Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
@@ -29,9 +29,9 @@ import rucio.client.downloadclient
 # PROGRAM MAIN !!!
 # 
 
-parser = argparse.ArgumentParser(prog='justin-fetchlogs',
-  usage='justin-fetchlogs [--help] [--unpack] [--timout SECONDS] JOBSUBID '
-        'See the justin-fetchlogs(1) man page for detailed help '
+parser = argparse.ArgumentParser(prog='justin-fetch-logs',
+  usage='justin-fetch-logs [--help] [--unpack] [--timout SECONDS] JOBSUBID '
+        'See the justin-fetch-logs(1) man page for detailed help '
         'and command syntax\n')
                                  
 parser.add_argument("jobsubid",
@@ -80,7 +80,7 @@ try:
     
   sys.exit(0)
 except Exception as e:
-  print('justin-fetchlogs fails: ' + str(e))
+  print('justin-fetch-logs fails: ' + str(e))
   if not args['verbose']:
     print('Rerun with --verbose to get all the debugging messages!')
   sys.exit(99)
