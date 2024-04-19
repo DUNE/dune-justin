@@ -140,10 +140,10 @@ def showStagesCmd(startResponse, jsonDict):
 
 def showJobscriptCmd(startResponse, jsonDict):
 
-  if jsonDict['jobscript_git']:
-    # git reference given, so try to go with that
+  gitPathTag = jsonDict.get('jobscript_git', '')
 
-    gitPathTag = jsonDict['jobscript_git']
+  if gitPathTag:
+    # git reference given, so try to go with that
 
     if not justin.stringIsURL(gitPathTag):
       return ('400 Bad Request', 
@@ -197,18 +197,18 @@ def showJobscriptCmd(startResponse, jsonDict):
                        '400 Bad Request', 
        'Either --jobscript-git or --workflow-id and --stage-id must be given')
 
-     # From stage with workflowID and stageID
-     query = ('SELECT jobscript FROM stages_jobscripts '
+    # From stage with workflowID and stageID
+    query = ('SELECT jobscript FROM stages_jobscripts '
               'WHERE workflow_id=%d AND stage_id=%d'
               % (workflowID, stageID))
   
-     try:
-       row = justin.select(query, justOne = True)
-       jobscript = row['jobscript']
-     except Exception as e:
-       return httpError(startResponse, 
-                        '500 Internal Server Error', 
-                        'Error reading justIN database ' + str(e))
+    try:
+      row = justin.select(query, justOne = True)
+      jobscript = row['jobscript']
+    except Exception as e:
+      return httpError(startResponse, 
+                       '500 Internal Server Error', 
+                       'Error reading justIN database ' + str(e))
 
   if not jobscript.endswith('\n'):
     jobscript += '\n'
@@ -792,7 +792,6 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     maxDistance = 0.0
 
   jobscript    = jsonDict.get('jobscript', '')
-  jobscriptID  = 0
   jobscriptGit = ''
   gitPathTag   = jsonDict.get('jobscript_git', '')
 

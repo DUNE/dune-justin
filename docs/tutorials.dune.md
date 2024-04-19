@@ -68,10 +68,11 @@ set up.
 justIN allows workflows to consist of multiple stages, but you can create
 single stage workflows with the simple-workflow subcommand:
 
-    justin simple-workflow --monte-carlo 10 --jobscript-id testpro:hello-world
+    justin simple-workflow --monte-carlo 10 \
+      --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00
 
 If you execute this command now, justIN will take the jobscript
-testpro:hello-world from justIN's Jobscripts Library
+hello-world.jobscript from the justIN repo in GitHub
 and execute it in 10 jobs which require no input data
 files (as if they were Monte Carlo jobs that start from scratch.) Normally 
 stages have a list of real input files on storages to process, but for cases
@@ -84,7 +85,8 @@ find logs, jobs status etc. Please take note of that ID now.
 
 You can use
 
-    justin show-jobscript --jobscript-id testpro:hello-world
+    justin show-jobscript \
+       --jobscript-git DUNE/dune-justin/testing/hello-world.jobscript:01.00
 
 to display the script these 10 jobs are running for you. And 
 
@@ -132,10 +134,11 @@ how to repeat part of it. We'll run LArSoft to process some data that is
 registered in MetaCat and Rucio, and temporarily store the output files in
 Rucio-managed storage at remote sites.
 
-To start with, run this command to view the dc4-vd-coldbox-bottom:default
+To start with, run this command to view the dc4-vd-coldbox-bottom.jobscript
 jobscript:
 
-    justin show-jobscript --jobscript-id dc4-vd-coldbox-bottom:default
+    justin show-jobscript --jobscript-git \
+      DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00
 
 The comments at the top explain how to use the jobscript to process some
 VD coldbox files. For this tutorial though, please use these commands:
@@ -146,7 +149,9 @@ VD coldbox files. For this tutorial though, please use these commands:
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
-    --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
+    --jobscript-git \
+       DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00 \
+    --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
     
@@ -159,7 +164,7 @@ quotes to MetaCat and get a list of matching files. In this case, only the
 first 10 matching files are returned. To make it easier to read we've put
 the query in `$MQL_QUERY` but you could put it in quotes on the `justin`
 command line itself.
-3. `--jobscript-id` tells justIN to use the jobscript we've been looking at.
+3. `--jobscript-git` tells justIN to use the jobscript we've been looking at.
 4. `--max-distance 30` says that only replicas of files within a distance of
 30 from where the job is running will be considered. In practice, 30 means 
 within North America or within Europe, but not from one to the other. 
@@ -217,7 +222,9 @@ Fermilab username.
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
-    --jobscript-id dc4-vd-coldbox-bottom:default --max-distance 30 \
+    --jobscript-git \
+       DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00 \
+    --max-distance 30 \
     --rss-mb 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
 
@@ -278,7 +285,8 @@ Let's rerun the Data Challenge 4 jobscript we used in the previous section,
 but this time use a local file and run it interactively. First get a copy
 of the jobscript in your current directory:
 
-    justin show-jobscript --jobscript-id dc4-vd-coldbox-bottom:default \
+    justin show-jobscript --jobscript-git \
+      DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00 \
       > my-dc4-vd-coldbox-bottom.jobscript
 
 Have a look at it with your favourite text editor and maybe add an extra
@@ -320,9 +328,9 @@ simple-workflow with these options:
     --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
 
-As you can see, you just need to change 
-`--jobscript-id dc4-vd-coldbox-bottom:default` to the 
-option `--jobscript my-dc4-vd-coldbox-bottom.jobscript` 
+As you can see, you just need to change the whole
+`--jobscript-git` option to 
+`--jobscript my-dc4-vd-coldbox-bottom.jobscript` 
 to use the local file as the jobscript.
     
 ## Rapid Code Distribution to jobs via cvmfs
@@ -406,7 +414,8 @@ environment variable itself to jobscripts.
 
 Look at this example jobscript:
 
-    justin show-jobscript --jobscript-id testpro:cvmfs-hello-world
+    justin show-jobscript --jobscript-git \
+      DUNE/dune-justin/testing/cvmfs-hello-world.jobscript:01.00
 
 The important lines are right at the end:
 
@@ -422,7 +431,8 @@ This command creates a workflow to run it:
 
     justin simple-workflow --monte-carlo 1 \
      --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
-     --jobscript-id testpro:cvmfs-hello-world
+     --jobscript-git \
+        DUNE/dune-justin/testing/cvmfs-hello-world.jobscript:01.00
 
 The `--env` line takes the `$INPUT_TAR_DIR_LOCAL` value from your computer
 and then tells justIN to set an environment variable with the same name

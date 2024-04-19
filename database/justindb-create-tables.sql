@@ -11,19 +11,6 @@ CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `jobscripts_library` (
-  `jobscript_id` mediumint(8) unsigned AUTO_INCREMENT,
-  `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `author_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `created_time` datetime NOT NULL DEFAULT '1970-01-01',
-  `jobscript_name` varchar(255) NOT NULL DEFAULT '',
-  `description` varchar(255) NOT NULL DEFAULT '',
-  `jobscript` text NOT NULL,
-  PRIMARY KEY `jobscript_id` (`jobscript_id`),
-  UNIQUE KEY `uniqueness` (`jobscript_name`,`scope_id`,`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
 CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
