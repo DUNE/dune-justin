@@ -1011,6 +1011,11 @@ def showWorkflow(environ, user, cgiValues):
   output += ('<tr><td>Finished</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(workflowRow['finished']))
   
+  output += ('<tr><td colspan="2"><a '
+             'href="/dashboard/?method=list-events&workflow_id=%d">Events '
+             'for this workflow</a></td></tr>' 
+             % workflowID)
+  
   output += "</table>"
 
   # Get the stages of this workflow
@@ -1331,6 +1336,12 @@ def showStage(environ, user, cgiValues):
   if stageRow["workflows_scope_name"]:
     output += ('<tr><td>Scope</td>'
                '<td>%s</td></tr>' % stageRow["workflows_scope_name"])
+
+
+  output += ('<tr><td colspan="2"><a '
+             'href="/dashboard/?method=list-events&workflow_id=%d&stage_id=%d">'
+             'Events for this stage</a></td></tr>' 
+             % (workflowID, stageID))
 
   output += ('</table>')
     

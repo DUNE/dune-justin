@@ -9,7 +9,7 @@
 - entry_has_gpus and always_has_gpus added to entries table in DB
 - Add archived workflow pages
 - Allow jobscripts to come from GitHub repos (DUNE/dist-comp#152)
-- Automatic logs.tgz files created in 4m second per-RSE datasets which keep
+- Automatic logs.tgz files created in 4M second per-RSE datasets which keep
   logs on the original RSE. Standalone justin-fetch-logs command added which
   uses Rucio client to fetch directly, and justin fetch-logs subcommand
   which fetches via justIN UI service without needing Rucio authentication
@@ -22,6 +22,14 @@
 - Pages listing entries and showing status of an individual entry, including
   XML pilot factory configuration.
 - Default Apptainer image for jobscripts can be given in configuration
+- justin-rucio-upload can now check that Rucio has registered the file and
+  added it to the given dataset.
+- Jobscript Library has been retired and emphasis now on --jobscript-git
+  in the man page, docs, and tutorial.
+- Events listings have a form at the top to allow fine-grained filtering,
+  and CSV and JSON downloads of events listings are available.
+- HTCondor wrapper jobs require DUNE, LArSoft, and RCDS cvmfs mounts on
+  worker nodes
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24

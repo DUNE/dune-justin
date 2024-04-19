@@ -30,12 +30,13 @@
 # cd /cvmfs/dune.opensciencegrid.org/products/dune
 # cvmfs_server transaction dune.opensciencegrid.org
 # tar zxvf /tmp/justin.ups.XX.XX.XX.tgz 
+# (upate pro, int, or dev symlink?)
 # cd
 # cvmfs_server publish dune.opensciencegrid.org
 #
-# If this is a dev or int version, replace with this line:
+# If this is a pro version, replace the make line above:
 #
-# testing/make-justin-ups --not-default
+# testing/make-justin-ups --default
 #
 
 export JUSTIN_VERSION=00.13.06
@@ -134,7 +135,7 @@ echo
 export JUSTIN_TGZ_FILE=/tmp/justin.ups.$JUSTIN_VERSION.tgz
 
 ( cd $MJU_PRODUCTS
-  if [ "$1" = "--not-default" ] ; then
+  if [ "$1" != "--default" ] ; then
     rm -Rf justin/current.chain
   fi
   tar zcvf $JUSTIN_TGZ_FILE --exclude=__pycache__ justin )
