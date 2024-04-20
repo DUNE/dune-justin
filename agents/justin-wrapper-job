@@ -832,14 +832,14 @@ except:
   logLine('Failed to create tmp.json for justin-logs:%s' % tgzName)
   jobAborted(314, 'metacat_logs_creation', '')
 
-# The registration itself  
+# The registration with MetaCat itself  
 (ret, out) = \
   executeMetaCatCommand('file declare --json -f tmp.json "dune:all"')
 if ret:
   logLine('Failed to register justin-logs:%s in MetaCat' % tgzName)
   jobAborted(315, 'metacat_logs_registration', '')
 
-# Check it really was
+# Check it really was registered with MetaCat
 (ret, out) = \
   executeMetaCatCommand('file show --json --metadata justin-logs:%s' 
                         % tgzName)
