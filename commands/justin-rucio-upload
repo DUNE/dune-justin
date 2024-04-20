@@ -167,7 +167,7 @@ for i in range(1, tries + 1):
   try:
     didClient = rucio.client.didclient.DIDClient()
 
-    parentGen = didClient.list_parent_dids(scope, filename)
+    parentGen = didClient.list_parent_dids(args['scope'], filename)
     break
   except Exception as e:
     parentGen = None
