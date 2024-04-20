@@ -19,7 +19,8 @@ justin-fetchlogs command itself.
            This command is more efficient than the justin fetch-logs subcommand
            since the logs.tgz file comes directly from the storage where it was
            uploaded by the job. However, it requires that you have an X.509 proxy
-           that Rucio can use to fetch the file.
+           that Rucio can use to fetch the file. (You should use rucio whoami to
+           check that you can access Rucio if you run into problems.)
     
     
     OPTIONS

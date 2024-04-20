@@ -70,15 +70,15 @@ except:
   sys.exit(1)
 
 if not args['rse']:
-  print('--rse missing', file=sys.stderr)
+  print('--rse missing')
   sys.exit(1)
 
 if not args['scope']:
-  print('--scope missing', file=sys.stderr)
+  print('--scope missing')
   sys.exit(1)
 
 if not args['dataset']:
-  print('--dataset missing', file=sys.stderr)
+  print('--dataset missing')
   sys.exit(1)
 
 if not args['protocol']:
@@ -99,13 +99,13 @@ except:
 try:
   filename = args['path'].split('/')[-1]
 except:
-  print('Cannot extract filename from path', file=sys.stderr)
+  print('Cannot extract filename from path')
   sys.exit(1)
 
 logging.basicConfig(level = logging.DEBUG)
 
 for i in range(1, tries + 1):
-  print('--- Upload try %d/%d' % (i, tries + 1), file=sys.stderr)
+  print('--- Upload try %d/%d' % (i, tries))
   try:
     client       = rucio.client.Client(timeout = timeout)
     uploadClient = rucio.client.uploadclient.UploadClient(client)
@@ -119,25 +119,29 @@ for i in range(1, tries + 1):
                    }
 
     ret = uploadClient.upload([uploadDict])
+    print('--- Rucio upload %d/%d returns %d' % (i, tries, ret))
   except Exception as e:
     ret = None
-    print('Rucio upload fails: ' + str(e), file=sys.stderr)
+    print('--- Rucio upload %d/%d fails: %s' % (i, tries,  str(e)))
 
 if ret is None:
   # If an exception than exit with 99
+  print('--- Exit with 99')
   sys.exit(99)
 
 if ret:
   # Exit with the return code of the last upload attempt
+  pirnt('--- Exit with last Rucio return code, %d' % ret)
   sys.exit(ret)
 
 if args['no_check']:
   # If not running checks then exit immediately with 0 for success
+  print('--- Exit with 0, success')
   sys.exit(0)
 
 # Check the file is registered in Rucio, with replica(s)
 for i in range(1, tries + 1):
-  print('--- Replica check try %d/%d' % (i, tries + 1), file=sys.stderr)
+  print('--- Replica check try %d/%d' % (i, tries))
   try:
     repClient = rucio.client.replicaclient.ReplicaClient()
 
@@ -148,25 +152,28 @@ for i in range(1, tries + 1):
     reps = next(repGen)
   except Exception as e:
     reps = None
-    print('Rucio list_replicas fails: ' + str(e), file=sys.stderr)
+    print('--- Rucio list_replicas call fails: ' + str(e))
 
 if not reps or 'pfns' not in reps or not reps['pfns']:
   # No replicas returned!
+  print('--- No replica in Rucio, exit 98')
   sys.exit(98)
 
 # Check the file is in the given dataset
 for i in range(1, tries + 1):
-  print('--- Dataset check try %d/%d' % (i, tries + 1), file=sys.stderr)
+  print('--- Dataset check try %d/%d' % (i, tries))
   try:
     didClient = rucio.client.didclient.DIDClient()
 
     parentGen = didClient.list_parent_dids(scope, filename)
   except Exception as e:
     parentGen = None
-    print('Rucio list_parent_dids fails: ' + str(e), file=sys.stderr)
+    print('--- Rucio list_parent_dids call %d/%d fails: %s' % 
+          (i, tries, str(e)))
 
 if not parentGen:
   # No parents returned!
+  print('--- File not found in any dataset, exit 97')
   sys.exit(97)
 
 # Try to find the given dataset in the parents
@@ -176,8 +183,9 @@ for parent in parentGen:
       parent['scope'] == args['scope'] and 
       parent['name']  == args['dataset']):
     # Found the given dataset as a parent
+    print('--- Upload, replicas, and dataset checks passed')
     sys.exit(0)
 
 # We didn't find the given dataset as a parent of the uploaded file!     
-print('Did not find the dataset as a parent!', file=sys.stderr)
+print('--- Did not find the dataset as a parent, exit 96')
 sys.exit(96)

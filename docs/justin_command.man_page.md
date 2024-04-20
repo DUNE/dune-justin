@@ -104,7 +104,7 @@ This man page is distributed along with the
     
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
-    	      FILENAME|--jobscript-github ORG/PATH:TAG [--wall-seconds N]
+    	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
     	      [--rss-mib N] [--processors N] [--max-distance DIST]
     	      [--output-pattern PATTERN:DESTINATION]
     	      [--output-pattern-next-stage PATTERN:DATASET] [--output-rse
@@ -115,8 +115,8 @@ This man page is distributed along with the
     	      workflow must have at least one stage.
     
     	      Each stage must have a jobscript shell script associated with
-    	      it, given by the --jobscript or --jobscript-github options.
-    	      Either the full, local path to the jobscript file is given, or a
+    	      it, given by the --jobscript or --jobscript-git options.	Either
+    	      the full, local path to the jobscript file is given, or a
     	      reference to a tag or revison hash in GitHub is given.  A GitHub
     	      reference takes the form PATH:TAG where TAG is a git tag or SHA1
     	      revision hash, and PATH is the path to the jobscript file in
@@ -199,7 +199,7 @@ This man page is distributed along with the
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] --jobscript
-    	      FILENAME|--jobscript-github ORG/PATH:TAG [--wall-seconds N]
+    	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
     	      [--rss-mib N] [--processors N] [--max-distance DIST]
     	      [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
     	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
@@ -217,10 +217,10 @@ This man page is distributed along with the
     	      processors, max wallclock seconds, max RSS bytes, and the max
     	      distance value.
     
-    
+           show-jobscript --jobscript-git ORG/PATH:TAG
            show-jobscript --workflow-id ID --stage-id ID
-    	      Show a jobscript, referenced by workflow and stage.
-    
+    	      Show the given jobscript, either by GitHub reference or by
+    	      workflow and stage.
     
            show-stage-outputs --workflow-id ID --stage-id ID
     	      Shows the datasets to be assigned and the patterns used to find
@@ -272,7 +272,21 @@ This man page is distributed along with the
     JOBSCRIPTS
            The user jobscripts supplied when creating a stage are shell scripts
            which the wrapper jobs execute on the worker nodes matched to that
-           stage.  They are started in an empty workspace directory.  Several
+           stage.
+    
+           When specifying a jobscript to the justin command, either the full,
+           local path to the jobscript file is given, or a reference to a tag or
+           revison hash in GitHub is given.  (Other git repository services may be
+           added in the future.)
+    
+           A GitHub reference takes the form PATH:TAG where TAG is a git tag or
+           SHA1 revision hash, and PATH is the path to the jobscript file in
+           GitHub's URL space, of the form
+           ORGANISATION/REPO/DIRECTORIES/.../FILE.jobscript .  In both scenarios,
+           a copy of the current text of the jobscript is cached in the stage
+           definition and executed on worker nodes to process the stage's files.
+    
+           Jobscripts are run in an empty workspace directory.  Several
            environment variables are made available to the scripts, all prefixed
            with JUSTIN_, including $JUSTIN_WORKFLOW_ID, $JUSTIN_STAGE_ID and
            $JUSTIN_SECRET which allows the jobscript to authenticate to justIN's

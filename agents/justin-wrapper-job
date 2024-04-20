@@ -159,7 +159,9 @@ def executeJustinRucioUpload(args):
      'setup python v3_9_13 ; setup rucio ; setup justin ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
-     'justin-rucio-upload --tries 3 %s 2>&1' % args)
+     '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
+     '###justin_prodev###/NULL/bin/justin-rucio-upload '
+     '--tries 3 %s 2>&1' % args)
 
   ret = os.system(cmd)
   logLine('justin-rucio-upload returns %d - %s' 
