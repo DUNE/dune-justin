@@ -157,6 +157,7 @@ def executeJustinRucioUpload(args):
   cmd = (
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
      'setup python v3_9_13 ; setup rucio ; setup justin ; '
+     'export RUCIO_ACCOUNT=dunepro ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
      '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
