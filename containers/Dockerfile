@@ -119,10 +119,13 @@ COPY services/justin-wsgi-ui            /var/www/wsgi/
 COPY services/justin-wsgi-allocator     /var/www/wsgi/
 COPY services/httpd.justin.conf         /etc/httpd/conf.d/
 COPY dashboard/justin-get-output        /var/lib/justin/
+COPY dashboard/justin-update-docs       /var/lib/justin/
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY dashboard/*.png                    /var/www/html/
-COPY *.md                               /var/www/html/docs/
+
+# If adding new file types to docs, change justin-update-docs too!
 COPY docs/*.md                          /var/www/html/docs/
+COPY *.md                               /var/www/html/docs/
 
 COPY containers/02_dune_condor.conf     /etc/condor/config.d/
 COPY containers/justin-client.cnf       /etc/my.cnf.d/

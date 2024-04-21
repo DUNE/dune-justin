@@ -1,0 +1,19 @@
+#!/bin/bash
+# Update docs from inside container 
+
+branch=`python3 -c 'import justin;print(justin.justinVersion)'|cut -f1,2 -d.`
+
+# Create temporary working directory for git command
+tempdir=`mktemp -d`
+cd $tempdir
+
+git clone --branch $branch --depth 1 --single-branch \
+  https://github.com/DUNE/dune-justin.git
+  
+if [ $? == 0 ] ; then
+  # If all ok, then copy docs
+  cp -f dune-justin/docs/*.md /var/www/html/docs/
+fi
+
+# Remove temporary directory
+rm -Rf "$tempdir"

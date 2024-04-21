@@ -39,6 +39,9 @@ if [ $? != 0 ] ; then
   exit 1
 fi
 
+# Update docs from GitHub
+/var/lib/justin/justin-update-docs
+
 pro_dev=`grep -h '^pro_dev' /etc/justin.d/*.conf|sed 's/^.*= *\([a-z]*\)/\1/'`
 if [ "$pro_dev" = "" ] ; then
   pro_dev=pro
