@@ -540,7 +540,7 @@ def createWorkflow(jsonDict, user, simple = False):
         raise
   except:
       return ('400 Bad Request', 
-              'Failed to find scope %s in justIN database' % scope)
+              'Failed to find scope %s in justIN database' % scopeName)
  
   if not wlcgGroupName:
       return ('403 Forbidden', 
