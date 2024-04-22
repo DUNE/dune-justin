@@ -1,7 +1,11 @@
 #!/bin/bash
 # Update docs from inside container 
 
-branch=`python3 -c 'import justin;print(justin.justinVersion)'|cut -f1,2 -d.`
+if [ "$1" == "" ] ; then
+  branch=`python3 -c 'import justin;print(justin.justinVersion)'|cut -f1,2 -d.`
+else
+  branch="$1"
+fi
 
 # Create temporary working directory for git command
 tempdir=`mktemp -d`
