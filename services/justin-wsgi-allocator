@@ -735,44 +735,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                      '403 Forbidden',
                      'workflow ID / stage ID do not match jobsub ID')
 
-  # Check that we're not trying to run unprivileged jobscripts 
-  # without Inner Apptainer: some kind of out of date matching?
-  if jsonDict['workflow_id'] != justin.awtWorkflowID and \
-     not jsonDict['has_inner_apptainer'] and \
-     (not jobDict['wlcg_group_name'] 
-      or jobDict['wlcg_group_name'] != '/dune/production'):
-    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
-                           jobState    = 'notused')
-    return httpError(startResponse,
-              '404 Not Found',
-              'Tried to run an unprivileged workflow without Inner Apptainer')
-    
-  if jobDict['error_message']:
-    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
-                           jobState    = 'aborted')
-    return httpError(startResponse,
-                     '400 Bad Request', 
-                     jobDict['error_message'] + ' in getJobscriptMethod')
-
-  # Some kind of mismatch. Maybe the idle job was marked as stalled. Maybe 
-  # HTCondor rescheduled the job and it has tried to run again. In all cases 
-  # leave the job state as is.
-  if jobDict['job_state'] != 'submitted':
-    return httpError(startResponse, 
-                     '410 Gone', 
-                     'Cannot get stage as job already in %s state' 
-                     % jobDict['job_state'])
-
-  # Site not enabled so no matches allowed 
-  if not jobDict['site_enabled'] and \
-     jsonDict['workflow_id'] != justin.awtWorkflowID:
-    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
-                           jobState    = 'notused')
-    return httpError(startResponse, 
-                     '404 Not Found',
-                     'Cannot start as site %s not enabled' 
-                     % jobDict['site_name'])
-
   # Record whether job slots from this entry always support Inner Apptainer
   # 0=not always, 1=not known, 2=always
   if jsonDict['has_inner_apptainer']:
@@ -803,6 +765,44 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     return httpError(startResponse, 
                  '500 Internal Server Error',
                  'justIN allocator service fails to record get_jobscript time')
+
+  # Check that we're not trying to run unprivileged jobscripts 
+  # without Inner Apptainer: some kind of out of date matching?
+  if jsonDict['workflow_id'] != justin.awtWorkflowID and \
+     not jsonDict['has_inner_apptainer'] and \
+     (not jobDict['wlcg_group_name'] 
+      or jobDict['wlcg_group_name'] != '/dune/production'):
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'notused')
+    return httpError(startResponse,
+              '404 Not Found',
+              'Tried to run an unprivileged workflow without Inner Apptainer')
+
+  if jobDict['error_message']:
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'aborted')
+    return httpError(startResponse,
+                     '400 Bad Request', 
+                     jobDict['error_message'] + ' in getJobscriptMethod')
+
+  # Some kind of mismatch. Maybe the idle job was marked as stalled. Maybe 
+  # HTCondor rescheduled the job and it has tried to run again. In all cases 
+  # leave the job state as is.
+  if jobDict['job_state'] != 'submitted':
+    return httpError(startResponse, 
+                     '410 Gone', 
+                     'Cannot get stage as job already in %s state' 
+                     % jobDict['job_state'])
+
+  # Site not enabled so no matches allowed 
+  if not jobDict['site_enabled'] and \
+     jsonDict['workflow_id'] != justin.awtWorkflowID:
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'], 
+                           jobState    = 'notused')
+    return httpError(startResponse, 
+                     '404 Not Found',
+                     'Cannot start as site %s not enabled' 
+                     % jobDict['site_name'])
 
   jobscriptDict = makeJobscriptDict(jsonDict, jobDict)
   if not jobscriptDict:

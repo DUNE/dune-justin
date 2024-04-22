@@ -21,7 +21,7 @@ Then
 5) Create and run a workflow
    justin simple-workflow --monte-carlo 1 \
    --env INPUT_TAR_DIR_LOCAL="$INPUT_TAR_DIR_LOCAL" \
-   --jobscript-id testpro:cvmfs-hello-world
+   --jobscript cvmfs-hello-world.jobscript
 
 Check the output through the dashboard: the date in hello_world.txt 
 should be printed.
