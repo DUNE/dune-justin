@@ -32,6 +32,9 @@
   worker nodes
 - Fix bug DUNE/dist-comp#157 where unknown scope error generated another error
 - RUCIO_ACCOUNT is set to dunepro in wrapper jobs 
+- Per-stage lists of allowed RSEs for input files, output files, and sites
+  at which to run.
+- --seconds-needed option added to justin-get-file for multi-file jobscripts
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24
