@@ -6,13 +6,14 @@ to that stage.
 
 They are started in an empty workspace directory.  Several environment 
 variables are made available to the scripts, all prefixed with JUSTIN_, 
-including $JUSTIN_WORKFLOW_ID, $JUSTIN_STAGE_ID and $JUSTIN_SECRET which allows
+including `$JUSTIN_WORKFLOW_ID`, 
+`$JUSTIN_STAGE_ID` and `$JUSTIN_SECRET` which allows
 the jobscript to authenticate to the 
-[allocator service](services.allocator.md). $JUSTIN_PATH is 
+[allocator service](services.allocator.md). `$JUSTIN_PATH` is 
 used to reference files and scripts provided by justIN.
 
 To get the details of an input file to work on, the command 
-$JUSTIN_PATH/justin-get-file is executed by the jobscript.  This produces 
+`$JUSTIN_PATH/justin-get-file` is executed by the jobscript.  This produces 
 a single line of output with the Rucio DID of the chosen file, its PFN on 
 the optimal RSE, and the name of that RSE, all separated by spaces. This 
 code fragment shows how the DID, PFN and RSE can be put into shell 
@@ -23,15 +24,25 @@ variables:
     pfn=`echo $did_pfn_rse | cut -f2 -d' '`
     rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-If no file is available to be processed, then justin-get-file produces no 
-output to stdout, which should also be checked for.  justin-get-file logs 
-errors to stderr.
+If no file is available to be processed, then `justin-get-file` produces no 
+output to stdout, which should also be checked for so the jobscript can 
+stop at the point. `justin-get-file` logs errors to stderr.
 
-justin-get-file can be called multiple times to process more than one file in 
+`justin-get-file` can be called multiple times to process more than one file in 
 the same jobscript. This can be done all at the start or repeatedly 
-during the lifetime of the job. justin-get-file is itself a simple wrapper 
-around the curl command and it would also be possible to access the 
+during the lifetime of the job. `justin-get-file` is itself a simple wrapper 
+around the `curl` command and it would also be possible to access the 
 allocator service's REST API directly from an application.
+
+`justin-get-file` has a single option which may also be given:
+`--seconds-needed NNNN` where NNNN is the maximum number of wallclock
+seconds which will be needed by the jobscript to process another file
+and finish. If there is not enough time left based on the
+`--wall-seconds` option used when defining the stage, then 
+`justin-get-file` will in that case return an empty result, just as if no more
+files were available for processing. This can easily be used to create
+adaptable jobscripts which process a series of input files without running 
+out of time on the last one.
 
 ## Marking input files as processed
 

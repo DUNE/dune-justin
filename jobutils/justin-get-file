@@ -8,6 +8,16 @@
 # Error messages to stderr
 # DID PFN RSE to stdout on one line if a file is available
 
+if [ "$1" = "--seconds-needed" -a "$2" != "" ] ; then
+  timestamp_limit=`expr $JUSTIN_TIMESTAMP + $JUSTIN_WALL_SECONDS - $2`
+  if [ `/bin/date +'%s'` -gt "$timestamp_limit" ] ; then
+    # If less than --seconds-needed NNNN seconds left, then we return
+    # nothing as it's time for the jobscript to stop
+    echo "Not enough time left to process another file" >&2
+    exit 5
+  fi
+fi
+
 if [ ! -r "$JUSTIN_PATH/justin-get-file.json" ] ; then
   echo "$JUSTIN_PATH/justin-get-file.json not found!" >&2
   exit 2

@@ -316,6 +316,16 @@ This man page is distributed along with the
            access the justIN allocator service's REST API directly from an
            application.
     
+           justin-get-file has a single option which may also be given:
+           --seconds-needed NNNN where NNNN is the maximum number of wallclock
+           seconds which will be needed by the jobscript to process another file
+           and finish. If there is not enough time left based on the
+           --wall-seconds option used when defining the stage, then justin-get-
+           file will in that case return an empty result, just as if no more files
+           were available for processing. This can easily be used to create
+           jobscripts which process a series of input files without running out of
+           time on the last one.
+    
            Each file returned by justin-get-file is marked as allocated and will
            not be processed by any other jobs. When the jobscript finishes, it
            must leave files with lists of the processed files in its workspace

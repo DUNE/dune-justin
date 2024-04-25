@@ -569,11 +569,7 @@ if os.fork() == 0:
 with open('home/justin-jobscript-env.sh','w') as f:
   for (n,v) in jobscriptDict['stage_env']:
     f.write('export %s="%s"\n' % (n,v))
-
-# REMOVE THIS
-#  f.write('export JUSTIN_PRO_DEV=###justin_prodev###\n')
-# ^^^^^^^^^^^
-
+    
   f.write('export JUSTIN_ALLOCATOR='
    'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk/api/allocator/\n')
   f.write('export JUSTIN_SITE_NAME=%s\n' % jobscriptDict['site_name'])
@@ -587,6 +583,7 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_WALL_SECONDS=%d\n' 
           % jobscriptDict['requested_wall_seconds'])
   f.write('export JUSTIN_JOBSUB_ID=%s\n' % jobsubJobID)
+  f.write('export JUSTIN_TIMESTAMP=%d\n' % int(time.time()))
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % jobscriptDict['jobscript_secret'])
   f.write('export JUSTIN_SAM_WEB_URI='

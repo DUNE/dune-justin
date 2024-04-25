@@ -1309,8 +1309,31 @@ def showStage(environ, user, cgiValues):
   output += ('<tr><td>Max distance for inputs</td>'
         '<td>%.1f</td></tr>' % stageRow["max_distance"])
 
-  output += ('<tr><td>Output RSEs</td>'
-        '<td>')
+  # Allowed input RSEs
+  output += ('<tr><td>Enabled input RSEs</td><td><small>')
+        
+  query = ("SELECT rse_name "
+           "FROM stages_input_storages "
+           "LEFT JOIN storages "
+           "ON stages_input_storages.rse_id=storages.rse_id "
+           "WHERE workflow_id=%d AND stage_id=%d "
+           "ORDER BY rse_name" %
+           (workflowID, stageID))
+
+  output += '<!-- %s -->\n' % str(time.time())
+  justin.cur.execute(query)
+  rseRows = justin.cur.fetchall()
+
+  storagesList = []  
+  for rseRow in rseRows:
+    storagesList.append(
+             '<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>' 
+             % (rseRow['rse_name'], rseRow['rse_name']))
+       
+  output += ', '.join(storagesList) + '</small></td></tr>'
+        
+  # Allowed output RSEs
+  output += ('<tr><td>Enabled output RSEs</td><td><small>')
         
   query = ("SELECT rse_name,preferred "
            "FROM stages_output_storages "
@@ -1326,12 +1349,36 @@ def showStage(environ, user, cgiValues):
 
   storagesList = []  
   for rseRow in rseRows:
-    storagesList.append("%s%s%s" % 
-                        ('<b>' if rseRow['preferred'] else '',
-                         rseRow['rse_name'],
-                         '</b>' if rseRow['preferred'] else ''))
+    storagesList.append(
+          '%s<a href="/dashboard/?method=show-storage&rse_name=%s">%s</a>%s' % 
+          ('<b>' if rseRow['preferred'] else '',
+           rseRow['rse_name'],
+           rseRow['rse_name'],
+           '</b>' if rseRow['preferred'] else ''))
        
-  output += ', '.join(storagesList) + '</td></tr>'
+  output += ', '.join(storagesList) + '</small></td></tr>'
+        
+  # Allowed sites
+  output += ('<tr><td>Enabled sites</td><td><small>')
+        
+  query = ("SELECT site_name "
+           "FROM stages_sites "
+           "LEFT JOIN sites "
+           "ON stages_sites.site_id=sites.site_id "
+           "WHERE workflow_id=%d AND stage_id=%d "
+           "ORDER BY site_name" %
+           (workflowID, stageID))
+
+  output += '<!-- %s -->\n' % str(time.time())
+  justin.cur.execute(query)
+  siteRows = justin.cur.fetchall()
+
+  sitesList = []  
+  for siteRow in siteRows:
+    sitesList.append('<a href="/dashboard/?method=show-site&site_name=%s">'
+                     '%s</a>' % (siteRow['site_name'], siteRow['site_name']))
+       
+  output += ', '.join(sitesList) + '</small></td></tr>'
         
   if stageRow["workflows_scope_name"]:
     output += ('<tr><td>Scope</td>'

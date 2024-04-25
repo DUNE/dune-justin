@@ -104,21 +104,31 @@ def updateSitesRankCache(siteName):
         'LEFT JOIN replicas ON replicas.file_id=files.file_id '
         'LEFT JOIN sites_storages ON sites_storages.rse_id=replicas.rse_id '
         'AND sites_storages.site_id=%d '
+        'LEFT JOIN stages_input_storages '
+        'ON stages_input_storages.workflow_id=files.workflow_id '
+        'AND stages_input_storages.stage_id=files.stage_id '
+        'AND stages_input_storages.rse_id=replicas.rse_id '
         'WHERE files.state="unallocated" '
         'AND files.workflow_id=stages.workflow_id '
         'AND files.stage_id=stages.stage_id '
+        'AND stages_input_storages.rse_id IS NOT NULL '
         'AND sites_storages.distance IS NOT NULL '
         'AND sites_storages.distance <= stages.max_distance '
         'ORDER BY sites_storages.distance '
         'LIMIT 10) AS avg_distance '
       'FROM workflows '
       'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
+      'LEFT JOIN stages_sites '
+      'ON stages_sites.workflow_id=stages.workflow_id '
+      'AND stages_sites.stage_id=stages.stage_id '
+      'AND stages_sites.site_id=%d '
       'WHERE workflows.workflow_id<>%d '
       'AND workflows.state="running" '
       'AND stages.stage_priority IS NOT NULL '
+      'AND stages_sites.site_id IS NOT NULL '
       'ORDER BY avg_distance,stages.stage_priority DESC,'
       'workflows.workflow_id LIMIT 100'
-      % (siteRow['site_id'], justin.awtWorkflowID))
+      % (siteRow['site_id'], siteRow['site_id'], justin.awtWorkflowID))
 
     print('updateSitesRankCache() query: ' + query, file=sys.stderr)
     stages = justin.select(query)
@@ -300,11 +310,16 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'entries.entry_name,'
              'entries.entry_id,'
              'scopes.scope_name,'
-             'wlcg_groups.wlcg_group_name '
+             'wlcg_groups.wlcg_group_name,'
+             'stages_sites.site_id AS s_s_site_id '
              'FROM jobs '
              'LEFT JOIN stages ON jobs.workflow_id=stages.workflow_id '
              'AND jobs.stage_id=stages.stage_id '
              'LEFT JOIN sites ON jobs.site_id=sites.site_id '
+             'LEFT JOIN stages_sites '
+             'ON stages_sites.workflow_id=jobs.workflow_id '
+             'AND stages_sites.stage_id=jobs.stage_id '
+             'AND stages_sites.site_id=jobs.site_id '
              'LEFT JOIN entries ON jobs.entry_id=entries.entry_id '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
@@ -661,7 +676,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     try:
       n = int(jsonDict[name])
     except:
-#      updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse,
                        '400 Bad Request', 
                        'Missing/invalid integer value(s) in JSON')
@@ -671,7 +685,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                'hostname', 'site_job_id']:
     if name not in jsonDict or not justin.stringNoQuotes(jsonDict[name]) \
        or not jsonDict[name]:
-#      updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
       return httpError(startResponse, 
                        '400 Bad Request', 
                        'Missing/invalid value for %s in JSON' % name)
@@ -680,7 +693,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
      jsonDict['entry_name'] == 'UNKNOWN':
     print('Job %s has unknown site_name or entry_name - aborting' 
           % jsonDict['jobsub_id'], file=sys.stderr)
-#    updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, '400 Bad Request', 'Unknown site')
 
   # If the job is in the submitted state then update with host details
@@ -717,7 +729,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                            ))
     justin.conn.commit()
   except Exception as e:
-#    updateTerminalJobState(jsonDict['jobsub_id'], 'aborted')
     return httpError(startResponse, 
                      '500 Internal Server Error',
                      'justIN allocator service fails to update job with site_id '
@@ -1002,12 +1013,17 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
                    'LEFT JOIN sites_storages ON '
                    'replicas.rse_id=sites_storages.rse_id AND '
                    'sites_storages.site_id=%d '
+                   'LEFT JOIN stages_input_storages '
+                   'ON stages_input_storages.workflow_id=files.workflow_id '
+                   'AND stages_input_storages.stage_id=files.stage_id '
+                   'AND stages_input_storages.rse_id=replicas.rse_id '
                    'WHERE files.workflow_id=%d AND files.stage_id=%d AND '
                    'files.state="unallocated" AND '
                    'distance<=%f AND '
                    'accessible_until > NOW() AND '
                    'storages.rucio_read AND storages.justin_read AND '
-                   'NOT storages.decommissioned '
+                   'NOT storages.decommissioned AND '
+                   'stages_input_storages.rse_id IS NOT NULL '
                    'ORDER by distance,replicas.file_id LIMIT 1000' % 
                    (siteID, workflowID, stageID, maxDistance))
   except Exception as e:

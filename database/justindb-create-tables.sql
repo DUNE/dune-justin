@@ -310,6 +310,20 @@ CREATE TABLE IF NOT EXISTS `stages_output_storages` (
   UNIQUE KEY `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `stages_input_storages` (
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `rse_id` smallint(5) unsigned NOT NULL,
+  UNIQUE KEY `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `stages_sites` (
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `site_id` smallint(5) unsigned NOT NULL,
+  UNIQUE KEY `workflow_stage_site` (`workflow_id`,`stage_id`,`site_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `stages_environment` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,

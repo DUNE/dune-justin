@@ -992,6 +992,12 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     rseRows = justin.select('SELECT rse_id,rse_name FROM storages '
                             'WHERE NOT decommissioned AND rse_id<>%d'
                             % justin.MonteCarloRseID)
+
+    justin.insertUpdate('INSERT INTO stages_input_storages SET '
+              'workflow_id=%d,'
+              'stage_id=%d,'
+              'rse_id=%d ' %
+              (workflowID, stageID, justin.MonteCarloRseID))
   except Exception as e:
     return ('500 Internal Server Error',
             'Error getting list of RSEs: ' + str(e))
@@ -999,6 +1005,12 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   # We go through all found RSEs, adding them, marking the preferred ones
   for rseRow in rseRows:
     try:
+      justin.insertUpdate('INSERT INTO stages_input_storages SET '
+              'workflow_id=%d,'
+              'stage_id=%d,'
+              'rse_id=%d ' %
+              (workflowID, stageID, rseRow['rse_id']))
+
       justin.insertUpdate('INSERT INTO stages_output_storages SET '
               'workflow_id=%d,'
               'stage_id=%d,'
@@ -1010,7 +1022,28 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
     except Exception as e:
       return ('500 Internal Server Error', 
-              'Error adding output RSE: ' + str(e))
+              'Error adding input/output RSE: ' + str(e))
+
+  # Get a list of all enabled sites
+  try:
+    siteRows = justin.select('SELECT site_id,site_name FROM sites '
+                             'WHERE enabled')
+  except Exception as e:
+    return ('500 Internal Server Error',
+            'Error getting list of sites: ' + str(e))
+
+  # We go through all currently enabled sites, adding them
+  for siteRow in siteRows:
+    try:
+      justin.insertUpdate('INSERT INTO stages_sites SET '
+              'workflow_id=%d,'
+              'stage_id=%d,'
+              'site_id=%d ' %
+              (workflowID, stageID, siteRow['site_id']))
+
+    except Exception as e:
+      return ('500 Internal Server Error', 
+              'Error adding site: ' + str(e))
 
   if jsonDict['env']:
     for envNameValue in jsonDict['env']:    
