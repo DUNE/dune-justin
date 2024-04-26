@@ -1469,6 +1469,28 @@ def showStage(environ, user, cgiValues):
 
     output += ('</table>') 
 
+  # Git repos
+  query = ("SELECT git_repo,rcds_hash,rcds_path "
+           "FROM stages_git_repos "
+           "WHERE workflow_id=%d AND stage_id=%d "
+           "ORDER BY git_repo" %
+           (workflowID, stageID))
+
+  gitReposRows = justin.select(query)
+
+  if gitReposRows:
+    output += '<!-- %s -->\n' % str(time.time())
+    output += ('<h2>GitHub Repos</h2>')
+    output += ('<table><tr><th>Name</th><th>Path</th><th>Hash</th></tr>')
+ 
+    for gitRepoRow in gitReposRows:
+      output += ("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" %
+                 (gitRepoRow['git_repo'],
+                  gitRepoRow['rcds_hash'],
+                  insertWBR(gitRepoRow['rcds_path'])))
+
+    output += ('</table>') 
+
   # File states
   stateCounts = { 'recorded'    : 0,
                   'finding'     : 0,

@@ -838,6 +838,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
                     justin.jobscriptImageSuffix + ':' + 
                     justin.jobscriptImageVersion)
+
   try:
     justin.insertUpdate('INSERT INTO stages SET '
                         'stage_priority=50,'
@@ -1100,6 +1101,43 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       except Exception as e:
         return ('500 Internal Server Error', 
                 'Error adding custom ClassAds: ' + str(e))
+
+  if jsonDict['git_repo']:
+    for gitRepo in jsonDict['git_repo']:
+      if not justin.stringIsURL(gitRepo):
+        return ('400 Bad Request', 'Invalid characters in GitHub repo')
+
+      try:
+        (gitPath, gitTag) = gitRepo.split(':', 1)
+      except:
+        return ('400 Bad Request', 
+                'GitHub repo must be of the form NAME/REPO:TAG')
+
+      gitPathList = gitPath.split('/')
+      if len(gitPathList) != 2 or \
+         not gitPathList[0] or \
+         not gitPathList[1] or \
+         gitPath.endswith('.git'):
+        return ('400 Bad Request', 
+                'GitHub repo must be of the form NAME/REPO:TAG with one slash '
+                'and no .git)
+
+# WE SHOULD DO SOME KIND OF CHEAP TEST OF THE EXISTENCE OF THE REPO IN GITHUB
+# HERE AND RETURN AN ERROR TO THE USER
+
+      try:
+        justin.insertUpdate('INSERT IGNORE INTO stages_git_repos SET '
+              'workflow_id=%d,'
+              'stage_id=%d,'
+              'git_repo="%s"' % 
+              (workflowID, 
+               stageID, 
+               gitRepo
+              ))
+
+      except Exception as e:
+        return ('500 Internal Server Error', 
+                'Error adding Git repo: ' + str(e))
 
   return ('200 OK', '')
 

@@ -340,6 +340,15 @@ CREATE TABLE IF NOT EXISTS `stages_classads` (
   UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`classad_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `stages_git_repos` (
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
+  `git_repo` varchar(255) NOT NULL,
+  `rcds_hash` varchar(255) NOT NULL DEFAULT '',
+  `rcds_path` varchar(255) NOT NULL DEFAULT '',
+  UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`git_repo`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `sites_ranks_cache` (
   `site_id` smallint(5) unsigned NOT NULL,
   `rank_text` text NOT NULL DEFAULT '',
