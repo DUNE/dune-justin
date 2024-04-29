@@ -1122,17 +1122,39 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                 'GitHub repo must be of the form NAME/REPO:TAG with one slash '
                 'and no .git)
 
-# WE SHOULD DO SOME KIND OF CHEAP TEST OF THE EXISTENCE OF THE REPO IN GITHUB
-# HERE AND RETURN AN ERROR TO THE USER
+      try:
+        tmpDir = tempfile.TemporaryDirectory()
+        waitStatus = os.system('cd %s && '
+                        '/usr/bin/git clone --branch %s '
+                        '--single-branch https://github.com/%s/%s.git && '
+                        'cd %s && '
+                        '/usr/bin/git log --pretty=format:"%H" -n 1 '
+                        '--output=../hash.txt'
+                        % (tmpDir, tag, name, repo, repo)
+                              )
+
+        ret = os.waitstatus_to_exitcode(waitStatus)
+    
+        if ret:
+          raise RuntimeError('git clone returns error %d' % ret)
+
+        gitCommit = open('hash.txt', 'r').read().strip()
+      except Exception as e:
+        return ('400 Bad Request',
+                'Unable to checkout tag %s from https://github.com/%s/%s.git'
+                % (tag, name, repo)
+               )
 
       try:
         justin.insertUpdate('INSERT IGNORE INTO stages_git_repos SET '
               'workflow_id=%d,'
               'stage_id=%d,'
-              'git_repo="%s"' % 
+              'git_repo="%s",'
+              'git_commit="%s"' %
               (workflowID, 
                stageID, 
-               gitRepo
+               gitRepo,
+               gitCommit
               ))
 
       except Exception as e:

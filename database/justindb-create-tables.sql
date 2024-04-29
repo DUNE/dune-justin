@@ -344,6 +344,7 @@ CREATE TABLE IF NOT EXISTS `stages_git_repos` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
   `git_repo` varchar(255) NOT NULL,
+  `git_commit` varchar(255) NOT NULL DEFAULT '',
   `rcds_hash` varchar(255) NOT NULL DEFAULT '',
   `rcds_path` varchar(255) NOT NULL DEFAULT '',
   UNIQUE KEY `multiple` (`workflow_id`,`stage_id`,`git_repo`)

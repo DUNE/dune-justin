@@ -26,6 +26,8 @@ import json
 import time
 import base64
 import socket
+import hashlib
+import tempfile
 import subprocess
 import urllib.request
 import pathlib
@@ -594,6 +596,117 @@ def executeMetaCatCommand(args):
 
   return ret
 
+def getRcdsCvmfsPath(rcdsServer, hashString):
+
+  httpRequest = urllib.request.Request('https://%s//pubapi/exists?cid=dune/%s'
+                                       % (rcdsServer, hashString),
+                                       data = hashString,
+                                       headers = { 'User-Agent':
+                                                   'justin-finder' },
+                                       method = 'GET')
+
+  sslContext = ssl.SSLContext()
+  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    responseString = response.read().decode('utf-8')
+  except:
+    return None
+
+  if responseString.startswith('PRESENT:'):
+    return responseString[8:]
+    
+  return None
+
+def uploadRcdsTarfile(rcdsServer, hashString, tarFileContents):
+
+  httpRequest = urllib.request.Request('https://%s//pubapi/publish?cid=dune/%s'
+                                       % (rcdsServer, hashString),
+                                       data = tarFileContents,
+                                       headers = { 'User-Agent': 
+                                                   'justin-finder' },
+                                       method = 'POST')
+
+  sslContext = ssl.SSLContext()
+  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    responseString = response.read().decode('utf-8')
+  except:
+    return False
+
+  if not response or response.status != 200:
+    return False
+  
+  if responseString[:2] != 'OK':
+    return False
+    
+  return True
+
+def checkGitRepo(workflowID = None, stageID = None, 
+                 rcdsServer = 'rcds01.fnal.gov', rcdsHash = None,
+                 gitRepo = None, gitCommit = None):
+  # Check, and if necessary, upload Git repo to RCDS
+
+  (nameRepo, tag) = gitRepo.split(':',1)
+  (name, repo)    = nameRepo.split('/',1)
+
+  if rcdsHash:
+    # check if RCDS still recognises the hash we stored previously
+    rcdsPath = getRcdsCvmfsPath(rcdsServer, rcdsHash)
+    if rcdsPath:
+      return { 'rcds_path'  : rcdsPath, 
+               'rcds_hash'  : rcdsHash  }
+    
+  # We need to upload the tar file to RCDS, so first create it using 
+  # the Git commit not the tag!
+  try:
+    tmpDir = tempfile.TemporaryDirectory()
+    waitStatus = os.system('cd %s && '
+                      '/usr/bin/git clone https://github.com/%s/%s.git && '
+                      '/usr/bin/git checkout %s && '
+                      'rm -Rf %s/.git %s/.github && '
+                      '/usr/bin/tar cvf tmp.tar --sort=name --mtime=@0 %s'
+                      % (tmpDir, name, repo, gitCommit, repo, repo, repo)
+                          )
+
+    ret = os.waitstatus_to_exitcode(waitStatus)
+    
+    if ret:
+      raise RuntimeError('git clone / tar returns error %d' % ret)
+  except Exception as e:
+    logLine('Failed to do git clone / tar creation: ' + str(e))
+    return None
+
+  try:
+# SHOULD CHECK THIS IS NOT ABSURDLY LARGE BEFORE WE SLURP IT INTO MEMORY!!!
+    tarFileContents = open('tmp.tar', 'rb').read()
+    rcdsHash        = hashlib.sha1(tarFileContents).hexdigest()
+  except Exception as e:
+    logLine('Failed to read and hash tar file tmp.tar: ' + str(e))
+    return None
+
+  if not uploadRcdsTarfile(rcdsServer, rcdsHash, tarFileContents):
+    logLine('Failed to upload tar file to RCDS for w%ds%d' 
+            % (workflowID, stageID))
+    return None
+    
+  for i in range(0,12):
+    time.sleep(5)
+    
+    rcdsPath = getRcdsCvmfsPath(rcdsServer, rcdsHash)
+
+    if rcdsPath:
+      return { 'rcds_path'  : rcdsPath, 
+               'rcds_hash'  : rcdsHash }
+
+  # Failed to get path despite waiting and after many tries
+  return None
+
 def findSubmittedWorkflows():
   # Find workflows waiting in the submitted state and set them to running
 
@@ -664,12 +777,6 @@ def findSubmittedWorkflows():
                                stageOutput['lifetime_seconds'],
                                rseExpression) )
 
-# THIS IS NOW DONE WITH PER-RSE DATASETS IN THE INFO COLLECTOR
-#    datasetsToCreate.add( ('justin-logs', 
-#                           'workflow_%d' % workflow['workflow_id'],
-#                           604800,
-#                           justin.rseDisksExpression) )
-
   if datasetsToCreate:
     try:
       logLine('Try to create DID and Rule Rucio clients')
@@ -729,15 +836,46 @@ def findSubmittedWorkflows():
 
 # SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
 # NEED THEIR LIFETIME EXTENDING? THIS IS NEEDED FOR LONG WORKFLOWS?
-      
-# We now use dune:all in MetaCat for everything ?!?!
-# This is set in the wrapper jobs
-#
-#      try:
-#        executeMetaCatCommand("dataset create '%s:%s'" % (scopeName, datasetName))
-#      except:
-#        # We assume failures are due to the dataset already being registered
-#        pass
+
+  try:
+    query = ('SELECT workflows.workflow_id,stages_git_repos.stage_id,'
+             'git_repo,git_commit FROM workflows '
+             'LEFT JOIN stages_git_repos '
+             'ON stages_git_repos.workflow_id=workflows.workflow_id '
+             'WHERE workflows.state="submitted" '
+             'ORDER BY workflows.workflow_id')
+
+    gitRepoRows = justin.select(query) 
+  except Exception as e:
+    logLine('Exception finding git_repos: %s' % str(e))
+    return
+
+  for gitRepoRow in gitRepoRows:
+    retDict = checkGitRepo(workflowID = gitRepoRow['workflow_id'],
+                           stageID    = gitRepoRow['stage_id'],
+                           gitRepo    = gitRepoRow['git_repo'],
+                           gitCommit  = gitRepoRow['git_commit'])
+    
+    if not retDict:
+      logLine('Failed to check git repo / RCDS - exit for now')
+      return
+    
+    try:
+      justin.insertUpdate('UPDATE stages_git_repos SET '
+                          'rcds_hash="%s",rcds_path="%s" '
+                          'WHERE workflow_id=%d AND stage_id=%d '
+                          'AND git_repo="%s"' %
+                            (retDict['rcds_hash'],
+                             retDict['rcds_path'],
+                             workflowID, stageID, 
+                             gitRepoRow['git_repo']))
+    except Exception as e:
+      logLine('Failed to update git repo details: %s' % str(e))
+      return
+
+# WE SHOULD PROCESS ONE WHOLE WORKFLOW AT A TIME AND COMMIT RESULTS 
+# SEPARATELY SO THAT PROBLEMS WITH METACAT/RUCIO/RCDS DO NOT BLOCK 
+# OTHER WORKFLOWS FROM STARTING - AS THE CURRENT CODE WILL!
 
   # All successful (or not needed) so mark workflows as running
   # Define refind_next_time as now to force at least one finding cycle
