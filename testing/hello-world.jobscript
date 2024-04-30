@@ -30,10 +30,10 @@ if [ "$did_pfn_rse" != "" ] ; then
   # Hello world to a txt file
   echo "Hello world $pfn" >hello-world-`date +%s.%N.txt`
 
-  # Hello world to the log file
+  # Hello world to the jobscript log 
   echo "Hello world $pfn" 
   if [ $? = 0 ] ; then
-    # If ok, then say we processed the file
+    # If echo returns 0, then say we processed the file successfully
     echo "$pfn" > justin-processed-pfns.txt
   fi
 fi
