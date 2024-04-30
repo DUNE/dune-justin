@@ -27,11 +27,14 @@ if [ "$did_pfn_rse" != "" ] ; then
   pfn=`echo $did_pfn_rse | cut -f2 -d' '`
   rse=`echo $did_pfn_rse | cut -f3 -d' '`
 
-  # We say we processed whatever we were given
-  echo "$pfn" > justin-processed-pfns.txt
-
-  # Hello world
-  echo "Hello world $pfn" 
+  # Hello world to a txt file
   echo "Hello world $pfn" >hello-world-`date +%s.%N.txt`
+
+  # Hello world to the log file
+  echo "Hello world $pfn" 
+  if [ $? = 0 ] ; then
+    # If ok, then say we processed the file
+    echo "$pfn" > justin-processed-pfns.txt
+  fi
 fi
 exit 0

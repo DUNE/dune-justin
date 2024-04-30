@@ -1,8 +1,5 @@
 # justIN security model
 
-**This model will be fully deployed once the transition to the DUNE global
-pool and the dedicated justIN schedd is complete.**
-
 justIN has three largely independent security systems: how users are
 authenticated and receive DUNE group memberships; how justIN decides what it
 will do on behalf of a particular user; and how credentials are supplied to
@@ -58,10 +55,10 @@ each job in the cluster. The wrapper jobs use the secrets to authenticate
 to the justIN allocator service, in the form of HMAC SHA256 hashes of the
 method, time and job ID to prevent replay attacks and reuse of unused hashes.
 
-When the wrapper job starts it sends a `get_stage` workflow to the allocator 
+When the wrapper job starts it sends a `get_stage` request to the allocator 
 to discover what stage within what workflow to work on. As part of this
-message, the job includes an X.509 certificate signing workflow which matches
-an RSA key it has created. The allocator signs the workflow with a VOMS proxy
+message, the job includes an X.509 certificate signing request which matches
+an RSA key it has created. The allocator signs the request with a VOMS proxy
 it has and returns the certificates chain to the job, which is then able to 
 assemble a valid VOMS proxy includng the private key it created earlier.
 

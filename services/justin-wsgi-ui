@@ -31,6 +31,7 @@ import urllib
 import secrets
 import tempfile
 import datetime
+import subprocess
 import urllib.request
 import rucio.client
 import rucio.client.downloadclient
@@ -1120,29 +1121,32 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
          gitPath.endswith('.git'):
         return ('400 Bad Request', 
                 'GitHub repo must be of the form NAME/REPO:TAG with one slash '
-                'and no .git)
+                'and no .git')
 
       try:
         tmpDir = tempfile.TemporaryDirectory()
-        waitStatus = os.system('cd %s && '
+
+        outcome = subprocess.run('cd %s && '
                         '/usr/bin/git clone --branch %s '
                         '--single-branch https://github.com/%s/%s.git && '
                         'cd %s && '
                         '/usr/bin/git log --pretty=format:"%H" -n 1 '
                         '--output=../hash.txt'
-                        % (tmpDir, tag, name, repo, repo)
-                              )
-
-        ret = os.waitstatus_to_exitcode(waitStatus)
+                        % (tmpDir, gitTag, gitPathList[0],
+                           gitPathList[1], gitPathList[1]),
+                        stdout=subprocess.PIPE, shell=True
+                                )
     
-        if ret:
-          raise RuntimeError('git clone returns error %d' % ret)
+        if outcome.returncode:
+          print(outcome.stdout, file=sys.stderr)
+          raise RuntimeError('git clone returns error %d' 
+                             % outcome.returncode)
 
         gitCommit = open('hash.txt', 'r').read().strip()
       except Exception as e:
         return ('400 Bad Request',
                 'Unable to checkout tag %s from https://github.com/%s/%s.git'
-                % (tag, name, repo)
+                % (gitTag, gitPathList[0], gitPathList[1])
                )
 
       try:
