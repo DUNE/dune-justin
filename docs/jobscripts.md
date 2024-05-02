@@ -89,9 +89,9 @@ please check the following are true:
 
 - You check that the application you are running has "worked" somehow.
   Usually this will involve checking the lar executable has returned zero.
-  This is available as the shell variable $? immediately after the command
+  This is available as the shell variable \$? immediately after the command
   you are checking. If you put other commands between your application's 
-  command and checking $?, you will be checking if those other commands 
+  command and checking \$?, you will be checking if those other commands 
   succeeded instead. 
 - When your jobscript has "worked", return 0. You can do this with `exit 0`
 - When your jobscript has failed, return a non-zero value. This is logged
