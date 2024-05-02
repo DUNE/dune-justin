@@ -639,6 +639,8 @@ def updateTerminalJobState(justinJobID = 0, jobState = '',
     eventTypeID = justin.event_JOB_SCRIPT_ERROR
   elif jobState == 'outputting_failed':
     eventTypeID = justin.event_JOB_OUTPUTTING_FAILED
+  elif jobState == 'noneprocessed':
+    eventTypeID = justin.event_JOB_NONEPROCESSED
   else:
     raise RuntimeError('state %s not handled by updateTerminalJobState()'
                        % jobState)
@@ -934,7 +936,8 @@ def jobAbortedMethod(startResponse, jsonDict):
                      jobDict['error_message'] + ' in jobAbortedMethod')
 
   if jobDict['job_state'] not in ['submitted','notused','started',
-                                  'processing','outputting','jobscript_error']:
+                                  'processing','outputting',
+                                  'jobscript_error','noneprocessed']:
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot set job to aborted as job already in %s state' 

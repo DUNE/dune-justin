@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `job_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','jobscript_error',
-                  'outputting_failed') 
+                  'outputting_failed', 'noneprocessed') 
                   NOT NULL DEFAULT 'submitted',
   `has_allocations` tinyint(1) NOT NULL DEFAULT 0,
   `allocator_name` varchar(255) NOT NULL DEFAULT '',

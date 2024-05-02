@@ -678,6 +678,7 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                      'Database error: ' + str(e))
   
   if workflowUserID != user['user_id'] and \
+     user['user_name'] not in justin.justinAdmins and \
      wlcgGroupName not in user['wlcg_groups']:
     return httpError(startResponse,
                      '403 Forbidden',
@@ -1130,11 +1131,12 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                         '/usr/bin/git clone --branch %s '
                         '--single-branch https://github.com/%s/%s.git && '
                         'cd %s && '
-                        '/usr/bin/git log --pretty=format:"%H" -n 1 '
+                        '/usr/bin/git log --pretty=format:"%%H" -n 1 '
                         '--output=../hash.txt'
-                        % (tmpDir, gitTag, gitPathList[0],
+                        % (tmpDir.name, gitTag, gitPathList[0],
                            gitPathList[1], gitPathList[1]),
-                        stdout=subprocess.PIPE, shell=True
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                        shell=True
                                 )
     
         if outcome.returncode:
@@ -1142,11 +1144,13 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
           raise RuntimeError('git clone returns error %d' 
                              % outcome.returncode)
 
-        gitCommit = open('hash.txt', 'r').read().strip()
+        gitCommit = open(tmpDir.name + '/hash.txt', 'r').read().strip()
       except Exception as e:
+        
         return ('400 Bad Request',
-                'Unable to checkout tag %s from https://github.com/%s/%s.git'
-                % (gitTag, gitPathList[0], gitPathList[1])
+                'Unable to checkout tag %s from '
+                'https://github.com/%s/%s.git: %s'
+                % (gitTag, gitPathList[0], gitPathList[1], str(e))
                )
 
       try:
@@ -1203,6 +1207,7 @@ def failFilesCmd(startResponse, jsonDict, user):
                      'Database error')
   
   if workflowUserID != user['user_id'] and \
+     user['user_name'] not in justin.justinAdmins and \
      wlcgGroupName not in user['wlcg_groups']:
     return httpError(startResponse,
                      '403 Forbidden',

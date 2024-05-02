@@ -129,10 +129,10 @@ parser.add_argument("--jobscript-git",
                     type = str,
                     help = "Specify a jobscript in GitHub")
 
-parser.add_argument("--git-repo",
-                    type   = str,
-                    action = "append",
-                    help   = "Specify a GitHub repo to share to jobs")
+#parser.add_argument("--git-repo",
+#                    type   = str,
+#                    action = "append",
+#                    help   = "Specify a GitHub repo to share to jobs")
 
 parser.add_argument("--processors",
                     type = int,

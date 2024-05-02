@@ -42,6 +42,12 @@ eventsList = [
 ('WORKFLOW_FINISHED_BY_USER',
  105,
  'Workflow marked finished by user '),
+('WORKFLOW_PAUSED_NOTUSED',
+ 106,
+ 'Workflow paused, too many Notused jobs'),
+('WORKFLOW_PAUSED_NONEPROCESSED',
+ 107,
+ 'Workflow paused, too many None Processed jobs'),
 
 # Workflow/stage/file/replica set-up/finish events in Finder
 ('FILE_ADDED',
@@ -139,6 +145,9 @@ eventsList = [
 ('JOB_ABORT_SCRIPT_ERROR',
  324,
  'Job aborted due to jobscript error'),
+('JOB_NONEPROCESSED', 
+ 325,
+ 'Job processed no file'),
 
 # File-level events during running
 ('FILE_ALLOCATED', 

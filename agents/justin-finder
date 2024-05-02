@@ -635,14 +635,24 @@ def uploadRcdsTarfile(rcdsServer, hashString, tarFileContents):
 
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
-    responseString = response.read().decode('utf-8')
-  except:
+  except Exception as e:
+    logLine('RCDS upload fails: ' + str(e))
     return False
 
-  if not response or response.status != 200:
+  try:
+    responseString = response.read().decode('utf-8')
+  except Exception as e:
+    logLine('Failed getting RCDS upload response string: ' + str(e))
+    return False
+
+  logLine('RCDS upload response: ' + responseString)
+
+  if response.status != 200:
+    logLine('RCDS upload fails with HTTP code %d' % response.status)
     return False
   
   if responseString[:2] != 'OK':
+    logLine('RCDS upload does not respond with OK')
     return False
     
   return True
@@ -666,12 +676,13 @@ def checkGitRepo(workflowID = None, stageID = None,
   # the Git commit not the tag!
   try:
     tmpDir = tempfile.TemporaryDirectory()
-    waitStatus = os.system('cd %s && '
+    waitStatus = os.system('export HOME=/home/dunejustin && cd %s && '
                       '/usr/bin/git clone https://github.com/%s/%s.git && '
+                      'cd %s && '
                       '/usr/bin/git checkout %s && '
-                      'rm -Rf %s/.git %s/.github && '
-                      '/usr/bin/tar cvf tmp.tar --sort=name --mtime=@0 %s'
-                      % (tmpDir, name, repo, gitCommit, repo, repo, repo)
+                      'rm -Rf .git .github && '
+                      '/usr/bin/tar cvf ../tmp.tar --sort=name --mtime=@0 .'
+                      % (tmpDir.name, name, repo, repo, gitCommit)
                           )
 
     ret = os.waitstatus_to_exitcode(waitStatus)
@@ -684,7 +695,7 @@ def checkGitRepo(workflowID = None, stageID = None,
 
   try:
 # SHOULD CHECK THIS IS NOT ABSURDLY LARGE BEFORE WE SLURP IT INTO MEMORY!!!
-    tarFileContents = open('tmp.tar', 'rb').read()
+    tarFileContents = open(tmpDir.name + '/tmp.tar', 'rb').read()
     rcdsHash        = hashlib.sha1(tarFileContents).hexdigest()
   except Exception as e:
     logLine('Failed to read and hash tar file tmp.tar: ' + str(e))
@@ -842,7 +853,7 @@ def findSubmittedWorkflows():
              'git_repo,git_commit FROM workflows '
              'LEFT JOIN stages_git_repos '
              'ON stages_git_repos.workflow_id=workflows.workflow_id '
-             'WHERE workflows.state="submitted" '
+             'WHERE workflows.state="submitted" AND git_repo IS NOT NULL '
              'ORDER BY workflows.workflow_id')
 
     gitRepoRows = justin.select(query) 
