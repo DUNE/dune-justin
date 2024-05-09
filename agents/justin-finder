@@ -965,6 +965,95 @@ def findFinishedWorkflows():
     logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
   justin.conn.commit()
 
+def findProblemWorkflows():
+  # Find problem workflows using counts of job states and pause them
+
+  logLine('Start of finding problem workflows')
+
+  try:
+    query = ('SELECT jobs.workflow_id,job_state,count(*) AS count FROM jobs '
+             'LEFT JOIN workflows ON jobs.workflow_id=workflows.workflow_id '
+             'WHERE jobs.workflow_id<>1 AND workflows.state="running" '
+             'GROUP BY job_state,jobs.workflow_id')
+
+    runningWorkflows = justin.select(query)
+  except:
+    logLine('Failed to get list of running workflows')
+    return
+    
+  if not runningWorkflows:
+    logLine('No running workflows to check for problems')
+    return
+
+  # Assemble job state counts in a dictionary
+  d = {}
+  for jobStateCount in runningWorkflows:
+  
+    workflowID = int(jobStateCount['workflow_id'])
+    jobState   = jobStateCount['job_state']
+    count      = int(jobStateCount['count'])
+
+    if workflowID not in d:
+      d[workflowID] = {} 
+
+      for state in justin.jobStatesAll:
+        d[workflowID][state] = 0 
+    
+    d[workflowID][jobState] = count
+  
+  # Go through the workflows, finding problem ones
+  for workflowID in d:
+
+    pauseEvent = None
+
+    # Too many jobscript_error jobs
+    if (d[workflowID]['jobscript_error'] > 10 and 
+        d[workflowID]['jobscript_error'] > 
+            d[workflowID]['started'] +
+            d[workflowID]['processing'] +
+            d[workflowID]['outputting'] +
+            d[workflowID]['finished']
+       ):
+      pauseEvent = justin.event_WORKFLOW_PAUSED_JOBSCRIPT_ERROR
+
+    # Too many none_processed jobs      
+    elif (d[workflowID]['none_processed'] > 10 and 
+        d[workflowID]['none_processed'] > 
+            d[workflowID]['started'] +
+            d[workflowID]['processing'] +
+            d[workflowID]['outputting'] +
+            d[workflowID]['finished']
+       ):
+      pauseEvent = justin.event_WORKFLOW_PAUSED_NONE_PROCESSED
+    
+    # Too many not used jobs      
+    elif (d[workflowID]['notused'] > 10 and 
+        d[workflowID]['notused'] > 
+            d[workflowID]['started'] +
+            d[workflowID]['processing'] +
+            d[workflowID]['outputting'] +
+            d[workflowID]['finished']
+       ):
+      pauseEvent = justin.event_WORKFLOW_PAUSED_NOTUSED
+    
+    if pauseEvent:
+      try:
+        query = ('UPDATE workflows SET state="paused" '
+                 'WHERE workflow_id=%d' % workflowID)
+    
+        justin.insertUpdate(query)
+        
+        justin.logEvent(eventTypeID = pauseEvent, workflowID = workflowID)
+        
+      except:
+        logLine('Failed to update state to paused for Workflow ID %d' % 
+                workflowID)
+        continue
+      else:
+        logLine('Workflow ID %d set to paused' % workflowID)
+
+  justin.conn.commit()
+
 def resetFilesForJob(justinJobID,
                      jobsubID,
                      workflowID,
@@ -1412,6 +1501,7 @@ def oneCycle():
   findSubmittedWorkflows()
   findFiles()
   findReplicas()
+  findProblemWorkflows()
   findFinishedWorkflows()
   findStalledAbortedJobs()
   manageCaches()

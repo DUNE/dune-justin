@@ -53,9 +53,10 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `job_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','jobscript_error',
-                  'outputting_failed', 'noneprocessed') 
+                  'outputting_failed', 'none_processed') 
                   NOT NULL DEFAULT 'submitted',
   `has_allocations` tinyint(1) NOT NULL DEFAULT 0,
+  `sent_get_file` tinyint(1) NOT NULL DEFAULT 0,
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
   `submitted_time` datetime NOT NULL,
@@ -136,6 +137,8 @@ CREATE TABLE IF NOT EXISTS `files` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
+## 'processed' SHOULD BECOME 'finished' TO AVOID CONFUSION WITH BEING 
+## PROCESSED BY THE JOBSCRIPT. processed_time ETC SHOULD CHANGE EVERYWHERE TOO
   `state` enum('finding','unallocated','allocated',
                'outputting','processed','notfound','failed',
                'recorded', 'output') NOT NULL DEFAULT 'finding',

@@ -639,8 +639,8 @@ def updateTerminalJobState(justinJobID = 0, jobState = '',
     eventTypeID = justin.event_JOB_SCRIPT_ERROR
   elif jobState == 'outputting_failed':
     eventTypeID = justin.event_JOB_OUTPUTTING_FAILED
-  elif jobState == 'noneprocessed':
-    eventTypeID = justin.event_JOB_NONEPROCESSED
+  elif jobState == 'none_processed':
+    eventTypeID = justin.event_JOB_NONE_PROCESSED
   else:
     raise RuntimeError('state %s not handled by updateTerminalJobState()'
                        % jobState)
@@ -836,7 +836,6 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
              'heartbeat_time=NOW(),'
              'finished_time="%s",' 
              'job_state="%s",'
-             'has_allocations=TRUE,'
              'allocator_name="%s",' 
              'workflow_id=%d,'
              'stage_id=%d '
@@ -937,7 +936,7 @@ def jobAbortedMethod(startResponse, jsonDict):
 
   if jobDict['job_state'] not in ['submitted','notused','started',
                                   'processing','outputting',
-                                  'jobscript_error','noneprocessed']:
+                                  'jobscript_error','none_processed']:
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot set job to aborted as job already in %s state' 
@@ -1320,7 +1319,8 @@ def getFileMethod(startResponse, jsonDict):
     try:
       # Update heartbeat_time and make sure job is set to processing now
       justin.insertUpdate('UPDATE jobs SET job_state="processing",'
-                          'heartbeat_time=NOW() '
+                          'heartbeat_time=NOW(),has_allocations=TRUE,'
+                          'sent_get_file=TRUE '
                           'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                          )
       # Note that AWT jobs go to processing when they get the jobscript
@@ -1351,6 +1351,17 @@ def getFileMethod(startResponse, jsonDict):
                     oneFile['rse_name'])
 
   # No file eligible to be processed by this job
+  try:
+    # Update heartbeat_time and make sure job is set to processing now
+    justin.insertUpdate('UPDATE jobs '
+                        'SET heartbeat_time=NOW(),sent_get_file=TRUE '
+                        'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
+                       )
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Unable to update job to sent_get_file=TRUE: ' + str(e))
+
   return httpError(startResponse, 
                    '404 Not Found', 
                    'No eligible file found')
@@ -1606,6 +1617,15 @@ def recordResultsMethod(startResponse, jsonDict):
        (jobFile['lan_pfn'] and 
         jobFile['lan_pfn'] in jsonDict['processed_pfns']):
       processedFileIDs.append(jobFile['file_id'])
+
+      justin.logEvent(eventTypeID = justin.event_FILE_PROCESSED,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      fileID      = jobFile['file_id']
+                     )
     else:
       print('Set unprocessed',jsonDict['jobsub_id'],
             jobFile['file_did'],
@@ -1931,13 +1951,40 @@ def confirmResultsMethod(startResponse, jsonDict):
                        '500 Internal Server Error', 
                        'Recording output file uploaded by url: ' + str(e))
 
+  try:
+    numProcessedRow = justin.select('SELECT '
+             '(SELECT sent_get_file FROM jobs WHERE justin_job_id=%d),'
+             '(SELECT COUNT(*) FROM events WHERE '
+             'events.justin_job_id=%d AND '
+             'events.event_type_id=%d) AS num_processed,'
+             '(SELECT COUNT(*) FROM events WHERE '
+             'events.justin_job_id=%d AND '
+             'events.event_type_id=%d) AS num_allocated'
+             % (justinJobID,
+                justinJobID, justin.event_FILE_PROCESSED,
+                justinJobID, justin.event_FILE_ALLOCATED),
+                                    justOne = True)
+    sentGetFile  = bool(numProcessedRow['sent_get_file'])
+    numProcessed = numProcessedRow['num_processed']
+    numAllocated = numProcessedRow['num_allocated']
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Failed to count FILE_PROCESSED events: ' + str(e))
+
   # Finish up and update job status
   try:
-    justin.insertUpdate('UPDATE jobs SET job_state="finished",'
+    # Jobs only finish in the none_processed state if any files were allocated
+    # or if they never even asked for any
+    justin.insertUpdate('UPDATE jobs SET job_state="%s",'
                         'heartbeat_time=NOW(),'
                         'finished_time=NOW() '
                         'WHERE justin_job_id=%d AND job_state="outputting"'
-                        % justinJobID)
+                        % ('none_processed'
+                           if (numProcessed==0 and numAllocated) 
+                           or not sentGetFile
+                           else 'finished',
+                           justinJobID))
 
     justin.logEvent(eventTypeID = justin.event_JOB_FINISHED,
                     workflowID = workflowID,

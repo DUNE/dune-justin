@@ -1109,7 +1109,8 @@ def showWorkflow(environ, user, cgiValues):
                          'aborted'           : 0,
                          'stalled'           : 0,
                          'jobscript_error'   : 0,
-                         'outputting_failed' : 0  })
+                         'outputting_failed' : 0,
+                         'none_processed'    : 0  })
 
   query = ('SELECT job_state,stage_id,COUNT(*) AS count '
            'FROM jobs '
@@ -1133,7 +1134,8 @@ def showWorkflow(environ, user, cgiValues):
              '<th>Outputting</th><th>Finished</th>'
              '<th>Notused</th>'
              '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
-             '<th>Outputting failed</th></tr>')
+             '<th>Outputting failed</th>'
+             '<th>None processed</th></tr>')
 
   for stageRow in stageRows:
     output += ('<tr>'
@@ -1161,6 +1163,8 @@ def showWorkflow(environ, user, cgiValues):
         '&stage_id=%d&job_state=jobscript_error">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting_failed">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=none_processed">%d</a></td>'
         '</tr>'
         % (stageRow["workflow_id"], stageRow["stage_id"], 
             stageRow["stage_id"],
@@ -1174,7 +1178,8 @@ def showWorkflow(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['aborted'] +
              stateCounts[stageRow['stage_id']]['stalled'] +
              stateCounts[stageRow['stage_id']]['jobscript_error'] +
-             stateCounts[stageRow['stage_id']]['outputting_failed'],
+             stateCounts[stageRow['stage_id']]['outputting_failed'] +
+             stateCounts[stageRow['stage_id']]['none_processed'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['submitted'],
            stageRow["workflow_id"], stageRow["stage_id"],
@@ -1194,7 +1199,9 @@ def showWorkflow(environ, user, cgiValues):
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['jobscript_error'],
            stageRow["workflow_id"], stageRow["stage_id"],
-            stateCounts[stageRow['stage_id']]['outputting_failed']))
+            stateCounts[stageRow['stage_id']]['outputting_failed'],
+           stageRow["workflow_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['none_processed']))
 
   output += ('</table>')
   output += footer()
@@ -1545,55 +1552,56 @@ def showStage(environ, user, cgiValues):
 
   output += ("</table>")
 
-  # Job states
+  # Display table of job states for this stage
+  stateCounts = { 'submitted'         : 0,
+                  'started'           : 0,
+                  'processing'        : 0,
+                  'outputting'        : 0,
+                  'finished'          : 0,
+                  'notused'           : 0,
+                  'aborted'           : 0,
+                  'stalled'           : 0,
+                  'jobscript_error'   : 0,
+                  'outputting_failed' : 0,
+                  'none_processed'    : 0  }
 
-  query = ('SELECT '
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="processing") '
-           ' AS number_processing,'
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="outputting") '
-           ' AS number_outputting,'
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="finished") '
-           ' AS number_finished,'
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="aborted") '
-           ' AS number_aborted,'
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="stalled") '
-           ' AS number_stalled,'
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="jobscript_error") '
-           ' AS number_jobscript_error,'
-           '(SELECT COUNT(*) FROM jobs WHERE workflow_id=%d AND '
-           ' stage_id=%d AND job_state="outputting_failed") '
-           ' AS number_outputting_failed'
-           % (workflowID, stageID, 
-              workflowID, stageID,
-              workflowID, stageID,
-              workflowID, stageID,
-              workflowID, stageID,
-              workflowID, stageID,
-              workflowID, stageID))
-
-  output += '<!-- %s SELECT (SELECT -->\n' % str(time.time())
-  justin.cur.execute(query)
-  jobNumberRow = justin.cur.fetchone()
+  query = ('SELECT job_state,COUNT(*) AS count FROM jobs '
+           'WHERE workflow_id=%d AND stage_id=%d '
+           'GROUP BY job_state' % (workflowID, stageID))
+             
+  stateRows = justin.select(query)
+  
+  for stateRow in stateRows:
+    stateCounts[stateRow['job_state']]  = stateRow['count']
 
   output += ('<h2>Job states</h2>')
   output += ('<table>')
-  output += ('<tr><th>Processing</th><th>Outputting</th><th>Finished</th>'
-        '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
-        '<th>Outputting failed</th></tr>')
+  output += ('<tr><th>Total</th>'
+             '<th>Submitted</th>'
+             '<th>Started</th>'
+             '<th>Processing</th>'
+             '<th>Outputting</th>'
+             '<th>Finished</th>'
+             '<th>Notused</th>'
+             '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
+             '<th>Outputting failed</th>'
+             '<th>None processed</th></tr>')
 
   output += ('<tr>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=submitted">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=started">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=processing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=finished">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=notused">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=aborted">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
@@ -1602,15 +1610,43 @@ def showStage(environ, user, cgiValues):
         '&stage_id=%d&job_state=jobscript_error">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting_failed">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=none_processed">%d</a></td>'
         '</tr>'
-        % (workflowID, stageID, jobNumberRow['number_processing'],
-           workflowID, stageID, jobNumberRow['number_outputting'],
-           workflowID, stageID, jobNumberRow['number_finished'],
-           workflowID, stageID, jobNumberRow['number_aborted'],
-           workflowID, stageID, jobNumberRow['number_stalled'],
-           workflowID, stageID, jobNumberRow['number_jobscript_error'],
-           workflowID, stageID, jobNumberRow['number_outputting_failed']
-          ))
+        % (workflowID, stageID, 
+             stateCounts['submitted'] +
+             stateCounts['started'] +
+             stateCounts['processing'] +
+             stateCounts['outputting'] +
+             stateCounts['finished'] +
+             stateCounts['notused'] +
+             stateCounts['aborted'] +
+             stateCounts['stalled'] +
+             stateCounts['jobscript_error'] +
+             stateCounts['outputting_failed'] +
+             stateCounts['none_processed'],
+           workflowID, stageID,
+            stateCounts['submitted'],
+           workflowID, stageID,
+            stateCounts['started'],
+           workflowID, stageID,
+            stateCounts['processing'],
+           workflowID, stageID,
+            stateCounts['outputting'],
+           workflowID, stageID,
+            stateCounts['finished'],
+           workflowID, stageID,
+            stateCounts['notused'],
+           workflowID, stageID,
+            stateCounts['aborted'],
+           workflowID, stageID,
+            stateCounts['stalled'],
+           workflowID, stageID,
+            stateCounts['jobscript_error'],
+           workflowID, stageID,
+            stateCounts['outputting_failed'],
+           workflowID, stageID,
+            stateCounts['none_processed']))
 
   output += ('</table>')
 
@@ -2431,9 +2467,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   except:
     pass
   else:
-    if allocationState in ['submitted','started','processing','outputting',
-                           'finished', 'notused','aborted',
-                           'stalled', 'jobscript_error', 'outputting_failed']:
+    if allocationState in justin.jobStatesAll:
       filters.append('jobs.job_state="%s"' % allocationState)
       urlTemplate += '&job_state=' + allocationState
       titleSuffixes.append('Allocation State %s' % allocationState)
@@ -3601,7 +3635,9 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
 
   output = header(environ, user, "justIN: Events")
 
-  output += ("<h1>Events</h1>")
+  output += ("<h1>Events</h1>\n")
+
+  output += ("<!-- %s -->\n" % str(cgiValues))
 
   output += ('<p><form method="get" formaction="/dashboard/">'
     '<input type="hidden" name="method" value="list-events">'

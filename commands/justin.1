@@ -104,8 +104,9 @@ temporarily excludes a workflow from the workflow allocation process.
 .HP
 .B "finish-workflow --workflow-id ID"
 .br
-Changes the state of the given running workflow to "finished". This state 
-excludes a workflow from the workflow allocation process.
+Changes the state of the given workflow from "draft", "submitted", or 
+"running" to "finished". This state excludes a workflow from the allocation 
+process.
 
 .HP
 .B "create-stage --workflow-id ID --stage-id ID 

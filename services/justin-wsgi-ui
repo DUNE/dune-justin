@@ -717,14 +717,15 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
              "AND state='running'" % workflowID)
 
   elif jsonDict['command'] == 'finish-workflow':
-    if workflowState != 'running' and workflowState != 'submitted':
+    if workflowState not in ('running','submitted','draft'):
       return httpError(startResponse,
                        '403 Forbidden',
                        'You cannot finish a workflow that is not running')
 
     query = ("UPDATE workflows SET state='finished',finished=NOW() "
              "WHERE workflow_id=%d "
-             "AND (state='running' OR state='submitted')" % workflowID)
+             "AND (state='running' OR state='submitted' OR state='draft')" 
+             % workflowID)
 
   try:
     justin.insertUpdate(query)

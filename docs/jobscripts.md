@@ -96,7 +96,7 @@ please check the following are true:
 - When your jobscript has "worked", return 0. You can do this with `exit 0`
 - When your jobscript has failed, return a non-zero value. This is logged
   by justIN so you can quickly see what is happening, and also stops justIN 
-  from uploading any of the output fails
+  from uploading any of the output files
   (which are presumably wrong in some way?) to storage. Exit codes can be
   between 1 and 127. For example `exit 57` 
 - Whenever you run `justin-get-file` in your jobscript, check if the output

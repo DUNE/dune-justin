@@ -108,7 +108,7 @@ sitesRankCacheTimeout = 300
 sitesRankCacheStale   = 3600
 
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
-                      'jobscript_error', 'outputting_failed', 'noneprocessed' ]
+                      'jobscript_error', 'outputting_failed', 'none_processed' ]
 
 jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal

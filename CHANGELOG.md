@@ -35,6 +35,8 @@
 - Per-stage lists of allowed RSEs for input files, output files, and sites
   at which to run.
 - --seconds-needed option added to justin-get-file for multi-file jobscripts
+- Add none_processed job state and events, and pausing of workflows if too
+  many jobscript_error, or notused, or none_processed job outcomes.
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24
