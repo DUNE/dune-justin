@@ -178,9 +178,9 @@ dataset. If the dataset does not already exist then it will be created when
 the workflow changes state from submitted to running with a rule with a 
 lifetime of 
 .B --lifetime-days
-days. Furthermore, files for Rucio-managed storage must have a corresponding
+days. Furthermore, files for Rucio-managed storage may have a corresponding
 JSON metadata file with the same name but with ".json" appended, that will 
-be recorded for that file in MetaCat.
+be recorded in the metadata for that file in MetaCat.
 
 Alternatively
 .B --output-pattern-next-stage PATTERN:DATASET
