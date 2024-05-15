@@ -138,8 +138,7 @@ rseCountriesRegions = {
                         'US'  : 'North_America'
                       }
 
-awtWorkflowID = 1
-awtFileID     = 1
+awtWorkflowID = None
 
 # Catch all events
 event_UNDEFINED = 0
@@ -273,6 +272,11 @@ def readConf():
                                        'jobscript_image_version').strip()
   except:
     jobscriptImageVersion = 'latest'
+
+  try:
+    awtWorkflowID = int(parser.get('agents','awt_workflow_id').strip())
+  except:
+    awtWorkflowID = 1
 
   try:
     a = parser.get('htcondor','schedds').strip()
