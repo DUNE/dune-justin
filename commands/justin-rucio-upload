@@ -161,34 +161,34 @@ if not reps or 'pfns' not in reps or not reps['pfns']:
   print('--- No replica in Rucio, exit 98')
   sys.exit(98)
 
-# Check the file is in the given dataset
+# Check the given file is in the parent dataset
 for i in range(1, tries + 1):
   print('--- Dataset check try %d/%d' % (i, tries))
   try:
     didClient = rucio.client.didclient.DIDClient()
 
-    parentGen = didClient.list_parent_dids(args['scope'], filename)
+    contentGen = didClient.list_content(args['scope'], args['dataset'])
     break
   except Exception as e:
-    parentGen = None
-    print('--- Rucio list_parent_dids call %d/%d fails: %s' % 
+    contentGen = None
+    print('--- Rucio list_content call %d/%d fails: %s' % 
           (i, tries, str(e)))
 
-if not parentGen:
-  # No parents returned!
-  print('--- File not found in any dataset, exit 97')
+if not contentGen:
+  # No content DIDs returned!
+  print('--- No files in dataset, exit 97')
   sys.exit(97)
 
-# Try to find the given dataset in the parents
-for parent in parentGen:
-  if ('scope' in parent and 
-      'name'  in parent and 
-      parent['scope'] == args['scope'] and 
-      parent['name']  == args['dataset']):
-    # Found the given dataset as a parent
+# Try to find the given file in the dataset
+for content in contentGen:
+  if ('scope' in content and 
+      'name'  in content and 
+      content['scope'] == args['scope'] and 
+      content['name']  == filename):
+    # Found the given filename in the dataset 
     print('--- Upload, replicas, and dataset checks passed')
     sys.exit(0)
 
-# We didn't find the given dataset as a parent of the uploaded file!     
-print('--- Did not find the dataset as a parent, exit 96')
+# We didn't find the given file in the parent dataset!
+print('--- Did not find the file in the parent dataset, exit 96')
 sys.exit(96)

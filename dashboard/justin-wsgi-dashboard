@@ -4283,7 +4283,9 @@ def awtResults(environ, user, cgiValues):
   # List of storages
   output += ('<tr><td> </td>\n'
         '<td><div style="writing-mode: vertical-lr">'
-        'Last&nbsp;AWT&nbsp;job</div></td>')
+        'Last&nbsp;AWT&nbsp;job</div></td>'
+        '<td><div style="writing-mode: vertical-lr">'
+        'Last&nbsp;OSG&nbsp;time</div></td>')
   
   for rseName in rseNames:
     if rseName in outputRseNames:
