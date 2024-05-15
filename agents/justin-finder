@@ -1387,7 +1387,7 @@ def findStalledCondorJobs():
   # Make a set of unique HTCondor schedd names from the database
   schedds = set()
   for dbJobRow in dbJobRows:
-    schedds.add( dbJobRow.split('@',1)[1] )
+    schedds.add( dbJobRow['jobsub_id'].split('@',1)[1] )
 
   # Gather details of HTCondor jobs from our set of schedds
   condorJobs = {}  
