@@ -1,0 +1,16 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN Finder for WLCG REST Tape API
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker stop %N
+ExecStartPre=-/usr/bin/docker rm %N
+ExecStart=/usr/sbin/justin-docker-wrapper justin-finder-tape
+
+[Install]
+WantedBy=multi-user.target

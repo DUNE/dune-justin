@@ -34,8 +34,6 @@ import urllib.request
 import random
 import subprocess
 
-awtWorkflowID   = 1
-
 # Globals used again and again
 siteName        = 'XX_UNKNOWN'
 jobsubJobID     = None
@@ -631,7 +629,7 @@ with open('justin-jobs-production.proxy.pem', 'w') as f:
 os.chmod('justin-jobs-production.proxy.pem', 0o400)
 
 # AWT jobs get production proxy too
-if workflowID == awtWorkflowID:
+if 'awt_rses' in jobscriptDict:
 
   with open('home/justin-awt-rse-list.txt', 'w') as f:
     for (rseName, scheme, pfn) in jobscriptDict['awt_rses']:
