@@ -94,12 +94,6 @@ COPY agents/justin-finder             /usr/sbin/
 COPY agents/justin-finder-bringonline /usr/sbin/
 COPY agents/justin-job-factory        /usr/sbin/
 
-COPY agents/justin-info-collector.service /usr/lib/systemd/system/
-COPY agents/justin-finder.service         /usr/lib/systemd/system/
-#COPY agents/justin-finder-tape.service    /usr/lib/systemd/system/
-COPY agents/justin-finder-bringonline.service    /usr/lib/systemd/system/
-COPY agents/justin-job-factory.service    /usr/lib/systemd/system/
-
 RUN  mkdir -p             /opt/rucio/etc/
 COPY containers/rucio.cfg /opt/rucio/etc/rucio.cfg
 

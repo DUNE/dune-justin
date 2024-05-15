@@ -157,7 +157,8 @@ def readConf():
          proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
-         jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion
+         jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
+         awtWorkflowID
 
   parser = configparser.RawConfigParser()
 
