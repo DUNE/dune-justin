@@ -742,119 +742,149 @@ def findSubmittedWorkflows():
 
   for workflow in workflows:
     try:
-      condorGroupID = int(workflow['condor_group_id'])
-    except:
-      condorGroupID = 0
-  
-    workflowsToStart.append( (workflow['workflow_id'],condorGroupID) )
-
-    try:
-      stagesOutputs = justin.select(
-          'SELECT destination,lifetime_seconds,stage_id '
-          'FROM stages_outputs '
-          'WHERE workflow_id=%d' % workflow['workflow_id'])
+      processSubmittedWorkflow(workflow)
     except Exception as e:
-      logLine('Failed to get list of outputs of submitted workflows: '
-              + str(e))
-      return
+      justin.conn.rollback()
+      logLine('Failed to process submitted workflow %d : %s'
+              % (workflow['workflow_id'], str(e)))
+    else:      
+      logLine('Processed submitted workflow %d' % workflow['workflow_id'])
+      justin.conn.commit()
+
+def processSubmittedWorkflow(workflow):
+  # Process a single workflow, raising exceptions on errors
+
+  workflowID = workflow['workflow_id']
+
+  try:
+    condorGroupID = int(workflow['condor_group_id'])
+  except:
+    condorGroupID = 0
+
+  stages = justin.select('SELECT stage_id FROM stages WHERE workflow_id=%d'
+                        % workflowID)
+
+  for stage in stages:
+    stageID = stage['stage_id']
+
+    stagesOutputStorages = justin.select(
+        'SELECT rse_name FROM stages_output_storages '
+        'LEFT JOIN storages '
+        'ON storages.rse_id=stages_output_storages.rse_id '
+        'WHERE stages_output_storages.workflow_id=%d '
+        'AND stages_output_storages.stage_id=%s '
+        % (workflowID, stageID))
+          
+    rseNames = []
+    for stageOutputStorage in stagesOutputStorages:
+      rseNames.append(stageOutputStorage['rse_name'])
+
+    stagesOutputs = justin.select(
+      'SELECT destination,lifetime_seconds,pattern_id '
+      'FROM stages_outputs '
+      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stage))
 
     for stageOutput in stagesOutputs:
       if not stageOutput['destination'].startswith('https://'):
         # A Rucio dataset
-        try:
-          stagesOutputStorages = justin.select(
-           'SELECT rse_name FROM stages_output_storages '
-           'LEFT JOIN storages '
-           'ON storages.rse_id=stages_output_storages.rse_id '
-           'WHERE stages_output_storages.workflow_id=%d '
-           'AND stages_output_storages.stage_id=%s '
-           % (workflow['workflow_id'], 
-              stageOutput['stage_id']))
-        except Exception as e:
-          logLine('Failed to get list of output RSE: ' + str(e))
-          return
-          
-        rseNames = []
-        for stageOutputStorage in stagesOutputStorages:
-          rseNames.append(stageOutputStorage['rse_name'])
+        createOutputDatasets(workflowID = workflowID,
+                             scopeID = scopeID,
+                             patternID = patternID,
+                             scopeName = workflow['scope_name'],
+                             destination = stageOutput['destination'],
+                             lifetimeSeconds = stageOutput['lifetime_seconds'],
+                             rseNames = rseNames)
 
-        if rseNames:
-          rseExpression = '|'.join(rseNames)
-        else:
-          rseExpression = justin.rseDisksExpression
-        
-        datasetsToCreate.add( (workflow['scope_name'],
-                               stageOutput['destination'],
-                               stageOutput['lifetime_seconds'],
-                               rseExpression) )
+  # Do all/any the Git repos for the entire workflow
+  createWorkflowGitRepos(workflowID):
 
-  if datasetsToCreate:
+  # Successful so mark workflow as running
+  # Define refind_next_time as now to force at least one finding cycle
+  # even if not refinding repeatedly
+  query = ('UPDATE workflows SET '
+           'started=NOW(),'
+           'state="running",'
+           'refind_next_time=NOW(),'
+           'condor_group_id=%d '
+           'WHERE workflow_id=%d' % (condorGroupID, workflowID))
+
+  justin.insertUpdate(query)
+
+def createOutputDatasets(workflowID, stageID, patternID,  
+                         scopeName, destination, lifetimeSeconds, rseNames):
+  # Create missing main pattern dataset and per-RSE datasets
+  
+  logLine('Try to create DID and Rule Rucio clients')
+  didClient  = rucio.client.didclient.DIDClient()
+  ruleClient = rucio.client.ruleclient.RuleClient()
+
+  # Try to create the pattern's dataset in MetaCat
+  logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetName))
+  ret = executeMetaCatCommand('dataset create %s:%s' 
+                              % (scopeName, datasetName))
+  # Carry on regardless if ret != 0 since we can't tell from the metacat 
+  # return code if the dataset just already exists or there was a 
+  # genuine problem ...
+
+  # Try to create the pattern's dataset in Rucio if not already there
+  try:
+    logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetName))
+    ret = didClient.add_dataset(scope = scopeName, name = destination)
+  except rucio.common.exception.DataIdentifierAlreadyExists:
+    pass
+  else:
+    if not ret:
+      raise RuntimeException('Failed adding dataset %s:%s' 
+                             % (scopeName, destination))
+
+  # Create the per-RSE datasets and rules
+  for rseName in rseNames:
+    # Try to create the per-RSE dataset in MetaCat
+    datasetForRSE = 'w%ds%dp%d-%s' % (workflowID, stageID, patternID, rseName)
+    logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetForRSE))
+    ret = executeMetaCatCommand('dataset create %s:%s' 
+                                % (scopeName, datasetForRSE))
+    # Carry on regardless if ret != 0 since we can't tell from the metacat 
+    # return code if the dataset just already exists or there was a 
+    # genuine problem ...
+ 
+    # Try to create the pattern's dataset in Rucio if not already there
     try:
-      logLine('Try to create DID and Rule Rucio clients')
-      didClient  = rucio.client.didclient.DIDClient()
-      ruleClient = rucio.client.ruleclient.RuleClient()
-    except Exception as e:
-      logLine("Connect to Rucio fails with: " + str(e))
-      return
-      
-    for (scopeName,datasetName,lifetimeSeconds,rseExpression) \
-      in datasetsToCreate:
+      logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetForRSE))
+      ret = didClient.add_dataset(scope = scopeName, name = datasetForRSE)
+    except rucio.common.exception.DataIdentifierAlreadyExists:
+      pass
+    else:
+      if not ret:
+        raise RuntimeException('Failed adding dataset %s:%s' 
+                               % (scopeName, datasetForRSE))
 
-      # Create the dataset in MetaCat
-      logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetName))
-      ret = executeMetaCatCommand('dataset create %s:%s' 
-                                  % (scopeName, datasetName))
-      # Carry on regardless if ret != 0 since we can't tell from the metacat 
-      # return code if the dataset just already exists or there was a 
-      # genuine problem ...
-
-      # Create the dataset in Rucio if not already there
-      try:
-        logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetName))
-        ret = didClient.add_dataset(scope    = scopeName,
-                                    name     = datasetName)
-                                    
-      except rucio.common.exception.DataIdentifierAlreadyExists:
-        pass
-
-      except Exception as e:
-        logLine("Exception adding dataset %s:%s : %s" 
-                % (scopeName, datasetName, str(e)))
-        return
-
-      else:
-        if not ret:
-          logLine("Failed adding dataset %s:%s" % (scopeName, datasetName))
-          return
-
-        # Create a rule for the new dataset
-        try:
-          logLine('Try to add rule for %s:%s' % (scopeName, datasetName))
-          ret = ruleClient.add_replication_rule(
+    # Create a rule for the new dataset
+    logLine('Try to add rule for %s:%s' % (scopeName, datasetForRSE))
+    ret = ruleClient.add_replication_rule(
                      dids = [ {'scope' : scopeName,
-                               'name'  : datasetName} ], 
+                               'name'  : datasetForRSE} ], 
                      copies = 1, 
-                     rse_expression = rseExpression, 
+                     rse_expression = rseName,
                      lifetime = lifetimeSeconds)
-        except Exception as e:
-          logLine('Exception adding rule for %s:%s : %s'
-                  % (scopeName, datasetName, str(e)))
-          ret = None
-
-        if not ret:
-          logLine("Failed adding rule for %s:%s" % (scopeName, datasetName))
-          return
+                     
+    if not ret:
+      raise RuntimeException("Failed adding rule for %s:%s" 
+                             % (scopeName, datasetForRSE))
 
 # SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
 # NEED THEIR LIFETIME EXTENDING? THIS IS NEEDED FOR LONG WORKFLOWS?
 
+def createWorkflowGitRepos(workflowID):
+  # Create all the git repos for this workflow
+
   try:
-    query = ('SELECT workflows.workflow_id,stages_git_repos.stage_id,'
+    query = ('SELECT stages_git_repos.stage_id,'
              'git_repo,git_commit FROM workflows '
              'LEFT JOIN stages_git_repos '
              'ON stages_git_repos.workflow_id=workflows.workflow_id '
              'WHERE workflows.state="submitted" AND git_repo IS NOT NULL '
-             'ORDER BY workflows.workflow_id')
+             'AND workflows.workflow_id=%d' % workflowID)
 
     gitRepoRows = justin.select(query) 
   except Exception as e:
@@ -862,7 +892,7 @@ def findSubmittedWorkflows():
     return
 
   for gitRepoRow in gitRepoRows:
-    retDict = checkGitRepo(workflowID = gitRepoRow['workflow_id'],
+    retDict = checkGitRepo(workflowID = workflowID,
                            stageID    = gitRepoRow['stage_id'],
                            gitRepo    = gitRepoRow['git_repo'],
                            gitCommit  = gitRepoRow['git_commit'])
@@ -871,41 +901,14 @@ def findSubmittedWorkflows():
       logLine('Failed to check git repo / RCDS - exit for now')
       return
     
-    try:
-      justin.insertUpdate('UPDATE stages_git_repos SET '
-                          'rcds_hash="%s",rcds_path="%s" '
-                          'WHERE workflow_id=%d AND stage_id=%d '
-                          'AND git_repo="%s"' %
+    justin.insertUpdate('UPDATE stages_git_repos SET '
+                        'rcds_hash="%s",rcds_path="%s" '
+                        'WHERE workflow_id=%d AND stage_id=%d '
+                        'AND git_repo="%s"' %
                             (retDict['rcds_hash'],
                              retDict['rcds_path'],
-                             workflowID, stageID, 
+                             workflowID, gitRepoRow['stage_id'], 
                              gitRepoRow['git_repo']))
-    except Exception as e:
-      logLine('Failed to update git repo details: %s' % str(e))
-      return
-
-# WE SHOULD PROCESS ONE WHOLE WORKFLOW AT A TIME AND COMMIT RESULTS 
-# SEPARATELY SO THAT PROBLEMS WITH METACAT/RUCIO/RCDS DO NOT BLOCK 
-# OTHER WORKFLOWS FROM STARTING - AS THE CURRENT CODE WILL!
-
-  # All successful (or not needed) so mark workflows as running
-  # Define refind_next_time as now to force at least one finding cycle
-  # even if not refinding repeatedly
-  for (workflowID, condorGroupID) in workflowsToStart:
-    try:
-        query = ('UPDATE workflows SET '
-                 'started=NOW(),'
-                 'state="running",'
-                 'refind_next_time=NOW(),'
-                 'condor_group_id=%d '
-                 'WHERE workflow_id=%d' % (condorGroupID, workflowID))
-
-        justin.insertUpdate(query)
-    except Exception as e:
-        logLine("Exception setting workflow running: %s" % str(e))
-        return
-
-  justin.conn.commit()
 
 def findFinishedWorkflows():
   # Find workflows with all files in terminal states and set to finished

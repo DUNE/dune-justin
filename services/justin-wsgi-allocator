@@ -488,7 +488,7 @@ def makeJobscriptDict(jsonDict, jobDict):
   # Create a list of the output file patterns
   try:
     query = ("SELECT destination,file_pattern,"
-             "for_next_stage "
+             "for_next_stage,pattern_id "
              "FROM stages_outputs "
              "LEFT JOIN stages "
              "ON stages.workflow_id=stages_outputs.workflow_id "
@@ -509,7 +509,8 @@ def makeJobscriptDict(jsonDict, jobDict):
     jobscriptDict['patterns'].append((row['for_next_stage'],
                                       row['destination'],
       ('::URL::' if row['destination'].startswith('https://') else scopeName),
-                                      row['file_pattern']))
+                                      row['file_pattern'],
+                                      row['pattern_id']))
 
   # Create a list of RSEs for Workflow Test jobs
   if jobDict['workflow_id'] == justin.awtWorkflowID:
@@ -2074,6 +2075,8 @@ def application(environ, startResponse):
   justin.wsgiCallsCount += 1
   print('Call count (pid=%d): %d' % (os.getpid(), justin.wsgiCallsCount), 
         file=sys.stderr)
+
+  justin.readConf()
 
   # Quickly reject random GETs etc (if not handled by Apache already)
   if environ['REQUEST_METHOD'] != 'POST':

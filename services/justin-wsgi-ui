@@ -876,16 +876,18 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   if scopeName:
     justinEnvVars['JUSTIN_SCOPE'] = scopeName
 
+  patternID      = 1
   outputPatterns = []
 
   # check output_pattern is not None then proceed with checks
   if jsonDict['output_pattern']:
-    for i in jsonDict['output_pattern']:
-      try:
-        (pattern, destination) = i.split(':', 1)
-      except:
-        return ('400 Bad Request',
-                'Output patterns must be of the form PATTERN:DESTINATION')
+    for patternDest in jsonDict['output_pattern']:
+      if ':' in patternDest:
+        (pattern, destination) = patternDest.split(':', 1)
+      else:
+        # If no dataset given, then will create SCOPE:wNNNNNsNpN 
+        pattern     = patternDest
+        destination = 'w%ds%dp%d' % (workflowID, stageID, patternID)
 
       if not destination.startswith('https://') and not scopeName:
         return ('400 Bad Request', 
@@ -894,25 +896,27 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                 'and a Rucio dataset is given.')
 
       destination = justin.expandEnvVars(destination, justinEnvVars)
-      outputPatterns.append((False, pattern, destination))
+      outputPatterns.append((False, pattern, destination, patternID))
+      patternID += 1
 
   # check output_pattern_next_stage is not None then proceed with checks
   if jsonDict['output_pattern_next_stage']:
-      for i in jsonDict['output_pattern_next_stage']:
-        try:
-          (pattern, destination) = i.split(':', 1)
-        except:
-          return ('400 Bad Request',
-                  'Output patterns must be of the form PATTERN:DESTINATION')
+    for patternDest in jsonDict['output_pattern_next_stage']:
+      if ':' in patternDest:
+        (pattern, destination) = patternDest.split(':', 1)
+      else:
+        pattern     = patternDest
+        destination = 'w%ds%dp%d' % (workflowID, stageID, patternID)
+       
+      if not scopeName:
+        return ('400 Bad Request', 
+                'A scope must be specified when creating the workflow if '
+                '--output-pattern-next-stage is given for this stage '
+                'and a Rucio dataset is given.')
 
-        if not scopeName:
-          return ('400 Bad Request', 
-                  'A scope must be specified when creating the workflow if '
-                  '--output-pattern-next-stage is given for this stage '
-                  'and a Rucio dataset is given.')
-
-        destination = justin.expandEnvVars(destination, justinEnvVars)
-        outputPatterns.append((True, pattern, destination))
+      destination = justin.expandEnvVars(destination, justinEnvVars)
+      outputPatterns.append((True, pattern, destination, patternID))
+      patternID += 1
     
   try:
     lifetimeDays = int(jsonDict['lifetime_days'])
@@ -921,8 +925,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
 
   didClient  = rucio.client.didclient.DIDClient()
 
-  patternID = 1
-  for (forNextStage, pattern, destination) in outputPatterns:
+  for (forNextStage, pattern, destination, patternID) in outputPatterns:
 
     if not justin.stringIsFilePattern(pattern):
       return ('400 Bad Request', 'Invalid file pattern')
@@ -975,8 +978,6 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                forNextStage
               )
              )
-
-        patternID += 1
 
     except Exception as e:
         return ('500 Internal Server Error',
@@ -1512,6 +1513,8 @@ def application(environ, startResponse):
   justin.wsgiCallsCount += 1
   print('Call count (pid=%d): %d' % (os.getpid(), justin.wsgiCallsCount), 
         file=sys.stderr)
+
+  justin.readConf()
 
   try:
     # True should provoke a reconnection attempt.

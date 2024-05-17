@@ -8,6 +8,7 @@ Requires=docker.service
 Type=simple
 TimeoutStartSec=0
 Restart=always
+ExecStop=-/usr/bin/docker stop %N
 ExecStartPre=-/usr/bin/docker stop %N
 ExecStartPre=-/usr/bin/docker rm %N
 ExecStart=/usr/sbin/justin-docker-wrapper justin-finder

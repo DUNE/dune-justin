@@ -126,7 +126,8 @@ def header(environ, user, title):
                 % (user['user_name'], user['user_name']))
 
   if justin.bannerMessage:
-    bannerMessageStr = '\n<p>%s</p>\n' % justin.bannerMessage
+    bannerMessageStr = '\n<p style="text-align: center">%s</p>\n' \
+                       % justin.bannerMessage
   else:
     bannerMessageStr = ''
 
@@ -4501,6 +4502,9 @@ def application(environ, startResponse):
   justin.wsgiCallsCount += 1
   print('Call count (pid=%d): %d' % (os.getpid(), justin.wsgiCallsCount), 
         file=sys.stderr)
+
+  # Reload config
+  justin.readConf()
 
   try:
     # True should provoke a reconnection attempt.

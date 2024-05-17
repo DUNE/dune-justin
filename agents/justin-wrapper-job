@@ -752,14 +752,14 @@ justinRecordResultsDict = {
 outputFiles = []
 
 # Find files matching output patterns specified for this stage
-for (forNextStage, destination, scope, pattern) in \
-    jobscriptDict['patterns']:
+for (forNextStage, destination, scope, pattern, patternID) in \
+      jobscriptDict['patterns']:
   
   matches = glob.glob('home/workspace/' + pattern)
   for match in matches:
     matchingFile = match.split('/')[-1]
     fileSize     = os.path.getsize(match)
-    outputFiles.append((destination, scope, matchingFile, fileSize))
+    outputFiles.append((destination, scope, matchingFile, fileSize, patternID))
     
     if scope == '::URL::':
       justinRecordResultsDict['output_urls'].append(destination + '/' +
@@ -888,7 +888,7 @@ confirmResultsDict = { 'method'      : 'confirm_results',
 rucioUploadedDIDs = []
 
 # Go through the list of output files
-for (destination, fileScope, fileName, fileSize) in outputFiles:
+for (destination, fileScope, fileName, fileSize, patternID) in outputFiles:
   
   if fileScope == '::URL::': 
     # Uploading to user scratch
@@ -926,7 +926,7 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
       logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))
       jobAborted(319, 'metacat_registration', '')
 
-    # If that succeeds, then try to register/upload with rucio    
+    # If that succeeds, then try to register/upload with rucio
     for (rse,scheme) in jobscriptDict['output_rses'][:3]:
       logLine('Try %s:%s to %s/%s' 
               % (fileScope, fileName, rse, scheme))
@@ -935,13 +935,13 @@ for (destination, fileScope, fileName, fileSize) in outputFiles:
       ret = executeJustinRucioUpload('--rse %s '
                                      '--protocol %s '
                                      '--scope %s '
-                                     '--dataset %s '
+                                     '--dataset w%ds%dp%d-%s '
                                      '--timeout 1200 '
                                      'home/workspace/%s' %
                                      (rse,
                                       scheme,
                                       fileScope,
-                                      destination,
+                                      workflowID, stageID, patternID, rse,
                                       fileName))
       uploadEndTime = time.time()
       if ret == 0:
