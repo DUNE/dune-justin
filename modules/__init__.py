@@ -69,6 +69,10 @@ metacatAuthServerURL    = None
 metacatServerInputsURL  = None
 metacatServerOutputsURL = None
 
+awtWorkflowID = None
+
+bannerMessage = None
+
 ## Global database connection
 conn = None
 cur  = None
@@ -138,8 +142,6 @@ rseCountriesRegions = {
                         'US'  : 'North_America'
                       }
 
-awtWorkflowID = None
-
 # Catch all events
 event_UNDEFINED = 0
 eventTypes = { event_UNDEFINED : ['UNDEFINED', 'Undefined'] }
@@ -158,7 +160,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         awtWorkflowID
+         awtWorkflowID, bannerMessage
 
   parser = configparser.RawConfigParser()
 
@@ -304,6 +306,13 @@ def readConf():
     metacatServerOutputsURL =parser.get('metacat','server_outputs_url').strip()
   except:
     metacatServerOutputsURL ='https://metacat.fnal.gov:9443/dune_meta_prod/app'
+
+  # Dashboard
+
+  try:
+    bannerMessage = parser.get('dashboard', 'banner_message').strip()
+  except:
+    bannerMessage = ''
 
 def stringIsJobsubID(s):
   return re.search('[^A-Za-z0-9_.@-]', s) is None

@@ -125,6 +125,11 @@ def header(environ, user, title):
                 '%s</a>'
                 % (user['user_name'], user['user_name']))
 
+  if justin.bannerMessage:
+    bannerMessageStr = '\n<p>%s</p>\n' % justin.bannerMessage
+  else:
+    bannerMessageStr = ''
+
   return ("""<html><head><title>%s</title>
 <link rel="icon" href="/favicon.png">
 <style>
@@ -227,11 +232,11 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="/dashboard/?method=list-storages">Storages</a> &nbsp; &nbsp; &nbsp;
 <a href="/docs/">Docs</a>%s
 </div>
-<div id="main_box">
+<div id="main_box">%s
 """ % (title, 
        (environ['SERVER_NAME'].upper().split('.')[0]).split('-',1)[1] if '-' in environ['SERVER_NAME']
           else 'justIN',
-       loginStr))
+       loginStr, bannerMessageStr))
 
 def footer():
   return ('</div>'
