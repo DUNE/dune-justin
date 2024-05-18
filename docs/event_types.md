@@ -15,6 +15,9 @@ in the Dashboard.
 |104|WORKFLOW_PAUSED|Workflow has been paused|
 |105|WORKFLOW_RESTARTED|Workflow has been restarted|
 |105|WORKFLOW_FINISHED_BY_USER|Workflow marked finished by user |
+|106|WORKFLOW_PAUSED_NOTUSED|Workflow paused, too many Notused jobs|
+|107|WORKFLOW_PAUSED_NONE_PROCESSED|Workflow paused, too many None Processed jobs|
+|108|WORKFLOW_PAUSED_JOBSCRIPT_ERROR|Workflow paused, too many jobscript errors|
 |201|FILE_ADDED|File added to first stage by Finder|
 |202|REPLICA_ADDED|Replica added for file by Finder|
 |203|REPLICA_STAGING_REQUESTED|Finder requests replica staging|
@@ -39,17 +42,21 @@ in the Dashboard.
 |315|JOB_ABORT_METACAT_LOGS_REGISTRATION|Job aborted when registering logs.tgz|
 |316|JOB_ABORT_RUCIO_UPLOAD_LOGS|Job aborted when uploading logs.tgz|
 |317|JOB_ABORT_WEBDAV_UPLOAD|Job aborted during WebDAV upload|
-|318|JOB_ABORT_UPDATE_METADATA|Job aborted updating metadata|
+|318|JOB_ABORT_CREATING_METADATA|Job aborted creating metadata json|
 |319|JOB_ABORT_METACAT_REGISTRATION|Job aborted during file MetaCat registration|
-|320|JOB_ABORT_RUCIO_UPLOAD|Job aborted during file Rucio upload|
+|320|JOB_ABORT_RUCIO_UPLOAD_FILE|Job aborted during file Rucio upload|
 |321|JOB_ABORT_METACAT_UPLOADED|Job aborted during MetaCat set uploaded|
 |322|JOB_ABORT_METACAT_CONFIRMED|Job aborted during MetaCat set confirmed|
+|323|JOB_ABORT_CVMFS_CHECKS|Job aborted during cvmfs checks|
+|324|JOB_ABORT_SCRIPT_ERROR|Job aborted due to jobscript error|
+|325|JOB_NONE_PROCESSED|Job asked for no files or processed none of those allocated|
 |401|FILE_ALLOCATED|File allocated to job|
 |402|FILE_ALLOCATED_RESET|File set back to unallocated from allocated|
 |403|FILE_SET_TO_FAILED|Too many attempts to process file: failed|
 |404|FILE_CREATED|Output file created in job|
 |405|FILE_OUTPUTTING_RESET|File set back to unallocated from outputting|
 |406|FILE_UPLOADED|Output file uploaded in job|
+|407|FILE_PROCESSED|Input file processed by jobscript|
 |501|AWT_READ_OK|AWT read test succeeds|
 |502|AWT_READ_FAIL|AWT read test fails|
 |503|AWT_WRITE_OK|AWT write test succeeds|

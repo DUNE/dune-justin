@@ -98,16 +98,16 @@ This man page is distributed along with the
     
     
            finish-workflow --workflow-id ID
-    	      Changes the state of the given running workflow to "finished".
-    	      This state excludes a workflow from the workflow allocation
-    	      process.
+    	      Changes the state of the given workflow from "draft",
+    	      "submitted", or "running" to "finished". This state excludes a
+    	      workflow from the allocation process.
     
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
     	      [--rss-mib N] [--processors N] [--max-distance DIST]
-    	      [--output-pattern PATTERN:DESTINATION]
-    	      [--output-pattern-next-stage PATTERN:DATASET] [--output-rse
+    	      [--output-pattern PATTERN[:DESTINATION]]
+    	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
     	      NAME] [--lifetime-days DAYS] [--env NAME=VALUE] [--classad
     	      NAME=VALUE]
     	      Creates a new stage for the given workflow ID with the given
@@ -144,12 +144,12 @@ This man page is distributed along with the
     	      be allocated on storages at greater distances, up to a value of
     	      100 which represents maximally remote storages.
     
-    	      If one or more options --output-pattern PATTERN:DESTINATION is
+    	      If one or more options --output-pattern PATTERN[:DESTINATION] is
     	      given then the wrapper job will look for files created by the
     	      script which match the pattern given as PATTERN. The pattern is
     	      a Bash shell pattern using *, ? and [...] expressions. See the
-    	      bash(1) Pattern Matching section for details.  The DESTINATION
-    	      component has any of the variables $JUSTIN_SCOPE,
+    	      bash(1) Pattern Matching section for details.  If given, the
+    	      DESTINATION component has any of the variables $JUSTIN_SCOPE,
     	      $JUSTIN_WORKFLOW_ID, or $JUSTIN_STAGE_ID replaced. The form
     	      ${JUSTIN_SCOPE} etc may also be used.  If the given DESTINATION
     	      starts with https:// then the matching output files will be
@@ -159,20 +159,27 @@ This man page is distributed along with the
     	      subdirectories for workflow ID and stage ID will be added, and
     	      resulting output files placed there. The user's token from the
     	      justIN dashboard is used for the upload.	If an https:// URL is
-    	      not given, DESTINATION is interpreted as a Rucio dataset minus
-    	      the scope component. The overall scope of the workflow is used
-    	      and the output files are uploaded with Rucio and registered in
-    	      that dataset. If the dataset does not already exist then it will
-    	      be created when the workflow changes state from submitted to
-    	      running with a rule with a lifetime of --lifetime-days days.
-    	      Furthermore, files for Rucio-managed storage must have a
-    	      corresponding JSON metadata file with the same name but with
-    	      ".json" appended, that will be recorded for that file in
-    	      MetaCat.
+    	      not given, if DESTINATION is given it is interpreted as a Rucio
+    	      dataset minus the scope component. The overall scope of the
+    	      workflow is used and the output files are uploaded with Rucio
+    	      and registered in that dataset. If the dataset does not already
+    	      exist then it will be created when the workflow changes state
+    	      from submitted to running with a rule with a lifetime of
+    	      --lifetime-days days. If the dataset is name is not given, a
+    	      dataset with name wXXXsYpZ will be created where XXXX is the
+    	      workflow ID, Y is the stage, and Z is the output pattern ID
+    	      number, starting from 1.	Files for Rucio-managed storage may
+    	      have a corresponding JSON metadata file with the same name but
+    	      with ".json" appended, that will be recorded in the metadata for
+    	      that file in MetaCat. If this is not given, then basic workflow
+    	      metadata will still be recorded. If output files have parent-
+    	      child relations, the parent output pattern must be given before
+    	      the child so that the parents are known to MetaCat before the
+    	      children declare them to be parents.
     
-    	      Alternatively --output-pattern-next-stage PATTERN:DATASET can be
-    	      given in which case the output file will be uploaded to Rucio-
-    	      managed storage and will also be registered in the justIN
+    	      Alternatively --output-pattern-next-stage PATTERN[:DATASET] can
+    	      be given in which case the output file will be uploaded to
+    	      Rucio-managed storage and will also be registered in the justIN
     	      Database as an unprocessed input file for the next stage and
     	      available for allocation to instances of that stage's script.
     
@@ -201,7 +208,7 @@ This man page is distributed along with the
     	      [--refind-interval-hours HOURS] --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
     	      [--rss-mib N] [--processors N] [--max-distance DIST]
-    	      [--output-pattern PATTERN:DESTINATION] [--output-rse NAME]
+    	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
     	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
