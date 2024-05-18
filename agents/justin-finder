@@ -725,12 +725,15 @@ def findSubmittedWorkflows():
 
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
-                    'condor_groups.condor_group_id '
+                    'condor_groups.condor_group_id,principal_name '
                     'FROM workflows '
                     'LEFT JOIN scopes '
                     'ON workflows.scope_id=scopes.scope_id '
                     'LEFT JOIN condor_groups '
                     'ON condor_groups.condor_group_id=scopes.condor_group_id '
+                    'LEFT JOIN users ON users.user_id=workflows.user_id 
+                    'LEFT JOIN principal_names '
+                    'ON principal_names.pn_id=users.main_pn_id '
                     'WHERE workflows.state="submitted" '
                     'ORDER BY workflows.workflow_id')
   except:
@@ -762,7 +765,9 @@ def processSubmittedWorkflow(workflow):
   except:
     condorGroupID = 0
 
-  stages = justin.select('SELECT stage_id FROM stages WHERE workflow_id=%d'
+  stages = justin.select('SELECT stage_id,processors,jobscript_git,
+                         'jobscript_image,wall_seconds,rss_bytes '
+                         'FROM stages WHERE workflow_id=%d'
                          % workflowID)
 
   for stage in stages:
@@ -782,7 +787,7 @@ def processSubmittedWorkflow(workflow):
       rseNames.append(stageOutputStorage['rse_name'])
 
     stagesOutputs = justin.select(
-      'SELECT destination,lifetime_seconds,pattern_id '
+      'SELECT destination,lifetime_seconds,pattern_id,file_pattern '
       'FROM stages_outputs '
       'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stageID))
 
@@ -791,9 +796,29 @@ def processSubmittedWorkflow(workflow):
         logLine('Processing submitted w%ds%dp%d' 
                 % (workflowID, stageID, stageOutput['pattern_id']))
         # A Rucio dataset
+
+        # Metadata for the main dataset in MetaCat
+        metadataDict = { "dune.workflow" : 
+            { "workflow_id"     : workflowID,
+              "stage_id"        : stageID,
+              "pattern_id"      : patternID,
+              "file_pattern"    : stageOutput['file_pattern'],
+              "user"            : workflow['principal_name'],
+              "processors"      : stage['processors'],
+              "rss_bytes"       : stage['rss_bytes'],
+              "wall_seconds"    : stage['wall_seconds'],
+              "jobscript_image" : stage['jobscript_image']
+            }
+                       }
+# ADD RCDS/Git repos in here too with tags and commit hashes
+                         
+        if stage['jobscript_git']:
+          metadataDict['workflow']['jobscript_git'] = stage['jobscript_git']
+
         createOutputDatasets(workflowID = workflowID,
                              stageID = stageID,
                              patternID = stageOutput['pattern_id'],
+                             metadataDict = metadataDict,
                              scopeName = workflow['scope_name'],
                              destination = stageOutput['destination'],
                              lifetimeSeconds = stageOutput['lifetime_seconds'],
@@ -814,9 +839,10 @@ def processSubmittedWorkflow(workflow):
 
   justin.insertUpdate(query)
 
-def createOutputDatasets(workflowID, stageID, patternID,  
+def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
                          scopeName, destination, lifetimeSeconds, rseNames):
   # Create missing main pattern dataset and per-RSE datasets
+  # All exceptions will be caught by the caller
   
   logLine('Try to create DID and Rule Rucio clients')
   didClient  = rucio.client.didclient.DIDClient()
@@ -824,12 +850,24 @@ def createOutputDatasets(workflowID, stageID, patternID,
 
   # Try to create the pattern's dataset in MetaCat
   logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
-  ret = executeMetaCatCommand('dataset create %s:%s' 
-                              % (scopeName, destination))
+
+  # Temporary file to pass to metacat command 
+  (fp, metadataFile) = tempfile.mkstemp(text = True)
+  json.dump(metadataDict, fp)
+  fp.close()
+
+  try:
+    ret = executeMetaCatCommand("dataset create %s:%s --metadata %s"
+                                % (scopeName, destination, metadataFile))
   # Carry on regardless if ret != 0 since we can't tell from the metacat 
   # return code if the dataset just already exists or there was a 
   # genuine problem ...
-
+  except Exception as e:
+    raise RuntimeException('Failed adding dataset %s:%s to Metacat: %s' 
+                             % (scopeName, destination, str(e)))
+  finally:
+    os.remove(metadataFile)
+  
   # Try to create the pattern's dataset in Rucio if not already there
   try:
     logLine('Try to add Rucio dataset %s:%s' % (scopeName, destination))
