@@ -1,35 +1,66 @@
 #!/bin/sh
 #
-# Script to set up components needed by justIN containers
+# Script to set up components needed by justIN containers on a host VM
 #
-# Tested on SL7.9
+# Tested on Rocky9
 #
+
+echo 'Have you run  hostnamectl set-hostname justin-xxx-nn.dune.hep.ac.uk  ?'
+
+if [ ! -d /etc/justin-secrets ] ; then
+ echo 'Copy /etc/justin-secrets here first!'
+ exit 1
+fi
+
+if [ ! -d /etc/justin-letsencrypt ] ; then
+ echo 'Copy /etc/justin-letsencrypt here first!'
+ exit 1
+fi
+
+if [ ! -d /etc/justin.d ] ; then
+ echo 'Copy /etc/justin.d here first!'
+ exit 1
+fi
 
 # Create the dunejustin account before anything else
 useradd --uid 1026 --user-group dunejustin
+chown dunejustin.dunejustin /etc/justin-secrets/justin-jobs-*.pem
 
-echo 7.9 > /etc/yum/vars/releasever
+yum -y update 
+dnf config-manager \
+  --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+yum -y install ca_policy_igtf-classic git joe mariadb-server \
+               docker-ce docker-ce-cli containerd.io
 
-# Ignore broken local repo
-sed -i 's/^enabled.*/enabled=0/' /etc/yum.repos.d/nagios.repo
+chown mysql.mysql /etc/justin-secrets/justin-db-*.pem
 
-yum clean all
-
-yum -y install ca_policy_igtf-classic git voms-clients-cpp 
+echo '{ "mtu": 1450 }' > /etc/docker/daemon.json
+systemctl enable docker
+systemctl start docker
 
 (
 cd /tmp
 git clone https://github.com/DUNE/dune-justin.git
-cp -f dune-justin/agents/justin-create-x509-proxies /etc/cron.daily/
+
+cp -f dune-justin/database/justin-server.cnf   /etc/my.cnf.d
+cp -f dune-justin/containers/justin-client.cnf /etc/my.cnf.d
+systemctl enable mariadb
+systemctl start mariadb
+
+mysql < database/justindb-create-tables.sql 
+
+cp -f dune-justin/containers/justin-docker-wrapper /usr/sbin
 cp -f dune-justin/agents/*.service dune-justin/services/*.service \
-       /usr/lib/systemd/system/
+  /usr/lib/systemd/system/
+systemctl daemon-reload
+systemctl enable justin-finder
+systemctl enable justin-info-collector
+systemctl enable justin-httpd
+systemctl enable justin-job-factory
 )
 
-systemctl enable justin-httpd justin-finder justin-job-factory justin-info-collector
- 
-mkdir -p /var/log/justin /var/run/justin /var/log/httpd /etc/letsencrypt /etc/vomses          
+mkdir -p /var/log/justin /var/log/httpd 
+mkdir -p /var/run/justin/overrides /var/run/justin/last-updates
 
-echo '"dune" "voms1.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms1.fnal.gov" "dune"' >/etc/vomses/dune-voms1.fnal.gov
-echo '"dune" "voms2.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms2.fnal.gov" "dune"' >/etc/vomses/dune-voms2.fnal.gov
 
 
