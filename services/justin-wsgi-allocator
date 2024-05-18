@@ -56,17 +56,15 @@ def httpError(startResponse, code, message):
 
   return [message.encode('UTF-8')]
 
-def httpOK(startResponse, outputString):
+def httpOK(startResponse, outputString, codeStr = '200 OK'):
 
   try:
     justin.conn.commit()
   except Exception as e:
-    code = '500 Internal Server Error'
+    codeStr = '500 Internal Server Error'
     outputString = 'Database commit fails: ' + str(e)
-  else:
-    code = '200 OK'
 
-  startResponse(code,
+  startResponse(codeStr,
                 [('Content-type',   'text/plain'),
                  ('Content-length', str(len(outputString)))
                 ])
@@ -551,7 +549,7 @@ def makeJobscriptDict(jsonDict, jobDict):
                                         if rseRow['distance'] == 0
                                         else rseRow['wan_write_scheme'],
                                         pfn))
-                        
+
   # Create an ordered output RSE list specific to this stage
   try:
     query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
@@ -1363,9 +1361,10 @@ def getFileMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Unable to update job to sent_get_file=TRUE: ' + str(e))
 
-  return httpError(startResponse, 
-                   '404 Not Found', 
-                   'No eligible file found')
+  # Use httpOK() since this does not do a rollback
+  return httpOK(startResponse,                 
+                'No eligible file found',
+                codeStr = '404 Not Found')
 
 def updateFileProcessing(fileIDList,
                          state, justinJobID, workflowID, stageID):
@@ -1954,7 +1953,8 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   try:
     numProcessedRow = justin.select('SELECT '
-             '(SELECT sent_get_file FROM jobs WHERE justin_job_id=%d),'
+             '(SELECT sent_get_file FROM jobs WHERE justin_job_id=%d) '
+             'AS sent_get_file,'
              '(SELECT COUNT(*) FROM events WHERE '
              'events.justin_job_id=%d AND '
              'events.event_type_id=%d) AS num_processed,'
@@ -1976,14 +1976,15 @@ def confirmResultsMethod(startResponse, jsonDict):
   # Finish up and update job status
   try:
     # Jobs only finish in the none_processed state if any files were allocated
-    # or if they never even asked for any
+    # or if they never even asked for any, but not for AWT jobs
     justin.insertUpdate('UPDATE jobs SET job_state="%s",'
                         'heartbeat_time=NOW(),'
                         'finished_time=NOW() '
                         'WHERE justin_job_id=%d AND job_state="outputting"'
                         % ('none_processed'
-                           if (numProcessed==0 and numAllocated) 
-                           or not sentGetFile
+                           if ((numProcessed==0 and numAllocated) 
+                           or not sentGetFile) 
+                           and (workflowID != justin.awtWorkflowID)
                            else 'finished',
                            justinJobID))
 

@@ -957,6 +957,16 @@ for (destination, fileScope, fileName, fileSize, patternID) in outputFiles:
       logLine('Failed to upload %s:%s' % (fileScope, fileName))
       jobAborted(320, 'rucio_upload', '')
 
+    # Add the file to the main dataset
+    (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
+                                       '"%s:%s"' % ( fileScope, fileName,
+                                                     fileScope, destination )
+                                      )
+
+    if ret:
+      logLine('Failed to add %s:%s to %s' % (fileScope, fileName, destination))
+      jobAborted(319, 'metacat_registration', '')
+
     # Update MetaCat output_status for this file to uploaded
     try:
       (ret, out) = executeMetaCatCommand("file update --metadata "

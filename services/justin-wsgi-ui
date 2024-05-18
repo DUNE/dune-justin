@@ -847,7 +847,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                         'stage_priority=50,'
                         'workflow_id=%d,'
                         'stage_id=%d,'
-                        'jobscript_git="github.com:%s",'
+                        'jobscript_git="%s",'
                         'jobscript_image="%s",'
                         'processors=%d,'
                         'wall_seconds=%d,'

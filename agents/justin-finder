@@ -731,7 +731,7 @@ def findSubmittedWorkflows():
                     'ON workflows.scope_id=scopes.scope_id '
                     'LEFT JOIN condor_groups '
                     'ON condor_groups.condor_group_id=scopes.condor_group_id '
-                    'LEFT JOIN users ON users.user_id=workflows.user_id 
+                    'LEFT JOIN users ON users.user_id=workflows.user_id '
                     'LEFT JOIN principal_names '
                     'ON principal_names.pn_id=users.main_pn_id '
                     'WHERE workflows.state="submitted" '
@@ -765,7 +765,7 @@ def processSubmittedWorkflow(workflow):
   except:
     condorGroupID = 0
 
-  stages = justin.select('SELECT stage_id,processors,jobscript_git,
+  stages = justin.select('SELECT stage_id,processors,jobscript_git,'
                          'jobscript_image,wall_seconds,rss_bytes '
                          'FROM stages WHERE workflow_id=%d'
                          % workflowID)
@@ -801,7 +801,7 @@ def processSubmittedWorkflow(workflow):
         metadataDict = { "dune.workflow" : 
             { "workflow_id"     : workflowID,
               "stage_id"        : stageID,
-              "pattern_id"      : patternID,
+              "pattern_id"      : stageOutput['pattern_id'],
               "file_pattern"    : stageOutput['file_pattern'],
               "user"            : workflow['principal_name'],
               "processors"      : stage['processors'],
@@ -813,7 +813,7 @@ def processSubmittedWorkflow(workflow):
 # ADD RCDS/Git repos in here too with tags and commit hashes
                          
         if stage['jobscript_git']:
-          metadataDict['workflow']['jobscript_git'] = stage['jobscript_git']
+          metadataDict['dune.workflow']['jobscript_git'] = stage['jobscript_git']
 
         createOutputDatasets(workflowID = workflowID,
                              stageID = stageID,
@@ -852,13 +852,14 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
   logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
 
   # Temporary file to pass to metacat command 
-  (fp, metadataFile) = tempfile.mkstemp(text = True)
+  (fd, metadataFile) = tempfile.mkstemp(text = True)
+  fp = os.fdopen(fd, 'w')
   json.dump(metadataDict, fp)
   fp.close()
 
   try:
-    ret = executeMetaCatCommand("dataset create %s:%s --metadata %s"
-                                % (scopeName, destination, metadataFile))
+    ret = executeMetaCatCommand("dataset create --metadata %s %s:%s"
+                                % (metadataFile, scopeName, destination))
   # Carry on regardless if ret != 0 since we can't tell from the metacat 
   # return code if the dataset just already exists or there was a 
   # genuine problem ...
