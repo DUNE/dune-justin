@@ -37,6 +37,13 @@
 - --seconds-needed option added to justin-get-file for multi-file jobscripts
 - Add none_processed job state and events, and pausing of workflows if too
   many jobscript_error, or notused, or none_processed job outcomes.
+- Add banner message from configuration
+- In --output-pattern, the destination dataset is now optional, and a name
+  like wXXXXsYpZ will be created if not given.
+- Per-RSE datasets are created, each with a rule to keep the file on that
+  RSE, and they are always used for Rucio uploads by jobs.
+- Created datasets for output patterns have metadata describing the pattern,
+  and stage parameters including the memory requested, Apptainer image etc.
 
 ## 01.00.00
 - The "1.0" release of justIN after DC24

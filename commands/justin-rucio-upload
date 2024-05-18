@@ -149,6 +149,9 @@ for dataset in datasets[1:]:
                                   [{'scope' : args['scope'],
                                     'name'  : filename
                                    }])       
+    except rucio.common.exception.FileAlreadyExists:
+      # Ok if already exists - previous attempt?
+      ret = 1
     except Exception as e:
       ret = None
       print('--- Rucio attach_dids %s call fails: %s' % (dataset, str(e)))
