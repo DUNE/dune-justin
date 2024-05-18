@@ -723,9 +723,6 @@ def findSubmittedWorkflows():
 
   logLine('Start of finding submitted workflows')
 
-  datasetsToCreate = set()
-  workflowsToStart = []
-
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
                     'condor_groups.condor_group_id '
@@ -740,7 +737,10 @@ def findSubmittedWorkflows():
     logLine('Failed to get list of submitted workflows')
     return
 
+  logLine('Submitted workflows %d' % len(workflows))
+
   for workflow in workflows:
+    logLine('workflow: ' + str(workflow))
     try:
       processSubmittedWorkflow(workflow)
     except Exception as e:
@@ -755,6 +755,7 @@ def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
 
   workflowID = workflow['workflow_id']
+  logLine('Processing submitted w%d' % workflowID)
 
   try:
     condorGroupID = int(workflow['condor_group_id'])
@@ -762,10 +763,11 @@ def processSubmittedWorkflow(workflow):
     condorGroupID = 0
 
   stages = justin.select('SELECT stage_id FROM stages WHERE workflow_id=%d'
-                        % workflowID)
+                         % workflowID)
 
   for stage in stages:
     stageID = stage['stage_id']
+    logLine('Processing submitted w%ds%d' % (workflowID, stageID))
 
     stagesOutputStorages = justin.select(
         'SELECT rse_name FROM stages_output_storages '
@@ -782,21 +784,23 @@ def processSubmittedWorkflow(workflow):
     stagesOutputs = justin.select(
       'SELECT destination,lifetime_seconds,pattern_id '
       'FROM stages_outputs '
-      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stage))
+      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stageID))
 
     for stageOutput in stagesOutputs:
       if not stageOutput['destination'].startswith('https://'):
+        logLine('Processing submitted w%ds%dp%d' 
+                % (workflowID, stageID, stageOutput['pattern_id']))
         # A Rucio dataset
         createOutputDatasets(workflowID = workflowID,
-                             scopeID = scopeID,
-                             patternID = patternID,
+                             stageID = stageID,
+                             patternID = stageOutput['pattern_id'],
                              scopeName = workflow['scope_name'],
                              destination = stageOutput['destination'],
                              lifetimeSeconds = stageOutput['lifetime_seconds'],
                              rseNames = rseNames)
 
   # Do all/any the Git repos for the entire workflow
-  createWorkflowGitRepos(workflowID):
+  createWorkflowGitRepos(workflowID)
 
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
@@ -819,16 +823,16 @@ def createOutputDatasets(workflowID, stageID, patternID,
   ruleClient = rucio.client.ruleclient.RuleClient()
 
   # Try to create the pattern's dataset in MetaCat
-  logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetName))
+  logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
   ret = executeMetaCatCommand('dataset create %s:%s' 
-                              % (scopeName, datasetName))
+                              % (scopeName, destination))
   # Carry on regardless if ret != 0 since we can't tell from the metacat 
   # return code if the dataset just already exists or there was a 
   # genuine problem ...
 
   # Try to create the pattern's dataset in Rucio if not already there
   try:
-    logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetName))
+    logLine('Try to add Rucio dataset %s:%s' % (scopeName, destination))
     ret = didClient.add_dataset(scope = scopeName, name = destination)
   except rucio.common.exception.DataIdentifierAlreadyExists:
     pass
@@ -859,18 +863,31 @@ def createOutputDatasets(workflowID, stageID, patternID,
         raise RuntimeException('Failed adding dataset %s:%s' 
                                % (scopeName, datasetForRSE))
 
-    # Create a rule for the new dataset
+    # Create a rule for the new per-RSE dataset
     logLine('Try to add rule for %s:%s' % (scopeName, datasetForRSE))
-    ret = ruleClient.add_replication_rule(
+    try:
+      ret = ruleClient.add_replication_rule(
                      dids = [ {'scope' : scopeName,
                                'name'  : datasetForRSE} ], 
                      copies = 1, 
                      rse_expression = rseName,
                      lifetime = lifetimeSeconds)
-                     
-    if not ret:
-      raise RuntimeException("Failed adding rule for %s:%s" 
-                             % (scopeName, datasetForRSE))
+    except rucio.common.exception.RSEOverQuota:
+      # Cannot create rule now because RSE is currently over quota
+      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
+      # ADD RULE LATER SOMEHOW??? 
+      logLine('Failed to create rule for %s as over quota - skipping' 
+              % datasetForRSE)
+    except rucio.common.exception.RSEWriteBlocked:
+      # Cannot create rule now because RSE is currently not writeable
+      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
+      # ADD RULE LATER SOMEHOW??? 
+      logLine('Failed to create rule for %s as write disabled - skipping' 
+              % datasetForRSE)
+    else:
+      if not ret:
+        raise RuntimeException("Failed adding rule for %s:%s" 
+                               % (scopeName, datasetForRSE))
 
 # SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
 # NEED THEIR LIFETIME EXTENDING? THIS IS NEEDED FOR LONG WORKFLOWS?

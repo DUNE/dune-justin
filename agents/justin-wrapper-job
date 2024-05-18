@@ -936,12 +936,14 @@ for (destination, fileScope, fileName, fileSize, patternID) in outputFiles:
                                      '--protocol %s '
                                      '--scope %s '
                                      '--dataset w%ds%dp%d-%s '
+                                     '--dataset %s '
                                      '--timeout 1200 '
                                      'home/workspace/%s' %
                                      (rse,
                                       scheme,
                                       fileScope,
                                       workflowID, stageID, patternID, rse,
+                                      destination,
                                       fileName))
       uploadEndTime = time.time()
       if ret == 0:

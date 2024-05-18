@@ -45,8 +45,9 @@ parser.add_argument("--scope",
                     help = "Scope of file and dataset")
 
 parser.add_argument("--dataset",
-                    type = str,
-                    help = "Name of dataset without scope prefix")
+                    type   = str,
+                    action = "append",
+                    help   = "Name of dataset without scope prefix")
 
 parser.add_argument("--protocol",
                     type = str,
@@ -81,6 +82,10 @@ if not args['dataset']:
   print('--dataset missing')
   sys.exit(1)
 
+datasets = []
+for dataset in args['dataset']:
+ datasets.append(dataset)
+
 if not args['protocol']:
   protocol = 'davs'
 else:
@@ -113,7 +118,7 @@ for i in range(1, tries + 1):
                      'rse'              : args['rse'],
                      'did_scope'        : args['scope'],
                      'dataset_scope'    : args['scope'],
-                     'dataset_name'     : args['dataset'],
+                     'dataset_name'     : datasets[0],
                      'force_protocol'   : protocol,
                      'transfer_timeout' : timeout
                    }
@@ -132,20 +137,44 @@ if ret is None:
 
 if ret:
   # Exit with the return code of the last upload attempt
-  pirnt('--- Exit with last Rucio return code, %d' % ret)
+  pirnt('--- Exit with last Rucio upload return code, %d' % ret)
   sys.exit(ret)
 
+didClient = rucio.client.didclient.DIDClient()
+for dataset in datasets[1:]:
+  # If additional datasets, add file to them too
+  for i in range(1, tries + 1):
+    try:
+      ret = didClient.attach_dids(args['scope'], dataset,
+                                  [{'scope' : args['scope'],
+                                    'name'  : filename
+                                   }])       
+    except Exception as e:
+      ret = None
+      print('--- Rucio attach_dids %s call fails: %s' % (dataset, str(e)))
+
+  print(str(ret))
+  if ret is None:
+    # If an exception than exit with 95
+    print('--- Exit with 95')
+    sys.exit(95)
+
+  # 1 is success for attach_dids()
+  if ret != 1:
+    # Exit with the return code of the last upload attempt
+    print('--- Exit with last Rucio attach_dids return code, %d' % ret)
+    sys.exit(ret)
+  
 if args['no_check']:
   # If not running checks then exit immediately with 0 for success
   print('--- Exit with 0, success')
   sys.exit(0)
 
 # Check the file is registered in Rucio, with replica(s)
+repClient = rucio.client.replicaclient.ReplicaClient()
 for i in range(1, tries + 1):
   print('--- Replica check try %d/%d' % (i, tries))
   try:
-    repClient = rucio.client.replicaclient.ReplicaClient()
-
     repGen = repClient.list_replicas([{'scope' : args['scope'],
                                        'name'  : filename
                                       }])
@@ -161,34 +190,39 @@ if not reps or 'pfns' not in reps or not reps['pfns']:
   print('--- No replica in Rucio, exit 98')
   sys.exit(98)
 
-# Check the given file is in the parent dataset
-for i in range(1, tries + 1):
-  print('--- Dataset check try %d/%d' % (i, tries))
-  try:
-    didClient = rucio.client.didclient.DIDClient()
+# Check the given file is in the parent datasets
+for dataset in datasets:
+  for i in range(1, tries + 1):
+    print('--- Dataset %s check try %d/%d' % (dataset, i, tries))
+    try:
+      filesGen = didClient.list_files(args['scope'], dataset)
+      break
+    except Exception as e:
+      filesGen = None
+      print('--- Rucio list_files %s call %d/%d fails: %s' % 
+            (dataset, i, tries, str(e)))
 
-    contentGen = didClient.list_content(args['scope'], args['dataset'])
-    break
-  except Exception as e:
-    contentGen = None
-    print('--- Rucio list_content call %d/%d fails: %s' % 
-          (i, tries, str(e)))
+  if not filesGen:
+    # No files DIDs returned!
+    print('--- No files in dataset %s, exit 97' % dataset)
+    sys.exit(97)
 
-if not contentGen:
-  # No content DIDs returned!
-  print('--- No files in dataset, exit 97')
-  sys.exit(97)
+  # Try to find the given file in the dataset
+  found = False
+  for file in filesGen:
+    if ('scope' in file and 
+        'name'  in file and 
+        file['scope'] == args['scope'] and 
+        file['name']  == filename):
+      # Found the given filename in this dataset
+      found = True
+      break
+      
+  if not found:
+    # We didn't find the given file in the parent dataset!
+    print('--- Did not find the file in the parent dataset %s, exit 96' 
+          % dataset)
+    sys.exit(96)
 
-# Try to find the given file in the dataset
-for content in contentGen:
-  if ('scope' in content and 
-      'name'  in content and 
-      content['scope'] == args['scope'] and 
-      content['name']  == filename):
-    # Found the given filename in the dataset 
-    print('--- Upload, replicas, and dataset checks passed')
-    sys.exit(0)
-
-# We didn't find the given file in the parent dataset!
-print('--- Did not find the file in the parent dataset, exit 96')
-sys.exit(96)
+print('--- Upload, replicas, and datasets checks passed')
+sys.exit(0)
