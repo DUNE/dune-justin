@@ -521,7 +521,7 @@ def createWorkflow(jsonDict, user, simple = False):
   else:
     scopeName = justin.defaultScopeName
 
-  if not justin.stringIsDomain(scopeName):
+  if not justin.stringIsScope(scopeName):
       return ('400 Bad Request', 
               'Scope name can only be characters a-z 0-9 - _ .')
 

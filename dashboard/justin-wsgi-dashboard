@@ -878,7 +878,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   try:
     scopeName = cgiValues["scope_name"]
 
-    if not justin.stringIsDomain(scopeName):
+    if not justin.stringIsScope(scopeName):
       raise
   except:
     scopeName = ''

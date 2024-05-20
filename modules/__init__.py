@@ -323,6 +323,13 @@ def stringIsJobsubID(s):
 def stringIsUsername(s):
   return re.search('[^a-z0-9_.@-]', s) is None
 
+# What characters are valid? Same as File for now
+def stringIsScope(s):
+  return re.search('[^A-Za-z0-9_.-]', s) is None
+
+def stringIsFile(s):
+  return re.search('[^A-Za-z0-9_.-]', s) is None
+
 def stringIsFilePattern(s):
   return re.search('[^*A-Za-z0-9_.-]', s) is None
 
