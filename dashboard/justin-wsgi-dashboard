@@ -931,6 +931,8 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
                   else '',
                   user['user_name']))
 
+  output += '<option value="" disabled>---</option>'
+
   for userRow in userRows:
     # List the other user names, selecting them if selected BUT not if
     # its the logged in user since that is at the top of the list already
