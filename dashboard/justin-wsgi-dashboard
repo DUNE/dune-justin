@@ -917,7 +917,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   output += "<h1>Workflows</h1>"
 
   output += ('<p><form method="get" formaction="/dashboard/">'
-    '<input type="hidden" name="method" value="list-workflowss">'
+    '<input type="hidden" name="method" value="list-workflows">'
     '<label>Users<select name="user_name">'
     '<option value="--ANY--"%s>ANY</option>'
     % (' selected' if userName == '--ANY--' else ''))
