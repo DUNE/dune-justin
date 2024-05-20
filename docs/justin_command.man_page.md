@@ -312,9 +312,9 @@ This man page is distributed along with the
     	 pfn=`echo $did_pfn_rse | cut -f2 -d' '`
     	 rse=`echo $did_pfn_rse | cut -f3 -d' '`
     
-           If no file is available to be processed, then justin-get-file produces
-           no output to stdout, which should also be checked for. justin-get-file
-           logs errors to stderr.
+           If no file is available to be processed, then justin-get-file returns a
+           non-zero exit code and produces no output to stdout, which should also
+           be checked for. justin-get-file logs errors to stderr.
     
            justin-get-file can be called multiple times to process more than one
            file in the same jobscript. This can be done all at the start or
@@ -328,10 +328,10 @@ This man page is distributed along with the
            seconds which will be needed by the jobscript to process another file
            and finish. If there is not enough time left based on the
            --wall-seconds option used when defining the stage, then justin-get-
-           file will in that case return an empty result, just as if no more files
-           were available for processing. This can easily be used to create
-           jobscripts which process a series of input files without running out of
-           time on the last one.
+           file will in that case return an empty result and a non-zero exit code,
+           just as if no more files were available for processing. This can easily
+           be used to create jobscripts which process a series of input files
+           without running out of time on the last one.
     
            Each file returned by justin-get-file is marked as allocated and will
            not be processed by any other jobs. When the jobscript finishes, it

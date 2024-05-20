@@ -847,41 +847,168 @@ to visit.</p>
 
 def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
 
+  whereList = []
+  queryList = ''
+
+  try:
+    userName = cgiValues["user_name"]
+
+    if userName != '--ANY--' and not justin.stringIsUsername(userName):
+      raise
+  except:
+    userName = ''
+
+  if userName:
+    # If the user name was given explicitly, then we pass it on
+    # Otherwise it is left out for subsequent next page etc clicks
+    queryList += '&user_name="%s"' % userName
+  else:
+    # But userName must be set to something, even just --ANY--
+    if user:
+      # User is logged in, so we use their name instead of implicit --ANY--
+      userName = user['user_name']
+    else:
+      # Always fall back to any user
+      userName = '--ANY--'
+
+  if userName != '--ANY--':
+    # For any user, we just skip this condition 
+    whereList.append('principal_name="%s"' % userName)
+
+  try:
+    scopeName = cgiValues["scope_name"]
+
+    if not justin.stringIsDomain(scopeName):
+      raise
+  except:
+    scopeName = ''
+  else:
+    if scopeName:
+      whereList.append('scope_name="%s"' % scopeName)
+      queryList += '&scope_name="%s"' % scopeName
+
+  try:
+    workflowState = cgiValues["state"]
+
+    if workflowState not in justin.workflowStates:
+      raise
+  except:
+    workflowState = ''
+  else:
+    if workflowState:
+      whereList.append('state="%s"' % workflowState)
+      queryList += '&state="%s"' % workflowState
+
+  if whereList:
+    whereString = ' WHERE ' + ' AND '.join(whereList)
+  else:
+    whereString = ''
+
+  # These lists are used for the pull down menus in the filter HTML
+  userRows = justin.select('SELECT principal_name FROM users '
+                           'LEFT JOIN principal_names '
+                           'ON users.main_pn_id=principal_names.pn_id '
+                           'ORDER BY principal_name')
+  scopeRows = justin.select('SELECT scope_name FROM scopes '
+                            'ORDER BY scope_name')
+
   output = header(environ, user, "justIN: Workflows")
 
   output += "<h1>Workflows</h1>"
+
+  output += ('<p><form method="get" formaction="/dashboard/">'
+    '<input type="hidden" name="method" value="list-workflowss">'
+    '<label>Users<select name="user_name">'
+    '<option value="--ANY--"%s>ANY</option>'
+    % (' selected' if userName == '--ANY--' else ''))
+
+  if user:
+    # If logged in, offer their own name first
+    output += ('<option value="%s"%s>%s</option>' 
+               % (user['user_name'],
+                  ' selected' 
+                  if user['user_name'] == userName
+                  else '',
+                  user['user_name']))
+
+  for userRow in userRows:
+    # List the other user names, selecting them if selected BUT not if
+    # its the logged in user since that is at the top of the list already
+    output += ('<option value="%s"%s>%s</option>' 
+               % (userRow['principal_name'],
+                  ' selected' 
+                  if userRow['principal_name'] == userName and 
+                  (not user or user['user_name'] != userRow['principal_name'])
+                  else '',
+                  userRow['principal_name']))
+
+  output += ('</select></label> '
+    '<label>Scope:<select name="scope_name">'
+    '<option value=""%s>ANY</option>'
+    % ('' if scopeName else ' selected'))
+  
+  for scopeRow in scopeRows:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (scopeRow['scope_name'],
+                  ' selected' 
+                  if scopeRow['scope_name'] == scopeName
+                  else '',
+                  scopeRow['scope_name']))
+
+  output += ('</select></label> '
+    '<label>State:<select name="state">'
+    '<option value=""%s>ANY</option>'
+    % ('' if workflowState else ' selected'))
+  
+  for state in justin.workflowStates:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (state,
+                  ' selected' if state == workflowState else '',
+                  state))
+
+  output += ('</select></label> '
+    '<input type="submit" value="Filter" '
+    'style="background: #E1703D; border-radius: 5px; padding: 5px; '
+    'color: white; font-weight: bold; font-size: 1em; border: 0; '
+    'cursor: pointer">'
+    '</form></p>\n')
   
   query = ('SELECT workflow_id,description,principal_name AS user_name,'
-           'state,mql,created,submitted,started,finished '
+           'workflows.state,mql,created,submitted,started,finished,scope_name '
            'FROM workflows '
            'LEFT JOIN users ON workflows.user_id=users.user_id '
            'LEFT JOIN principal_names '
            'ON principal_names.pn_id=users.main_pn_id '
+           'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
+           '%s '
            'ORDER BY workflow_id DESC LIMIT %d,%d' %
-           (pageNumber * pageLength, pageLength + 1))
+           (whereString, pageNumber * pageLength, pageLength + 1))
 
   justin.cur.execute(query)
   rows = justin.cur.fetchall()
 
   output += makePager(pageNumber, pageLength, len(rows), 
-                      "/dashboard/?method=list-workflows&page_number=%d&page_length=%d") 
+                      "/dashboard/?method=list-workflows&page_number=%d"
+                      "&page_length=%d" + queryList) 
              
   output += '<p><table>'
-  output += ('<tr><th>Workflow ID</th><th>Description</th><th>User</th><th>State</th>'
-             '<th>MQL</th><th>Created</th><th>Submitted</th><th>Started</th>'
+  output += ('<tr><th>Workflow ID</th><th>Description</th><th>User</th>'
+             '<th>Scope</th><th>State</th>'
+             '<th>MQL</th><th>Submitted</th><th>Started</th>'
              '<th>Finished</th><tr>')
 
   for row in rows[:pageLength]:
-    output += ('<tr><td><a href="/dashboard/?method=show-workflow&workflow_id=%s">'
+    output += ('<tr><td><a href="/dashboard/?method=show-workflow'
+          '&workflow_id=%s">'
           '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '<td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
           '</tr>' % 
           (row["workflow_id"], row["workflow_id"],
            html.escape(row["description"], quote=True),
            row["user_name"],
+           row["scope_name"],
            row["state"],
            insertWBR(row["mql"]),
-           spaceForUnixEpoch(row['created']),
            spaceForUnixEpoch(row['submitted']),
            spaceForUnixEpoch(row['started']),
            spaceForUnixEpoch(row['finished'])
@@ -891,7 +1018,8 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   output += "</table>"
   
   output += makePager(pageNumber, pageLength, len(rows), 
-                      "/dashboard/?method=list-workflows&page_number=%d&page_length=%d")
+                      "/dashboard/?method=list-workflows&page_number=%d"
+                      "&page_length=%d" + queryList)
   output += footer()
   
   return output

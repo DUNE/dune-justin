@@ -111,6 +111,9 @@ nonJustinFraction = None
 sitesRankCacheTimeout = 300
 sitesRankCacheStale   = 3600
 
+workflowStates = [ 'draft','submitted','approved','running',
+                   'paused','checking','finished','deleted']
+
 jobStatesTerminal = [ 'finished', 'notused', 'aborted', 'stalled', 
                       'jobscript_error', 'outputting_failed', 'none_processed' ]
 
