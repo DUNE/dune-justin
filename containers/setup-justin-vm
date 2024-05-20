@@ -47,11 +47,10 @@ cp -f dune-justin/containers/justin-client.cnf /etc/my.cnf.d
 systemctl enable mariadb
 systemctl start mariadb
 
-mysql < database/justindb-create-tables.sql 
+mysql < dune-justin/database/justindb-create-tables.sql 
 
 cp -f dune-justin/containers/justin-docker-wrapper /usr/sbin
-cp -f dune-justin/agents/*.service dune-justin/services/*.service \
-  /usr/lib/systemd/system/
+cp -f dune-justin/containers/*.service /usr/lib/systemd/system/
 systemctl daemon-reload
 systemctl enable justin-finder
 systemctl enable justin-info-collector

@@ -29,7 +29,7 @@ allocated multiple input files.
 Eventually the jobscript finishes and returns an exit code. If the exit code
 is non-zero, indicating an error, then all of the input files allocated to
 this job are reset to unallocated or to failed (if the maximum number of
-attempts are reason - by default 6.)
+attempts are reached - by default 6.)
 
 However, if the exit code is zero, then the files justin-processed-dids.txt
 and/or justin-processed-pfns.txt produced by the jobscript are examined. The
@@ -44,7 +44,14 @@ Output files are specified using the list of one or more output patterns
 included in the definition of the workflow/stage. These give the filesystem
 wildcard patterns to use when looking for output files in the jobscript's
 working directory, and associate each pattern with a Rucio dataset or scratch
-upload location at Fermilab.
+upload location at Fermilab. If a Rucio dataset is not named, then a dataset
+name like wXXXXsYpZ is formed, where XXXX is the workflow ID, Y is the stage
+ID counting from 1, and Z is the pattern ID counting from 1. If an output
+dataset is needed but does not already exist, then it is created by justIN.
+Additionaly, justiN creates per-RSE datasets of the form wXXXXsYpZ-RRRR
+where RRRR is the name of the RSE. Each per-RSE dataset has a Rucio rule
+to retain any files uploaded to that RSE for the lifetime specified when the
+workflow/stage was created.
 
 The wrapper job enters the outputting state by sending a record_results
 message to the allocator service, and getting an OK back. This message
@@ -53,7 +60,10 @@ added to the justIN database in the recorded state.
 
 The wrapper job than goes through each output file, first registering it in 
 MetaCat with dune.output_status=recorded, and then trying to upload it with
-the Rucio upload client API. If the upload appears to succeed, then the
+justin-rucio-upload and to add it to the associated Rucio dataset and the
+corresponding per-RSE dataset. The file is then added to the associated 
+dataset in MetaCat (but not to the per-RSE datasets in MetaCat.) 
+If the upload and dataset attachments appear to succeed, then the
 file's metadata in MetaCat is updated to set dune.output_status=uploaded.
 Each MetaCat and Rucio operation is retried three times and three output
 RSEs are tried (so nine attempts for Rucio in total). 
@@ -70,6 +80,7 @@ state to processed, and updates all of its output files from the recorded
 state to the finding or output state depending whether they are needed for
 the next stage or not. 
 
-If the allocator returns OK to the wrapper job, then wrapper job updates the
-output files dune.output_status to confirmed in MetaCat. This is done one by
-one, and so it is possible for this to fail halfway through.
+If the allocator returns OK to the wrapper job, then the wrapper job updates the
+output files dune.output_status to confirmed in MetaCat. Currently this has
+to be done one by one, and so it is possible for this final step to fail 
+halfway through.
