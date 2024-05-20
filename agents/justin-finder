@@ -911,6 +911,10 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
                      copies = 1, 
                      rse_expression = rseName,
                      lifetime = lifetimeSeconds)
+    except rucio.common.exception.DuplicateRule:
+      # Cannot create rule now because already exists - dev/int instance?
+      logLine('Failed to create rule for %s as a duplicate - skipping' 
+              % datasetForRSE)
     except rucio.common.exception.RSEOverQuota:
       # Cannot create rule now because RSE is currently over quota
       # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
