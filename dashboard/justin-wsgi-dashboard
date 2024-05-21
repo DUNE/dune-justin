@@ -3923,7 +3923,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
             '&file_did=%s">%s</td>' 
             % (eventRow['workflow_id'], 
                eventRow['file_did'], 
-               eventRow['file_did']))
+               insertWBR(eventRow['file_did'])))
     else:
       output += ('<td>&nbsp;</td>')
          
