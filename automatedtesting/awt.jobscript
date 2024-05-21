@@ -2,6 +2,7 @@
 :<<'EOF'
 justin simple-workflow \
   --rss-mb 2000 \
+  --description 'Automated Workflow Tests' \
   --mql 'rucio-dataset testpro:awt' \
   --jobscript awt.jobscript
 EOF
