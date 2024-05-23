@@ -86,13 +86,14 @@ def submitJobs(numberToSubmit,
                desiredEntryNames,
                requestedProcessors,
                requestedRssBytes,
-               requestedWallSeconds):
+               requestedWallSeconds,
+               requestedGPUs):
 
   # If targetting one site, then firstSiteID should be non-zero
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d' %
+  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d' %
           (numberToSubmit,
                userName,
                needsInnerApptainer,
@@ -106,7 +107,8 @@ def submitJobs(numberToSubmit,
                desiredEntryNames,
                requestedProcessors,
                requestedRssBytes,
-               requestedWallSeconds))
+               requestedWallSeconds,
+               requestedGPUs))
   try:
     wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
   except Exception as e:
@@ -184,6 +186,9 @@ def submitJobs(numberToSubmit,
   ')\n'
                    % (justin.proDev.upper(), 
                       workflowID, stageID, desiredEntryNames))
+
+  if requestedGPUs:
+   submitFile += '+RequestGPUs = 1\n'
 
   submitFile += """
 +Desired_Sites          = "%s"
@@ -286,6 +291,7 @@ queue %d
                       'stage_id=%d,'
                       'site_id=%d,'
                       'requested_processors=%d,'
+                      'requested_gpus=%d,'
                       'requested_rss_bytes=%d,'
                       'requested_wall_seconds=%d,'
                       'submitted_time=NOW(),'
@@ -297,6 +303,7 @@ queue %d
                          stageID,
                          firstSiteID,
                          requestedProcessors,
+                         requestedGPUs,
                          requestedRssBytes,
                          requestedWallSeconds,
                          justinJobSecret,
@@ -319,7 +326,7 @@ queue %d
   if firstSiteID:
     try:
       justin.cur.execute('UPDATE sites SET last_submitted_time=NOW() '
-                            'WHERE site_id=%d' % firstSiteID)
+                         'WHERE site_id=%d' % firstSiteID)
 
     except Exception as e:
       # But try to keep going
@@ -335,7 +342,8 @@ def workflowJobs():
   try:
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
-     'wlcg_group_name,stages.processors,stages.wall_seconds,stages.rss_bytes,'
+     'wlcg_group_name,stages.processors,stages.needs_gpu,'
+     'stages.wall_seconds,stages.rss_bytes,'
      'principal_names.principal_name,condor_group_name,jobscript_image '
      'FROM workflows '
      'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
@@ -344,9 +352,8 @@ def workflowJobs():
      'LEFT JOIN users ON users.user_id=workflows.user_id '
      'LEFT JOIN principal_names '
      'ON principal_names.user_id=users.main_pn_id '
-# GET condor_group_id FROM workflows ONCE ALL ACTIVE WORKFLOWS HAVE THEM
      'LEFT JOIN condor_groups '
-     'ON condor_groups.condor_group_id=scopes.condor_group_id '
+     'ON condor_groups.condor_group_id=workflows.condor_group_id '
      'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
      'ORDER BY workflows.workflow_id'
      % justin.awtWorkflowID, showQuery = False
@@ -411,12 +418,13 @@ def workflowJobs():
    "AND NOT storages.decommissioned "
    "AND sites.site_id IS NOT NULL "
    "AND sites.enabled "
-   "AND NOT entries.entry_has_gpus "
+   "AND %s entries.entry_has_gpus "
    "%s "
    "ORDER BY sites_storages.distance,files.file_id "
          % (stageRow['max_distance'],
             stageRow['workflow_id'],
             stageRow['stage_id'],            
+            '' if stageRow['needs_gpu'] else 'NOT',
             '' if (stageRow['wlcg_group_name'] == '/dune/production') 
             else 'AND entries.always_inner_apptainer'))
 
@@ -485,7 +493,8 @@ def workflowJobs():
                    desiredEntryNames    = desiredEntryNames,
                    requestedProcessors  = stageRow['processors'],
                    requestedRssBytes    = stageRow['rss_bytes'],
-                   requestedWallSeconds = stageRow['wall_seconds'])
+                   requestedWallSeconds = stageRow['wall_seconds'],
+                   requestedGPUs        = int(stageRow['needs_gpu']))
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
@@ -514,7 +523,8 @@ def awtJobsToSites():
                  desiredEntryNames    = '',
                  requestedProcessors  = 1,
                  requestedRssBytes    = 1024 * 1024 * 1024,
-                 requestedWallSeconds = 3600)
+                 requestedWallSeconds = 3600,
+                 requestedGPUs        = 0)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs

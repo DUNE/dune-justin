@@ -111,8 +111,8 @@ process.
 .HP
 .B "create-stage --workflow-id ID --stage-id ID 
 .B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
-.B [--wall-seconds N] [--rss-mib N] [--processors N] [--max-distance DIST] 
-.B [--output-pattern PATTERN[:DESTINATION]]
+.B [--wall-seconds N] [--rss-mib N] [--processors N] [--gpu]
+.B [--max-distance DIST] [--output-pattern PATTERN[:DESTINATION]]
 .B [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
 .br
@@ -149,6 +149,9 @@ If the script can make use of multiple processors then
 .B --processors
 can be used to give the number needed, with a default of 1 if not given. The
 value used is available to jobscripts as $JUSTIN_PROCESSORS.
+If given then
+.B --gpu
+will require that jobs for this stage have access to a GPU.
 
 By default, input files will only be allocated to a script which are on 
 storages at the same site (distance=0). This can be changed by setting
@@ -227,7 +230,7 @@ this stage.
 .B [--refind-interval-hours HOURS] 
 .B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
 .B [--wall-seconds N]
-.B [--rss-mib N] [--processors N] [--max-distance DIST]
+.B [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
 .br

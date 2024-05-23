@@ -777,6 +777,11 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     processors = 1
 
   try:
+    needsGPU = jsonDict['gpu']
+  except:
+    needsGPU = False
+
+  try:
     wallSeconds = int(jsonDict['wall_seconds'])
   except:
     wallSeconds = 80000
@@ -850,13 +855,14 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                         'jobscript_git="%s",'
                         'jobscript_image="%s",'
                         'processors=%d,'
+                        'needs_gpu=%s,'
                         'wall_seconds=%d,'
                         'rss_bytes=%d,'
                         'max_distance=%f' 
                         % (workflowID, stageID, 
                            jobscriptGit,
                            jobscriptImage,
-                           processors, wallSeconds, 
+                           processors, needsGPU, wallSeconds, 
                            rssBytes, maxDistance))
           
     justin.insertUpdate('INSERT INTO stages_jobscripts SET '
