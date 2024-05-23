@@ -215,6 +215,7 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
 <a href="/docs/">Docs</a>%s
 </div>
 <div id="main_box">
+<p style="text-align: center"><b>justIN will be upgraded to 01.01 between 9am and 12noon UTC on Tuesday 28th May. Workflows running at this time may be disrupted.</b></p>
 """ % (title, 
        (environ['SERVER_NAME'].upper().split('.')[0]).split('-',1)[1] if '-' in environ['SERVER_NAME']
           else 'justIN',
