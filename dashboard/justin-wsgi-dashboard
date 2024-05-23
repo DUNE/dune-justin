@@ -2340,6 +2340,7 @@ def showJob(environ, user, cgiValues):
            "jobs.heartbeat_time,jobs.outputting_time,"
            "jobs.site_job_id,"
            "jobs.requested_processors,"
+           "jobs.requested_gpus,"
            "jobs.requested_rss_bytes,"
            "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
            "jobs.jobscript_exit,"
@@ -2410,6 +2411,9 @@ def showJob(environ, user, cgiValues):
   output += ('<tr><td rowspan="3">Requested</td><td>'
              'Processors</td><td>%d</td></tr>'
              % jobRow["requested_processors"])
+
+  if jobRow['requested_gpus']:
+    output += '<tr><td>GPU</td><td>Yes</td></tr>'
 
   output += ('<tr><td>RSS bytes</td><td>%d (%d MiB)</td></tr>'
              % (jobRow["requested_rss_bytes"],
