@@ -1407,7 +1407,7 @@ def showStage(environ, user, cgiValues):
   query = ("SELECT "
            "stages.stage_priority,"
            "stages.processors,"
-           "stages.gpus,"
+           "stages.needs_gpu,"
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
@@ -1442,7 +1442,7 @@ def showStage(environ, user, cgiValues):
   output += ('<tr><td>Processors</td>'
         '<td>%s</td></tr>' % stageRow["processors"])
 
-  if stageRow["gpus"]:
+  if stageRow["needs_gpu"]:
     output += ('<tr><td>GPU required</td><td>Yes</td></tr>')
 
   output += ('<tr><td>Wall seconds</td>'
@@ -2408,12 +2408,12 @@ def showJob(environ, user, cgiValues):
     output += ('<tr><td>HTCondor Group</td>'
                '<td colspan="2">%s</td></tr>' % jobRow['condor_group_name'])
 
-  output += ('<tr><td rowspan="3">Requested</td><td>'
+  output += ('<tr><td rowspan="4">Requested</td><td>'
              'Processors</td><td>%d</td></tr>'
              % jobRow["requested_processors"])
 
-  if jobRow['requested_gpus']:
-    output += '<tr><td>GPU</td><td>Yes</td></tr>'
+  output += ('<tr><td>GPU</td><td>%s</td></tr>' 
+                % ('Yes' if jobRow['requested_gpus'] else 'No'))
 
   output += ('<tr><td>RSS bytes</td><td>%d (%d MiB)</td></tr>'
              % (jobRow["requested_rss_bytes"],
