@@ -2334,13 +2334,13 @@ def showJob(environ, user, cgiValues):
            "sites.site_name,entries.entry_name,"
            "jobs.hostname,jobs.cpuinfo,jobs.os_release,"
            "principal_name AS user_name,"
-           "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,"
+           "jobs.rss_bytes,jobs.processors,jobs.wall_seconds,jobs.gpu_info,"
            "jobs.allocator_name,jobs.job_state,jobs.allocation_time,"
            "jobs.submitted_time,jobs.finished_time,jobs.jobsub_state,"
            "jobs.heartbeat_time,jobs.outputting_time,"
            "jobs.site_job_id,"
            "jobs.requested_processors,"
-           "jobs.requested_gpus,"
+           "jobs.requested_gpu,"
            "jobs.requested_rss_bytes,"
            "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
            "jobs.jobscript_exit,"
@@ -2413,7 +2413,7 @@ def showJob(environ, user, cgiValues):
              % jobRow["requested_processors"])
 
   output += ('<tr><td>GPU</td><td>%s</td></tr>' 
-                % ('Yes' if jobRow['requested_gpus'] else 'No'))
+                % ('Yes' if jobRow['requested_gpu'] else 'No'))
 
   output += ('<tr><td>RSS bytes</td><td>%d (%d MiB)</td></tr>'
              % (jobRow["requested_rss_bytes"],
@@ -2463,6 +2463,11 @@ def showJob(environ, user, cgiValues):
     output += ('<tr><td>Processors</td>'
                '<td>%s</td></tr>'
                % jobRow["processors"])
+
+    if jobRow['gpu_info']:
+      output += ('<tr><td>GPU</td>'
+                 '<td>%s</td></tr>'
+                 % jobRow["gpu_info"])
 
     output += ('<tr><td>RSS bytes</td>'
                '<td>%s (%d MiB)</td></tr>' 

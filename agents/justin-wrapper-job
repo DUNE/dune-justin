@@ -124,6 +124,69 @@ def jobAborted(abortCode, abortedMethod, rseName):
   time.sleep(10)    
   sys.exit(0)
 
+def findGPU(getJobscriptDict):
+
+  # Fall back null values
+  getJobscriptDict['gpu_uuid']              = ''
+  getJobscriptDict['gpu_nonreserved_bytes'] = 0
+  getJobscriptDict['gpu_name']              = ''
+  getJobscriptDict['gpu_compute_cap']       = ''
+  getJobscriptDict['gpu_driver_version']    = ''
+  getJobscriptDict['gpu_vbios_version']     = ''
+
+  cudaVisibleDevices = os.environ.get('CUDA_VISIBLE_DEVICES','')
+  if not cudaVisibleDevices:
+    # Take the first we will find later, if none explicitly allocated
+    cudaVisibleDevices = 'GPU-'
+
+  firstAllocatedNumber = None
+  firstAllocatedUUID   = None
+  try:
+    # Try to handle  CUDA_VISIBLE_DEVICES=1  style
+    firstAllocatedNumber = int(cudaVisibleDevices.split(',')[0].strip())
+  except:
+    # Try to handle  CUDA_VISIBLE_DEVICES=GPU-abcdef  style
+    firstAllocatedUUID = cudaVisibleDevices.split(',')[0].strip()
+    if not firstAllocatedUUID.startswith('GPU-'):
+      firstAllocatedUUID = None
+
+  # Do not understand what is going on, so give up
+  if not firstAllocatedNumber and not firstAllocatedUUID:
+    return
+
+  try:
+    nvidiaSmiOutcome = subprocess.run('nvidia-smi '
+                     '--query-gpu=uuid,memory.total,memory.reserved,name,'
+                     'compute_cap,driver_version,vbios_version '
+                     '--format=csv,noheader,nounits',
+                     stdout=subprocess.PIPE,
+                     shell=True)
+
+    outcomeLines = nvidiaSmiOutcome.stdout.decode().split('\n')
+  except:
+    return
+
+  gpuDeviceNumber = 0 
+  for outcomeLine in outcomeLines:
+      gpuUUID = outcomeLine.split(',')[0]
+      
+      if ((firstAllocatedUUID is not None 
+            and gpuUUID.startswith(firstAllocatedUUID)) or 
+          (firstAllocatedNumber is not None 
+            and gpuDeviceNunber == firstAllocatedNumber)):
+        # Found a device we were allocated - take the first one        
+        outcomeList = outcomeLine.split(',')
+        getJobscriptDict['gpu_uuid']              = outcomeList[0].strip()
+        getJobscriptDict['gpu_nonreserved_bytes'] = \
+          1048576 * (int(outcomeList[1].strip()) - int(outcomeList[2].strip()))
+        getJobscriptDict['gpu_name']              = outcomeList[3].strip()
+        getJobscriptDict['gpu_compute_cap']       = outcomeList[4].strip()
+        getJobscriptDict['gpu_driver_version']    = outcomeList[5].strip()
+        getJobscriptDict['gpu_vbios_version']     = outcomeList[6].strip()
+        return
+
+      gpuDeviceNumber += 1
+
 def executeMetaCatCommand(args):
 
   for i in range(1, 4):  
@@ -468,7 +531,8 @@ getJobscriptDict['os_release'] \
   = open('/etc/redhat-release','r').readlines()[0].strip()
 getJobscriptDict['hostname']    = os.environ.get('HOSTNAME', os.uname()[1])
 
-#os.system('nvidia-smi')
+# Always check for a GPU
+findGPU(getJobscriptDict)
 
 getJobscriptDict['site_name']   = siteName
 getJobscriptDict['entry_name']  = entryName
@@ -588,6 +652,9 @@ with open('home/justin-jobscript-env.sh','w') as f:
           '"https://justin.dune.hep.ac.uk/api/samweb/%s/%s"\n' 
           % (jobscriptDict['jobsub_id'], jobscriptDict['jobscript_secret']))
 
+  if getJobscriptDict['gpu_uuid']:
+    f.write('export LD_LIBRARY_PATH=/.singularity.d/libs\n')
+
 # JSON for justin-get-file command to use
 with open('home/justin-get-file.json', 'w') as f:
   f.write(json.dumps({ 'method' : 'get_file',
@@ -663,12 +730,14 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
   jobscriptOutcome = subprocess.run(
   '/usr/bin/time -o time.txt -f "%%e %%U %%S %%M" '
   '/cvmfs/oasis.opensciencegrid.org/mis/apptainer/1.2/bin/apptainer shell '
+  '%s '
   '--shell /home/jobscript-wrapper.sh '
   '--containall '
   '--bind /cvmfs '
   '--workdir %s '
   '--home %s/home:/home %s'
-  % (justinWorkdir, justinWorkdir, jobscriptImage),
+  % ('--nv' if getJobscriptDict['gpu_uuid'] else '',
+     justinWorkdir, justinWorkdir, jobscriptImage),
   stdout=subprocess.PIPE,
   shell=True 
   )

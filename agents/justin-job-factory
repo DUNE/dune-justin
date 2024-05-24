@@ -87,7 +87,7 @@ def submitJobs(numberToSubmit,
                requestedProcessors,
                requestedRssBytes,
                requestedWallSeconds,
-               requestedGPUs):
+               requestedGPU):
 
   # If targetting one site, then firstSiteID should be non-zero
   # desiredSiteNames is a comma separated list of jobsub style site names
@@ -108,7 +108,7 @@ def submitJobs(numberToSubmit,
                requestedProcessors,
                requestedRssBytes,
                requestedWallSeconds,
-               requestedGPUs))
+               requestedGPU))
   try:
     wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
   except Exception as e:
@@ -187,7 +187,7 @@ def submitJobs(numberToSubmit,
                    % (justin.proDev.upper(), 
                       workflowID, stageID, desiredEntryNames))
 
-  if requestedGPUs:
+  if requestedGPU:
    submitFile += '+RequestGPUs = 1\n'
 
   submitFile += """
@@ -291,7 +291,7 @@ queue %d
                       'stage_id=%d,'
                       'site_id=%d,'
                       'requested_processors=%d,'
-                      'requested_gpus=%d,'
+                      'requested_gpu=%d,'
                       'requested_rss_bytes=%d,'
                       'requested_wall_seconds=%d,'
                       'submitted_time=NOW(),'
@@ -303,7 +303,7 @@ queue %d
                          stageID,
                          firstSiteID,
                          requestedProcessors,
-                         requestedGPUs,
+                         requestedGPU,
                          requestedRssBytes,
                          requestedWallSeconds,
                          justinJobSecret,
@@ -494,7 +494,7 @@ def workflowJobs():
                    requestedProcessors  = stageRow['processors'],
                    requestedRssBytes    = stageRow['rss_bytes'],
                    requestedWallSeconds = stageRow['wall_seconds'],
-                   requestedGPUs        = int(stageRow['needs_gpu']))
+                   requestedGPU         = int(stageRow['needs_gpu']))
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
@@ -524,7 +524,7 @@ def awtJobsToSites():
                  requestedProcessors  = 1,
                  requestedRssBytes    = 1024 * 1024 * 1024,
                  requestedWallSeconds = 3600,
-                 requestedGPUs        = 0)
+                 requestedGPU         = 0)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs

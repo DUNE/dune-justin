@@ -700,6 +700,14 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
   # If not in submitted, then some mismatch which we catch and return 
   # 410 below
   try:
+    if jsonDict['gpu_uuid']:
+      gpuInfo = ('%s %s %s %s %dMiB' 
+                    % (jsonDict['gpu_name'], jsonDict['gpu_driver_version'],
+                       jsonDict['gpu_compute_cap'], jsonDict['gpu_vbios_version'],
+                       int(jsonDict['gpu_nonreserved_bytes'] / 1048576)))
+    else:
+      gpuInfo = ''
+
     justin.insertUpdate('UPDATE jobs SET '
                            'site_id=(SELECT site_id FROM sites '
                            'WHERE site_name="%s"),'
@@ -711,7 +719,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                            'rss_bytes=%d,' 
                            'processors=%d,' 
                            'wall_seconds=%d,'
-                           'has_inner_apptainer=%s ' 
+                           'has_inner_apptainer=%s,'
+                           'gpu_info="" ' 
                            'WHERE jobsub_id="%s" AND '
                            'workflow_id=%d AND stage_id=%d AND '
                            'job_state="submitted"' % 
@@ -724,6 +733,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                             jsonDict['processors'],
                             jsonDict['wall_seconds'],
                             jsonDict['has_inner_apptainer'],
+                            gpuInfo,
                             jsonDict['jobsub_id'],
                             jsonDict['workflow_id'],
                             jsonDict['stage_id']
