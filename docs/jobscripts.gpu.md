@@ -13,7 +13,7 @@ The CUDA libraries, drivers, /dev/nvidiaX devices, and tools like `nvidia-smi` a
 made available to your jobscript in the usual way. `$CUDA_VISIBLE_DEVICES` is
 set to the UUID of the GPU allocated to your job by the site, in the newer form
 `GPU-uuid` *not* as 0, 1, 2 etc. Please do not try to use any other GPUs you
-might be able to access: CUDA should respect `$CUDA_VISIBLE_DEVICES` as
+might be able to access: by default CUDA should respect `$CUDA_VISIBLE_DEVICES` as
 given and do what the site wants.
 
 Once the job starts, it reports to justIN information about the GPU it has
