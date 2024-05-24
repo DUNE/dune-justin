@@ -2464,10 +2464,6 @@ def showJob(environ, user, cgiValues):
                '<td>%s</td></tr>'
                % jobRow["processors"])
 
-    output += ('<tr><td>GPU</td>'
-                 '<td>%s</td></tr>'
-                 % jobRow["gpu_info"])
-
     output += ('<tr><td>RSS bytes</td>'
                '<td>%s (%d MiB)</td></tr>' 
                % (jobRow["rss_bytes"], 
@@ -2477,6 +2473,10 @@ def showJob(environ, user, cgiValues):
                '<td>%s (%d hours)</td></tr>'
                % (jobRow["wall_seconds"],
                   int(jobRow["wall_seconds"]) / 3600))
+
+    output += ('<tr><td>GPU</td>'
+                 '<td>%s</td></tr>'
+                 % jobRow["gpu_info"])
 
     output += ('<tr><td>Inner Apptainer?</td>'
                '<td>%s</td></tr>' % bool(jobRow["has_inner_apptainer"]))
