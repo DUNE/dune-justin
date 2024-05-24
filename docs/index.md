@@ -20,6 +20,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [Jobscripts](jobscripts.md)
     - [Interactive testing](jobscripts.interactive_tests.md)
     - [Rapid Code Distribution Service](jobscripts.rcds.md)
+    - [Support for GPU jobscripts](jobscripts.gpu.md)
 
 ## System Components
 

@@ -1,0 +1,44 @@
+#!/bin/bash
+: <<'EOF'
+
+GPU Hello World jobscript for justIN
+
+Submit a workflow like this to run 10 jobs on workers with GPUs:
+
+justin simple-workflow --monte-carlo 10 --jobscript hello-world.jobscript --gpu
+
+Or like this to run jobs and put the output file into Rucio-managed storage:
+
+justin simple-workflow \
+     --monte-carlo 10 \
+     --jobscript hello-world.jobscript \
+     --gpu \
+     --description 'Hello GPU!!!' \
+     --scope usertests \
+     --output-pattern 'hello-world-*.txt:output-test-01'
+
+EOF
+
+# Check the GPU environment
+printenv | grep -i cuda
+nvidia-smi
+
+# Try to get an unprocessed file from this stage
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+
+if [ "$did_pfn_rse" != "" ] ; then
+  did=`echo $did_pfn_rse | cut -f1 -d' '`
+  pfn=`echo $did_pfn_rse | cut -f2 -d' '`
+  rse=`echo $did_pfn_rse | cut -f3 -d' '`
+
+  # Hello world to a txt file
+  echo "Hello world $pfn" >hello-world-`date +%s.%N.txt`
+
+  # Hello world to the jobscript log 
+  echo "Hello world $pfn" 
+  if [ $? = 0 ] ; then
+    # If echo returns 0, then say we processed the file successfully
+    echo "$pfn" > justin-processed-pfns.txt
+  fi
+fi
+exit 0

@@ -2448,7 +2448,7 @@ def showJob(environ, user, cgiValues):
                '<td colspan="2">%s</td></tr>'
                % spaceForUnixEpoch(jobRow["heartbeat_time"]))
       
-    output += ('<tr><td rowspan="7">From worker node</td><td>Hostname</td>'
+    output += ('<tr><td rowspan="8">From worker node</td><td>Hostname</td>'
                '<td>%s</td></tr>'
                % html.escape(jobRow["hostname"], quote=True))
   
@@ -2464,8 +2464,7 @@ def showJob(environ, user, cgiValues):
                '<td>%s</td></tr>'
                % jobRow["processors"])
 
-    if jobRow['gpu_info']:
-      output += ('<tr><td>GPU</td>'
+    output += ('<tr><td>GPU</td>'
                  '<td>%s</td></tr>'
                  % jobRow["gpu_info"])
 

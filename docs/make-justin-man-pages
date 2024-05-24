@@ -66,5 +66,5 @@ justin-webdav-upload command itself.
 EOF
 mandoc -T ascii ../commands/justin-webdav-upload.1 | col -b | sed 's/.*/    &/'
 
-) > jobscripts.webdav-upload.man_page.md
+) > justin-webdav-upload.man_page.md
 

@@ -720,7 +720,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
                            'processors=%d,' 
                            'wall_seconds=%d,'
                            'has_inner_apptainer=%s,'
-                           'gpu_info="" ' 
+                           'gpu_info="%s" ' 
                            'WHERE jobsub_id="%s" AND '
                            'workflow_id=%d AND stage_id=%d AND '
                            'job_state="submitted"' % 

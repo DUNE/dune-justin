@@ -105,7 +105,7 @@ This man page is distributed along with the
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
-    	      [--rss-mib N] [--processors N] [--max-distance DIST]
+    	      [--rss-mib N] [--processors N] [--gpu] [--max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]]
     	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
     	      NAME] [--lifetime-days DAYS] [--env NAME=VALUE] [--classad
@@ -136,7 +136,9 @@ This man page is distributed along with the
     	      $JUSTIN_RSS_MIB.	If the script can make use of multiple
     	      processors then --processors can be used to give the number
     	      needed, with a default of 1 if not given. The value used is
-    	      available to jobscripts as $JUSTIN_PROCESSORS.
+    	      available to jobscripts as $JUSTIN_PROCESSORS.  If given then
+    	      --gpu will require that jobs for this stage have access to a
+    	      GPU.
     
     	      By default, input files will only be allocated to a script which
     	      are on storages at the same site (distance=0). This can be
@@ -207,7 +209,7 @@ This man page is distributed along with the
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
-    	      [--rss-mib N] [--processors N] [--max-distance DIST]
+    	      [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
     	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
