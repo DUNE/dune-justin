@@ -317,6 +317,115 @@ def readConf():
   except:
     bannerMessage = ''
 
+def agentMainLoop(agentName, oneCycle, sleepSeconds):
+
+  os.chdir("/")
+  os.umask(0)
+
+  try:
+    os.makedirs(justinRunDir + '/last-updates',
+                stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
+                stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+  except:
+    pass
+        
+  try:
+    f = open('%s/%s.pid' % (justinRunDir, agentName), 'w')
+    f.write(str(os.getpid()) + '\n')
+    f.close()
+  except:
+    print('Failed to create %s/%s.pid - exiting'
+           % (justinRunDir, agentName))
+    sys.exit(1)
+
+  # Close stdin now
+  si = open('/dev/null', 'r')
+  os.dup2(si.fileno(), sys.stdin.fileno())
+
+  while True:
+
+    # Ensure /var/log/justin directory exists
+    try:
+      os.makedirs('/var/log/justin', 
+                  stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP
+                  |stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
+    except:
+      pass
+
+    # Close and reopen stdout->log file, in case of logrotate
+    try:
+      close(so)
+    except:
+      pass
+
+    so = open('/var/log/justin/%s' % agentName, 'a+')
+    os.dup2(so.fileno(), sys.stdout.fileno())
+
+    # Close and reopen stderr->log file, in case of logrotate
+    try:
+      close(se)
+    except:
+      pass
+          
+    se = open('/var/log/justin/%s' % agentName, 'a+')
+    os.dup2(se.fileno(), sys.stderr.fileno())
+
+    try:
+      pf = open('%s/%s.pid' % (justinRunDir, agentName), 'r')
+      pid = int(pf.read().strip())
+      pf.close()
+
+      if pid != os.getpid():
+        print('new %s/%s.pid - exiting' % (justinRunDir, agentName))
+        break
+
+    except:
+      print('no %s/%s.pid - exiting' % (justinRunDir, agentName))
+      break
+
+    # Fork a subprocess to run each cycle
+    cyclePid = os.fork()
+
+    if cyclePid == 0:
+      logLine('=============== Start cycle ===============')
+          
+      readConf()
+          
+      try:
+        conn = MySQLdb.connect(
+                         host   = socket.gethostbyname(mysqlHostname),
+                         user   = mysqlUsername,
+                         passwd = mysqlPassword,
+                         db     = mysqlDbName)
+        conn.autocommit(False)
+        cur = conn.cursor(MySQLdb.cursors.DictCursor)
+      except Exception as e:
+        logLine('Failed to create database connection (' + 
+                    str(e) + ') - skipping cycle')
+      else:
+        try:
+          p = pwd.getpwnam(agentUsername)
+          os.chown(justinRunDir + '/last-updates', p[2], p[3])
+          os.setgid(p[3])
+          os.setuid(p[2])
+          oneCycle()
+        except Exception as e:
+          print('Cycle fails with exception ' + str(e))
+
+        conn.close()
+
+      logLine('================ End cycle ================')
+      # The subprocess is only used for this one cycle
+      sys.exit(0)
+
+    # wait for cyclePid subprocess to finish
+    os.waitpid(cyclePid, 0)
+
+    # wait the allotted time between cycles
+    time.sleep(sleepSeconds)
+
+  sys.exit(0) # if we break out of the while loop then we exit
+
 def stringIsJobsubID(s):
   return re.search('[^A-Za-z0-9_.@-]', s) is None
 

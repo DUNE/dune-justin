@@ -1520,8 +1520,8 @@ def listGitReposToDo(startResponse):
   # to get its list of repos to work through.
 
   try:
-    rows = justin.select('SELECT workflow_id,stage_id,git_repo,git_commit,'
-                    'rcds_hash,rcds_path '
+    rows = justin.select('SELECT stages_git_repos.workflow_id,'
+                    'stages_git_repos.stage_id,git_repo,git_commit '
                     'FROM stages_git_repos '
                     'LEFT JOIN workflows '
                     'ON workflows.workflow_id=stages_git_repos.workflow_id '
