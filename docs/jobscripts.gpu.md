@@ -16,7 +16,7 @@ set to the UUID of the GPU allocated to your job by the site, in the newer form
 might be able to access: by default CUDA should respect `$CUDA_VISIBLE_DEVICES` as
 given and do what the site wants.
 
-Once the job starts, it reports to justIN information about the GPU it has
+Once the wrapper job starts, it reports to justIN information about the GPU it has
 discovered, including the GPU model name, the driver version, the compute
 capability, the VBIOS version, and the nonreserved memory in MiB. 
 This information is shown on the job's own page in the dashboard. 
