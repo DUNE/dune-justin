@@ -21,6 +21,9 @@
 # You can use this script to make a tar file which can be unpacked into
 # the DUNE products directory in cvmfs
 #
+# IF THIS IS A pro VERSION, replace the make line below:
+# testing/make-justin-ups --default
+#
 # So on the correct machine, you can do something like
 #
 # git clone https://github.com/DUNE/dune-justin.git
@@ -33,10 +36,6 @@
 # (upate pro, int, or dev symlink?)
 # cd
 # cvmfs_server publish dune.opensciencegrid.org
-#
-# If this is a pro version, replace the make line above:
-#
-# testing/make-justin-ups --default
 #
 
 export JUSTIN_VERSION=01.01.00

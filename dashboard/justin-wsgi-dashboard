@@ -861,7 +861,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   if userName:
     # If the user name was given explicitly, then we pass it on
     # Otherwise it is left out for subsequent next page etc clicks
-    queryList += '&user_name="%s"' % userName
+    queryList += '&user_name=%s' % userName
   else:
     # But userName must be set to something, even just --ANY--
     if user:
@@ -885,7 +885,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   else:
     if scopeName:
       whereList.append('scope_name="%s"' % scopeName)
-      queryList += '&scope_name="%s"' % scopeName
+      queryList += '&scope_name=%s' % scopeName
 
   try:
     workflowState = cgiValues["state"]
@@ -897,7 +897,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   else:
     if workflowState:
       whereList.append('state="%s"' % workflowState)
-      queryList += '&state="%s"' % workflowState
+      queryList += '&state=%s' % workflowState
 
   if whereList:
     whereString = ' WHERE ' + ' AND '.join(whereList)
