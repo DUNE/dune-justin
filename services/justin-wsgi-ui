@@ -1511,6 +1511,56 @@ def sitesStoragesInfo(startResponse):
                 ])
   return [output.encode('UTF-8')]
 
+# stages_git_repos SET '
+#                        'rcds_hash="%s",rcds_path
+
+def listGitReposToDo(startResponse):
+  # List the Git repos which are still to put in RCDS, from workflows
+  # still in the submitted state. This is accessed by the FNAL agent
+  # to get its list of repos to work through.
+
+  try:
+    rows = justin.select('SELECT workflow_id,stage_id,git_repo,git_commit,'
+                    'rcds_hash,rcds_path '
+                    'FROM stages_git_repos '
+                    'LEFT JOIN workflows '
+                    'ON workflows.workflow_id=stages_git_repos.workflow_id '
+                    'WHERE workflows.state="submitted" AND rcds_path="" '
+                    'ORDER BY workflow_id,stage_id')
+  except Exception as e:
+    output = 'SELECT failed: ' + str(e)
+    startResponse('500 Internal Server Error',
+                [('Content-type',  'text/plain'),
+                 ('Content-length', str(len(output)))
+                ])
+    return [output.encode('UTF-8')]
+
+  outputList = []
+  for row in rows:
+    outputList.append({ 'workflow_id' : row['workflow_id'],
+                        'stage_id'    : row['stage_id'],
+                        'git_repo'    : row['git_repo'],
+                        'git_commit'  : row['git_commit']
+                      })
+
+  output = json.dumps(outputList)
+  startResponse('200 OK',
+                [('Content-type',  'application/json'),
+                 ('Content-length', str(len(output)))
+                ])
+  return [output.encode('UTF-8')]
+
+def updateGitRepo(startResponse, jsonDict):
+  # Update one Git repo in the database after it has been processd by
+  # the FNAL agent
+
+  output = json.dumps({})
+  startResponse('200 OK',
+                [('Content-type',  'application/json'),
+                 ('Content-length', str(len(output)))
+                ])
+  return [output.encode('UTF-8')]
+
 #
 # Entry point from mod_wsgi
 #
@@ -1551,6 +1601,9 @@ def application(environ, startResponse):
   if environ['REQUEST_URI'] == '/api/info/sites_storages.csv':
     return sitesStoragesInfo(startResponse)
 
+  if environ['REQUEST_URI'] == '/api/fnal/git-repos-to-do':
+    return listGitReposToDo(startResponse)
+
   # Quickly reject random GETs etc (if not handled by Apache already)
   if environ['REQUEST_METHOD'] != 'POST':
     return httpError(startResponse, 
@@ -1566,6 +1619,9 @@ def application(environ, startResponse):
     return httpError(startResponse, 
                      '400 Bad Request', 
                      'Failed to read and parse JSON')
+
+  if environ['REQUEST_URI'] == '/api/fnal/git-repo-update':
+    return updateGitRepo(startResponse, jsonDict)
 
   # This returns an error if an authorized DN is not found
   user = getUser(jsonDict)

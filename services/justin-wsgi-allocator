@@ -1216,7 +1216,7 @@ def findBestFile(jobDict):
       try:
         getCacheLock('justin_allocator_file_cache', 0)
       except Exception as e:
-# THIS EXCEPTION WILL HAPPEN ALL THE TIME NORMALLY SO print() NOT FOR PROD
+# THIS EXCEPTION WILL HAPPEN ALL THE TIME NORMALLY SO print() NOT FOR PROD?
         # We didn't get the cache lock so we carry on with what was returned
         print('%s/%d/%d Did not get file cache lock: %s'
               % (jobDict['site_name'],
@@ -1258,9 +1258,14 @@ def findBestFile(jobDict):
     return { 'error_message': 'Failed recording state change: ' + str(e) }
 
   if affectedRows != 1:
-    return { 'error_message': 
-             'Failed to allocate the chosen file (%s): already allocated???'
-             % str(replicaRows[0]['file_did']) }
+# CAN WE GET RID OF THE RACE SCENARIO THAT PRODUCES THESE AT 0.3% LEVEL?
+# SOME LIMITED RETRYING OF THE OTHER RETURNED FILES?
+    print('Failed to allocate the chosen file (%s): already allocated???'
+          % str(replicaRows[0]['file_did'], file=sys.stderr)
+
+    # But we return as if no file was found
+    return { 'error_message': None,
+             'file_did'     : None  }
     
   justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED,
                      workflowID     = jobDict['workflow_id'],
