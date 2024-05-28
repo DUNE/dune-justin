@@ -1252,7 +1252,7 @@ def findBestFile(jobDict):
              "WHERE state='unallocated' AND "
              "file_id=" + str(replicaRows[0]['file_id'])
             )
-    affectedRows = justin.cur.execute(query)
+    affectedRows = justin.update(query)
   except Exception as e:
     # If anything goes wrong, we stop straightaway
     return { 'error_message': 'Failed recording state change: ' + str(e) }
