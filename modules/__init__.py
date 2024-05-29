@@ -317,6 +317,11 @@ def readConf():
   except:
     bannerMessage = ''
 
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid())
+                   + ']: ' + text + '\n')
+  sys.stdout.flush()
+
 def agentMainLoop(agentName, oneCycle, sleepSeconds):
 
   os.chdir("/")

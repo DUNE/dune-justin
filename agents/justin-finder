@@ -53,10 +53,6 @@ updateCondorJobs     = 3600
 class justinError(Exception):
   pass
 
-def logLine(text):
-  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
-  sys.stdout.flush()
-
 def addFilesMonteCarlo(workflowID, count):
   # Add dummy files to keep track of Monte Carlo processing
   
@@ -69,7 +65,7 @@ def addFilesMonteCarlo(workflowID, count):
 
       justin.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting dummy Monte Carlo file for workflow %d: %s' 
+      justin.logLine('Failed inserting dummy Monte Carlo file for workflow %d: %s' 
               % (workflowID, str(e)))
       return
 
@@ -82,7 +78,7 @@ def addFilesMonteCarlo(workflowID, count):
 
       justin.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting dummy Monte Carlo replica for workflow %d: %s' 
+      justin.logLine('Failed inserting dummy Monte Carlo replica for workflow %d: %s' 
                % (workflowID, str(e)))
       return
 
@@ -100,7 +96,7 @@ def findFilesRucio(didClient, workflowID, scope, name):
   try:
     didsList = didClient.list_files(scope, name)
   except Exception as e:
-    logLine("Reading file list from Rucio fails with: " + str(e))
+    justin.logLine("Reading file list from Rucio fails with: " + str(e))
     return
 
   for did in didsList:  
@@ -113,7 +109,7 @@ def findFilesRucio(didClient, workflowID, scope, name):
 
       justin.cur.execute(query)
     except Exception as e:
-      logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
+      justin.logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
       return
 
     justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
@@ -134,13 +130,13 @@ def findFilesMetaCat(workflowID, mql):
                      % justin.metacatServerInputsURL, data = mql.encode())
 
       if response.status != 200:
-        logLine("Reading files list from MetaCat fails with HTTP code "
+        justin.logLine("Reading files list from MetaCat fails with HTTP code "
                 + str(response.status))
         return
 
       fileLines = response.readlines()
     except Exception as e:    
-      logLine("Reading files list from MetaCat fails with: " + str(e))
+      justin.logLine("Reading files list from MetaCat fails with: " + str(e))
       
       if i > 1:
         # Try again as Metacat has transitory errors on large queries
@@ -159,7 +155,7 @@ def findFilesMetaCat(workflowID, mql):
     try:
       fileDict = json.loads(fileLine)
     except:
-      logLine("Parsing line from MetaCat fails with: " + str(e))
+      justin.logLine("Parsing line from MetaCat fails with: " + str(e))
       return
         
     try:
@@ -167,7 +163,7 @@ def findFilesMetaCat(workflowID, mql):
       name      = fileDict['name']
       size      = int(fileDict['size'])
     except:
-      logLine('Ignore file with invalid SCOPE:NAME/SIZE from MetaCat: '
+      justin.logLine('Ignore file with invalid SCOPE:NAME/SIZE from MetaCat: '
               + str(fileDict))
       continue
     
@@ -181,7 +177,7 @@ def findFilesMetaCat(workflowID, mql):
       justin.cur.execute(query)
       
     except Exception as e:
-      logLine('Failed inserting DID %:%s' % 
+      justin.logLine('Failed inserting DID %:%s' % 
               ( fileDict['namespace'], fileDict['name'] ))
       return
 
@@ -199,7 +195,7 @@ def findFiles():
   # By default we use MetaCat, but MQLs starting rucio-dataset or monte-carlo 
   # are handled directly.
 
-  logLine('Start of finding files')
+  justin.logLine('Start of finding files')
 
   query = ('SELECT workflow_id,mql,refind_seconds,'
            'UNIX_TIMESTAMP(refind_end_time) AS refind_end,'
@@ -222,7 +218,7 @@ def findFiles():
     refindEndTime  = int(workflow['refind_end'])
     refindSeconds  = int(workflow['refind_seconds'])
   
-    logLine('Finding files for Workflow %d with MQL %s (%d,%d,%d)' %
+    justin.logLine('Finding files for Workflow %d with MQL %s (%d,%d,%d)' %
             (workflow['workflow_id'], workflow['mql'],
              refindNextTime, refindEndTime, refindSeconds))
   
@@ -236,7 +232,7 @@ def findFiles():
        try:
          didClient = rucio.client.didclient.DIDClient()
        except Exception as e:
-         logLine("Connect to Rucio fails with: " + str(e))
+         justin.logLine("Connect to Rucio fails with: " + str(e))
          continue
 
       datasetSplit = mqlSplit[1].split(':')
@@ -282,7 +278,7 @@ def findFiles():
                           'WHERE workflow_id=%d AND state="running"' 
                           % (refindNextTime, workflow['workflow_id']))
     except Exception as e:
-      logLine("Update workflow %d refind_next_time fails with: %s" 
+      justin.logLine("Update workflow %d refind_next_time fails with: %s" 
               % (workflow['workflow_id'],  str(e)))
       continue
 
@@ -291,7 +287,7 @@ def findFiles():
 def findReplicas():
   # Find replicas of files in the finding state
 
-  logLine('Start findng replicas')
+  justin.logLine('Start findng replicas')
 
   query = (
     'SELECT workflows.workflow_id,stages.stage_id '
@@ -306,16 +302,16 @@ def findReplicas():
   try:
     stageRow = justin.select(query, justOne = True)
   except Exception as e:
-    logLine('Finding workflow/stage to find replicas for fails: %s' % str(e))
+    justin.logLine('Finding workflow/stage to find replicas for fails: %s' % str(e))
     return
 
   if not stageRow:
-    logLine('No files with replicas to be found')
+    justin.logLine('No files with replicas to be found')
     return
 
   workflowID = stageRow['workflow_id']
   stageID   = stageRow['stage_id']
-  logLine('Looking for replicas in finding state for workflow=%d stage=%d'
+  justin.logLine('Looking for replicas in finding state for workflow=%d stage=%d'
           % (workflowID, stageID))
 
   # Make a list of up to maxFileFindsPerCycle files to work on 
@@ -336,19 +332,19 @@ def findReplicas():
            % (workflowID, stageID, maxFileFindsPerCycle))
 
   except Exception as e:
-    logLine('Finding list of files to find fails: ' + str(e))
+    justin.logLine('Finding list of files to find fails: ' + str(e))
     return
   
   # Nothing to do
   if not fileRows:
-    logLine('No files found in finding state')
+    justin.logLine('No files found in finding state')
     return
 
   # Check we can talk to Rucio
   try:
     repClient = rucio.client.replicaclient.ReplicaClient()
   except Exception as e:
-    logLine("Connect to Rucio fails with: " + str(e))
+    justin.logLine("Connect to Rucio fails with: " + str(e))
     return
 
   # Cache rse_id of every known RSE into a local dictionary
@@ -384,7 +380,7 @@ def findReplicas():
                                           domain='lan')
 
   except Exception as e:
-    logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
+    justin.logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
     return
 
   # Make a dictionary with DIDs as keys and lists of replicas from Rucio
@@ -404,7 +400,7 @@ def findReplicas():
   for fileRow in fileRows:
     if fileRow['file_did'] not in repsDict:
       # No replicas for this file! All deleted?
-      logLine('File (%d,%d,%s) has no replicas in Rucio' %
+      justin.logLine('File (%d,%d,%s) has no replicas in Rucio' %
                 (fileRow['workflow_id'], 
                  fileRow['stage_id'],
                  fileRow['file_did']))
@@ -414,7 +410,7 @@ def findReplicas():
       try:
         justin.cur.execute(query)
       except Exception as e:
-        logLine('Failed setting file (%d,%d,%s) to notfound: %s' %
+        justin.logLine('Failed setting file (%d,%d,%s) to notfound: %s' %
                 (fileRow['workflow_id'], 
                  fileRow['stage_id'],
                  fileRow['file_did'],
@@ -471,7 +467,7 @@ def findReplicas():
         
         if workflowID == justin.awtWorkflowID:
           try:
-            logLine('Try to update AWT file: %s %s' % (wanPFN, lanPFN))
+            justin.logLine('Try to update AWT file: %s %s' % (wanPFN, lanPFN))
           
             # For AWT, if the file is put back into finding then we can
             # update the replicas with change PFNs from Rucio
@@ -492,7 +488,7 @@ def findReplicas():
             pass
 
           try:
-            logLine('Try to insert AWT file: %s %s' 
+            justin.logLine('Try to insert AWT file: %s %s' 
                     % (wanPFN, lanPFN))
 
             query = ('INSERT INTO replicas SET '
@@ -538,7 +534,7 @@ def findReplicas():
                             rseID = storagesDict[rse]['rse_id'])
    
           except Exception as e:
-            logLine('Failed inserting replica: ' + str(e))
+            justin.logLine('Failed inserting replica: ' + str(e))
             # We give up if this happens, without the commit
             return
 
@@ -551,7 +547,7 @@ def findReplicas():
 
         justin.cur.execute(query)
       except Exception as e:
-        logLine('Failed updating file (%d,%d,%s): %s' %
+        justin.logLine('Failed updating file (%d,%d,%s): %s' %
                 (fileRow['workflow_id'],
                  fileRow['stage_id'],
                  fileRow['file_did'],
@@ -565,7 +561,7 @@ def findReplicas():
 
         justin.cur.execute(query)
       except Exception as e:
-        logLine('Failed updating file (%d,%d,%s): %s' %
+        justin.logLine('Failed updating file (%d,%d,%s): %s' %
                 (fileRow['workflow_id'], 
                  fileRow['stage_id'],
                  fileRow['file_did'],
@@ -636,23 +632,23 @@ def uploadRcdsTarfile(rcdsServer, hashString, tarFileContents):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
   except Exception as e:
-    logLine('RCDS upload fails: ' + str(e))
+    justin.logLine('RCDS upload fails: ' + str(e))
     return False
 
   try:
     responseString = response.read().decode('utf-8')
   except Exception as e:
-    logLine('Failed getting RCDS upload response string: ' + str(e))
+    justin.logLine('Failed getting RCDS upload response string: ' + str(e))
     return False
 
-  logLine('RCDS upload response: ' + responseString)
+  justin.logLine('RCDS upload response: ' + responseString)
 
   if response.status != 200:
-    logLine('RCDS upload fails with HTTP code %d' % response.status)
+    justin.logLine('RCDS upload fails with HTTP code %d' % response.status)
     return False
   
   if responseString[:2] != 'OK':
-    logLine('RCDS upload does not respond with OK')
+    justin.logLine('RCDS upload does not respond with OK')
     return False
     
   return True
@@ -690,7 +686,7 @@ def checkGitRepo(workflowID = None, stageID = None,
     if ret:
       raise RuntimeError('git clone / tar returns error %d' % ret)
   except Exception as e:
-    logLine('Failed to do git clone / tar creation: ' + str(e))
+    justin.logLine('Failed to do git clone / tar creation: ' + str(e))
     return None
 
   try:
@@ -698,11 +694,11 @@ def checkGitRepo(workflowID = None, stageID = None,
     tarFileContents = open(tmpDir.name + '/tmp.tar', 'rb').read()
     rcdsHash        = hashlib.sha1(tarFileContents).hexdigest()
   except Exception as e:
-    logLine('Failed to read and hash tar file tmp.tar: ' + str(e))
+    justin.logLine('Failed to read and hash tar file tmp.tar: ' + str(e))
     return None
 
   if not uploadRcdsTarfile(rcdsServer, rcdsHash, tarFileContents):
-    logLine('Failed to upload tar file to RCDS for w%ds%d' 
+    justin.logLine('Failed to upload tar file to RCDS for w%ds%d' 
             % (workflowID, stageID))
     return None
     
@@ -721,7 +717,7 @@ def checkGitRepo(workflowID = None, stageID = None,
 def findSubmittedWorkflows():
   # Find workflows waiting in the submitted state and set them to running
 
-  logLine('Start of finding submitted workflows')
+  justin.logLine('Start of finding submitted workflows')
 
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
@@ -737,28 +733,28 @@ def findSubmittedWorkflows():
                     'WHERE workflows.state="submitted" '
                     'ORDER BY workflows.workflow_id')
   except:
-    logLine('Failed to get list of submitted workflows')
+    justin.logLine('Failed to get list of submitted workflows')
     return
 
-  logLine('Submitted workflows %d' % len(workflows))
+  justin.logLine('Submitted workflows %d' % len(workflows))
 
   for workflow in workflows:
-    logLine('workflow: ' + str(workflow))
+    justin.logLine('workflow: ' + str(workflow))
     try:
       processSubmittedWorkflow(workflow)
     except Exception as e:
       justin.conn.rollback()
-      logLine('Failed to process submitted workflow %d : %s'
+      justin.logLine('Failed to process submitted workflow %d : %s'
               % (workflow['workflow_id'], str(e)))
     else:      
-      logLine('Processed submitted workflow %d' % workflow['workflow_id'])
+      justin.logLine('Processed submitted workflow %d' % workflow['workflow_id'])
       justin.conn.commit()
 
 def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
 
   workflowID = workflow['workflow_id']
-  logLine('Processing submitted w%d' % workflowID)
+  justin.logLine('Processing submitted w%d' % workflowID)
 
   try:
     condorGroupID = int(workflow['condor_group_id'])
@@ -772,7 +768,7 @@ def processSubmittedWorkflow(workflow):
 
   for stage in stages:
     stageID = stage['stage_id']
-    logLine('Processing submitted w%ds%d' % (workflowID, stageID))
+    justin.logLine('Processing submitted w%ds%d' % (workflowID, stageID))
 
     stagesOutputStorages = justin.select(
         'SELECT rse_name FROM stages_output_storages '
@@ -793,7 +789,7 @@ def processSubmittedWorkflow(workflow):
 
     for stageOutput in stagesOutputs:
       if not stageOutput['destination'].startswith('https://'):
-        logLine('Processing submitted w%ds%dp%d' 
+        justin.logLine('Processing submitted w%ds%dp%d' 
                 % (workflowID, stageID, stageOutput['pattern_id']))
         # A Rucio dataset
 
@@ -844,12 +840,12 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
   # Create missing main pattern dataset and per-RSE datasets
   # All exceptions will be caught by the caller
   
-  logLine('Try to create DID and Rule Rucio clients')
+  justin.logLine('Try to create DID and Rule Rucio clients')
   didClient  = rucio.client.didclient.DIDClient()
   ruleClient = rucio.client.ruleclient.RuleClient()
 
   # Try to create the pattern's dataset in MetaCat
-  logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
+  justin.logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
 
   # Temporary file to pass to metacat command 
   (fd, metadataFile) = tempfile.mkstemp(text = True)
@@ -871,7 +867,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
   
   # Try to create the pattern's dataset in Rucio if not already there
   try:
-    logLine('Try to add Rucio dataset %s:%s' % (scopeName, destination))
+    justin.logLine('Try to add Rucio dataset %s:%s' % (scopeName, destination))
     ret = didClient.add_dataset(scope = scopeName, name = destination)
   except rucio.common.exception.DataIdentifierAlreadyExists:
     pass
@@ -884,7 +880,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
   for rseName in rseNames:
     # Try to create the per-RSE dataset in MetaCat
     datasetForRSE = 'w%ds%dp%d-%s' % (workflowID, stageID, patternID, rseName)
-    logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetForRSE))
+    justin.logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetForRSE))
     ret = executeMetaCatCommand('dataset create %s:%s' 
                                 % (scopeName, datasetForRSE))
     # Carry on regardless if ret != 0 since we can't tell from the metacat 
@@ -893,7 +889,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
  
     # Try to create the pattern's dataset in Rucio if not already there
     try:
-      logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetForRSE))
+      justin.logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetForRSE))
       ret = didClient.add_dataset(scope = scopeName, name = datasetForRSE)
     except rucio.common.exception.DataIdentifierAlreadyExists:
       pass
@@ -903,7 +899,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
                                % (scopeName, datasetForRSE))
 
     # Create a rule for the new per-RSE dataset
-    logLine('Try to add rule for %s:%s' % (scopeName, datasetForRSE))
+    justin.logLine('Try to add rule for %s:%s' % (scopeName, datasetForRSE))
     try:
       ret = ruleClient.add_replication_rule(
                      dids = [ {'scope' : scopeName,
@@ -913,19 +909,19 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
                      lifetime = lifetimeSeconds)
     except rucio.common.exception.DuplicateRule:
       # Cannot create rule now because already exists - dev/int instance?
-      logLine('Failed to create rule for %s as a duplicate - skipping' 
+      justin.logLine('Failed to create rule for %s as a duplicate - skipping' 
               % datasetForRSE)
     except rucio.common.exception.RSEOverQuota:
       # Cannot create rule now because RSE is currently over quota
       # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
       # ADD RULE LATER SOMEHOW??? 
-      logLine('Failed to create rule for %s as over quota - skipping' 
+      justin.logLine('Failed to create rule for %s as over quota - skipping' 
               % datasetForRSE)
     except rucio.common.exception.RSEWriteBlocked:
       # Cannot create rule now because RSE is currently not writeable
       # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
       # ADD RULE LATER SOMEHOW??? 
-      logLine('Failed to create rule for %s as write disabled - skipping' 
+      justin.logLine('Failed to create rule for %s as write disabled - skipping' 
               % datasetForRSE)
     else:
       if not ret:
@@ -948,7 +944,7 @@ def createWorkflowGitRepos(workflowID):
 
     gitRepoRows = justin.select(query) 
   except Exception as e:
-    logLine('Exception finding git_repos: %s' % str(e))
+    justin.logLine('Exception finding git_repos: %s' % str(e))
     return
 
   for gitRepoRow in gitRepoRows:
@@ -958,7 +954,7 @@ def createWorkflowGitRepos(workflowID):
                            gitCommit  = gitRepoRow['git_commit'])
     
     if not retDict:
-      logLine('Failed to check git repo / RCDS - exit for now')
+      justin.logLine('Failed to check git repo / RCDS - exit for now')
       return
     
     justin.insertUpdate('UPDATE stages_git_repos SET '
@@ -973,7 +969,7 @@ def createWorkflowGitRepos(workflowID):
 def findFinishedWorkflows():
   # Find workflows with all files in terminal states and set to finished
 
-  logLine('Start of finding finished workflows')
+  justin.logLine('Start of finding finished workflows')
 
   try:
     query = ('SELECT workflow_id FROM workflows '
@@ -983,11 +979,11 @@ def findFinishedWorkflows():
 
     findingWorkflows = justin.cur.fetchall()
   except:
-    logLine('Failed to get list of running workflows')
+    justin.logLine('Failed to get list of running workflows')
     return
     
   if not findingWorkflows:
-    logLine('No running workflows to check')
+    justin.logLine('No running workflows to check')
     return
 
   for workflow in findingWorkflows:
@@ -1005,13 +1001,13 @@ def findFinishedWorkflows():
       justin.cur.execute(query)
       count = int(justin.cur.fetchone()['count'])
     except Exception as e:
-      logLine('Failed to count non-terminal files for Workflow ID %d: %s' % 
+      justin.logLine('Failed to count non-terminal files for Workflow ID %d: %s' % 
               (workflow['workflow_id'], str(e)))
       continue
 
     if count > 0:
       # Some files have not reached terminal states
-      logLine('Still non-terminal files for Workflow ID %d (%d)' % 
+      justin.logLine('Still non-terminal files for Workflow ID %d (%d)' % 
               (workflow['workflow_id'], count))
       continue
     
@@ -1021,17 +1017,17 @@ def findFinishedWorkflows():
     
       justin.cur.execute(query)
     except:
-      logLine('Failed to update state to finished for Workflow ID %d' % 
+      justin.logLine('Failed to update state to finished for Workflow ID %d' % 
               workflow['workflow_id'])
       continue
 
-    logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
+    justin.logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
   justin.conn.commit()
 
 def findProblemWorkflows():
   # Find problem workflows using counts of job states and pause them
 
-  logLine('Start of finding problem workflows')
+  justin.logLine('Start of finding problem workflows')
 
   try:
     query = ('SELECT jobs.workflow_id,job_state,count(*) AS count FROM jobs '
@@ -1041,11 +1037,11 @@ def findProblemWorkflows():
 
     runningWorkflows = justin.select(query)
   except:
-    logLine('Failed to get list of running workflows')
+    justin.logLine('Failed to get list of running workflows')
     return
     
   if not runningWorkflows:
-    logLine('No running workflows to check for problems')
+    justin.logLine('No running workflows to check for problems')
     return
 
   # Assemble job state counts in a dictionary
@@ -1109,11 +1105,11 @@ def findProblemWorkflows():
         justin.logEvent(eventTypeID = pauseEvent, workflowID = workflowID)
         
       except:
-        logLine('Failed to update state to paused for Workflow ID %d' % 
+        justin.logLine('Failed to update state to paused for Workflow ID %d' % 
                 workflowID)
         continue
       else:
-        logLine('Workflow ID %d set to paused' % workflowID)
+        justin.logLine('Workflow ID %d set to paused' % workflowID)
 
   justin.conn.commit()
 
@@ -1138,7 +1134,7 @@ def resetFilesForJob(justinJobID,
 
       fileRows = justin.cur.fetchall()
     except:
-      logLine('Failed to get list of files of the stalled or aborted job')
+      justin.logLine('Failed to get list of files of the stalled or aborted job')
       # We should give up at this point rather than commit a mess?
       sys.exit(0)
     
@@ -1161,7 +1157,7 @@ def resetFilesForJob(justinJobID,
 
           affectedRows = justin.cur.execute(query)
         except:
-          logLine('Failed to set file %s to failed in '
+          justin.logLine('Failed to set file %s to failed in '
                   'workflow %d, stage %d after job %s' 
                   % (fileRow['file_did'], workflowID, 
                      stageID, jobsubID))
@@ -1190,7 +1186,7 @@ def resetFilesForJob(justinJobID,
 
           affectedRows = justin.cur.execute(query)
         except:
-          logLine('Failed to set file %s to unallocated in '
+          justin.logLine('Failed to set file %s to unallocated in '
                   'workflow %d, stage %d after job %s' 
                   % (fileRow['file_did'], workflowID, 
                      stageID, jobsubID))
@@ -1209,7 +1205,7 @@ def resetFilesForJob(justinJobID,
                           siteID = siteID,
                           entryID = entryID)
 
-          logLine('Reset file %s in %d,%d to unallocated for job %s' % 
+          justin.logLine('Reset file %s in %d,%d to unallocated for job %s' % 
                   (fileRow['file_did'], workflowID,
                   stageID, jobsubID))
 
@@ -1222,7 +1218,7 @@ def findStalledAbortedJobs():
   #
   # We handle bad waiting jobs in findStalledCondorJobs()
 
-  logLine('Start of finding stalled and aborted jobs')
+  justin.logLine('Start of finding stalled and aborted jobs')
 
   try:
     query = ('SELECT workflow_id,stage_id,justin_job_id,jobsub_id,site_id,'
@@ -1241,11 +1237,11 @@ def findStalledAbortedJobs():
 
     jobRows = justin.cur.fetchall()
   except Exception as e:
-    logLine('Failed to get list of stalled or aborted jobs: ' + str(e))
+    justin.logLine('Failed to get list of stalled or aborted jobs: ' + str(e))
     return
     
   if not jobRows:
-    logLine('No stalled or aborted jobs to process')
+    justin.logLine('No stalled or aborted jobs to process')
     return
 
   for jobRow in jobRows:
@@ -1260,11 +1256,11 @@ def findStalledAbortedJobs():
     
         justin.cur.execute(query)
       except Exception as e: 
-        logLine('Failed to set job %s to stalled: %s' 
+        justin.logLine('Failed to set job %s to stalled: %s' 
               % (jobRow['jobsub_id'], str(e)))
         continue
 
-      logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
+      justin.logLine('Job %s set to stalled from %s' % (jobRow['jobsub_id'], 
                                                  jobRow['job_state']))
     
       justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HEARTBEAT,
@@ -1281,7 +1277,7 @@ def findStalledAbortedJobs():
     
         justin.cur.execute(query)
       except Exception as e: 
-        logLine('Failed to set job %s to has_allocations=FALSE: %s' 
+        justin.logLine('Failed to set job %s to has_allocations=FALSE: %s' 
               % (jobRow['jobsub_id'], str(e)))
         continue
 
@@ -1320,21 +1316,21 @@ def oidcRefreshRequest(refreshToken):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
   except Exception as e:
-    logLine('OIDC tokens HTTP refresh workflow fails: ' + str(e))
+    justin.logLine('OIDC tokens HTTP refresh workflow fails: ' + str(e))
     return None
   else:
     if response.status != 200:
-      logLine('OIDC tokens HTTP response not 200, code=%d' % response.status)
+      justin.logLine('OIDC tokens HTTP response not 200, code=%d' % response.status)
       return None
 
   try:
     responseData = response.read().decode('utf-8')
     responseDict = json.loads(responseData)
   except Exception as e:
-    logLine('OIDC tokens refresh workflow failed loading json: '+str(e))
+    justin.logLine('OIDC tokens refresh workflow failed loading json: '+str(e))
     return None
 
-  logLine('responseDict=' + str(responseDict))
+  justin.logLine('responseDict=' + str(responseDict))
 
   try:
     tokensDict = {} 
@@ -1348,14 +1344,14 @@ def oidcRefreshRequest(refreshToken):
 
     tokensDict['refresh_token'] = responseDict['refresh_token']
   except Exception as e:
-    logLine('OIDC tokens parsing fails: '+str(e))
+    justin.logLine('OIDC tokens parsing fails: '+str(e))
     return None
   else:
     return tokensDict
 
 def findTokensToRefresh():
 
-  logLine('Start of finding tokens to refresh')
+  justin.logLine('Start of finding tokens to refresh')
 
   try:
     query = ('SELECT users.user_id,principal_name,refresh_token '
@@ -1374,13 +1370,13 @@ def findTokensToRefresh():
     rows = justin.select(query)
 
   except Exception as e:
-    logLine('Failed to find tokens: ' + str(e))
+    justin.logLine('Failed to find tokens: ' + str(e))
     return
 
   for row in rows:
-    logLine(str(row))
+    justin.logLine(str(row))
     tokensDict = oidcRefreshRequest(row['refresh_token'])
-    logLine(str(tokensDict))
+    justin.logLine(str(tokensDict))
     
     try:
       accessToken        = tokensDict['access_token']
@@ -1409,11 +1405,11 @@ def findTokensToRefresh():
       justin.insertUpdate(query)
     
     except Exception as e:
-      logLine('Failed storing refreshed tokens for %s: %s' 
+      justin.logLine('Failed storing refreshed tokens for %s: %s' 
               % (row['principal_name'], str(e)))
       
     else:
-      logLine('Tokens refreshed for %s' % row['principal_name'])
+      justin.logLine('Tokens refreshed for %s' % row['principal_name'])
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
@@ -1421,7 +1417,7 @@ def findTokensToRefresh():
 # Remove stale values from caches
 def manageCaches():
 
-  logLine('Start of manage caches')
+  justin.logLine('Start of manage caches')
 
   # Remove stale rank cache entries
   try:
@@ -1429,14 +1425,14 @@ def manageCaches():
                         'WHERE cache_time < DATE_SUB(NOW(),INTERVAL %d SECOND)'
                         % justin.sitesRankCacheStale)
   except Exception as e:
-    logLine('Delete stale sites rank cache rows fails: ' + str(e))
+    justin.logLine('Delete stale sites rank cache rows fails: ' + str(e))
             
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
 def findStalledCondorJobs():
 
-  logLine('Start of finding stalled HTCondor jobs')
+  justin.logLine('Start of finding stalled HTCondor jobs')
 
   nowTime = int(time.time())
 
@@ -1471,19 +1467,19 @@ def findStalledCondorJobs():
                timeout  = 120
                             ) 
     except Exception as e:
-      logLine("condor_q fails with error: " + str(e))
+      justin.logLine("condor_q fails with error: " + str(e))
       return
 
-    logLine('condor_q exit code: ' + str(outcome.returncode))
+    justin.logLine('condor_q exit code: ' + str(outcome.returncode))
     
     if outcome.returncode != 0:
-      logLine("condor_q fails with return code %d" % outcome.returncode)
+      justin.logLine("condor_q fails with return code %d" % outcome.returncode)
       return
 
     try:
       jsonJobs = json.loads(outcome.stdout)
     except:
-      logLine('Failed to load JSON output by condor_q')
+      justin.logLine('Failed to load JSON output by condor_q')
       return
 
     for jsonJob in jsonJobs:  
@@ -1501,7 +1497,7 @@ def findStalledCondorJobs():
 
   if not condorJobs:
     # If we get nothing at all then something must be going wrong
-    logLine('Failed to find any job info from HTCondor')
+    justin.logLine('Failed to find any job info from HTCondor')
     return
 
   # Go back to the list of jobs from the database and check each one
@@ -1511,7 +1507,7 @@ def findStalledCondorJobs():
     
     if dbJobRow['jobsub_id'] not in condorJobs:
       # if Condor is unaware of the job, then it's stalled
-      logLine('Job %s is not known to HTCondor - marking as stalled' 
+      justin.logLine('Job %s is not known to HTCondor - marking as stalled' 
               % dbJobRow['jobsub_id'])
       stalled = True
       
@@ -1526,7 +1522,7 @@ def findStalledCondorJobs():
            jobStatus == justin.htcondorCOMPLETED or 
            (jobStatus == justin.htcondorHELD and 
             dbJobRow['job_state'] != 'submitted'))):
-          logLine('Job %s is in HTCondor state %d - marking as stalled' %
+          justin.logLine('Job %s is in HTCondor state %d - marking as stalled' %
                 (dbJobRow['jobsub_id'], jobStatus))
           stalled = True
         
@@ -1538,7 +1534,7 @@ def findStalledCondorJobs():
               'job_state IN ("submitted","started","processing","outputting")'
               % dbJobRow['justin_job_id'])
       except Exception as e:
-        logLine('Failed to update stalled job - exiting')
+        justin.logLine('Failed to update stalled job - exiting')
         sys.exit(0)
 
       justin.logEvent(eventTypeID = justin.event_JOB_STALLED_HTCONDOR,
@@ -1584,4 +1580,4 @@ def oneCycle():
 #
 
 if __name__ == '__main__':
-  agentMainLoop('finder', oneCycle, sleepSeconds)
+  justin.agentMainLoop('finder', oneCycle, sleepSeconds)
