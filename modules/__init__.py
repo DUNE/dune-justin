@@ -24,6 +24,7 @@ import re
 import sys
 import time
 import json
+import socket
 import random
 import string
 import tarfile
