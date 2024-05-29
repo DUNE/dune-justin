@@ -21,6 +21,7 @@ __all__ = [ 'justin_version', 'events_list' ]
 import os
 import io
 import re
+import pwd
 import sys
 import time
 import json
@@ -324,6 +325,8 @@ def logLine(text):
   sys.stdout.flush()
 
 def agentMainLoop(agentName, oneCycle, sleepSeconds):
+
+  global conn, cur
 
   os.chdir("/")
   os.umask(0)
