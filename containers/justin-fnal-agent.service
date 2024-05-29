@@ -1,0 +1,17 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN FNAL Agent Container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStop=-/usr/bin/docker stop %N
+ExecStartPre=-/usr/bin/docker stop %N
+ExecStartPre=-/usr/bin/docker rm %N
+ExecStart=/usr/sbin/justin-docker-wrapper justin-fnal-agent
+
+[Install]
+WantedBy=multi-user.target

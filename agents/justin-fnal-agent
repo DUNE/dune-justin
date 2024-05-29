@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# justin-finder - justIN Finder agent
+# justin-fnal-agent - justIN FNAL agent
 #
 # Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
@@ -1583,4 +1583,4 @@ def oneCycle():
 #
 
 if __name__ == '__main__':
-  justin.agentMainLoop('finder', oneCycle, sleepSeconds)
+  justin.agentMainLoop('fnal-agent', oneCycle, sleepSeconds)
