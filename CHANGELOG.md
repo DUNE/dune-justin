@@ -1,5 +1,9 @@
 # Changelog
 
+## 01.01.01
+- Backport fixes frm 01.02 (finder rollbacks, PFN sizes in DB, AWT query
+  ambiguity.)
+
 ## 01.01.00
 - justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched02.dune.hep.ac.uk
   included in defaults

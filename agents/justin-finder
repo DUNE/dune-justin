@@ -420,6 +420,7 @@ def findReplicas():
                  fileRow['file_did'],
                  str(e)))
         # We give up if this happens, without the commit
+        justin.conn.rollback()
         return
         
       continue
@@ -540,6 +541,7 @@ def findReplicas():
           except Exception as e:
             logLine('Failed inserting replica: ' + str(e))
             # We give up if this happens, without the commit
+            justin.conn.rollback()
             return
 
     if replicasInserted:
@@ -557,6 +559,7 @@ def findReplicas():
                  fileRow['file_did'],
                  str(e)))
         # We give up if this happens, without the commit
+        justin.conn.rollback()
         return
     else:
       try:
@@ -571,6 +574,7 @@ def findReplicas():
                  fileRow['file_did'],
                  str(e)))
         # We give up if this happens, without the commit
+        justin.conn.rollback()
         return
     
   # All ok, so commit it all to the DB
