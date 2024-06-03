@@ -3761,7 +3761,7 @@ def listEvents(environ, user, cgiValues, pageNumber, pageLength):
     awtEvents = ''
   else:
     if awtEvents:
-      whereList.append('event_type_id IN (%d,%d,%d,%d)' 
+      whereList.append('events.event_type_id IN (%d,%d,%d,%d)' 
                        % (justin.event_AWT_READ_OK,
                           justin.event_AWT_READ_FAIL,
                           justin.event_AWT_WRITE_OK,
