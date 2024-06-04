@@ -787,7 +787,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     wallSeconds = 80000
 
   try:
-    rssBytes = int(jsonDict['rss_mb']) * 1024 * 1024
+    rssBytes = int(jsonDict['rss_mib']) * 1024 * 1024
   except:
     rssBytes = 2000 * 1024 * 1024
 

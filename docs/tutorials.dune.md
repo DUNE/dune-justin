@@ -157,7 +157,7 @@ VD coldbox files. For this tutorial though, please use these commands:
     --jobscript-git \
        DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
     --max-distance 30 \
-    --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
+    --rss-mib 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
     
 What is this doing?
@@ -173,7 +173,7 @@ command line itself.
 4. `--max-distance 30` says that only replicas of files within a distance of
 30 from where the job is running will be considered. In practice, 30 means 
 within North America or within Europe, but not from one to the other. 
-5. `--rss-mb 4000` asks for 4000 MiB of memory. Since `--processors` is not
+5. `--rss-mib 4000` asks for 4000 MiB of memory. Since `--processors` is not
 given, the default of 1 processor is workflowed.
 6. `--env NUM_EVENTS=1` sets the environment variable NUM_EVENTS. If you
 look back at the jobscript you will see this variable causes LArSoft to
@@ -230,7 +230,7 @@ Fermilab username.
     --jobscript-git \
        DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
     --max-distance 30 \
-    --rss-mb 4000 --env NUM_EVENTS=1 \
+    --rss-mib 4000 --env NUM_EVENTS=1 \
     --output-pattern "*_reco_data_*.root:$FNALURL/$USERF"
 
 If you are on a dunegpvm machine, you can view the output directory
@@ -330,7 +330,7 @@ simple-workflow with these options:
     justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
-    --rss-mb 4000 --env NUM_EVENTS=1 --scope usertests \
+    --rss-mib 4000 --env NUM_EVENTS=1 --scope usertests \
     --output-pattern '*_reco_data_*.root:output-test-01'
 
 As you can see, you just need to change the whole
