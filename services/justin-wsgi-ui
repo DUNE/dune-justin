@@ -588,6 +588,7 @@ def createWorkflow(jsonDict, user, simple = False):
   try:
     workflowID = justin.insertUpdate('INSERT INTO workflows SET created=NOW(),'
           'state="%s",'
+          'state_message="Created by %s",'
           '%s'
           'description="%s",'
           'mql="%s",'
@@ -597,6 +598,7 @@ def createWorkflow(jsonDict, user, simple = False):
           'refind_seconds=%d,'
           'refind_end_time="%s" '
           % ('submitted' if simple else 'draft',
+             user['user_name'],
              'submitted=NOW(),' if simple else '',
              description,
              mql,
@@ -692,7 +694,7 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
 
     # Submitting updates user_id to the person who actually submitted it
     query = ("UPDATE workflows SET "
-             "state='submitted',submitted=NOW(),user_id=%d "
+             "state='submitted',state_message='',submitted=NOW(),user_id=%d "
              "WHERE workflow_id=%d AND state='draft'" 
              % (workflowID, user['user_id']))
 
@@ -702,9 +704,10 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                        '403 Forbidden',
                        'You cannot restart a workflow that is not paused')
 
-    query = ("UPDATE workflows SET state='running' "
+    query = ("UPDATE workflows SET state='running',"
+             "state_message='Restarted by %s' "
              "WHERE workflow_id=%d AND state='paused'"
-             % workflowID)
+             % (user['user_name'], workflowID))
 
   elif jsonDict['command'] == 'pause-workflow':
     if workflowState != 'running':
@@ -712,9 +715,10 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                        '403 Forbidden',
                        'You cannot pause a workflow that is not running')
 
-    query = ("UPDATE workflows SET state='paused' "
+    query = ("UPDATE workflows SET state='paused',"
+             "state_message='Paused by %s' "
              "WHERE workflow_id=%d "
-             "AND state='running'" % workflowID)
+             "AND state='running'" % (user['user_name'], workflowID))
 
   elif jsonDict['command'] == 'finish-workflow':
     if workflowState not in ('running','submitted','draft'):
@@ -722,10 +726,11 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                        '403 Forbidden',
                        'You cannot finish a workflow that is not running')
 
-    query = ("UPDATE workflows SET state='finished',finished=NOW() "
+    query = ("UPDATE workflows SET state='finished',finished=NOW(),"
+             "state_message='Finished by %s' "
              "WHERE workflow_id=%d "
              "AND (state='running' OR state='submitted' OR state='draft')" 
-             % workflowID)
+             % (user['user_name'], workflowID))
 
   try:
     justin.insertUpdate(query)
