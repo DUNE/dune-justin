@@ -19,6 +19,13 @@
 # All processes get this defined
 echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 
+# Create a set of VOMS proxies
+/etc/cron.daily/justin-create-x509-proxies
+
+# Start crond (just to refresh VOMS proxies?)
+/usr/sbin/crond
+
+
 # Run daemon in the foreground
 if [ -x /var/run/justin/overrides/justin-fnal-agent ] ; then
   /var/run/justin/overrides/justin-fnal-agent

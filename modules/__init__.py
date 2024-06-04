@@ -75,6 +75,8 @@ awtWorkflowID = None
 
 bannerMessage = None
 
+rcdsServers = None
+
 ## Global database connection
 conn = None
 cur  = None
@@ -165,7 +167,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         awtWorkflowID, bannerMessage
+         awtWorkflowID, bannerMessage, rcdsServers
 
   parser = configparser.RawConfigParser()
 
@@ -313,11 +315,16 @@ def readConf():
     metacatServerOutputsURL ='https://metacat.fnal.gov:9443/dune_meta_prod/app'
 
   # Dashboard
-
   try:
     bannerMessage = parser.get('dashboard', 'banner_message').strip()
   except:
     bannerMessage = ''
+
+  # FNAL Agent
+  try:
+    rcdsServers = parser.get('fnal_agent', 'rcds_servers').strip().split()
+  except:
+    rcdsServers = ['rcds01.fnal.gov']
 
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid())

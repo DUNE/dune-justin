@@ -4,6 +4,7 @@
 - Add --gpu option to justin command, and direct jobs of GPU stages to 
   entries with GPUs, displaying GPU info on the job pages in the dashboard.
 - Change maximum replica PFN length to 1024 in justindb.
+- Add state_message to workflows, set in UI/Finder and displayed on dashboard
 
 ## 01.01.00
 - justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched02.dune.hep.ac.uk
