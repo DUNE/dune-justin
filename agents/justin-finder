@@ -837,6 +837,7 @@ def processSubmittedWorkflow(workflow):
   query = ('UPDATE workflows SET '
            'started=NOW(),'
            'state="running",'
+           'state_message="Moved to running state by justIN",'
            'refind_next_time=NOW(),'
            'condor_group_id=%d '
            'WHERE workflow_id=%d' % (condorGroupID, workflowID))
