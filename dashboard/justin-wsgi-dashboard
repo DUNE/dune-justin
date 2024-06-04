@@ -1076,7 +1076,7 @@ def showWorkflow(environ, user, cgiValues):
     return errorPage(environ, user, "workflow_id must be given")
   
   query = ("SELECT workflows.description,workflows.state,"
-           "principal_name AS user_name,"
+           "workflows.state_message,principal_name AS user_name,"
            "workflows.created,workflows.submitted,workflows.started,"
            "workflows.checking,workflows.finished,mql,"
            "workflows.refind_seconds,workflows.refind_end_time,"
@@ -1108,6 +1108,10 @@ def showWorkflow(environ, user, cgiValues):
              % html.escape(workflowRow['description'], quote=True))
 
   output += ('<tr><td>State</td><td>%s</td></tr>' % state)
+  if workflowRow['state_message']:
+    output += ('<tr><td>Message</td><td>%s</td></tr>' 
+               % workflowRow['state_message'])
+
   output += ('<tr><td>MQL</td><td>%s</td></tr>' 
              % html.escape(workflowRow['mql'], quote=True))
 

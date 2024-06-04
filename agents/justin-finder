@@ -1020,7 +1020,8 @@ def findFinishedWorkflows():
       continue
     
     try:
-      query = ('UPDATE workflows SET state="finished",finished=NOW() '
+      query = ('UPDATE workflows SET state="finished",finished=NOW(),'
+       'state_message="Finished as all input files are in terminal states" '
                'WHERE workflow_id=%d' % int(workflow['workflow_id']))
     
       justin.cur.execute(query)
@@ -1071,7 +1072,8 @@ def findProblemWorkflows():
   # Go through the workflows, finding problem ones
   for workflowID in d:
 
-    pauseEvent = None
+    pauseEvent   = None
+    pauseMessage = ''
 
     # Too many jobscript_error jobs
     if (d[workflowID]['jobscript_error'] > 10 and 
@@ -1081,7 +1083,8 @@ def findProblemWorkflows():
             d[workflowID]['outputting'] +
             d[workflowID]['finished']
        ):
-      pauseEvent = justin.event_WORKFLOW_PAUSED_JOBSCRIPT_ERROR
+      pauseEvent   = justin.event_WORKFLOW_PAUSED_JOBSCRIPT_ERROR
+      pauseMessage = 'Paused after too many jobs with jobscript errors'
 
     # Too many none_processed jobs      
     elif (d[workflowID]['none_processed'] > 10 and 
@@ -1091,7 +1094,9 @@ def findProblemWorkflows():
             d[workflowID]['outputting'] +
             d[workflowID]['finished']
        ):
-      pauseEvent = justin.event_WORKFLOW_PAUSED_NONE_PROCESSED
+      pauseEvent   = justin.event_WORKFLOW_PAUSED_NONE_PROCESSED
+      pauseMessage = \
+        'Paused after too many jobs with no provided input files processed'
     
     # Too many not used jobs      
     elif (d[workflowID]['notused'] > 10 and 
@@ -1101,12 +1106,13 @@ def findProblemWorkflows():
             d[workflowID]['outputting'] +
             d[workflowID]['finished']
        ):
-      pauseEvent = justin.event_WORKFLOW_PAUSED_NOTUSED
+      pauseEvent   = justin.event_WORKFLOW_PAUSED_NOTUSED
+      pauseMessage = 'Paused after too many jobs ending not used'
     
     if pauseEvent:
       try:
-        query = ('UPDATE workflows SET state="paused" '
-                 'WHERE workflow_id=%d' % workflowID)
+        query = ('UPDATE workflows SET state="paused",state_message="%s" '
+                 'WHERE workflow_id=%d' % (pauseMessage, workflowID))
     
         justin.insertUpdate(query)
         
