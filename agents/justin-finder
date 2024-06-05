@@ -67,11 +67,13 @@ def addFilesMonteCarlo(workflowID, count):
               % (workflowID, str(e)))
       return
 
+    fileID = justin.cur.lastrowid
+
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
                'wan_pfn="%06d",lan_pfn=""'
                % (justin.MonteCarloRseID, 
-                  justin.cur.lastrowid,
+                  fileID,
                   i))
 
       justin.cur.execute(query)
@@ -83,7 +85,7 @@ def addFilesMonteCarlo(workflowID, count):
     justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
                     stageID = 1,
-                    fileID = justin.cur.lastrowid)
+                    fileID = fileID)
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
