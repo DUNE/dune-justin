@@ -74,6 +74,8 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin \
    $MJU_GIT_DIR/dune-justin/commands/justin-rucio-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-fetch-logs \
    $MJU_GIT_DIR/dune-justin/commands/metacat-rucio-to-sam \
+   $MJU_GIT_DIR/dune-justin/commands/justin-sl7-setup \
+   $MJU_GIT_DIR/dune-justin/commands/justin-sl7-shell \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/bin
 
 cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
