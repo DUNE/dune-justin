@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# Copyright 2013-24, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+# This script allows you to enter an Apptainer CentOS 7 container, with
+# DUNE setup run for Rucio, MetaCat, and justIN:
+#
+# /cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/bin/justin-sl7-setup
+# 
+# If you need X.509 proxies / VOMS, do kx509 or voms-proxy-init BEFORE
+# running this script. The proxy will be visible inside your container.
+#
+
+# Once we're all using Spack and EL9/Alma9/Rocky9 natively this can go away!
+
+export JUSTIN_BIN_PATH=${JUSTIN_BIN_PATH:-/cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/bin}
+
+exec /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
+  --shell=$JUSTIN_BIN_PATH/justin-sl7-shell \
+  -B /cvmfs,/exp,/nashome,/pnfs/dune,/opt,/run/user,/etc/hostname,/etc/krb5.conf \
+  --ipc --pid \
+  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-dev-sl7:latest
