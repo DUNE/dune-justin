@@ -26,10 +26,19 @@
 
 # Once we're all using Spack and EL9/Alma9/Rocky9 natively this can go away!
 
-export JUSTIN_BIN_PATH=${JUSTIN_BIN_PATH:-/cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/bin}
+JUSTIN_BIN_PATH=${JUSTIN_BIN_PATH:-/cvmfs/dune.opensciencegrid.org/products/dune/justin/pro/NULL/bin}
 
-exec /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer shell \
+BINDS=/cvmfs,/opt,/run/user,/etc/hostname
+
+for i in /exp /nashome /pnfs/dune /etc/krb5.conf
+do
+ if [ -e "$i" ] ; then
+  BINDS="$BINDS,$i"
+ fi
+done
+
+exec /cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer \
+  shell \
   --shell=$JUSTIN_BIN_PATH/justin-sl7-shell \
-  -B /cvmfs,/exp,/nashome,/pnfs/dune,/opt,/run/user,/etc/hostname,/etc/krb5.conf \
-  --ipc --pid \
+  -B "$BINDS"  --ipc --pid \
   /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-dev-sl7:latest
