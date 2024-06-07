@@ -1261,7 +1261,7 @@ def findBestFile(jobDict):
 # CAN WE GET RID OF THE RACE SCENARIO THAT PRODUCES THESE AT 0.3% LEVEL?
 # SOME LIMITED RETRYING OF THE OTHER RETURNED FILES?
     print('Failed to allocate the chosen file (%s): already allocated???'
-          % str(replicaRows[0]['file_did'], file=sys.stderr)
+          % str(replicaRows[0]['file_did']), file=sys.stderr)
 
     # But we return as if no file was found
     return { 'error_message': None,
