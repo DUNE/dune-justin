@@ -201,6 +201,14 @@ parser.add_argument("--unpack",
                     action = 'store_true',
                     help = "Unpack tgz file")
 
+parser.add_argument("--rse",
+                    type = str,
+                    help = "Rucio RSE")
+
+parser.add_argument("--site",
+                    type = str,
+                    help = "Sitename")
+
 parser.add_argument("--url",
                     type = str,
                     help = "justIN service to contact")

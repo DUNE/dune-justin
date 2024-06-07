@@ -982,12 +982,13 @@ def findFinishedWorkflows():
   justin.logLine('Start of finding finished workflows')
 
   try:
+    # workflows have to be still in the running state and to have
+    # finished their finding or refinding 
     query = ('SELECT workflow_id FROM workflows '
-             'WHERE state="running" ORDER BY workflow_id')
+             'WHERE state="running" AND refind_next_time="%s" '
+             'ORDER BY workflow_id' % justin.unixEpoch)
 
-    justin.cur.execute(query)
-
-    findingWorkflows = justin.cur.fetchall()
+    findingWorkflows = justin.select(query)
   except:
     justin.logLine('Failed to get list of running workflows')
     return
