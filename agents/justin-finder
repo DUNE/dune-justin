@@ -984,8 +984,9 @@ def findFinishedWorkflows():
 
   try:
     query = ('SELECT workflow_id FROM workflows '
-             'WHERE state="running" ORDER BY workflow_id')
-
+             'WHERE state="running" AND refind_next_time="%s" '
+             'ORDER BY workflow_id' % justin.unixEpoch)
+             
     justin.cur.execute(query)
 
     findingWorkflows = justin.cur.fetchall()
