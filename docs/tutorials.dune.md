@@ -148,9 +148,7 @@ jobscript:
 The comments at the top explain how to use the jobscript to process some
 VD coldbox files. For this tutorial though, please use these commands:
 
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10"
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
@@ -158,7 +156,8 @@ VD coldbox files. For this tutorial though, please use these commands:
        DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
     --max-distance 30 \
     --rss-mib 4000 --env NUM_EVENTS=1 --scope usertests \
-    --output-pattern '*_reco_data_*.root:output-test-01'
+    --output-pattern '*_reco_data_*.root:output-test-01' \
+    --lifetime-days 1
     
 What is this doing?
 
@@ -186,6 +185,8 @@ look for output files matching the shell wildcard expression
 `*_reco_data_*.root` in the working directory of the jobscript, when it
 finishes. `output-test-01` is the name of a Rucio dataset to add the output
 files to, and the full name of that dataset is `usertests:output-test-01`.
+9. `--lifetime-days` says that the output files are only guaranteed to persist
+on storage for 1 day.
 
 The command doesn't tell justIN where to put the output files. There are
 options to try to steer outputs to particular groups of storages, but with
@@ -221,9 +222,7 @@ Fermilab username.
 
     USERF=$USER
     FNALURL='https://fndcadoor.fnal.gov:2880/dune/scratch/users'
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10" 
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
@@ -303,9 +302,7 @@ line  before the fcl file comment. So it reads:
 Now run it with `justin-test-jobscript`. All of the files it creates are
 made under /tmp in the directory name it prints out.
 
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10" 
     
     justin-test-jobscript --mql "$MQL_QUERY" \
      --jobscript my-dc4-vd-coldbox-bottom.jobscript \
@@ -323,15 +320,14 @@ delete the directory in /tmp when you're finished.
 If you want to test your jobscript running in real jobs, you can repeat the
 simple-workflow with these options:
 
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10" 
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
     --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
     --rss-mib 4000 --env NUM_EVENTS=1 --scope usertests \
-    --output-pattern '*_reco_data_*.root:output-test-01'
+    --output-pattern '*_reco_data_*.root:output-test-01' \
+    --lifetime-days 1
 
 As you can see, you just need to change the whole
 `--jobscript-git` option to 
