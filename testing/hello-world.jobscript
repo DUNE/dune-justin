@@ -15,7 +15,8 @@ justin simple-workflow \
      --jobscript hello-world.jobscript \
      --description 'Hello World!!!' \
      --scope usertests \
-     --output-pattern 'hello-world-*.txt:output-test-01'
+     --output-pattern 'hello-world-*.txt:output-test-01' \
+     --lifetime-days 1
 
 EOF
 
