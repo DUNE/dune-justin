@@ -45,6 +45,7 @@
 - --seconds-needed option added to justin-get-file for multi-file jobscripts
 - Add none_processed job state and events, and pausing of workflows if too
   many jobscript_error, or notused, or none_processed job outcomes.
+  (DUNE/dist-comp#161)
 - Add banner message from configuration
 - In --output-pattern, the destination dataset is now optional, and a name
   like wXXXXsYpZ will be created if not given.

@@ -148,9 +148,7 @@ jobscript:
 The comments at the top explain how to use the jobscript to process some
 VD coldbox files. For this tutorial though, please use these commands:
 
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10"
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
@@ -221,9 +219,7 @@ Fermilab username.
 
     USERF=$USER
     FNALURL='https://fndcadoor.fnal.gov:2880/dune/scratch/users'
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10" 
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \
@@ -303,9 +299,7 @@ line  before the fcl file comment. So it reads:
 Now run it with `justin-test-jobscript`. All of the files it creates are
 made under /tmp in the directory name it prints out.
 
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10" 
     
     justin-test-jobscript --mql "$MQL_QUERY" \
      --jobscript my-dc4-vd-coldbox-bottom.jobscript \
@@ -323,9 +317,7 @@ delete the directory in /tmp when you're finished.
 If you want to test your jobscript running in real jobs, you can repeat the
 simple-workflow with these options:
 
-    MQL_QUERY=\
-    "files from dune:all where core.run_type='dc4-vd-coldbox-bottom' "\
-    "and dune.campaign='dc4' limit 10" 
+    MQL_QUERY="files from justin-tutorial:justin-tutorial-2024 limit 10" 
     
     justin simple-workflow \
     --mql "$MQL_QUERY" \

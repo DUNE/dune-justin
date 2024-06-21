@@ -896,15 +896,21 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       if ':' in patternDest:
         (pattern, destination) = patternDest.split(':', 1)
       else:
-        # If no dataset given, then will create SCOPE:wNNNNNsNpN 
         pattern     = patternDest
-        destination = 'w%ds%dp%d' % (workflowID, stageID, patternID)
+        destination = ''
 
       if not destination.startswith('https://') and not scopeName:
         return ('400 Bad Request', 
                 'A scope must be specified when creating the workflow if '
                 '--output-pattern is given for this stage '
                 'and a Rucio dataset is given.')
+
+      if not destination.startswith('https://'):
+        # If to a Rucio dataset, then always [destination-]wXsYpZ
+        if destination:
+          destination += '-'
+
+        destination += 'w%ds%dp%d' % (workflowID, stageID, patternID)
 
       destination = justin.expandEnvVars(destination, justinEnvVars)
       outputPatterns.append((False, pattern, destination, patternID))
@@ -917,7 +923,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         (pattern, destination) = patternDest.split(':', 1)
       else:
         pattern     = patternDest
-        destination = 'w%ds%dp%d' % (workflowID, stageID, patternID)
+        destination = ''
        
       if not scopeName:
         return ('400 Bad Request', 
@@ -925,6 +931,10 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                 '--output-pattern-next-stage is given for this stage '
                 'and a Rucio dataset is given.')
 
+      if destination:
+        destination += '-'
+
+      destination += 'w%ds%dp%d' % (workflowID, stageID, patternID)
       destination = justin.expandEnvVars(destination, justinEnvVars)
       outputPatterns.append((True, pattern, destination, patternID))
       patternID += 1
@@ -954,20 +964,14 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         if destination[-1] == '/':
           destination = destination[:-1]
 
-        # Add Workflow ID and Stage ID to URL
-        destination = destination + '/%05d/%d' % (workflowID, stageID)
+        # Add Workflow ID and Stage ID and patternID to URL
+        destination = destination + \
+                      '/%05d/%d/%d' % (workflowID, stageID, patternID)
     else:
         if lifetimeDays == 0:
-          try:
-            didClient.get_metadata(scope = scopeName, name = destination)
-
-          except rucio.common.exception.DataIdentifierNotFound:
-            return ('400 Bad Request',
-                    'A lifetime must be specified when creating a stage if '
-                    'a Rucio dataset is given that does not yet exist.')
-          except:
-            return ('400 Bad Request', 
-                    'Failed to connect to Rucio server for dataset checks')
+          return ('400 Bad Request',
+                  'A lifetime must be specified when creating a stage if '
+                  'a Rucio dataset is used for any outputs.')
 
         # Rucio dataset name
         if not justin.stringIsDID(destination) or ':' in destination:

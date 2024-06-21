@@ -84,14 +84,14 @@ parser.add_argument("--file-did",
                     type = str,
                     help = "File DID")
 
-parser.add_argument("--site-name",
-                    type = str,
-                    help = "Site name")
-
-parser.add_argument("--rse-name",
-                    type   = str,
-                    action = "append",
-                    help   = "RSE name")
+#parser.add_argument("--site-name",
+#                    type = str,
+#                    help = "Site name")
+#
+#parser.add_argument("--rse-name",
+#                    type   = str,
+#                    action = "append",
+#                    help   = "RSE name")
 
 parser.add_argument("--description",
                     type = str,

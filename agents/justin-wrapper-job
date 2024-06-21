@@ -421,7 +421,7 @@ def calculateAdler32(fileName):
     
   return ("%08x" % checksum)
 
-def updateMetadataTmp(fileScope, fileName, 
+def updateMetadataTmp(fileName, 
                       getJobscriptDict, jobscriptDict, recordResultsDict):
   try:
     metadata = json.load(open('home/workspace/' + fileName + '.json', 'r'))
@@ -432,7 +432,7 @@ def updateMetadataTmp(fileScope, fileName,
             (fileName, str(e)))
     raise
 
-  metadata['namespace'] = fileScope
+  metadata['namespace'] = jobscriptDict['scope']
   metadata['name']      = fileName
   metadata['metadata']['dune.workflow'] = {}
 
@@ -804,11 +804,9 @@ except Exception as e:
   jobscriptSysSeconds  = 0
   jobscriptMaxRssKB    = 0
 
-justinRecordResultsDict = {
+recordResultsDict = {
   'method'                 : 'record_results',
-  'output_urls'            : [],
-  'output_dids'            : [],
-  'next_stage_dids'        : [],
+  'output_files'           : [],
   'jobscript_log'          : jobscriptLog[-10000:],
   'jobscript_exit'         : jobscriptOutcome.returncode,
   'jobscript_start'        : jobscriptStartTime,
@@ -822,43 +820,33 @@ justinRecordResultsDict = {
 outputFiles = []
 
 # Find files matching output patterns specified for this stage
-for (forNextStage, destination, scope, pattern, patternID) in \
-      jobscriptDict['patterns']:
-  
+for (patternType, pattern, patternID) in jobscriptDict['patterns']:
   matches = glob.glob('home/workspace/' + pattern)
   for match in matches:
     matchingFile = match.split('/')[-1]
     fileSize     = os.path.getsize(match)
-    outputFiles.append((destination, scope, matchingFile, fileSize, patternID))
-    
-    if scope == '::URL::':
-      justinRecordResultsDict['output_urls'].append(destination + '/' +
-                                                        matchingFile)
-    elif forNextStage:
-      justinRecordResultsDict['next_stage_dids'].append(scope + ':' + 
-                                                        matchingFile)    
-    else:
-      justinRecordResultsDict['output_dids'].append(scope + ':' + matchingFile)
+    outputFiles.append((matchingFile, fileSize, patternID))
+    recordResultsDict['output_files'].append((matchingFile, patternID))
 
-justinRecordResultsDict['processed_dids'] = []
+recordResultsDict['processed_dids'] = []
 try:
   for i in open('home/workspace/justin-processed-dids.txt','r').readlines():
-    justinRecordResultsDict['processed_dids'].append(i.strip())
+    recordResultsDict['processed_dids'].append(i.strip())
 except:
   pass
 
-justinRecordResultsDict['processed_pfns'] = []
+recordResultsDict['processed_pfns'] = []
 try:
   for i in open('home/workspace/justin-processed-pfns.txt','r').readlines():
-    justinRecordResultsDict['processed_pfns'].append(i.strip())
+    recordResultsDict['processed_pfns'].append(i.strip())
 except:
   pass
 
-logLine('record results: ' + str(justinRecordResultsDict))
+logLine('record results: ' + str(recordResultsDict))
 resultsResponseDict = sendJsonURL(
  'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
  '/api/allocator/record_results', 
- justinRecordResultsDict)
+ recordResultsDict)
 
 logLine('record_results returns HTTP code %d' % resultsResponseDict['status'])
 
@@ -915,7 +903,7 @@ if ret:
   logLine('Had failed to register justin-logs:%s in MetaCat' % tgzName)
   jobAborted(315, 'metacat_logs_registration', '')
 
-for (rse,scheme) in jobscriptDict['output_rses'][:3]:
+for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
   logLine('Upload justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
 
   ret = executeJustinRucioUpload('--rse %s '
@@ -944,40 +932,49 @@ if jobscriptOutcome.returncode != 0:
   jobAborted(324, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
-logLine('Output RSEs: ' + str(jobscriptDict['output_rses']))
+logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
 
 # TO DO: DROP THIS FILE WRITE?
 # Write out the token for uploading to user's scratch
 #with open('user-upload-token', 'w') as f:
 #  f.write(resultsResponseDict['user_access_token'])
 
-confirmResultsDict = { 'method'      : 'confirm_results',
-                       'output_dids' : {},
-                       'output_urls' : []  }
+confirmResultsDict = { 'method'       : 'confirm_results',
+                       'output_files' : []  }
 
 rucioUploadedDIDs = []
 
 # Go through the list of output files
-for (destination, fileScope, fileName, fileSize, patternID) in outputFiles:
-  
-  if fileScope == '::URL::': 
+for (fileName, fileSize, patternID) in outputFiles:
+
+  # Find the destination for this pattern in the resultsResponseDict
+  destination = resultsResponseDict['patterns'][patternID]['destination']
+
+  if destination.startswith('https://'):
     # Uploading to user scratch
 
     try:
+      uploadStartTime = time.time()
       webdavPutFile(resultsResponseDict['user_access_token'], 
                     'home/workspace/' + fileName,
                     destination)
+      uploadEndTime = time.time()
     except:
       jobAborted(317, 'webdav_upload', '')
     
-    confirmResultsDict['output_urls'].append(destination + '/' + fileName)
-  elif jobscriptDict['output_rses']:
+    confirmResultsDict['output_files'].append(
+         { 'fileName'   : fileName,
+           'pattern_id' : patternID,
+           'seconds'    : uploadEndTime - uploadStartTime,
+           'size_bytes' : fileSize }
+                                             )
+  elif resultsResponseDict['output_rses']:
     # Uploading to Rucio managed storage
-    
+        
     # Create tmp.json metadata file for this output file
     try:
-      updateMetadataTmp(fileScope, fileName, 
-                     getJobscriptDict, jobscriptDict, justinRecordResultsDict)
+      updateMetadataTmp(fileName, 
+                        getJobscriptDict, jobscriptDict, recordResultsDict)
 
       fileAdler32 = calculateAdler32('home/workspace/' + fileName)
     except Exception as e:
@@ -993,13 +990,14 @@ for (destination, fileScope, fileName, fileSize, patternID) in outputFiles:
                                       ))
 
     if ret:
-      logLine('Failed to register %s:%s in MetaCat' % (fileScope, fileName))
+      logLine('Failed to register %s:%s in MetaCat' % (jobscriptDict['scope'], 
+                                                       fileName))
       jobAborted(319, 'metacat_registration', '')
 
     # If that succeeds, then try to register/upload with rucio
-    for (rse,scheme) in jobscriptDict['output_rses'][:3]:
+    for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
       logLine('Try %s:%s to %s/%s' 
-              % (fileScope, fileName, rse, scheme))
+              % (jobscriptDict['scope'], fileName, rse, scheme))
  
       uploadStartTime = time.time()
       ret = executeJustinRucioUpload('--rse %s '
@@ -1011,50 +1009,57 @@ for (destination, fileScope, fileName, fileSize, patternID) in outputFiles:
                                      'home/workspace/%s' %
                                      (rse,
                                       scheme,
-                                      fileScope,
+                                      jobscriptDict['scope'],
                                       workflowID, stageID, patternID, rse,
                                       destination,
                                       fileName))
       uploadEndTime = time.time()
       if ret == 0:
         logLine('Uploaded %s:%s to %s in %.3fs' %
-                (fileScope, fileName, rse, uploadEndTime - uploadStartTime))
+                (jobscriptDict['scope'], fileName, rse, 
+                 uploadEndTime - uploadStartTime))
         break
       else:
-        logLine('Failed to upload %s:%s to %s' % (fileScope, fileName, rse))
+        logLine('Failed to upload %s:%s to %s' 
+                % (jobscriptDict['scope'], fileName, rse))
 
     if ret:
-      logLine('Failed to upload %s:%s' % (fileScope, fileName))
+      logLine('Failed to upload %s:%s' % (jobscriptDict['scope'], fileName))
       jobAborted(320, 'rucio_upload', '')
 
     # Add the file to the main dataset
     (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
-                                       '"%s:%s"' % ( fileScope, fileName,
-                                                     fileScope, destination )
+                                       '"%s:%s"' 
+                                       % ( jobscriptDict['scope'], fileName,
+                                           jobscriptDict['scope'], destination )
                                       )
 
     if ret:
-      logLine('Failed to add %s:%s to %s' % (fileScope, fileName, destination))
+      logLine('Failed to add %s:%s to %s' 
+              % (jobscriptDict['scope'], fileName, destination))
       jobAborted(319, 'metacat_registration', '')
 
     # Update MetaCat output_status for this file to uploaded
     try:
       (ret, out) = executeMetaCatCommand("file update --metadata "
          "'{\"dune.output_status\":\"uploaded\"}' '%s:%s'" 
-         % (fileScope, fileName))
+         % (jobscriptDict['scope'], fileName))
     except Exception as e:
       logLine('Failed to set %s:%s to output_status=uploaded' 
-              % (fileScope, fileName))
+              % (jobscriptDict['scope'], fileName))
       jobAborted(321, 'set_uploaded', '')
 
-    rucioUploadedDIDs.append(fileScope + ':' + fileName)
+    rucioUploadedDIDs.append(jobscriptDict['scope'] + ':' + fileName)
 
     # Add to list of uploaded files for confirm results
-    confirmResultsDict['output_dids'][fileScope + ':' + fileName] = \
-      { "rse_name"   : rse, 
-        "seconds"    : uploadEndTime - uploadStartTime,
-        "size_bytes" : fileSize }
-
+    confirmResultsDict['output_files'].append(
+         { 'fileName'   : fileName,
+           'pattern_id' : patternID,
+           'rse_name'   : rse,
+           'seconds'    : uploadEndTime - uploadStartTime,
+           'size_bytes' : fileSize }
+                                             )
+                                             
 # If all ok, then confirm that to the Workflow Allocator
 
 logLine('confirm results: ' + str(confirmResultsDict))
