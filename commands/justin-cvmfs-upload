@@ -2,7 +2,7 @@
 #
 # justin-cvmfs-upload - Upload tar file Fermilab RCDS for cvmfs
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-24, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@
 # the justin and justin-cvmfs-upload commands from the justIN GitHub:
 # https://github.com/DUNE/dune-justin/tree/main/commands
 #
-# 1) Make sure you have an X.509 proxy (no need for VOMS)
-#    kx509
+# 1) Make sure you have a Bearer Token
+#    htgettoken -a htvaultprod.fnal.gov -i dune
 # 2) Create a tar file 
 #    date > hello_world.txt
 #    tar cvf hello_world.tar hello_world.txt
@@ -43,12 +43,13 @@ import json
 import ssl
 import time
 import urllib.request
+import random
 import argparse
 import hashlib
 
 versionNumber = '00.00.00'
 
-def sendRequest(url, method, data):
+def sendRequest(token, url, method, data):
 
   httpRequest = urllib.request.Request(url,
                                        data = data,
@@ -56,15 +57,12 @@ def sendRequest(url, method, data):
                                                    'justin-cvmfs-upload ' 
                                                    + versionNumber,
                                                    'Accept':
-                                                   'application/json' },
+                                                   'application/json',
+                                                   'Authorization':
+                                                   'Bearer ' + token },
                                        method = method)
 
   sslContext = ssl.SSLContext()
-
-  if 'X509_USER_PROXY' in os.environ and os.environ['X509_USER_PROXY']:
-    sslContext.load_cert_chain(os.environ['X509_USER_PROXY'])
-  else:
-    sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
 
   if 'X509_CERTIFICATES' in os.environ and os.environ['X509_CERTIFICATES']:
     sslContext.load_verify_locations(capath = os.environ['X509_CERTIFICATES'])
@@ -78,25 +76,25 @@ def sendRequest(url, method, data):
     
   return response
 
-def getCvmfsPath(rcdsServer, hashString):
+def getCvmfsPath(token, rcdsServer, hashString):
 
-  response = sendRequest('https://%s//pubapi/exists?cid=dune/%s'
+  response = sendRequest(token, 'https://%s//pubapi/exists?cid=dune/%s'
                           % (rcdsServer, hashString),
                          'GET',
                          None)                       
   try:
     responseString = response.read().decode('utf-8')
   except:
-    None
+    return None
 
   if responseString.startswith('PRESENT:'):
     return responseString[8:]
     
   return None
 
-def uploadTarfile(rcdsServer, hashString, tarFileContents):
+def uploadTarfile(token, rcdsServer, hashString, tarFileContents):
 
-  response = sendRequest('https://%s//pubapi/publish?cid=dune/%s'
+  response = sendRequest(token, 'https://%s//pubapi/publish?cid=dune/%s'
                           % (rcdsServer, hashString),
                          'POST',
                          tarFileContents)
@@ -127,13 +125,24 @@ parser.add_argument('tar_file',
 
 args = parser.parse_args()
 
+
+
 try:
-  rcdsServer = os.environ['JOBSUB_DROPBOX_SERVER_LIST'].split()[0]
+  rcdsServer = random.choice(os.environ['JOBSUB_DROPBOX_SERVER_LIST'].split())
 except:
   rcdsServer = 'rcds01.fnal.gov'
 
 if args.verbose:
   print('Using RCDS server: ' + rcdsServer, file=sys.stderr)
+
+tokenFile = '/run/user/%d/bt_u%d' % (os.getuid(), os.getuid())
+if args.verbose:
+  print('Reading token from %s' % tokenFile, file=sys.stderr)
+try:
+  token = open(tokenFile, 'r').read().strip()
+except:
+  print('Failed to read token from %s' % tokenFile, file=sys.stderr)
+  sys.exit(1)
 
 try:
   tarFileContents = open(args.tar_file, 'rb').read()
@@ -151,13 +160,13 @@ if args.verbose:
   print('Check RCDS server for %s (%s)' % (args.tar_file, hashString),
         file=sys.stderr)
 
-path = getCvmfsPath(rcdsServer, hashString)
+path = getCvmfsPath(token, rcdsServer, hashString)
 if path:
   # Found cvmfs path, so just print it
   print(path, end='')
   sys.exit(0)
 
-if not uploadTarfile(rcdsServer, hashString, tarFileContents):
+if not uploadTarfile(token, rcdsServer, hashString, tarFileContents):
   print('Failed to upload %s to RCDS server' % args.tar_file,
         file=sys.stderr)
   sys.exit(3)
@@ -166,10 +175,10 @@ if args.verbose:
   print('Uploaded %s (%s) to RCDS server' % (args.tar_file, hashString),
         file=sys.stderr)
 
-for i in range(0,12):
+for i in range(0,36):
   time.sleep(5)
 
-  path = getCvmfsPath(rcdsServer, hashString)
+  path = getCvmfsPath(token, rcdsServer, hashString)
   if path:
     # Found, so just print it
     print(path, end='')
