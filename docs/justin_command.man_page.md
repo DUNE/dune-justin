@@ -161,35 +161,34 @@ This man page is distributed along with the
     	      subdirectories for workflow ID and stage ID will be added, and
     	      resulting output files placed there. The user's token from the
     	      justIN dashboard is used for the upload.	If an https:// URL is
-    	      not given, if DESTINATION is given it is interpreted as a Rucio
-    	      dataset minus the scope component. The overall scope of the
-    	      workflow is used and the output files are uploaded with Rucio
-    	      and registered in that dataset. If the dataset does not already
-    	      exist then it will be created when the workflow changes state
-    	      from submitted to running with a rule with a lifetime of
-    	      --lifetime-days days. If the dataset is name is not given, a
-    	      dataset with name wXXXsYpZ will be created where XXXX is the
-    	      workflow ID, Y is the stage, and Z is the output pattern ID
-    	      number, starting from 1.	Files for Rucio-managed storage may
-    	      have a corresponding JSON metadata file with the same name but
-    	      with ".json" appended, that will be recorded in the metadata for
-    	      that file in MetaCat. If this is not given, then basic workflow
-    	      metadata will still be recorded. If output files have parent-
-    	      child relations, the parent output pattern must be given before
-    	      the child so that the parents are known to MetaCat before the
-    	      children declare them to be parents.
+    	      not given, DESTINATION is used when constructing the output
+    	      dataset names. Datasets have the form DESTINATIION-wXsYpZnN
+    	      where X is the workflow ID, Y is the stage, and Z is the output
+    	      pattern ID number, starting from 1. The number N is used to
+    	      create output datasets smaller than a global limit set in the
+    	      justIN configuration.  If DESTINATION is not given then only the
+    	      form wXsYpZnN is used.
     
-    	      Alternatively --output-pattern-next-stage PATTERN[:DATASET] can
-    	      be given in which case the output file will be uploaded to
+    	      Files for Rucio-managed storage may have a corresponding JSON
+    	      metadata file with the same name but with ".json" appended, that
+    	      will be recorded in the metadata for that file in MetaCat. If
+    	      this is not given, then basic workflow metadata will still be
+    	      recorded. If output files have parent-child relations, the
+    	      parent output pattern must be given before the child so that the
+    	      parents are known to MetaCat before the children declare them to
+    	      be parents.
+    
+    	      Alternatively --output-pattern-next-stage PATTERN[:DESTINATION]
+    	      can be given in which case the output file will be uploaded to
     	      Rucio-managed storage and will also be registered in the justIN
     	      Database as an unprocessed input file for the next stage and
     	      available for allocation to instances of that stage's script.
     
     	      --lifetime-days DAYS sets the Rucio rule lifetime when creating
-    	      a new dataset, for all output files that are uploaded in the
-    	      given stage. If --output-pattern or --output-pattern-next-stage
-    	      are given and refer to a Rucio dataset that does not already
-    	      exist, then the lifetime-days option is required.
+    	      the initial per-RSE datasets used to keep the initial replica of
+    	      an output file on the storage it is uploaded to, for all output
+    	      files that are uploaded in the given stage. If any Rucio
+    	      datasets are used for outputs, then this is option is required.
     
     	      If one or more options --output-rse NAME is given, then the RSE
     	      used for uploads of output files and log tgz files will be

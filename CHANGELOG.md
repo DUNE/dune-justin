@@ -7,6 +7,7 @@
 - Add state_message to workflows, set in UI/Finder and displayed on dashboard
 - Add justin-sl7-setup script to create a container in which to run
   commmands that need CentOS7/SL7 including ones that require UPS and setup.
+- Change justin-cvmfs-upload to use Bearer Tokens not X.509 proxies
 
 ## 01.01.00
 - justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched02.dune.hep.ac.uk

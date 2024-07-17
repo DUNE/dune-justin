@@ -1388,19 +1388,46 @@ def updateFileProcessing(fileIDList,
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
-def processOutputDids(outputDids, workflowID, stageID, justinJobID):
+def processOutputFiles(outputFiles, patternRows, 
+                       scopeName, workflowID, stageID, justinJobID):
 
-  for outputDid in outputDids:
+  patternsDict = {}
+  for patternRow in patternRows:
+    patternsDict[patternRow['pattern_id']] = {}
+    patternsDict[patternRow['pattern_id']]['destination'] 
+                                              = patternRow['destination']
+    patternsDict[patternRow['pattern_id']]['for_next_stage'] 
+                                              = patternRow['for_next_stage']
+
+  for (fileName, patternID) in outputFiles:
       
-    if '"' in outputDid or "'" in outputDid:
+    if '"' in fileName or "'" in fileName:
       continue
 
-    justin.insertUpdate('INSERT INTO files SET state="recorded",'
-                        'file_did="'          + str(outputDid) + '",'
-                        'creator_justin_job_id=' + str(justinJobID)  + ','
-                        'workflow_id='         + str(workflowID) + ','
-                        'stage_id='           + str(stageID + 1)
-                       )
+    if patternsDict[patternID]['destination'].startswith('https://'):
+      # Record WebDAV URLs so we can count them for numbered directories
+      justin.insertUpdate('INSERT INTO files SET state="recorded",'
+                          'file_did="%s:%s",'
+                          'creator_justin_job_id=%d,'
+                          'workflow_id=%d,'
+                          'creator_stage_id=0,'
+                          'creator_pattern_id=%d,'
+                          'stage_id=0' %
+                          (
+NEED SOME PREFIX
+fileName, justinJobID, workflowID, patternID)
+                         )
+    else:
+      justin.insertUpdate('INSERT INTO files SET state="recorded",'
+                          'file_did="%s:%s",'
+                          'creator_justin_job_id=%d,'
+                          'workflow_id=%d,'
+                          'creator_stage_id=%d,'
+                          'creator_pattern_id=%d,'
+                          'stage_id=%d' %
+          (scopeName, fileName, justinJobID, workflowID, stageID, patternID,
+           stageID+1 if patternsDict[patternID]['for_next_stage'] else 0)
+                         )
 
 def saveAwtResults(justinJobID, siteID, entryID, 
                    jobscriptLog, hasInnerApptainer):
@@ -1653,26 +1680,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error', 
                      'Failed updating file statuses: ' + str(e))
 
-THESE NEED TO USE THE COMBINED output_files LIST           
-  try:
-    processOutputDids(jsonDict['next_stage_dids'],
-                      workflowID, stageID, justinJobID)
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Failed recording next stage outputs: ' + str(e))
-
-  try:
-    # We set stageID=-1 so that when 1 is added, the output only 
-    # StageID of 0 is recorded
-    processOutputDids(jsonDict['output_dids'], workflowID, -1, justinJobID)
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Failed recording outputs: ' + str(e))
-
-
-  # Create a list of the output file patterns
+  # Get the patterns
   try:
     query = ("SELECT destination,"
              "for_next_stage,pattern_id "
@@ -1686,28 +1694,48 @@ THESE NEED TO USE THE COMBINED output_files LIST
              "AND stages_outputs.stage_id=%d" 
              % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
-    rows = justin.select(query)
+    patternRows = justin.select(query)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Failed getting patterns list: ' + str(e))
 
+  # Record output files
+  try:
+    processOutputFiles(jsonDict['output_files'], patternRows,
+                       scopeName, workflowID, stageID, 
+                       justinJobID, jsonDict['jobsub_id'])
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed recording output files: ' + str(e))
+
+#  try:
+#    # We set stageID=-1 so that when 1 is added, the output only 
+#    # StageID of 0 is recorded
+#    processOutputDids(jsonDict['output_dids'], workflowID, -1, justinJobID)
+#  except Exception as e:
+#    return httpError(startResponse, 
+#                     '500 Internal Server Error', 
+#                     'Failed recording outputs: ' + str(e))
+
+  # Create a list of the output file patterns
   responseDict['patterns'] = {}
 
-  for row in rows:
-    responseDict['patterns'][row['pattern_id']] = {}
+  for patternRow in patternRows:
+    responseDict['patterns'][patternRow['pattern_id']] = {}
 
-    if row['destination'].startswith('https://'):
-      responseDict['patterns'][row['pattern_id']]['destination'] = \
-           row['destination']
+    if patternRow['destination'].startswith('https://'):
+      responseDict['patterns'][patternRow['pattern_id']]['destination'] = \
+           patternRow['destination']
 # ADD NUMERIC SUBDIRS HERE
 
     else:
-      responseDict['patterns'][row['pattern_id']]['destinaton'] \
-             = row['destination']
+      responseDict['patterns'][patternRow['pattern_id']]['destinaton'] \
+             = patternRow['destination']
 # ADD NUMERIC n1 SUFFIX HERE
-      responseDict['patterns'][row['pattern_id']]['for_next_stage'] \
-             = row['for_next_stage']
+      responseDict['patterns'][patternRow['pattern_id']]['for_next_stage'] \
+             = patternRow['for_next_stage']
 
   # Create an ordered output RSE list specific to this stage
   try:

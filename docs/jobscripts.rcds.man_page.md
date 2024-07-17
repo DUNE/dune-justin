@@ -16,8 +16,9 @@ justin-cvmfs-upload command itself.
            Code Distribution Service (RCDS). The full cvmfs path is then output by
            the command.
     
-           The environment variable JOBSUB_DROPBOX_SERVER_LIST is used to find the
-           RCDS server to use, or rcds01.fnal.gov if the variable is not set.
+           The environment variable JOBSUB_DROPBOX_SERVER_LIST is used to find a
+           random RCDS server to use, or rcds01.fnal.gov if the variable is not
+           set.
     
     
     OPTIONS AND ARGUMENTS
@@ -36,9 +37,11 @@ justin-cvmfs-upload command itself.
     
     EXAMPLE
            justin-cvmfs-upload must be run on a computer inside the Fermilab
-           firewall. You also need a valid X.509 proxy, which you can readily
-           create with the kx509 commnad. A VOMS proxy is not needed.
+           firewall. You also need a valid Bearer Token for your UID at
+           /run/users/UID/bt_uUID which you can readily create with the command
+           htgettoken
     
+           htgettoken -a htvaultprod.fnal.gov -i dune
            mkdir somedir
            cd somedir
            date > hello_world.txt
