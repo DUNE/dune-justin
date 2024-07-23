@@ -783,8 +783,8 @@ except:
   jobscriptLog = ''
 
 logLine('Jobscript exit code: %d' % jobscriptOutcome.returncode)
-logLine('#### start jobscript log ####')
-print(jobscriptLog)
+logLine('#### start jobscript log (last 10,000 characters) ####')
+print(jobscriptLog[-10000:])
 logLine('#### end jobscript log ####')
 
 try:
