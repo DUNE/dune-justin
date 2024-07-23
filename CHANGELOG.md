@@ -1,7 +1,11 @@
 # Changelog
 
+## 01.01.05
+- Update justin-cvmfs-upload and tutorial to use tokens for RCDS changes
+- Only last 10K of jobscript log written to HTCondor job log
+
 ## 01.01.01
-- Backport fixes frm 01.02 (finder rollbacks, PFN sizes in DB, AWT query
+- Backport fixes from 01.02 (finder rollbacks, PFN sizes in DB, AWT query
   ambiguity.)
 
 ## 01.01.00
