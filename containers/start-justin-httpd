@@ -63,6 +63,7 @@ ln -sf \
 ln -sf \
  /etc/justin-letsencrypt/live/justin-$pro_dev.dune.hep.ac.uk/privkey.pem \
  /etc/grid-security/justin.key.pem
+ln -sf /etc/justin-letsencrypt/* /etc/letsencrypt/            
 
 echo "#!/bin/sh" > /etc/cron.daily/run-certbot
 echo "certbot --config-dir /etc/justin-letsencrypt renew >/var/log/run-certbot.log 2>&1" \

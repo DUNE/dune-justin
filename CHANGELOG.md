@@ -1,5 +1,9 @@
 # Changelog
 
+## 01.01.06
+- Add sybmolic links to /etc/justin-letsencrypt/* from /etc/letsencrypt/ for
+  hardcoded assumptions
+
 ## 01.01.05
 - Update justin-cvmfs-upload and tutorial to use tokens for RCDS changes
 - Only last 10K of jobscript log written to HTCondor job log
