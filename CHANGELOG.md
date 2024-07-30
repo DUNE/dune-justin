@@ -8,6 +8,9 @@
 - Add justin-sl7-setup script to create a container in which to run
   commmands that need CentOS7/SL7 including ones that require UPS and setup.
 - Change justin-cvmfs-upload to use Bearer Tokens not X.509 proxies
+- Add sybmolic links to /etc/justin-letsencrypt/* from /etc/letsencrypt/ for
+  hardcoded assumptions
+
 
 ## 01.01.00
 - justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched02.dune.hep.ac.uk
