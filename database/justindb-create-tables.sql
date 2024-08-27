@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
+  `compressed_log` blob NOT NULL DEFAULT '',
   PRIMARY KEY (`justin_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
