@@ -463,7 +463,8 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   PRIMARY KEY (`session_id`),
   UNIQUE KEY `justin_session` (`justin_session`),
   UNIQUE KEY `justin_code` (`justin_code`),
-  INDEX `linked_session_id` (`linked_session_id`)
+  INDEX `linked_session_id` (`linked_session_id`),
+  INDEX `user_expires` (`user_id`,`expires_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `services` (
