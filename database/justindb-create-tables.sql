@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   INDEX `workflow_stage_state_file` (`workflow_id`,`stage_id`,`state`,`file_id`),
   INDEX `workflow_stage_file_id` (`workflow_id`,`stage_id`,`file_id`),
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
+  INDEX `processed_time` (`processed_time`),
   INDEX `workflow_stage_state_processed_site` (`workflow_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
