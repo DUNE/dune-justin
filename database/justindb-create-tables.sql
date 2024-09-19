@@ -99,7 +99,9 @@ CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
   `compressed_log` blob NOT NULL DEFAULT '',
-  PRIMARY KEY (`justin_job_id`)
+  `saved_time` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
+  PRIMARY KEY (`justin_job_id`),
+  INDEX `saved_time` (`saved_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `events` (
