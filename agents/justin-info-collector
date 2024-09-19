@@ -638,6 +638,14 @@ def updateSitesStorages():
            and sitePrefix == rseSitePrefix:
         # Same prefix on RSE and site name 
         distance = 10
+      elif siteRow['site_name'] == 'NL_NIKHEF' \
+           and storageRow['rse_site_name'] == 'NL_SURFSARA':
+        # NIKHEF and SURFSARA are together
+        distance = 10
+      elif siteRow['site_name'] == 'NL_SURFSARA' \
+           and storageRow['rse_site_name'] == 'NL_NIKHEF':
+        # NIKHEF and SURFSARA are together
+        distance = 10
       elif siteRow['country'] and \
            siteRow['country'] == storageRow['country']:
         # Same country as just 20
