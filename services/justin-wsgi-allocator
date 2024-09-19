@@ -2169,6 +2169,9 @@ def application(environ, startResponse):
   except Exception as e:
     return httpError(startResponse, '403 Forbidden', str(e))
 
+  if jobState == 'stalled':
+    return httpError(startResponse, '403 Forbidden', 'Cannot update stalled jobs')
+
   # Get the details of the stage for the job to work on
   if jsonDict['method'] == 'get_jobscript':
     if jobState == 'submitted':
