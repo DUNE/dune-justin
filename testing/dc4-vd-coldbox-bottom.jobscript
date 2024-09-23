@@ -57,7 +57,7 @@ export NUMEXPR_NUM_THREADS=${JUSTIN_PROCESSORS}
 export OMP_NUM_THREADS=${JUSTIN_PROCESSORS}  
 
 # Construct outFile from input $pfn 
-now=$(date -u +"%Y-%m-%dT_%H%M%SZ")
+now=$(date -u +"date +'%Y%m%dT%H%M%SZ'")
 Ffname=`echo $pfn | awk -F/ '{print $NF}'`
 fname=`echo $Ffname | awk -F. '{print $1}'`
 outFile=${fname}_reco_data_${now}.root
