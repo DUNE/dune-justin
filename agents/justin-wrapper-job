@@ -173,7 +173,7 @@ def findGPU(getJobscriptDict):
       if ((firstAllocatedUUID is not None 
             and gpuUUID.startswith(firstAllocatedUUID)) or 
           (firstAllocatedNumber is not None 
-            and gpuDeviceNunber == firstAllocatedNumber)):
+            and gpuDeviceNumber == firstAllocatedNumber)):
         # Found a device we were allocated - take the first one        
         outcomeList = outcomeLine.split(',')
         getJobscriptDict['gpu_uuid']              = outcomeList[0].strip()
