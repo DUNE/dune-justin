@@ -1394,9 +1394,9 @@ def processOutputFiles(outputFiles, patternRows,
   patternsDict = {}
   for patternRow in patternRows:
     patternsDict[patternRow['pattern_id']] = {}
-    patternsDict[patternRow['pattern_id']]['destination'] 
+    patternsDict[patternRow['pattern_id']]['destination'] \
                                               = patternRow['destination']
-    patternsDict[patternRow['pattern_id']]['for_next_stage'] 
+    patternsDict[patternRow['pattern_id']]['for_next_stage'] \
                                               = patternRow['for_next_stage']
 
   for (fileName, patternID) in outputFiles:
