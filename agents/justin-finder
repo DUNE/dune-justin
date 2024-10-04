@@ -928,6 +928,12 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
       # ADD RULE LATER SOMEHOW??? 
       logLine('Failed to create rule for %s as over quota - skipping' 
               % datasetForRSE)
+    except rucio.common.exception.InsufficientAccountLimit:
+      # Cannot create rule now because RSE is currently over account limit
+      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
+      # ADD RULE LATER SOMEHOW??? 
+      logLine('Failed to create rule for %s as over account limit - skipping' 
+              % datasetForRSE)
     except rucio.common.exception.RSEWriteBlocked:
       # Cannot create rule now because RSE is currently not writeable
       # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
