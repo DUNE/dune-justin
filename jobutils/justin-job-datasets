@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+#
+# justin-job-datasets - make datasets for wrapper job
+#
+# Copyright 2013-24, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import ssl
+import stat
+import json
+import time
+import base64
+import hashlib
+import tempfile
+import subprocess
+import urllib.request
+import pathlib
+import xml.dom.minidom
+
+import rucio.client
+
+def processSubmittedWorkflow(workflow):
+  # Process a single workflow, raising exceptions on errors
+
+  workflowID = workflow['workflow_id']
+  justin.logLine('Processing submitted w%d' % workflowID)
+
+  try:
+    condorGroupID = int(workflow['condor_group_id'])
+  except:
+    condorGroupID = 0
+
+#  stages = justin.select('SELECT stage_id,processors,jobscript_git,'
+#                         'jobscript_image,wall_seconds,rss_bytes '
+#                         'FROM stages WHERE workflow_id=%d'
+#                         % workflowID)
+#
+#  for stage in stages:
+#    stageID = stage['stage_id']
+#    justin.logLine('Processing submitted w%ds%d' % (workflowID, stageID))
+#
+#    stagesOutputStorages = justin.select(
+#        'SELECT rse_name FROM stages_output_storages '
+#        'LEFT JOIN storages '
+#        'ON storages.rse_id=stages_output_storages.rse_id '
+#        'WHERE stages_output_storages.workflow_id=%d '
+#        'AND stages_output_storages.stage_id=%s '
+#        % (workflowID, stageID))
+#          
+#    rseNames = []
+#    for stageOutputStorage in stagesOutputStorages:
+#      rseNames.append(stageOutputStorage['rse_name'])
+#
+#    stagesOutputs = justin.select(
+#      'SELECT destination,lifetime_seconds,pattern_id,file_pattern '
+#      'FROM stages_outputs '
+#      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stageID))
+#
+#    for stageOutput in stagesOutputs:
+#      if not stageOutput['destination'].startswith('https://'):
+#        justin.logLine('Processing submitted w%ds%dp%d' 
+#                % (workflowID, stageID, stageOutput['pattern_id']))
+#        # A Rucio dataset
+#
+#        # Metadata for the main dataset in MetaCat
+#        metadataDict = { "dune.workflow" : 
+#            { "workflow_id"     : workflowID,
+#              "stage_id"        : stageID,
+#              "pattern_id"      : stageOutput['pattern_id'],
+#              "file_pattern"    : stageOutput['file_pattern'],
+#              "user"            : workflow['principal_name'],
+#              "processors"      : stage['processors'],
+#              "rss_bytes"       : stage['rss_bytes'],
+#              "wall_seconds"    : stage['wall_seconds'],
+#              "jobscript_image" : stage['jobscript_image']
+#            }
+#                       }
+# ADD RCDS/Git repos in here too with tags and commit hashes
+#                         
+#        if stage['jobscript_git']:
+#          metadataDict['dune.workflow']['jobscript_git'] = stage['jobscript_git']
+#
+#        createOutputDatasets(workflowID = workflowID,
+#                             stageID = stageID,
+#                             patternID = stageOutput['pattern_id'],
+#                             metadataDict = metadataDict,
+#                             scopeName = workflow['scope_name'],
+#                             destination = stageOutput['destination'],
+#                             lifetimeSeconds = stageOutput['lifetime_seconds'],
+#                             rseNames = rseNames)
+
+  # Successful so mark workflow as running
+  # Define refind_next_time as now to force at least one finding cycle
+  # even if not refinding repeatedly
+  query = ('UPDATE workflows SET '
+           'started=NOW(),'
+           'state="running",'
+           'state_message="Moved to running state by justIN",'
+           'refind_next_time=NOW(),'
+           'condor_group_id=%d '
+           'WHERE workflow_id=%d' % (condorGroupID, workflowID))
+
+  justin.insertUpdate(query)
+
+# THIS FUNCTION IS NO LONGER USED AND CAN BE REMOVED ONCE FINISHED PUTTING
+# THIS FUNCIONALITY IN THE WRAPPER JOBS
+def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
+                         scopeName, destination, lifetimeSeconds, rseNames):
+  # Create missing main pattern datasets (per-RSEs done in wrapper job)
+  # All exceptions will be caught by the caller
+  
+  justin.logLine('Try to create DID and Rule Rucio clients')
+  didClient  = rucio.client.didclient.DIDClient()
+  ruleClient = rucio.client.ruleclient.RuleClient()
+
+  # Try to create the pattern's dataset in MetaCat
+  justin.logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
+
+  # Temporary file to pass to metacat command 
+  (fd, metadataFile) = tempfile.mkstemp(text = True)
+  fp = os.fdopen(fd, 'w')
+  json.dump(metadataDict, fp)
+  fp.close()
+
+  try:
+    ret = executeMetaCatCommand("dataset create --metadata %s %s:%s"
+                                % (metadataFile, scopeName, destination))
+  # Carry on regardless if ret != 0 since we can't tell from the metacat 
+  # return code if the dataset just already exists or there was a 
+  # genuine problem ...
+  except Exception as e:
+    raise RuntimeException('Failed adding dataset %s:%s to Metacat: %s' 
+                             % (scopeName, destination, str(e)))
+  finally:
+    os.remove(metadataFile)
+  
+  # Try to create the pattern's dataset in Rucio if not already there
+  try:
+    justin.logLine('Try to add Rucio dataset %s:%s' % (scopeName, destination))
+    ret = didClient.add_dataset(scope = scopeName, name = destination)
+  except rucio.common.exception.DataIdentifierAlreadyExists:
+    pass
+  else:
+    if not ret:
+      raise RuntimeException('Failed adding dataset %s:%s' 
+                             % (scopeName, destination))
+
+  # Create the per-RSE datasets and rules
+  for rseName in rseNames:
+    # Try to create the per-RSE dataset in MetaCat
+    datasetForRSE = 'w%ds%dp%d-%s' % (workflowID, stageID, patternID, rseName)
+    justin.logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetForRSE))
+    ret = executeMetaCatCommand('dataset create %s:%s' 
+                                % (scopeName, datasetForRSE))
+    # Carry on regardless if ret != 0 since we can't tell from the metacat 
+    # return code if the dataset just already exists or there was a 
+    # genuine problem ...
+ 
+    # Try to create the pattern's dataset in Rucio if not already there
+    try:
+      justin.logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetForRSE))
+      ret = didClient.add_dataset(scope = scopeName, name = datasetForRSE)
+    except rucio.common.exception.DataIdentifierAlreadyExists:
+      pass
+    else:
+      if not ret:
+        raise RuntimeException('Failed adding dataset %s:%s' 
+                               % (scopeName, datasetForRSE))
+
+    # Create a rule for the new per-RSE dataset
+    justin.logLine('Try to add rule for %s:%s' % (scopeName, datasetForRSE))
+    try:
+      ret = ruleClient.add_replication_rule(
+                     dids = [ {'scope' : scopeName,
+                               'name'  : datasetForRSE} ], 
+                     copies = 1, 
+                     rse_expression = rseName,
+                     lifetime = lifetimeSeconds)
+    except rucio.common.exception.DuplicateRule:
+      # Cannot create rule now because already exists - dev/int instance?
+      justin.logLine('Failed to create rule for %s as a duplicate - skipping' 
+              % datasetForRSE)
+    except rucio.common.exception.RSEOverQuota:
+      # Cannot create rule now because RSE is currently over quota
+      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
+      # ADD RULE LATER SOMEHOW??? 
+      justin.logLine('Failed to create rule for %s as over quota - skipping' 
+              % datasetForRSE)
+    except rucio.common.exception.RSEWriteBlocked:
+      # Cannot create rule now because RSE is currently not writeable
+      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
+      # ADD RULE LATER SOMEHOW??? 
+      justin.logLine('Failed to create rule for %s as write disabled - skipping' 
+              % datasetForRSE)
+    else:
+      if not ret:
+        raise RuntimeException("Failed adding rule for %s:%s" 
+                               % (scopeName, datasetForRSE))
+
+
+def createOneDataset(dataset):
+
+  # Temporary metadata file to pass to metacat command 
+  (fd, metadataFile) = tempfile.mkstemp(text = True)
+
+  try:
+    with os.fdopen(fd, 'w') as fp:
+      json.dump(dataset['metadata'], fp)
+
+    ret = executeMetaCatCommand("dataset create --metadata %s %s:%s"
+                                % (metadataFile, 
+                                   dataset['dataset_scope'],
+                                   dataset['dataset_name']))
+  # Carry on regardless if ret != 0 since we can't tell from the metacat 
+  # return code if the dataset just already exists or there was a 
+  # genuine problem ...
+  except Exception as e:
+    print('Failed adding dataset %s:%s to Metacat: %s' 
+              % (dataset['dataset_scope'], dataset['dataset_name'], str(e)),
+          file=sys.stderr)
+    os.remove(metadataFile)
+    sys.exit(2)
+
+  os.remove(metadataFile)
+  
+
+  # Create Rucio dataset
+  # Add rules to dataset
+
+#
+# PROGRAM MAIN
+#
+
+# We use a hardcoded steering.json file created by justin-wrapper-job
+#
+# JSON format [ { '' : ,
+#                 'dataset_scope': SCOPE,
+#                 'dataset_name' : NAME   }, {}, {} ]
+
+try:
+  with open('steering.json','r') as f:
+    steeringJSON = json.load(f)
+except Exception as e:
+  print('Failed to load steering.json: ' + str(e), file=sys.stderr)
+  sys.exit(1)
+
+for dataset in steeringJSON:
+  # If anything fails, there is a sys.exit(<>0) inside createOneDataset()
+  createOneDataset(dataset)
+  
+sys.exit(0)
+
+  

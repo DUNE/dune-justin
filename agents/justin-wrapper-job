@@ -476,6 +476,14 @@ def updateMetadataTmp(fileName,
 
   with open('tmp.json', 'w') as f:
     f.write(json.dumps(metadata, indent = 4, sort_keys = True))
+
+def createDataset(dataset, jobscriptDict):
+  
+  # Create dataset in MetaCat
+  
+  # Create dataset in Rucio
+  
+  # Create Rule
   
 ########################################################################
 os.environ['TZ'] = 'UTC0'
@@ -821,10 +829,20 @@ outputFiles = []
 
 # Find files matching output patterns specified for this stage
 for (patternType, pattern, patternID) in jobscriptDict['patterns']:
-  matches = glob.glob('home/workspace/' + pattern)
+  try:
+    matches = glob.glob('home/workspace/' + pattern)
+  except Exception as e:
+    logLine('Got exception from glob matching of patterns: ' + str(e))
+    continue
+    
   for match in matches:
     matchingFile = match.split('/')[-1]
-    fileSize     = os.path.getsize(match)
+    try:
+      fileSize = os.path.getsize(match)
+    except:
+      logLine('Got exception from os.path.getsize: ' + str(e))
+      continue
+      
     outputFiles.append((matchingFile, fileSize, patternID))
     recordResultsDict['output_files'].append((matchingFile, patternID))
 
@@ -940,9 +958,10 @@ logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
 #  f.write(resultsResponseDict['user_access_token'])
 
 confirmResultsDict = { 'method'       : 'confirm_results',
-                       'output_files' : []  }
+                       'output_files' : {}  }
 
 rucioUploadedDIDs = []
+createdDatasets = set()
 
 # Go through the list of output files
 for (fileName, fileSize, patternID) in outputFiles:
@@ -961,14 +980,28 @@ for (fileName, fileSize, patternID) in outputFiles:
       uploadEndTime = time.time()
     except:
       jobAborted(317, 'webdav_upload', '')
-    
-    confirmResultsDict['output_files'].append(
-         { 'fileName'   : fileName,
+
+    confirmResultsDict['output_files'][fileName] = {
            'pattern_id' : patternID,
            'seconds'    : uploadEndTime - uploadStartTime,
            'size_bytes' : fileSize }
                                              )
   elif resultsResponseDict['output_rses']:
+    # Create per-RSE dataset if needed
+    try:
+      createDataset('w%ds%dp%d-%s' % (workflowID, stageID, patternID, rse),
+                    jobscriptDict)
+    except Exception as e:
+      logLine('createDataset fails for per-RSE dataset')
+      continue
+
+    # Create destination dataset if needed
+    try:
+      createDataset(destination, jobscriptDict)
+    except Exception as e:
+      logLine('createDataset fails for destination dataset')
+      continue
+
     # Uploading to Rucio managed storage
         
     # Create tmp.json metadata file for this output file
@@ -1052,8 +1085,7 @@ for (fileName, fileSize, patternID) in outputFiles:
     rucioUploadedDIDs.append(jobscriptDict['scope'] + ':' + fileName)
 
     # Add to list of uploaded files for confirm results
-    confirmResultsDict['output_files'].append(
-         { 'fileName'   : fileName,
+    confirmResultsDict['output_files'][fileName] = {
            'pattern_id' : patternID,
            'rse_name'   : rse,
            'seconds'    : uploadEndTime - uploadStartTime,

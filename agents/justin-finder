@@ -771,64 +771,64 @@ def processSubmittedWorkflow(workflow):
   except:
     condorGroupID = 0
 
-  stages = justin.select('SELECT stage_id,processors,jobscript_git,'
-                         'jobscript_image,wall_seconds,rss_bytes '
-                         'FROM stages WHERE workflow_id=%d'
-                         % workflowID)
-
-  for stage in stages:
-    stageID = stage['stage_id']
-    justin.logLine('Processing submitted w%ds%d' % (workflowID, stageID))
-
-    stagesOutputStorages = justin.select(
-        'SELECT rse_name FROM stages_output_storages '
-        'LEFT JOIN storages '
-        'ON storages.rse_id=stages_output_storages.rse_id '
-        'WHERE stages_output_storages.workflow_id=%d '
-        'AND stages_output_storages.stage_id=%s '
-        % (workflowID, stageID))
-          
-    rseNames = []
-    for stageOutputStorage in stagesOutputStorages:
-      rseNames.append(stageOutputStorage['rse_name'])
-
-    stagesOutputs = justin.select(
-      'SELECT destination,lifetime_seconds,pattern_id,file_pattern '
-      'FROM stages_outputs '
-      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stageID))
-
-    for stageOutput in stagesOutputs:
-      if not stageOutput['destination'].startswith('https://'):
-        justin.logLine('Processing submitted w%ds%dp%d' 
-                % (workflowID, stageID, stageOutput['pattern_id']))
-        # A Rucio dataset
-
-        # Metadata for the main dataset in MetaCat
-        metadataDict = { "dune.workflow" : 
-            { "workflow_id"     : workflowID,
-              "stage_id"        : stageID,
-              "pattern_id"      : stageOutput['pattern_id'],
-              "file_pattern"    : stageOutput['file_pattern'],
-              "user"            : workflow['principal_name'],
-              "processors"      : stage['processors'],
-              "rss_bytes"       : stage['rss_bytes'],
-              "wall_seconds"    : stage['wall_seconds'],
-              "jobscript_image" : stage['jobscript_image']
-            }
-                       }
+#  stages = justin.select('SELECT stage_id,processors,jobscript_git,'
+#                         'jobscript_image,wall_seconds,rss_bytes '
+#                         'FROM stages WHERE workflow_id=%d'
+#                         % workflowID)
+#
+#  for stage in stages:
+#    stageID = stage['stage_id']
+#    justin.logLine('Processing submitted w%ds%d' % (workflowID, stageID))
+#
+#    stagesOutputStorages = justin.select(
+#        'SELECT rse_name FROM stages_output_storages '
+#        'LEFT JOIN storages '
+#        'ON storages.rse_id=stages_output_storages.rse_id '
+#        'WHERE stages_output_storages.workflow_id=%d '
+#        'AND stages_output_storages.stage_id=%s '
+#        % (workflowID, stageID))
+#          
+#    rseNames = []
+#    for stageOutputStorage in stagesOutputStorages:
+#      rseNames.append(stageOutputStorage['rse_name'])
+#
+#    stagesOutputs = justin.select(
+#      'SELECT destination,lifetime_seconds,pattern_id,file_pattern '
+#      'FROM stages_outputs '
+#      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stageID))
+#
+#    for stageOutput in stagesOutputs:
+#      if not stageOutput['destination'].startswith('https://'):
+#        justin.logLine('Processing submitted w%ds%dp%d' 
+#                % (workflowID, stageID, stageOutput['pattern_id']))
+#        # A Rucio dataset
+#
+#        # Metadata for the main dataset in MetaCat
+#        metadataDict = { "dune.workflow" : 
+#            { "workflow_id"     : workflowID,
+#              "stage_id"        : stageID,
+#              "pattern_id"      : stageOutput['pattern_id'],
+#              "file_pattern"    : stageOutput['file_pattern'],
+#              "user"            : workflow['principal_name'],
+#              "processors"      : stage['processors'],
+#              "rss_bytes"       : stage['rss_bytes'],
+#              "wall_seconds"    : stage['wall_seconds'],
+#              "jobscript_image" : stage['jobscript_image']
+#            }
+#                       }
 # ADD RCDS/Git repos in here too with tags and commit hashes
-                         
-        if stage['jobscript_git']:
-          metadataDict['dune.workflow']['jobscript_git'] = stage['jobscript_git']
-
-        createOutputDatasets(workflowID = workflowID,
-                             stageID = stageID,
-                             patternID = stageOutput['pattern_id'],
-                             metadataDict = metadataDict,
-                             scopeName = workflow['scope_name'],
-                             destination = stageOutput['destination'],
-                             lifetimeSeconds = stageOutput['lifetime_seconds'],
-                             rseNames = rseNames)
+#                         
+#        if stage['jobscript_git']:
+#          metadataDict['dune.workflow']['jobscript_git'] = stage['jobscript_git']
+#
+#        createOutputDatasets(workflowID = workflowID,
+#                             stageID = stageID,
+#                             patternID = stageOutput['pattern_id'],
+#                             metadataDict = metadataDict,
+#                             scopeName = workflow['scope_name'],
+#                             destination = stageOutput['destination'],
+#                             lifetimeSeconds = stageOutput['lifetime_seconds'],
+#                             rseNames = rseNames)
 
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
@@ -843,9 +843,11 @@ def processSubmittedWorkflow(workflow):
 
   justin.insertUpdate(query)
 
+# THIS FUNCTION IS NO LONGER USED AND CAN BE REMOVED ONCE FINISHED PUTTING
+# THIS FUNCIONALITY IN THE WRAPPER JOBS
 def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
                          scopeName, destination, lifetimeSeconds, rseNames):
-  # Create missing main pattern dataset and per-RSE datasets
+  # Create missing main pattern datasets (per-RSEs done in wrapper job)
   # All exceptions will be caught by the caller
   
   justin.logLine('Try to create DID and Rule Rucio clients')

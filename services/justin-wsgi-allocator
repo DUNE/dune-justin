@@ -446,9 +446,13 @@ def makeJobscriptDict(jsonDict, jobDict):
   scopeName = jobDict['scope_name']
 
   try:
-    query = ("SELECT jobscript,principal_name FROM stages_jobscripts "
+    query = ("SELECT jobscript,principal_name,jobscript_image,jobscript_git "
+             "FROM stages_jobscripts "
              "LEFT JOIN workflows "
              "ON workflows.workflow_id=stages_jobscripts.workflow_id "
+             "LEFT JOIN stages "
+             "ON stages.workflow_id=stages_jobscripts.workflow_id "
+             "AND stages.stage_id=stages_jobscripts.stage_id "
              "LEFT JOIN users ON users.user_id=workflows.user_id "
              "LEFT JOIN principal_names "
              "ON principal_names.pn_id=users.main_pn_id "
@@ -456,15 +460,19 @@ def makeJobscriptDict(jsonDict, jobDict):
              "AND stages_jobscripts.stage_id=%d" 
              % (jsonDict['workflow_id'], jsonDict['stage_id']))
 
-    row       = justin.select(query, justOne = True)
-    jobscript = row['jobscript']
-    jobscriptDict['principal_name'] = row['principal_name']
+    row = justin.select(query, justOne = True)
+    jobscriptDict['principal_name']   = row['principal_name']
+    jobscriptDict['jobscript']        = row['jobscript']
+    jobscriptDict['jobscript_image']  = row['jobscript_image']
+
+    if row['jobscript_git']:
+      jobscriptDict['jobscript_git'] = row['jobscript_git']
+
   except Exception as e:
     print('SELECT stages_jobscripts fails: ' + str(e), file=sys.stderr)
     return None
 
-  jobscriptDict['jobscript'] = jobscript
-
+  
   # Create and add files for VOMS proxies for the job
   try:
     (newCertNoRoles, newChainNoRoles) = \
@@ -1405,17 +1413,16 @@ def processOutputFiles(outputFiles, patternRows,
       continue
 
     if patternsDict[patternID]['destination'].startswith('https://'):
-      # Record WebDAV URLs so we can count them for numbered directories
       justin.insertUpdate('INSERT INTO files SET state="recorded",'
-                          'file_did="%s:%s",'
+                          'file_did="%s",'
                           'creator_justin_job_id=%d,'
                           'workflow_id=%d,'
-                          'creator_stage_id=0,'
+                          'creator_stage_id=%d,'
                           'creator_pattern_id=%d,'
                           'stage_id=0' %
-                          (
-NEED SOME PREFIX
-fileName, justinJobID, workflowID, patternID)
+                          (workflowID, stageID, patternID,
+                           fileName, justinJobID, 
+                           workflowID, stageID, patternID)
                          )
     else:
       justin.insertUpdate('INSERT INTO files SET state="recorded",'
@@ -1683,7 +1690,7 @@ def recordResultsMethod(startResponse, jsonDict):
   # Get the patterns
   try:
     query = ("SELECT destination,"
-             "for_next_stage,pattern_id "
+             "for_next_stage,pattern_id,number_files "
              "FROM stages_outputs "
 #             "LEFT JOIN stages "
 #             "ON stages.workflow_id=stages_outputs.workflow_id "
@@ -1719,21 +1726,35 @@ def recordResultsMethod(startResponse, jsonDict):
 #                     '500 Internal Server Error', 
 #                     'Failed recording outputs: ' + str(e))
 
+  # First pass to count how many files per destination already, allowing for
+  # multiple patterns outputting to the same destination
+  destinationCounts = {}
+  for patternRow in patternRows:
+   if patternRow['destination'] not in destinationCounts:
+     destinationCounts[patternRow['destination']]  = patternRow['number_files']
+   else:
+     destinationCounts[patternRow['destination']] += patternRow['number_files']
+    
   # Create a list of the output file patterns
   responseDict['patterns'] = {}
 
   for patternRow in patternRows:
     responseDict['patterns'][patternRow['pattern_id']] = {}
+    if patternRow['destination'] in destinationCounts:
+      numberFiles = destinationCounts[patternRow['destination']]
+    else:
+      numberFiles = 0
 
     if patternRow['destination'].startswith('https://'):
       responseDict['patterns'][patternRow['pattern_id']]['destination'] = \
-           patternRow['destination']
-# ADD NUMERIC SUBDIRS HERE
+        patternRow['destination'] + \
+        '/%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
 
     else:
-      responseDict['patterns'][patternRow['pattern_id']]['destinaton'] \
-             = patternRow['destination']
-# ADD NUMERIC n1 SUFFIX HERE
+      responseDict['patterns'][patternRow['pattern_id']]['destination'] = \
+        patternRow['destination'] + \
+        'n%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
+
       responseDict['patterns'][patternRow['pattern_id']]['for_next_stage'] \
              = patternRow['for_next_stage']
 
@@ -1980,7 +2001,13 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Updating processed input files')
 
   try:
-    fileRows = justin.select('SELECT file_did,file_id,stage_id FROM files '
+    fileRows = justin.select('SELECT file_did,file_id,file_name,stage_id,'
+                             'creator_pattern_id,destination '
+                             'FROM files '
+                             'LEFT JOIN stages_outputs '
+                             'ON stages_outputs.workflow_id=%d '
+                             'AND stages_outputs.stage_id=%d '
+                             'AND stages_outputs.pattern_id=creator_pattern_id '
                              'WHERE state="recorded" AND '
                              'creator_justin_job_id=%d' % justinJobID)
   except:
@@ -1989,22 +2016,36 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Getting recorded output files')
 
   for fileRow in fileRows:
+
+    if fileRow['file_name'] not in jsonDict['output_files']:
+      # Recorded but not actually uploaded!
+      # SHOULD THIS HAVE AN EVENT? SKIP FOR NOW
+      continue
   
     try:
       try:
-        rseName   = jsonDict['output_dids'][fileRow['file_did']]['rse_name']
-        sizeBytes = jsonDict['output_dids'][fileRow['file_did']]['size_bytes']
-        seconds   = jsonDict['output_dids'][fileRow['file_did']]['seconds']
+        rseName = jsonDict['output_files][fileRow['file_name']]['rse_name']
+      except:
+        rseName = None
+
+      try
+        sizeBytes = jsonDict['output_files][fileRow['file_name']]['size_bytes']
+        seconds   = jsonDict['output_files][fileRow['file_name']]['seconds']
       except:
         sizeBytes = 0
         seconds   = 0.0
-        rseName   = None
       
       justin.insertUpdate('UPDATE files SET state="%s",size_bytes=%d '
                           'WHERE file_id=%d' %
                        ('finding' if (fileRow['stage_id'] > 0) else 'output',
                           sizeBytes,
                           fileRow['file_id']))
+
+      justin.insertUpdate('UPDATE stages_outputs '
+                          'SET number_files=number_files+1 '
+                          'WHERE workflow_id=%d AND stage_id=%d '
+                          'AND pattern_id=%d' 
+                          % (workflowID, stageID, fileRow['pattern_id']))
 
       justin.logEvent(eventTypeID = justin.event_FILE_CREATED,
                       workflowID = workflowID,
@@ -2016,43 +2057,11 @@ def confirmResultsMethod(startResponse, jsonDict):
                       rseName = rseName,
                       seconds = seconds
                      )
+
     except Exception as e:
       return httpError(startResponse,
                        '500 Internal Server Error',
                        'Updating recorded output file: ' + str(e))
-
-
-THIS ALL NEEDS CHANGING TO USE THE COMBINED output_files 
-  # Record output files uploaded directly to scratch etc
-  for url in jsonDict['output_urls']:
-    if not justin.stringNoQuotes(url):
-      return httpError(startResponse, '400 Bad Request', 'Bad URL for upload')
-
-    try:
-      file_id = justin.insertUpdate('INSERT INTO files SET '
-                                    'state="output",'
-                                    'workflow_id=%d,'
-                                    'stage_id=0,'
-                                    'file_did="%s",'
-                                    'creator_justin_job_id=%d'
-                                    % (workflowID, 
-                                       url,
-                                       justinJobID))
-
-      justin.logEvent(eventTypeID = justin.event_FILE_UPLOADED,
-                         workflowID = workflowID,
-                         stageID = stageID,
-                         fileID = file_id,
-                         justinJobID = justinJobID,
-                         siteID = siteID,
-                         entryID = entryID
-                        )
-
-    except Exception as e:
-      return httpError(startResponse,
-                       '500 Internal Server Error', 
-                       'Recording output file uploaded by url: ' + str(e))
-
   try:
     numProcessedRow = justin.select('SELECT '
              '(SELECT sent_get_file FROM jobs WHERE justin_job_id=%d) '

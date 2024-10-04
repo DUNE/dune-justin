@@ -126,6 +126,8 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
 
 jobStallSeconds = 3660
 
+filesPerNumberedDestination = 1000
+
 defaultScopeName = 'usertests'
 
 jobscriptImageSuffix  = None

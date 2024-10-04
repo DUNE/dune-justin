@@ -311,6 +311,7 @@ CREATE TABLE IF NOT EXISTS `stages_outputs` (
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
   `destination` varchar(512) NOT NULL,
+  `number_files` int(10) unsigned NOT NULL DEFAULT 0,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0',
   UNIQUE KEY `workflow_stage_pattern` (`workflow_id`,`stage_id`,`pattern_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -322,6 +323,14 @@ CREATE TABLE IF NOT EXISTS `stages_output_storages` (
   `preferred` tinyint(1) NOT NULL DEFAULT FALSE,
 # THIS DEFAULT SHOULD BE CHANGED TO FALSE AS SOON AS 01.01 is deployed
   UNIQUE KEY `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `workflows_output_datasets` (
+  `workflow_id` mediumint(8) unsigned NOT NULL,
+  `dataset_did` varchar(255) NOT NULL,
+  `closed` tinyint(1) NOT NULL DEFAULT '0',
+  `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',  
+  UNIQUE KEY `workflow_dataset` (`workflow_id`,`closed`,`dataset_did`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_input_storages` (
