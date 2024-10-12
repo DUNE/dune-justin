@@ -1396,16 +1396,8 @@ def updateFileProcessing(fileIDList,
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
-def processOutputFiles(outputFiles, patternRows, 
+def processOutputFiles(outputFiles, patternsDict, 
                        scopeName, workflowID, stageID, justinJobID):
-
-  patternsDict = {}
-  for patternRow in patternRows:
-    patternsDict[patternRow['pattern_id']] = {}
-    patternsDict[patternRow['pattern_id']]['destination'] \
-                                              = patternRow['destination']
-    patternsDict[patternRow['pattern_id']]['for_next_stage'] \
-                                              = patternRow['for_next_stage']
 
   for (fileName, patternID) in outputFiles:
       
@@ -1414,14 +1406,15 @@ def processOutputFiles(outputFiles, patternRows,
 
     if patternsDict[patternID]['destination'].startswith('https://'):
       justin.insertUpdate('INSERT INTO files SET state="recorded",'
-                          'file_did="%s",'
+                          'file_did="%s/%s",'
                           'creator_justin_job_id=%d,'
                           'workflow_id=%d,'
                           'creator_stage_id=%d,'
                           'creator_pattern_id=%d,'
                           'stage_id=0' %
                           (workflowID, stageID, patternID,
-                           fileName, justinJobID, 
+                           patternsDict[patternID]['destination'], fileName,
+                           justinJobID, 
                            workflowID, stageID, patternID)
                          )
     else:
@@ -1690,7 +1683,7 @@ def recordResultsMethod(startResponse, jsonDict):
   # Get the patterns
   try:
     query = ("SELECT destination,"
-             "for_next_stage,pattern_id,number_files "
+             "for_next_stage,pattern_id,number_files,lifetime_seconds "
              "FROM stages_outputs "
 #             "LEFT JOIN stages "
 #             "ON stages.workflow_id=stages_outputs.workflow_id "
@@ -1706,16 +1699,6 @@ def recordResultsMethod(startResponse, jsonDict):
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Failed getting patterns list: ' + str(e))
-
-  # Record output files
-  try:
-    processOutputFiles(jsonDict['output_files'], patternRows,
-                       scopeName, workflowID, stageID, 
-                       justinJobID, jsonDict['jobsub_id'])
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Failed recording output files: ' + str(e))
 
 #  try:
 #    # We set stageID=-1 so that when 1 is added, the output only 
@@ -1757,6 +1740,19 @@ def recordResultsMethod(startResponse, jsonDict):
 
       responseDict['patterns'][patternRow['pattern_id']]['for_next_stage'] \
              = patternRow['for_next_stage']
+
+      responseDict['patterns'][patternRow['pattern_id']]['lifetime_seconds'] \
+             = patternRow['lifetime_seconds']
+
+  # Record output files
+  try:
+    processOutputFiles(jsonDict['output_files'], responseDict['patterns'],
+                       scopeName, workflowID, stageID, 
+                       justinJobID, jsonDict['jobsub_id'])
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed recording output files: ' + str(e))
 
   # Create an ordered output RSE list specific to this stage
   try:
@@ -2001,7 +1997,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Updating processed input files')
 
   try:
-    fileRows = justin.select('SELECT file_did,file_id,file_name,stage_id,'
+    fileRows = justin.select('SELECT file_did,file_id,stage_id,'
                              'creator_pattern_id,destination '
                              'FROM files '
                              'LEFT JOIN stages_outputs '
@@ -2016,21 +2012,25 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Getting recorded output files')
 
   for fileRow in fileRows:
+    if fileRow['file_did'].startswith('https://'):
+      fileName = fileRow['file_did'].split('/')[-1]
+    else:
+      fileName = fileRow['file_did'].split(':')[1]
 
-    if fileRow['file_name'] not in jsonDict['output_files']:
+    if fileName not in jsonDict['output_files']:
       # Recorded but not actually uploaded!
-      # SHOULD THIS HAVE AN EVENT? SKIP FOR NOW
+      # SHOULD THIS HAVE AN EVENT? SKIP SILENTLY FOR NOW
       continue
   
     try:
       try:
-        rseName = jsonDict['output_files][fileRow['file_name']]['rse_name']
+        rseName = jsonDict['output_files][fileName]['rse_name']
       except:
         rseName = None
 
       try
-        sizeBytes = jsonDict['output_files][fileRow['file_name']]['size_bytes']
-        seconds   = jsonDict['output_files][fileRow['file_name']]['seconds']
+        sizeBytes = jsonDict['output_files][fileName]['size_bytes']
+        seconds   = jsonDict['output_files][fileName]['seconds']
       except:
         sizeBytes = 0
         seconds   = 0.0

@@ -236,7 +236,9 @@ def executeJustinRucioUpload(args):
 # and justin-wrapper-job to make them both self contained
 #
 
-def webdavCheckRemoteDirectories(sslContext, token, dirSplit):
+def webdavCheckRemoteDirectories(sslContext, token, destinationDir):
+
+  dirSplit = destinationDir.split('/')
 
   # Go down through the directories looking for the highest one that exists
   for highest in range(len(dirSplit) - 1, 1, -1): 
@@ -319,14 +321,14 @@ def webdavRemoteDirCreate(sslContext, token, url):
   
 def webdavPutFile(token, source, destinationDir):
 
-  destDirSplit = destinationDir.split('/')
-
-  # Remove any final "/" and "//" after the one in "https://"
-  for i in range(2, len(destDirSplit)):
-    if destDirSplit[i] == '':
-      destDirSplit.pop(i)
-      
-  destinationDir = '/'.join(destDirSplit)
+#  destDirSplit = destinationDir.split('/')
+#
+#  # Remove any final "/" and "//" after the one in "https://"
+#  for i in range(2, len(destDirSplit)):
+#    if destDirSplit[i] == '':
+#      destDirSplit.pop(i)
+#      
+#  destinationDir = '/'.join(destDirSplit)
 
   sslContext = ssl.SSLContext()
   sslContext.verify_mode = ssl.CERT_REQUIRED
@@ -335,7 +337,7 @@ def webdavPutFile(token, source, destinationDir):
                        '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
 
   # Check the directory tree already exists and create if necessary
-  webdavCheckRemoteDirectories(sslContext, token, destDirSplit)
+  webdavCheckRemoteDirectories(sslContext, token, destinationDir)
 
   sourceFile = source.split('/')[-1]
   destinationURL = destinationDir + '/' + sourceFile
@@ -477,13 +479,37 @@ def updateMetadataTmp(fileName,
   with open('tmp.json', 'w') as f:
     f.write(json.dumps(metadata, indent = 4, sort_keys = True))
 
-def createDataset(dataset, jobscriptDict):
+def createDatasets(datasets):
+
+  with open('datasets.json','w') as f:
+    json.dump(datasets, f)
+
+  for i in range(1, 4):  
+    cmd = (
+     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
+     'setup python v3_9_13 ; setup metacat ; '
+     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
+     'export METACAT_AUTH_SERVER_URL=###justin_metacat_auth_server_url### ; '
+     'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
+     'metacat auth login -m x509 dunepro ; '
+     'justin-job-dataset')
+     
+    logLine('Try %d/3 of executing these commands in a subshell: %s' % (i, cmd))
+
+    outcome = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
+
+    if outcome.returncode == 0:
+      logLine('metacat returns %d - success' % outcome.returncode)
+      break
+
+    logLine('metacat returns %d - try %d failed'  
+            % (outcome.returncode, i))
+    time.sleep(1)
+
+  return (outcome.returncode, outcome.stdout)
   
-  # Create dataset in MetaCat
-  
-  # Create dataset in Rucio
-  
-  # Create Rule
+
+  # Run justin-job-datasets
   
 ########################################################################
 os.environ['TZ'] = 'UTC0'
@@ -843,7 +869,7 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
       logLine('Got exception from os.path.getsize: ' + str(e))
       continue
       
-    outputFiles.append((matchingFile, fileSize, patternID))
+    outputFiles.append((matchingFile, fileSize, patternID, pattern))
     recordResultsDict['output_files'].append((matchingFile, patternID))
 
 recordResultsDict['processed_dids'] = []
@@ -961,10 +987,23 @@ confirmResultsDict = { 'method'       : 'confirm_results',
                        'output_files' : {}  }
 
 rucioUploadedDIDs = []
-createdDatasets = set()
 
 # Go through the list of output files
-for (fileName, fileSize, patternID) in outputFiles:
+for (fileName, fileSize, patternID, pattern) in outputFiles:
+
+  # Metadata to be declared for all datasets from this pattern
+  datasetMetadata = { "dune.workflow" : 
+            { "workflow_id"     : workflowID,
+              "stage_id"        : stageID,
+              "pattern_id"      : patternID,
+              "file_pattern"    : pattern,
+              "user"            : jobscriptDict['principal_name'],
+              "processors"      : jobscriptDict['requested_processors'],
+              "rss_bytes"       : jobscriptDict['requested_rss_bytes'],
+              "wall_seconds"    : jobscriptDict['requested_wall_seconds'],
+              "jobscript_image" : jobscriptDict['jobscript_image']
+            }
+                    }
 
   # Find the destination for this pattern in the resultsResponseDict
   destination = resultsResponseDict['patterns'][patternID]['destination']
@@ -982,27 +1021,12 @@ for (fileName, fileSize, patternID) in outputFiles:
       jobAborted(317, 'webdav_upload', '')
 
     confirmResultsDict['output_files'][fileName] = {
-           'pattern_id' : patternID,
-           'seconds'    : uploadEndTime - uploadStartTime,
-           'size_bytes' : fileSize }
+                         'pattern_id' : patternID,
+                         'seconds'    : uploadEndTime - uploadStartTime,
+                         'size_bytes' : fileSize }
                                              )
   elif resultsResponseDict['output_rses']:
-    # Create per-RSE dataset if needed
-    try:
-      createDataset('w%ds%dp%d-%s' % (workflowID, stageID, patternID, rse),
-                    jobscriptDict)
-    except Exception as e:
-      logLine('createDataset fails for per-RSE dataset')
-      continue
-
-    # Create destination dataset if needed
-    try:
-      createDataset(destination, jobscriptDict)
-    except Exception as e:
-      logLine('createDataset fails for destination dataset')
-      continue
-
-    # Uploading to Rucio managed storage
+    # Uploading file to Rucio managed storage
         
     # Create tmp.json metadata file for this output file
     try:
@@ -1029,6 +1053,25 @@ for (fileName, fileSize, patternID) in outputFiles:
 
     # If that succeeds, then try to register/upload with rucio
     for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
+      datasets = [ { 'metadata'         : datasetMetadata,
+                     'dataset_scope'    : jobscriptDict['scope'],
+                     'dataset_name'     : 'w%ds%dp%d-%s' 
+                               % (workflowID, stageID, patternID, rse),
+                     'rse_expression'   : rse,
+                     'lifetime_seconds' : 
+             resultsResponseDict['patterns'][patternID]['lifetime_seconds']},
+                   { 'metadata'         : datasetMetadata,
+                     'dataset_scope'    : jobscriptDict['scope'],
+                     'dataset_name'     : destination } 
+                 ]
+
+      # Try to create the per-RSE and destination datasets
+      try:
+        createDatasets(datasets, jobscriptDict)
+      except:
+        logLine('createDatasets fails - try next RSE')
+        continue
+
       logLine('Try %s:%s to %s/%s' 
               % (jobscriptDict['scope'], fileName, rse, scheme))
  

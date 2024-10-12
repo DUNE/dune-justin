@@ -899,20 +899,28 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         pattern     = patternDest
         destination = ''
 
-      if not destination.startswith('https://') and not scopeName:
-        return ('400 Bad Request', 
-                'A scope must be specified when creating the workflow if '
-                '--output-pattern is given for this stage '
-                'and a Rucio dataset is given.')
+      if destination.startswith('https://'):
+        destination = justin.expandEnvVars(destination, justinEnvVars)
+        destSplit = destination.split('/')
+        for i in range(2, len(destSplit)):
+          if destSplit[i] == '':
+            destSplit.pop(i)      
+        destination = '/'.join(destSplit)
 
-      if not destination.startswith('https://'):
+      elif scopeName:
         # If to a Rucio dataset, then always [destination-]wXsYpZ
         if destination:
           destination += '-'
 
         destination += 'w%ds%dp%d' % (workflowID, stageID, patternID)
+        destination = justin.expandEnvVars(destination, justinEnvVars)
 
-      destination = justin.expandEnvVars(destination, justinEnvVars)
+      else:
+        return ('400 Bad Request', 
+                'A scope must be specified when creating the workflow if '
+                '--output-pattern is given for this stage '
+                'and a Rucio dataset is given.')
+
       outputPatterns.append((False, pattern, destination, patternID))
       patternID += 1
 
