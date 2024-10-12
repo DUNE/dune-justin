@@ -32,7 +32,7 @@ import argparse
 import platform
 
 # The make-justin-tag script looks for this and updates it - so format matters
-versionNumber = '01.02.rc0'
+versionNumber = '01.02.rc1'
 sessionFile   = '/var/tmp/justin.session.' + str(os.getuid())
 
 def body(buf): 
@@ -169,6 +169,10 @@ parser.add_argument("--output-rse",
                     type   = str,
                     action = "append",
                     help   = "Name of RSE to use for output files")
+
+parser.add_argument("--output-rse-expression",
+                    type   = str,
+                    help   = "RSE expression when creating datasets")
 
 parser.add_argument("--env",
                     type   = str,

@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   `max_allocations` tinyint(1) unsigned NOT NULL DEFAULT 6,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`,`file_did`),
+  INDEX `file_did` (`file_did`,`file_id`),
   INDEX `creator_pattern_id` (`workflow_id`,`creator_stage_id`,`creator_pattern_id`,`state`,`file_did`),
   INDEX `justin_job_id` (`justin_job_id`,`workflow_id`,`stage_id`),
   KEY `state_file_id` (`state`,`file_id`),
@@ -311,6 +312,7 @@ CREATE TABLE IF NOT EXISTS `stages_outputs` (
   `lifetime_seconds` int(10) unsigned NOT NULL DEFAULT 86400,
   `file_pattern` varchar(255) NOT NULL,
   `destination` varchar(512) NOT NULL,
+  `rse_expression` text NOT NULL DEFAULT '',
   `number_files` int(10) unsigned NOT NULL DEFAULT 0,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0',
   UNIQUE KEY `workflow_stage_pattern` (`workflow_id`,`stage_id`,`pattern_id`)

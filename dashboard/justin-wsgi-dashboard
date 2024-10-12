@@ -1548,7 +1548,7 @@ def showStage(environ, user, cgiValues):
   # Output patterns
 
   query = ("SELECT pattern_id,destination,file_pattern,"
-           "for_next_stage,lifetime_seconds "
+           "for_next_stage,lifetime_seconds,rse_expression "
            "FROM stages_outputs "
            "WHERE workflow_id=%d AND stage_id=%d "
            "ORDER BY pattern_id" %
@@ -1560,23 +1560,27 @@ def showStage(environ, user, cgiValues):
   if patternRows:
     output += ("<h2>Output patterns</h2>")
     output += ('<table><tr><th>&nbsp;</th><th>Destination</th><th>Pattern</th>'
-               '<th>Lifetime</th><th>For next stage</th></tr>') 
+               '<th>Lifetime</th><th>For next stage</th>'
+               '<th>RSE expression</th></tr>') 
 
     for patternRow in patternRows:
       if patternRow['destination'].startswith('https://'):
         output += ("<tr><td>%d</td><td>%s</td><td>%s</td>"
-                   "<td> </td><td> </td></tr>" 
-                   % (patternRow["pattern_id"], patternRow["destination"],
+                   "<td> </td><td> </td><td> </td></tr>" 
+                   % (patternRow["pattern_id"], 
+                      insertWBR(patternRow["destination"]),
                       html.escape(patternRow["file_pattern"], quote=True)))
       else:
         output += ("<tr><td>%d</td><td>Rucio %s:%s</td><td>%s</td>"
-                   "<td>%d</td><td>%s</td></tr>" 
+                   "<td>%d</td><td>%s</td><td%s</td></tr>" 
                    % (patternRow["pattern_id"],
                       stageRow["workflows_scope_name"],
-                      patternRow["destination"],
+                      insertWBR(patternRow["destination"]),
                       html.escape(patternRow["file_pattern"], quote=True),
                       patternRow["lifetime_seconds"],
-                      bool(patternRow["for_next_stage"])))
+                      bool(patternRow["for_next_stage"]),
+                      html.escape(patternRow['rse_expression'])
+                    ))
 
     output += ('</table>')
 

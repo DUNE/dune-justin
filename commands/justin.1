@@ -114,6 +114,7 @@ process.
 .B [--wall-seconds N] [--rss-mib N] [--processors N] [--gpu]
 .B [--max-distance DIST] [--output-pattern PATTERN[:DESTINATION]]
 .B [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse NAME] 
+.B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
 .br
 Creates a new stage for the given workflow ID with the given stage ID. Stages
@@ -198,10 +199,8 @@ justIN Database as an unprocessed input file for the next stage and
 available for allocation to instances of that stage's script. 
 
 .B --lifetime-days DAYS
-sets the Rucio rule lifetime when creating the initial per-RSE datasets used 
-to keep the initial replica of an output file on the storage it is uploaded 
-to, for all output files that are uploaded in the given stage. If any Rucio
-datasets are used for outputs, then this is option is required.
+sets the Rucio rule lifetime when creating Rucio datasets for output files.
+If any Rucio datasets are used for outputs, then this is option is required.
 
 If one or more options
 .B --output-rse NAME
@@ -210,6 +209,12 @@ will be chosen
 from that list of RSEs, with preference given to RSEs which are closer in 
 distance. If this option is not used, or none of the given RSEs are available,
 then the default algorithm for choosing the closest available RSE is used.
+
+If
+.B --output-rse-expression EXPRESSION
+is given, then it is used when creating rules for Rucio datasets for outputs,
+but not for the per-RSE datasets used to keep a copy of the output file on 
+the RSE it is first uploaded to.
 
 .B --env NAME=VALUE
 can be used one or more times to set environment variables when the stage's
@@ -227,6 +232,7 @@ this stage.
 .B [--wall-seconds N]
 .B [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
+.B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
 .br
 Combines the 

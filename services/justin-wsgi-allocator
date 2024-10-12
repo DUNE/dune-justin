@@ -1682,7 +1682,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
   # Get the patterns
   try:
-    query = ("SELECT destination,"
+    query = ("SELECT destination,rse_expression,"
              "for_next_stage,pattern_id,number_files,lifetime_seconds "
              "FROM stages_outputs "
 #             "LEFT JOIN stages "
@@ -1743,6 +1743,9 @@ def recordResultsMethod(startResponse, jsonDict):
 
       responseDict['patterns'][patternRow['pattern_id']]['lifetime_seconds'] \
              = patternRow['lifetime_seconds']
+
+      responseDict['patterns'][patternRow['pattern_id']]['rse_expression'] \
+             = patternRow['rse_expression']
 
   # Record output files
   try:
