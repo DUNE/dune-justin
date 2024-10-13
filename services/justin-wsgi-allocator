@@ -1500,8 +1500,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required lists (can be empty)
-  for name in ['processed_dids', 'processed_pfns', 
-               'output_dids', 'output_urls', 'next_stage_dids']:
+  for name in ['processed_dids', 'processed_pfns', 'output_files']:
     if name not in jsonDict:
       return httpError(startResponse,
                        '400 Bad Request',
@@ -1518,10 +1517,12 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'jobs.site_id, jobs.entry_id, users.access_token, '
-             'jobs.has_inner_apptainer, jobs.job_state, workflows.state '
+             'jobs.has_inner_apptainer, jobs.job_state, workflows.state, '
+             'scope_name ' 
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN users ON users.user_id=workflows.user_id '
+             'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
              'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.select(query, justOne = True)
@@ -1529,6 +1530,7 @@ def recordResultsMethod(startResponse, jsonDict):
     justinJobID       = int(row['justin_job_id'])
     workflowID        = int(row['workflow_id'])
     stageID           = int(row['stage_id'])
+    scopeName         = row['scope_name']
     siteID            = int(row['site_id'])
     entryID           = int(row['entry_id'])
     hasInnerApptainer = row['has_inner_apptainer']
@@ -1748,10 +1750,10 @@ def recordResultsMethod(startResponse, jsonDict):
              = patternRow['rse_expression']
 
   # Record output files
+
   try:
     processOutputFiles(jsonDict['output_files'], responseDict['patterns'],
-                       scopeName, workflowID, stageID, 
-                       justinJobID, jsonDict['jobsub_id'])
+                       scopeName, workflowID, stageID, justinJobID)
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
@@ -2000,19 +2002,19 @@ def confirmResultsMethod(startResponse, jsonDict):
                      'Updating processed input files')
 
   try:
-    fileRows = justin.select('SELECT file_did,file_id,stage_id,'
+    fileRows = justin.select('SELECT file_did,file_id,files.creator_stage_id,'
                              'creator_pattern_id,destination '
                              'FROM files '
                              'LEFT JOIN stages_outputs '
-                             'ON stages_outputs.workflow_id=%d '
-                             'AND stages_outputs.stage_id=%d '
+                             'ON stages_outputs.workflow_id=files.workflow_id '
+                             'AND stages_outputs.stage_id=files.creator_stage_id '
                              'AND stages_outputs.pattern_id=creator_pattern_id '
-                             'WHERE state="recorded" AND '
+                             'WHERE files.state="recorded" AND '
                              'creator_justin_job_id=%d' % justinJobID)
-  except:
+  except Exception as e:
     return httpError(startResponse,
                      '500 Internal Server Error',
-                     'Getting recorded output files')
+                     'Getting recorded output files: ' + str(e))
 
   for fileRow in fileRows:
     if fileRow['file_did'].startswith('https://'):
@@ -2047,8 +2049,8 @@ def confirmResultsMethod(startResponse, jsonDict):
       justin.insertUpdate('UPDATE stages_outputs '
                           'SET number_files=number_files+1 '
                           'WHERE workflow_id=%d AND stage_id=%d '
-                          'AND pattern_id=%d' 
-                          % (workflowID, stageID, fileRow['pattern_id']))
+                          'AND pattern_id=%d' % 
+                          (workflowID, stageID, fileRow['creator_pattern_id']))
 
       justin.logEvent(eventTypeID = justin.event_FILE_CREATED,
                       workflowID = workflowID,
