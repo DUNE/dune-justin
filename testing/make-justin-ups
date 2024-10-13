@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # make-justin-ups - package justIN commands for UPS in cvmfs
 #

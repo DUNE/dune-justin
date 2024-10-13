@@ -261,7 +261,8 @@ queue %d
     logLine("condor_submit fails with error: " + str(e))
     return
   finally:
-    os.remove(wrapperFile.name)
+    if not justin.keepWrapperFiles:
+      os.remove(wrapperFile.name)
     
   logLine('%s' % str(outcome.stdout))
 

@@ -2027,13 +2027,13 @@ def confirmResultsMethod(startResponse, jsonDict):
   
     try:
       try:
-        rseName = jsonDict['output_files][fileName]['rse_name']
+        rseName = jsonDict['output_files'][fileName]['rse_name']
       except:
         rseName = None
 
-      try
-        sizeBytes = jsonDict['output_files][fileName]['size_bytes']
-        seconds   = jsonDict['output_files][fileName]['seconds']
+      try:
+        sizeBytes = jsonDict['output_files'][fileName]['size_bytes']
+        seconds   = jsonDict['output_files'][fileName]['seconds']
       except:
         sizeBytes = 0
         seconds   = 0.0

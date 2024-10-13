@@ -1024,7 +1024,7 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
                          'pattern_id' : patternID,
                          'seconds'    : uploadEndTime - uploadStartTime,
                          'size_bytes' : fileSize }
-                                             )
+                                             
   elif resultsResponseDict['output_rses']:
     # Uploading file to Rucio managed storage
         
@@ -1141,7 +1141,7 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
            'rse_name'   : rse,
            'seconds'    : uploadEndTime - uploadStartTime,
            'size_bytes' : fileSize }
-                                             )
+                                             
                                              
 # If all ok, then confirm that to the Workflow Allocator
 

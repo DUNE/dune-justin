@@ -66,6 +66,7 @@ rucioProductionUser = None
 agentUsername       = None
 proDev              = None
 htcondorSchedds     = None
+keepWrapperFiles    = None
 
 metacatAuthServerURL    = None
 metacatServerInputsURL  = None
@@ -169,7 +170,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         awtWorkflowID, bannerMessage, rcdsServers
+         awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles
 
   parser = configparser.RawConfigParser()
 
@@ -300,6 +301,10 @@ def readConf():
   except:
     htcondorSchedds = [ 'justin-prod-sched01.dune.hep.ac.uk',
                         'justin-prod-sched02.dune.hep.ac.uk' ]
+  try:
+    keepWrapperFiles = bool(parser.get('htcondor','keep_wrapper_files').strip())
+  except:
+    keepWrapperFiles = False
 
   try:
     metacatAuthServerURL = parser.get('metacat','auth_server_url').strip()
