@@ -10,7 +10,13 @@
 - Change justin-cvmfs-upload to use Bearer Tokens not X.509 proxies
 - Add sybmolic links to /etc/justin-letsencrypt/* from /etc/letsencrypt/ for
   hardcoded assumptions
-
+- Create destination datasets and per-RSE datasets on demand inside
+  the wrapper jobs using justin-job-datasets helper script
+- Create destination datasets of the form wXXXXsYpZnNNN in the wrapper job 
+  where NNN is a counter to partition the datasets into 1000 file subsets. 
+- Add an --output-rse-expression option for the justin command to allow
+  a given RSE expression to be use when creating rules for all destination
+  datasets.
 
 ## 01.01.00
 - justin-prod-sched01.dune.hep.ac.uk and justin-prod-sched02.dune.hep.ac.uk
