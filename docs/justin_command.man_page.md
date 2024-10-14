@@ -108,8 +108,8 @@ This man page is distributed along with the
     	      [--rss-mib N] [--processors N] [--gpu] [--max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]]
     	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
-    	      NAME] [--lifetime-days DAYS] [--env NAME=VALUE] [--classad
-    	      NAME=VALUE]
+    	      NAME] [--output-rse-expression EXPRESSION] [--lifetime-days
+    	      DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
     	      workflow must have at least one stage.
@@ -185,10 +185,8 @@ This man page is distributed along with the
     	      available for allocation to instances of that stage's script.
     
     	      --lifetime-days DAYS sets the Rucio rule lifetime when creating
-    	      the initial per-RSE datasets used to keep the initial replica of
-    	      an output file on the storage it is uploaded to, for all output
-    	      files that are uploaded in the given stage. If any Rucio
-    	      datasets are used for outputs, then this is option is required.
+    	      Rucio datasets for output files.	If any Rucio datasets are used
+    	      for outputs, then this is option is required.
     
     	      If one or more options --output-rse NAME is given, then the RSE
     	      used for uploads of output files and log tgz files will be
@@ -196,6 +194,11 @@ This man page is distributed along with the
     	      which are closer in distance. If this option is not used, or
     	      none of the given RSEs are available, then the default algorithm
     	      for choosing the closest available RSE is used.
+    
+    	      If --output-rse-expression EXPRESSION is given, then it is used
+    	      when creating rules for Rucio datasets for outputs, but not for
+    	      the per-RSE datasets used to keep a copy of the output file on
+    	      the RSE it is first uploaded to.
     
     	      --env NAME=VALUE can be used one or more times to set
     	      environment variables when the stage's jobscript is executed.
@@ -210,7 +213,8 @@ This man page is distributed along with the
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
     	      [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
-    	      [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      [--output-rse-expression EXPRESSION] [--lifetime-days DAYS]
+    	      [--env NAME=VALUE] [--classad NAME=VALUE]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
