@@ -469,34 +469,6 @@ def addExtraEntries(sitesDict):
     except:
       continue
 
-  # Add to sitesDict if not already there
-  if siteName not in sitesDict:
-          logLine("Add %s" % siteName)
-
-          sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
-                                  'wlcg_site_name'        : wlcgSiteName,
-                                  'entries'               : []
-                                }
-
-        rawConfig = { entryName : 
-             yamlDict[osgSiteName][osgGatekeeper]['BEST_FIT'][entryName] }
-  
-        if 'common_entry_fields' in yamlDict[osgSiteName]:
-          rawConfig['common_entry_fields'] = \
-                         yamlDict[osgSiteName]['common_entry_fields']
-
-        sitesDict[siteName]['entries'].append(
-              { 'entry_name'      : entryName,
-                'gatekeeper'      : osgGatekeeper,
-                'max_rss_bytes'   : rssBytes,
-                'max_wall_seconds': wallSeconds,
-                'max_processors'  : processors,
-                'entry_has_gpus'  : True if 'DUNEGPU' in voList else False,
-                'file_name'       : 'OSG_autoconf/' + fileName.split('/')[-1],
-                'raw_config'      : json.dumps(rawConfig, 
-                                             sort_keys = True, indent = 4)
-              })
-
 def buildSites(sitesDict):
 
   tmpDir = tempfile.TemporaryDirectory()
