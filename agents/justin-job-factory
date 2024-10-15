@@ -410,6 +410,9 @@ def workflowJobs():
    "AND sites_storages.distance <= %f "
    "LEFT JOIN entries ON entries.site_id=sites_storages.site_id "
    "LEFT JOIN sites ON sites.site_id=entries.site_id "
+   "LEFT JOIN stages_sites ON stages_sites.site_id=entries.site_id "
+   "AND stages_sites.workflow_id=%d "
+   "AND stages_sites.stage_id=%d "
    "WHERE files.workflow_id=%d "
    "AND files.stage_id=%d "
    "AND files.state='unallocated' " 
@@ -419,10 +422,13 @@ def workflowJobs():
    "AND NOT storages.decommissioned "
    "AND sites.site_id IS NOT NULL "
    "AND sites.enabled "
+   "AND stages_sites.site_id IS NOT NULL "
    "AND %s entries.entry_has_gpus "
    "%s "
    "ORDER BY sites_storages.distance,files.file_id "
          % (stageRow['max_distance'],
+            stageRow['workflow_id'],
+            stageRow['stage_id'],            
             stageRow['workflow_id'],
             stageRow['stage_id'],            
             '' if stageRow['needs_gpu'] else 'NOT',

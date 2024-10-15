@@ -162,12 +162,10 @@ This man page is distributed along with the
     	      resulting output files placed there. The user's token from the
     	      justIN dashboard is used for the upload.	If an https:// URL is
     	      not given, DESTINATION is used when constructing the output
-    	      dataset names. Datasets have the form DESTINATIION-wXsYpZnN
-    	      where X is the workflow ID, Y is the stage, and Z is the output
-    	      pattern ID number, starting from 1. The number N is used to
-    	      create output datasets smaller than a global limit set in the
-    	      justIN configuration.  If DESTINATION is not given then only the
-    	      form wXsYpZnN is used.
+    	      dataset names. Datasets have the form DESTINATIION-wXsYpZ where
+    	      X is the workflow ID, Y is the stage, and Z is the output
+    	      pattern ID number, starting from 1.  If DESTINATION is not given
+    	      then only the form wXsYpZ is used.
     
     	      Files for Rucio-managed storage may have a corresponding JSON
     	      metadata file with the same name but with ".json" appended, that

@@ -67,6 +67,7 @@ agentUsername       = None
 proDev              = None
 htcondorSchedds     = None
 keepWrapperFiles    = None
+extraEntries        = None
 
 metacatAuthServerURL    = None
 metacatServerInputsURL  = None
@@ -170,7 +171,8 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles
+         awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles,
+         extraEntries
 
   parser = configparser.RawConfigParser()
 
@@ -306,6 +308,11 @@ def readConf():
   except:
     keepWrapperFiles = False
 
+  try:
+    extraEntries = parser.items('extra_entries')
+  except:
+    extraEntries = []
+  
   try:
     metacatAuthServerURL = parser.get('metacat','auth_server_url').strip()
   except:

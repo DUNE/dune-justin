@@ -116,6 +116,7 @@ process.
 .B [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
+.B [--site SITENAME]
 .br
 Creates a new stage for the given workflow ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each workflow must have at least
@@ -176,12 +177,10 @@ with or without a trailing slash. Nested subdirectories for workflow ID and
 stage ID will be added, and resulting output files placed there. The user's
 token from the justIN dashboard is used for the upload.
 If an https:// URL is not given, DESTINATION is used when constructing 
-the output dataset names. Datasets have the form DESTINATIION-wXsYpZnN
+the output dataset names. Datasets have the form DESTINATIION-wXsYpZ
 where X is the workflow ID, Y is the stage, and Z is
-the output pattern ID number, starting from 1. The number N is used to
-create output datasets smaller than a global limit set in the justIN 
-configuration. 
-If DESTINATION is not given then only the form wXsYpZnN is used. 
+the output pattern ID number, starting from 1. 
+If DESTINATION is not given then only the form wXsYpZ is used. 
 
 Files for Rucio-managed storage may have a corresponding
 JSON metadata file with the same name but with ".json" appended, that will 
@@ -224,6 +223,10 @@ jobscript is executed.
 can be used one or more times to add ClassAds to the jobs submitted for
 this stage.
 
+.B --site SITENAME
+can be used to restrict jobs for this stage to a single site for testing.
+If the site is not available, then no jobs will run.
+
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
 .B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
@@ -234,6 +237,7 @@ this stage.
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
+.B [--site SITENAME]
 .br
 Combines the 
 .B create-workflow, create-stage

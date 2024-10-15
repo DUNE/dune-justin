@@ -269,6 +269,8 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `max_rss_bytes` bigint unsigned NOT NULL DEFAULT 2147483648,
   `max_wall_seconds` mediumint unsigned NOT NULL DEFAULT 162450,
   `enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `only_on_request` tinyint(1) NOT NULL DEFAULT '0',
+  `only_production` tinyint(1) NOT NULL DEFAULT '0',
   `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT '1',
   `submitted_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,
   `running_jobs` smallint(5) unsigned NOT NULL DEFAULT 0,

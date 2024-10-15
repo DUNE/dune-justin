@@ -508,9 +508,6 @@ def createDatasets(datasets):
 
   return (outcome.returncode, outcome.stdout)
   
-
-  # Run justin-job-datasets
-  
 ########################################################################
 os.environ['TZ'] = 'UTC0'
 logLine('====Start of justin-wrapper-job====')
@@ -1007,6 +1004,8 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
 
   # Find the destination for this pattern in the resultsResponseDict
   destination = resultsResponseDict['patterns'][patternID]['destination']
+  destinationNumber = \
+         resultsResponseDict['patterns'][patternID]['destination_number']
 
   if destination.startswith('https://'):
     # Uploading to user scratch
@@ -1064,14 +1063,21 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
       if resultsResponseDict['patterns'][patternID]['rse_expression']:
         datasets.append({ 'metadata'         : datasetMetadata,
                           'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : destination,
+                          'dataset_name'     : destination + destinationNumber,
                           'rse_expression'   : 
-                resultsResponseDict['patterns'][patternID]['rse_expression']
+             resultsResponseDict['patterns'][patternID]['rse_expression']
                         })      
       else:      
         datasets.append({ 'metadata'         : datasetMetadata,
                           'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : destination             })
+                          'dataset_name'     : destination + destinationNumber
+                        })
+
+
+      datasets.append({ 'metadata'         : datasetMetadata,
+                        'dataset_scope'    : jobscriptDict['scope'],
+                        'dataset_name'     : destination
+                      })
 
       # Try to create the per-RSE and destination datasets
       try:
@@ -1089,12 +1095,14 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
                                      '--scope %s '
                                      '--dataset w%ds%dp%d-%s '
                                      '--dataset %s '
+                                     '--dataset %s '
                                      '--timeout 1200 '
                                      'home/workspace/%s' %
                                      (rse,
                                       scheme,
                                       jobscriptDict['scope'],
                                       workflowID, stageID, patternID, rse,
+                                      destination + destinationNumber,
                                       destination,
                                       fileName))
       uploadEndTime = time.time()
@@ -1111,11 +1119,27 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
       logLine('Failed to upload %s:%s' % (jobscriptDict['scope'], fileName))
       jobAborted(320, 'rucio_upload', '')
 
-    # Add the file to the main dataset
+    # Add the file to the numbered dataset
     (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
                                        '"%s:%s"' 
                                        % ( jobscriptDict['scope'], fileName,
-                                           jobscriptDict['scope'], destination )
+                                           jobscriptDict['scope'], 
+                                           destination + destinationNumber
+                                            )
+                                      )
+
+    if ret:
+      logLine('Failed to add %s:%s to %s' 
+              % (jobscriptDict['scope'], fileName, 
+                 destination + destinationNumber))
+      jobAborted(319, 'metacat_registration', '')
+
+    # Add the file to the destination dataset
+    (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
+                                       '"%s:%s"' 
+                                       % ( jobscriptDict['scope'], fileName,
+                                           jobscriptDict['scope'], destination
+                                         )
                                       )
 
     if ret:

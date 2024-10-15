@@ -1063,13 +1063,42 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       return ('500 Internal Server Error', 
               'Error adding input/output RSE: ' + str(e))
 
-  # Get a list of all enabled sites
-  try:
-    siteRows = justin.select('SELECT site_id,site_name FROM sites '
-                             'WHERE enabled')
-  except Exception as e:
-    return ('500 Internal Server Error',
-            'Error getting list of sites: ' + str(e))
+  if jsonDict['site']:
+    if not justin.stringIsSite(jsonDict['site']):
+      return ('400 Bad Request', 'Invalid site name')
+ 
+    # Get info on the requested site
+    try:
+      siteRow = justin.select('SELECT site_id,enabled,only_production '
+                              'FROM sites '
+                              'WHERE site_name="%s"' % jsonDict['site'],
+                              justOne = True)
+    except Exception as e:
+      return ('500 Internal Server Error',
+              'Error getting site info: ' + str(e))
+
+    if not siteRow['enabled']:
+      return ('404 Not Found', 'Site is not abled')
+      
+    if siteRow['only_production'] and \
+       '/dune/production' not in user['wlcg_groups']:
+      return ('403 Forbidden', 'Site is only allowed for production group')
+
+    siteRows = [ { 'site_id' : siteRow['site_id'] } ]      
+  else:
+    # Get a list of all enabled sites
+    try:
+      query = ('SELECT site_id,site_name FROM sites '
+               'WHERE enabled AND NOT only_on_request')
+
+      if '/dune/production' not in user['wlcg_groups']:
+        query += ' AND NOT only_production'
+
+      siteRows = justin.select(query)
+
+    except Exception as e:
+      return ('500 Internal Server Error',
+              'Error getting list of sites: ' + str(e))
 
   # We go through all currently enabled sites, adding them
   for siteRow in siteRows:

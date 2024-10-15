@@ -8,7 +8,7 @@
 - Add justin-sl7-setup script to create a container in which to run
   commmands that need CentOS7/SL7 including ones that require UPS and setup.
 - Change justin-cvmfs-upload to use Bearer Tokens not X.509 proxies
-- Add sybmolic links to /etc/justin-letsencrypt/* from /etc/letsencrypt/ for
+- Add symbolic links to /etc/justin-letsencrypt/* from /etc/letsencrypt/ for
   hardcoded assumptions
 - Create destination datasets and per-RSE datasets on demand inside
   the wrapper jobs using justin-job-datasets helper script

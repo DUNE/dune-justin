@@ -16,6 +16,7 @@ git clone --branch $branch --depth 1 --single-branch \
   
 if [ $? == 0 ] ; then
   # If all ok, then copy docs
+  cp -f dune-justin/*.md      /var/www/html/docs/
   cp -f dune-justin/docs/*.md /var/www/html/docs/
 fi
 

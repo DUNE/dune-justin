@@ -1737,7 +1737,9 @@ def recordResultsMethod(startResponse, jsonDict):
 
     else:
       responseDict['patterns'][patternRow['pattern_id']]['destination'] = \
-        patternRow['destination'] + \
+        patternRow['destination'] 
+
+      responseDict['patterns'][patternRow['pattern_id']]['number'] = \
         'n%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
 
       responseDict['patterns'][patternRow['pattern_id']]['for_next_stage'] \
