@@ -464,7 +464,9 @@ def addExtraEntries(sitesDict):
                 'max_rss_bytes'   : entryDict['max_rss_bytes'],
                 'max_wall_seconds': entryDict['max_wall_seconds'],
                 'max_processors'  : entryDict['processors'],
-                'entry_has_gpus'  : entryHasGPUs
+                'entry_has_gpus'  : entryHasGPUs,
+                'file_name'       : None,
+                'raw_config'      : str(entryDict)
               })
     except:
       continue
