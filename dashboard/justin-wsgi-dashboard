@@ -3421,10 +3421,13 @@ def showEntry(environ, user, cgiValues):
          
   output += ("</table>")
 
-  output += ('<p>Raw configuration from '
-             '<a href="https://github.com/opensciencegrid/osg-gfactory/blob/'
-             'master/%s">opensciencegrid/osg-gfactory/%s</a>'
-             % (entryRow['file_name'], entryRow['file_name']))
+  output += ('<p>Raw configuration ')
+
+  if entryRow['file_name']:
+    output += ('from '
+               '<a href="https://github.com/opensciencegrid/osg-gfactory/blob/'
+               'master/%s">opensciencegrid/osg-gfactory/%s</a>'
+               % (entryRow['file_name'], entryRow['file_name']))
 
   output += ('<pre style="white-space: pre-wrap;">') 
   output += html.escape(entryRow["raw_config"], quote=True)  
