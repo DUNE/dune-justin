@@ -3075,6 +3075,7 @@ def showSite(environ, user, cgiValues):
            'sites.last_awt_time,'
            'sites.max_rss_bytes,'
            'sites.max_processors,sites.max_wall_seconds,'
+           'only_production,only_on_request,'
            'wlcg_site_name,always_inner_apptainer,'
            'rank_text,cache_time '
            'FROM sites '
@@ -3115,6 +3116,12 @@ def showSite(environ, user, cgiValues):
                          value   = not bool(siteRow['enabled']))
 
   output += '</td></tr>' 
+
+  output += ('<tr><td colspan="2">Only production?</td><td>%s</td></tr>\n'
+        % bool(siteRow['only_production']))
+
+  output += ('<tr><td colspan="2">Only on request?</td><td>%s</td></tr>\n'
+        % bool(siteRow['only_on_request']))
 
   output += ('<tr><td colspan="2">Last submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])

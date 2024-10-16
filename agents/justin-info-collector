@@ -255,6 +255,8 @@ def processOneFileXML(sitesDict, fileName):
 
           sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
                                   'wlcg_site_name'        : wlcgSiteName,
+                                  'only_production'       : False,
+                                  'only_on_request'       : False,
                                   'entries'               : []
                                 }
 
@@ -397,6 +399,8 @@ def processOneFileYAML(sitesDict, fileName):
 
           sitesDict[siteName] = { 'jobsub_site_name'      : jobsubSiteName,
                                   'wlcg_site_name'        : wlcgSiteName,
+                                  'only_production'       : False,
+                                  'only_on_request'       : False,
                                   'entries'               : []
                                 }
 
@@ -436,6 +440,33 @@ def addExtraEntries(sitesDict):
           logLine('No %s in %s - skipping' % (i, entryName))
           raise
 
+      # Optional site fields
+      if 'wlcg_site_name' in entryDict and entryDict['wlcg_site_name']:
+        wlcgSiteName = entryDict['wlcg_site_name']
+      else:
+        wlcgSiteName = entryDict['site_name']
+        
+      if 'only_production' in entryDict and entryDict['only_production']:
+        onlyProduction = True
+      else:
+        onlyProduction = False
+
+      if 'only_on_request' in entryDict and entryDict['only_on_request']:
+        onlyOnRequest = True
+      else:
+        onlyOnRequest = False
+
+      if entryDict['site_name'] not in sitesDict:
+        logLine("Add %s" % entryDict['site_name'])
+        # We take the site fields from the first entry seen for that site
+        sitesDict[entryDict['site_name']] = {
+             'jobsub_site_name' : entryDict['jobsub_site_name'],
+             'wlcg_site_name'   : wlcgSiteName,
+             'only_production'  : bool(onlyProduction),
+             'only_on_request'  : bool(onlyOnRequest),
+             'entries'          : []        }
+
+      # Optional entry fields
       if 'entry_has_gpus' in entryDict and entryDict['entry_has_gpus']:
         entryHasGPUs = True
       else:
@@ -446,29 +477,18 @@ def addExtraEntries(sitesDict):
       else:
         gatekeeper = entryName
 
-      if 'wlcg_site_name' in entryDict and entryDict['wlcg_site_name']:
-        wlcgSiteName = entryDict['wlcg_site_name']
-      else:
-        wlcgSiteName = entryDict['site_name']
-
-      if entryDict['site_name'] not in sitesDict:
-        logLine("Add %s" % entryDict['site_name'])
-        sitesDict[entryDict['site_name']] = {
-             'jobsub_site_name' : entryDict['jobsub_site_name'],
-             'wlcg_site_name'   : wlcgSiteName,
-             'entries'          : []        }
-
       sitesDict[entryDict['site_name']]['entries'].append(
               { 'entry_name'      : entryName,
                 'gatekeeper'      : gatekeeper,
-                'max_rss_bytes'   : entryDict['max_rss_bytes'],
-                'max_wall_seconds': entryDict['max_wall_seconds'],
-                'max_processors'  : entryDict['processors'],
-                'entry_has_gpus'  : entryHasGPUs,
-                'file_name'       : None,
+                'max_rss_bytes'   : int(entryDict['max_rss_bytes']),
+                'max_wall_seconds': int(entryDict['max_wall_seconds']),
+                'max_processors'  : int(entryDict['max_processors']),
+                'entry_has_gpus'  : bool(entryHasGPUs),
+                'file_name'       : '',
                 'raw_config'      : str(entryDict)
               })
-    except:
+    except Exception as e:
+      logLine('Skip entry %s due to %s' % (entryName, str(e)))
       continue
 
 def buildSites(sitesDict):
@@ -498,7 +518,7 @@ def updateSites():
   sitesDict = {}
   buildSites(sitesDict)
 
-  logLine(str(sitesDict))
+#  logLine(str(sitesDict))
 
   try:
     justinSiteRows = justin.select('SELECT site_name,sites.site_id,'
@@ -538,12 +558,16 @@ def updateSites():
                'site_name="%s",'
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
+               'only_production=%s,'
+               'only_on_request=%s,'
                'country="%s",'
                'region="%s",'
                'last_osg_seen_time=NOW() '
                % (siteName, 
                   sitesDict[siteName]['jobsub_site_name'], 
                   sitesDict[siteName]['wlcg_site_name'],
+                  sitesDict[siteName]['only_production'],
+                  sitesDict[siteName]['only_on_request'],
                   country,
                   region)
               )
@@ -559,12 +583,16 @@ def updateSites():
       query = ('UPDATE sites SET '
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
+               'only_production=%s,'
+               'only_on_request=%s,'
                'country="%s",'
                'region="%s",'
                'last_osg_seen_time=NOW() '
                'WHERE site_name="%s"'
                % (sitesDict[siteName]['jobsub_site_name'],
                   sitesDict[siteName]['wlcg_site_name'],
+                  sitesDict[siteName]['only_production'],
+                  sitesDict[siteName]['only_on_request'],
                   country,
                   region,
                   siteName
@@ -689,6 +717,14 @@ def updateSitesStorages():
         and storageRow['rse_site_name'].startswith('US_FNAL'):
         # Everything Fermilab at zero distance to get internal Rucio config
         distance = 0
+      elif siteRow['site_name'].startswith('US_NERSC') \
+        and 'NERSC' in storageRow['rse_name']:
+        # Everything at NERSC is zero distance
+        distance = 0
+      elif 'NERSC' in storageRow['rse_name']:
+        # NERSC storage but not a NERSC site - skip completely
+        logLine('Skip %s when not at NERSC' % storageRow['rse_name'])
+        continue
       elif sitePrefix and rseSitePrefix \
            and sitePrefix == rseSitePrefix:
         # Same prefix on RSE and site name 
