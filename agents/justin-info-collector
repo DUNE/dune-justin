@@ -433,6 +433,8 @@ def addExtraEntries(sitesDict):
           fieldName,fieldValue = field.split('=')
           entryDict[fieldName] = fieldValue
 
+      logLine(str(entryDict))
+
       # These fields are required and the entry will be skiped if missing
       for i in ['site_name', 'jobsub_site_name',
                 'max_rss_bytes', 'max_wall_seconds', 'max_processors']:
@@ -446,14 +448,18 @@ def addExtraEntries(sitesDict):
       else:
         wlcgSiteName = entryDict['site_name']
         
-      if 'only_production' in entryDict and entryDict['only_production']:
-        onlyProduction = True
-      else:
+      try:
+        onlyProduction = (True 
+                          if (entryDict['only_production'].lower() == 'true') 
+                          else False)
+      except:
         onlyProduction = False
 
-      if 'only_on_request' in entryDict and entryDict['only_on_request']:
-        onlyOnRequest = True
-      else:
+      try:
+        onlyOnRequest = (True 
+                         if (entryDict['only_on_request'].lower() == 'true') 
+                         else False)
+      except:
         onlyOnRequest = False
 
       if entryDict['site_name'] not in sitesDict:
@@ -462,14 +468,16 @@ def addExtraEntries(sitesDict):
         sitesDict[entryDict['site_name']] = {
              'jobsub_site_name' : entryDict['jobsub_site_name'],
              'wlcg_site_name'   : wlcgSiteName,
-             'only_production'  : bool(onlyProduction),
-             'only_on_request'  : bool(onlyOnRequest),
+             'only_production'  : onlyProduction,
+             'only_on_request'  : onlyOnRequest,
              'entries'          : []        }
 
       # Optional entry fields
-      if 'entry_has_gpus' in entryDict and entryDict['entry_has_gpus']:
-        entryHasGPUs = True
-      else:
+      try:
+        entryHasGPUs = (True 
+                        if (entryDict['entry_has_gpus'].lower() == 'true') 
+                        else False)
+      except Exception as e:
         entryHasGPUs = False
 
       if 'gatekeeper' in entryDict and entryDict['gatekeeper']:
@@ -483,7 +491,7 @@ def addExtraEntries(sitesDict):
                 'max_rss_bytes'   : int(entryDict['max_rss_bytes']),
                 'max_wall_seconds': int(entryDict['max_wall_seconds']),
                 'max_processors'  : int(entryDict['max_processors']),
-                'entry_has_gpus'  : bool(entryHasGPUs),
+                'entry_has_gpus'  : entryHasGPUs,
                 'file_name'       : '',
                 'raw_config'      : str(entryDict)
               })
@@ -558,16 +566,16 @@ def updateSites():
                'site_name="%s",'
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
-               'only_production=%s,'
-               'only_on_request=%s,'
+               'only_production=%d,'
+               'only_on_request=%d,'
                'country="%s",'
                'region="%s",'
                'last_osg_seen_time=NOW() '
                % (siteName, 
                   sitesDict[siteName]['jobsub_site_name'], 
                   sitesDict[siteName]['wlcg_site_name'],
-                  sitesDict[siteName]['only_production'],
-                  sitesDict[siteName]['only_on_request'],
+                  int(sitesDict[siteName]['only_production']),
+                  int(sitesDict[siteName]['only_on_request']),
                   country,
                   region)
               )
@@ -583,16 +591,16 @@ def updateSites():
       query = ('UPDATE sites SET '
                'jobsub_site_name="%s",'
                'wlcg_site_name="%s",'
-               'only_production=%s,'
-               'only_on_request=%s,'
+               'only_production=%d,'
+               'only_on_request=%d,'
                'country="%s",'
                'region="%s",'
                'last_osg_seen_time=NOW() '
                'WHERE site_name="%s"'
                % (sitesDict[siteName]['jobsub_site_name'],
                   sitesDict[siteName]['wlcg_site_name'],
-                  sitesDict[siteName]['only_production'],
-                  sitesDict[siteName]['only_on_request'],
+                  int(sitesDict[siteName]['only_production']),
+                  int(sitesDict[siteName]['only_on_request']),
                   country,
                   region,
                   siteName
@@ -614,7 +622,7 @@ def updateSites():
                    'max_processors=%d,'
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
-                   'entry_has_gpus=%s,'
+                   'entry_has_gpus=%d,'
                    'file_name="%s",'
                    'raw_config="%s",'
                    'last_osg_seen_time=NOW() '
@@ -624,7 +632,7 @@ def updateSites():
                       entryDict['max_processors'],
                       entryDict['max_rss_bytes'],
                       entryDict['max_wall_seconds'],
-                      entryDict['entry_has_gpus'],
+                      int(entryDict['entry_has_gpus']),
                       entryDict['file_name'],
              entryDict['raw_config'].replace('\\','\\\\').replace('"','\\"'))
                   )
@@ -646,7 +654,7 @@ def updateSites():
                    'max_processors=%d,'
                    'max_rss_bytes=%d,'
                    'max_wall_seconds=%d,'
-                   'entry_has_gpus=%s,'
+                   'entry_has_gpus=%d,'
                    'file_name="%s",'
                    'raw_config="%s",'
                    'last_osg_seen_time=NOW() '
@@ -656,7 +664,7 @@ def updateSites():
                       entryDict['max_processors'],
                       entryDict['max_rss_bytes'],
                       entryDict['max_wall_seconds'],
-                      entryDict['entry_has_gpus'],
+                      int(entryDict['entry_has_gpus']),
                       entryDict['file_name'],
              entryDict['raw_config'].replace('\\','\\\\').replace('"','\\"'),
                       entryDict['entry_name']
@@ -721,10 +729,10 @@ def updateSitesStorages():
         and 'NERSC' in storageRow['rse_name']:
         # Everything at NERSC is zero distance
         distance = 0
-      elif 'NERSC' in storageRow['rse_name']:
-        # NERSC storage but not a NERSC site - skip completely
-        logLine('Skip %s when not at NERSC' % storageRow['rse_name'])
-        continue
+      elif siteRow['site_name'].startswith('US_NERSC') \
+        or 'NERSC' in storageRow['rse_name']:
+        # Otherwise if NERSC involved then set distance as unmatchable
+        distance = 101
       elif sitePrefix and rseSitePrefix \
            and sitePrefix == rseSitePrefix:
         # Same prefix on RSE and site name 
