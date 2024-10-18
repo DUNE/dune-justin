@@ -190,11 +190,17 @@ def submitJobs(numberToSubmit,
   if requestedGPU:
    submitFile += '+RequestGPUs = 1\n'
 
+  # Bit of a hack. We should have a proper way to specify the target OSs
+  # for the wrapper jobs
+  if 'NERSC' in desiredSiteNames:
+   submitFile += '+Desired_OS = SL7\n'
+
   submitFile += """
 +Desired_Sites          = "%s"
 +SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
++Orig_AuthTokenGroups   = "/dune"
 universe                = vanilla
 environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@%s"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)

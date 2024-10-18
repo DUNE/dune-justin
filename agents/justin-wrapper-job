@@ -487,12 +487,13 @@ def createDatasets(datasets):
   for i in range(1, 4):  
     cmd = (
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
-     'setup python v3_9_13 ; setup metacat ; '
+     'setup python v3_9_13 ; setup metacat ; setup rucio ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'export METACAT_AUTH_SERVER_URL=###justin_metacat_auth_server_url### ; '
      'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
      'metacat auth login -m x509 dunepro ; '
-     'justin-job-dataset')
+     '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
+     '###justin_prodev###/NULL/jobutils/justin-job-datasets')
      
     logLine('Try %d/3 of executing these commands in a subshell: %s' % (i, cmd))
 
@@ -986,13 +987,14 @@ confirmResultsDict = { 'method'       : 'confirm_results',
 rucioUploadedDIDs = []
 
 # Go through the list of output files
-for (fileName, fileSize, patternID, pattern) in outputFiles:
+for (fileName, fileSize, intPatternID, pattern) in outputFiles:
+  strPatternID = str(intPatternID)
 
   # Metadata to be declared for all datasets from this pattern
   datasetMetadata = { "dune.workflow" : 
             { "workflow_id"     : workflowID,
               "stage_id"        : stageID,
-              "pattern_id"      : patternID,
+              "pattern_id"      : intPatternID,
               "file_pattern"    : pattern,
               "user"            : jobscriptDict['principal_name'],
               "processors"      : jobscriptDict['requested_processors'],
@@ -1003,9 +1005,9 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
                     }
 
   # Find the destination for this pattern in the resultsResponseDict
-  destination = resultsResponseDict['patterns'][patternID]['destination']
+  destination = resultsResponseDict['patterns'][strPatternID]['destination']
   destinationNumber = \
-         resultsResponseDict['patterns'][patternID]['destination_number']
+         resultsResponseDict['patterns'][strPatternID]['destination_number']
 
   if destination.startswith('https://'):
     # Uploading to user scratch
@@ -1020,7 +1022,7 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
       jobAborted(317, 'webdav_upload', '')
 
     confirmResultsDict['output_files'][fileName] = {
-                         'pattern_id' : patternID,
+                         'pattern_id' : intPatternID,
                          'seconds'    : uploadEndTime - uploadStartTime,
                          'size_bytes' : fileSize }
                                              
@@ -1055,17 +1057,17 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
       datasets = [ { 'metadata'         : datasetMetadata,
                      'dataset_scope'    : jobscriptDict['scope'],
                      'dataset_name'     : 'w%ds%dp%d-%s' 
-                               % (workflowID, stageID, patternID, rse),
+                               % (workflowID, stageID, intPatternID, rse),
                      'rse_expression'   : rse,
                      'lifetime_seconds' : 
-             resultsResponseDict['patterns'][patternID]['lifetime_seconds']} ]
+        resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']} ]
              
-      if resultsResponseDict['patterns'][patternID]['rse_expression']:
+      if resultsResponseDict['patterns'][strPatternID]['rse_expression']:
         datasets.append({ 'metadata'         : datasetMetadata,
                           'dataset_scope'    : jobscriptDict['scope'],
                           'dataset_name'     : destination + destinationNumber,
                           'rse_expression'   : 
-             resultsResponseDict['patterns'][patternID]['rse_expression']
+        resultsResponseDict['patterns'][strPatternID]['rse_expression']
                         })      
       else:      
         datasets.append({ 'metadata'         : datasetMetadata,
@@ -1081,9 +1083,9 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
 
       # Try to create the per-RSE and destination datasets
       try:
-        createDatasets(datasets, jobscriptDict)
-      except:
-        logLine('createDatasets fails - try next RSE')
+        createDatasets(datasets)
+      except Exception as e:
+        logLine('createDatasets fails "%s" - try next RSE ' % str(e))
         continue
 
       logLine('Try %s:%s to %s/%s' 
@@ -1101,7 +1103,7 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
                                      (rse,
                                       scheme,
                                       jobscriptDict['scope'],
-                                      workflowID, stageID, patternID, rse,
+                                      workflowID, stageID, intPatternID, rse,
                                       destination + destinationNumber,
                                       destination,
                                       fileName))
@@ -1118,6 +1120,21 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
     if ret:
       logLine('Failed to upload %s:%s' % (jobscriptDict['scope'], fileName))
       jobAborted(320, 'rucio_upload', '')
+
+    # Add the file to the per-RSE dataset
+    (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
+                                       '"%s:w%ds%dp%d-%s"' 
+                                % ( jobscriptDict['scope'], fileName,
+                                    jobscriptDict['scope'], 
+                                    workflowID, stageID, intPatternID, rse
+                                  )
+                                      )
+
+    if ret:
+      logLine('Failed to add %s:%s to %s:w%ds%dp%d-%s' 
+          % (jobscriptDict['scope'], fileName, 
+             jobscriptDict['scope'], workflowID, stageID, intPatternID, rse))
+      jobAborted(319, 'metacat_registration', '')
 
     # Add the file to the numbered dataset
     (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
@@ -1161,7 +1178,7 @@ for (fileName, fileSize, patternID, pattern) in outputFiles:
 
     # Add to list of uploaded files for confirm results
     confirmResultsDict['output_files'][fileName] = {
-           'pattern_id' : patternID,
+           'pattern_id' : intPatternID,
            'rse_name'   : rse,
            'seconds'    : uploadEndTime - uploadStartTime,
            'size_bytes' : fileSize }

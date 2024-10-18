@@ -1500,7 +1500,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Missing jobsub_id in JSON')
 
   # Check jsonDict contains required lists (can be empty)
-  for name in ['processed_dids', 'processed_pfns', 'output_files']:
+  for name in ['processed_dids', 'processed_pfns']:
     if name not in jsonDict:
       return httpError(startResponse,
                        '400 Bad Request',
@@ -1511,6 +1511,17 @@ def recordResultsMethod(startResponse, jsonDict):
         return httpError(startResponse,
                          '400 Bad Request',
                          'Invalid DID or PFN in ' + name)
+
+  if 'output_files' not in jsonDict:
+    return httpError(startResponse,
+                     '400 Bad Request',
+                     'Missing value output_files in JSON')
+
+  for fileName,patternID in jsonDict['output_files']:
+    if not justin.stringNoQuotes(fileName):
+      return httpError(startResponse,
+                       '400 Bad Request',
+                       'Invalid filename ' + fileName)
 
   responseDict = {}
       
@@ -1724,31 +1735,32 @@ def recordResultsMethod(startResponse, jsonDict):
   responseDict['patterns'] = {}
 
   for patternRow in patternRows:
-    responseDict['patterns'][patternRow['pattern_id']] = {}
+    patternID = int(patternRow['pattern_id'])
+    responseDict['patterns'][patternID] = {}
     if patternRow['destination'] in destinationCounts:
       numberFiles = destinationCounts[patternRow['destination']]
     else:
       numberFiles = 0
 
     if patternRow['destination'].startswith('https://'):
-      responseDict['patterns'][patternRow['pattern_id']]['destination'] = \
+      responseDict['patterns'][patternID]['destination'] = \
         patternRow['destination'] + \
         '/%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
 
     else:
-      responseDict['patterns'][patternRow['pattern_id']]['destination'] = \
+      responseDict['patterns'][patternID]['destination'] = \
         patternRow['destination'] 
 
-      responseDict['patterns'][patternRow['pattern_id']]['number'] = \
+      responseDict['patterns'][patternID]['destination_number'] = \
         'n%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
 
-      responseDict['patterns'][patternRow['pattern_id']]['for_next_stage'] \
+      responseDict['patterns'][patternID]['for_next_stage'] \
              = patternRow['for_next_stage']
 
-      responseDict['patterns'][patternRow['pattern_id']]['lifetime_seconds'] \
+      responseDict['patterns'][patternID]['lifetime_seconds'] \
              = patternRow['lifetime_seconds']
 
-      responseDict['patterns'][patternRow['pattern_id']]['rse_expression'] \
+      responseDict['patterns'][patternID]['rse_expression'] \
              = patternRow['rse_expression']
 
   # Record output files
@@ -2005,7 +2017,7 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   try:
     fileRows = justin.select('SELECT file_did,file_id,files.creator_stage_id,'
-                             'creator_pattern_id,destination '
+                             'creator_pattern_id,destination,files.stage_id '
                              'FROM files '
                              'LEFT JOIN stages_outputs '
                              'ON stages_outputs.workflow_id=files.workflow_id '

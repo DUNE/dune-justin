@@ -78,7 +78,7 @@ needs, and then registering the file in
 MetaCat with dune.output_status=recorded, and then trying to upload it with
 justin-rucio-upload and to add it to the associated Rucio dataset and the
 corresponding per-RSE dataset. The file is then added to the associated 
-dataset in MetaCat (but not to the per-RSE datasets in MetaCat.) 
+datasets in MetaCat.
 If the upload and dataset attachments appear to succeed, then the
 file's metadata in MetaCat is updated to set dune.output_status=uploaded.
 Each MetaCat and Rucio operation is retried three times and three output
