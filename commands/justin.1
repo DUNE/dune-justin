@@ -50,7 +50,7 @@ properly registered in justIN.
 Displays information about the current user identity and session.
 
 .HP
-.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS]"
+.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]"
 .br
 Create a new, empty workflow in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
@@ -73,9 +73,15 @@ and to ensure that files added close to the end of that day are still found, a
 final finding is done soon after the end time.
 
 Workflows are created in the state "draft" and the command returns the new 
-workflow's ID number.
+workflow's ID number. 
 Once the workflow is in the running state, justIN will use the 
 MQL expression to find the list of input files from MetaCat. 
+
+The option
+.B --workflow-id-file FILENAME
+can be used to append a line with the ID of the new workflow to the
+given file.
+
 .HP
 .B "show-workflows [--workflow-id ID]"
 .br
@@ -237,7 +243,7 @@ If the site is not available, then no jobs will run.
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
-.B [--site SITENAME]
+.B [--site SITENAME] [--workflow-id-file FILENAME]
 .br
 Combines the 
 .B create-workflow, create-stage

@@ -232,7 +232,7 @@ def showStageOutputsCmd(startResponse, jsonDict):
     rows = justin.select("SELECT for_next_stage,"
                             "scopes.scope_name,"
                             "file_pattern,"
-                            "destination "
+                            "destination,pattern_id "
                             "FROM stages_outputs "
                             "LEFT JOIN workflows "
                             "ON workflows.workflow_id=stages_outputs.workflow_id "
@@ -240,7 +240,7 @@ def showStageOutputsCmd(startResponse, jsonDict):
                             "ON workflows.scope_id=scopes.scope_id "
                             "WHERE stages_outputs.workflow_id=%d "
                             "AND stages_outputs.stage_id=%d "
-                            "ORDER BY destination,file_scope,file_pattern" 
+                            "ORDER BY pattern_id" 
                             % (workflowID, stageID))
   except Exception as e:
     return httpError(startResponse, 
