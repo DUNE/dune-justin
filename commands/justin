@@ -413,8 +413,9 @@ elif jsonDict['command'] in ['create-workflow', 'simple-workflow']:
     print('Failed to get workflow ID from output\n\n' + output + '\n')
     sys.exit(1)
   else:
-    with open(jsonDict['workflow_id_file'], 'a') as f:
-      f.write('%d\n' % workflowID)
+    if jsonDict['workflow_id_file']:
+      with open(jsonDict['workflow_id_file'], 'a') as f:
+        f.write('%d\n' % workflowID)
     
   print(output, end='')
   
