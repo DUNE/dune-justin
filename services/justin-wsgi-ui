@@ -1078,7 +1078,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
               'Error getting site info: ' + str(e))
 
     if not siteRow['enabled']:
-      return ('404 Not Found', 'Site is not abled')
+      return ('404 Not Found', 'Site is not enabled')
       
     if siteRow['only_production'] and \
        '/dune/production' not in user['wlcg_groups']:
