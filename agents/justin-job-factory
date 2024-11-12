@@ -193,7 +193,7 @@ def submitJobs(numberToSubmit,
   # Bit of a hack. We should have a proper way to specify the target OSs
   # for the wrapper jobs
   if 'NERSC' in desiredSiteNames:
-   submitFile += '+DesiredOS = SL7\n'
+   submitFile += '+DesiredOS = "SL7"\n'
 
   submitFile += """
 +Desired_Sites          = "%s"
