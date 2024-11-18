@@ -123,7 +123,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
-def findFilesMetaCat(workflowID, mql):
+def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
   # Find files matching the mql query from MetaCat
 
   for i in range(3,0,-1):
