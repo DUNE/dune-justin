@@ -1572,7 +1572,7 @@ def showStage(environ, user, cgiValues):
                       html.escape(patternRow["file_pattern"], quote=True)))
       else:
         output += ("<tr><td>%d</td><td>Rucio %s:%s</td><td>%s</td>"
-                   "<td>%d</td><td>%s</td><td%s</td></tr>" 
+                   "<td>%d</td><td>%s</td><td>%s</td></tr>" 
                    % (patternRow["pattern_id"],
                       stageRow["workflows_scope_name"],
                       insertWBR(patternRow["destination"]),

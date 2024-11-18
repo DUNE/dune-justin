@@ -90,7 +90,7 @@ def addFilesMonteCarlo(workflowID, count):
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
-def findFilesRucio(didClient, workflowID, scope, name):
+def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
   # Find files to be processed for each workflow in the finding state
 
   try:
@@ -98,6 +98,9 @@ def findFilesRucio(didClient, workflowID, scope, name):
   except Exception as e:
     justin.logLine("Reading file list from Rucio fails with: " + str(e))
     return
+
+#  if len(didsList) > maxFilesPerWorkflow:
+    
 
   for did in didsList:  
     try:
@@ -197,14 +200,16 @@ def findFiles():
 
   justin.logLine('Start of finding files')
 
-  query = ('SELECT workflow_id,mql,refind_seconds,'
+  query = ('SELECT workflows.workflow_id,mql,refind_seconds,'
            'UNIX_TIMESTAMP(refind_end_time) AS refind_end,'
-           'UNIX_TIMESTAMP(refind_next_time) AS refind_next '
+           'UNIX_TIMESTAMP(refind_next_time) AS refind_next,'
+           'scope_name,max_files_per_workflow '
            'FROM workflows '
+           'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
            'WHERE state="running" AND '
            'refind_next_time <= NOW() AND '
            'refind_next_time > "%s" '
-           'ORDER BY workflow_id' % justin.unixEpoch)
+           'ORDER BY workflows.workflow_id' % justin.unixEpoch)
 
   findingWorkflows = justin.select(query)
   if not findingWorkflows:  
@@ -240,7 +245,8 @@ def findFiles():
         findFilesRucio(didClient,
                        workflow['workflow_id'], 
                        datasetSplit[0], 
-                       datasetSplit[1])
+                       datasetSplit[1],
+                       workflow['max_files_per_workflow'])
         
     # Monte Carlo workflow with a count
     elif len(mqlSplit) == 2 and mqlSplit[0] == 'monte-carlo':
@@ -253,7 +259,8 @@ def findFiles():
       addFilesMonteCarlo(workflow['workflow_id'], count)
 
     else:    
-      findFilesMetaCat(workflow['workflow_id'], workflow['mql'])
+      findFilesMetaCat(workflow['workflow_id'], workflow['mql'],
+                       workflow['max_files_per_workflow'])
     
     if refindEndTime == 0:
       # We are not doing refinding and we have done the only finding we do

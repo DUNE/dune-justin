@@ -51,6 +51,9 @@ eventsList = [
 ('WORKFLOW_PAUSED_JOBSCRIPT_ERROR',
  108,
  'Workflow paused, too many jobscript errors'),
+('WORKFLOW_STOPPED_TOO_MANY_FILES',
+ 109,
+ 'Workflow stopped, too many input files'),
 
 # Workflow/stage/file/replica set-up/finish events in Finder
 ('FILE_ADDED',

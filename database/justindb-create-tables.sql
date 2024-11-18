@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_name` varchar(255) NOT NULL DEFAULT '',
   `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
