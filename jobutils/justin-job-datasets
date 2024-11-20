@@ -110,6 +110,8 @@ def createOneDataset(dataset):
     except rucio.common.exception.RSEWriteBlocked:
       # Cannot create rule now because RSE is currently not writeable
       print('Failed to create rule as write disabled - exiting')
+    except Expression as e:
+      print('Unanticipated exception - exiting: ' + str(e))
   
     if not ret:
       sys.exit(3)

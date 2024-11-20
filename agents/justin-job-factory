@@ -154,9 +154,17 @@ def submitJobs(numberToSubmit,
   for (name, value) in classads:
     submitFile += '+%s = "%s"\n' % (name, value)
 
-  if workflowID == justin.awtWorkflowID:
-    # Flag justIN AWT jobs
-    submitFile += ('+JUSTIN_%s_AWT = True\n' 
+  if 'NERSC' in desiredSiteNames:
+    # DesiredOS is a bit of a hack. We should have a proper way to specify 
+    # the target OSs for the wrapper jobs
+    # The Requirements are also very either/or of NERSC vs elsewhere
+    submitFile += ('+DesiredOS = "SL7"\n'
+                   'Requirements = ('
+                   '(isUndefined(target.GLIDEIN_Site) == FALSE) && '
+                   '(stringListIMember(target.GLIDEIN_Site,my.Desired_Sites))'
+                   ')\n')
+  else:
+    submitFile += ('+DesiredOS = "SL7"\n'
                    'Requirements = ('
   '(target.HAS_Singularity==true) && '
   '(target.HAS_CVMFS_dune_opensciencegrid_org==true) && '
@@ -167,33 +175,20 @@ def submitJobs(numberToSubmit,
   '(target.HAS_CVMFS_fifeuser4_opensciencegrid_org==true) && '
   '(isUndefined(target.GLIDEIN_Site) == FALSE) && '
   '(stringListIMember(target.GLIDEIN_Site,my.Desired_Sites))'
-  ')\n'
-                   % justin.proDev.upper())
+  ')\n')
+
+  if workflowID == justin.awtWorkflowID:
+    # Flag justIN AWT jobs
+    submitFile += '+JUSTIN_%s_AWT = True\n' % justin.proDev.upper()
   else:
     # Only include stage and entries ClassAds if not an AWT job
     submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"\n' 
                    '+Desired_Entries = "%s"\n'
-                   'Requirements = ('
-  '(target.HAS_Singularity==true) && '
-  '(target.HAS_CVMFS_dune_opensciencegrid_org==true) && '
-  '(target.HAS_CVMFS_larsoft_opensciencegrid_org==true) && '
-  '(target.HAS_CVMFS_fifeuser1_opensciencegrid_org==true) && '
-  '(target.HAS_CVMFS_fifeuser2_opensciencegrid_org==true) && '
-  '(target.HAS_CVMFS_fifeuser3_opensciencegrid_org==true) && '
-  '(target.HAS_CVMFS_fifeuser4_opensciencegrid_org==true) && '
-  '(isUndefined(target.GLIDEIN_Entry_Name) == FALSE) && '
-  '(stringListIMember(target.GLIDEIN_Entry_Name,my.Desired_Entries))'
-  ')\n'
                    % (justin.proDev.upper(), 
                       workflowID, stageID, desiredEntryNames))
 
   if requestedGPU:
    submitFile += '+RequestGPUs = 1\n'
-
-  # Bit of a hack. We should have a proper way to specify the target OSs
-  # for the wrapper jobs
-  if 'NERSC' in desiredSiteNames:
-   submitFile += '+DesiredOS = "SL7"\n'
 
   submitFile += """
 +Desired_Sites          = "%s"

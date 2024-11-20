@@ -1060,25 +1060,31 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
                                % (workflowID, stageID, intPatternID, rse),
                      'rse_expression'   : rse,
                      'lifetime_seconds' : 
-        resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']} ]
+         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']} ]
              
       if resultsResponseDict['patterns'][strPatternID]['rse_expression']:
         datasets.append({ 'metadata'         : datasetMetadata,
                           'dataset_scope'    : jobscriptDict['scope'],
                           'dataset_name'     : destination + destinationNumber,
                           'rse_expression'   : 
-        resultsResponseDict['patterns'][strPatternID]['rse_expression']
+         resultsResponseDict['patterns'][strPatternID]['rse_expression'],
+                          'lifetime_seconds' : 
+         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
                         })      
       else:      
         datasets.append({ 'metadata'         : datasetMetadata,
                           'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : destination + destinationNumber
+                          'dataset_name'     : destination + destinationNumber,
+                          'lifetime_seconds' : 
+         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
                         })
 
 
       datasets.append({ 'metadata'         : datasetMetadata,
                         'dataset_scope'    : jobscriptDict['scope'],
-                        'dataset_name'     : destination
+                        'dataset_name'     : destination,
+                        'lifetime_seconds' : 
+         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
                       })
 
       # Try to create the per-RSE and destination datasets
