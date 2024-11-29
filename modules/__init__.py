@@ -127,6 +127,7 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
 jobStallSeconds = 3660
+maxFilesPerJob     = 20
 
 filesPerNumberedDestination = 1000
 

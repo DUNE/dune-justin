@@ -302,6 +302,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'jobs.requested_wall_seconds,'
              'jobs.has_inner_apptainer,'
              'jobs.jobscript_exit,'
+             'jobs.allocated_files,'
              'sites.site_name,'
              'sites.running_jobs,'
              'sites.enabled,'
@@ -361,6 +362,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
            "requested_wall_seconds" : job['requested_wall_seconds'],
            "has_inner_apptainer"    : job['has_inner_apptainer'],
            "jobscript_exit"         : job['jobscript_exit'],
+           "allocated_files"        : job['allocated_files'],
            "scope_name"             : job['scope_name'] 
                                       if job['scope_name'] else '',
            "wlcg_group_name"        : job['wlcg_group_name']
@@ -1302,6 +1304,12 @@ def getFileMethod(startResponse, jsonDict):
                      'Job in wrong state to find file (%s)' % 
                      jobDict['job_state'])
 
+  if jobDict['allocated_files'] >= justin.maxFilesPerJob:
+    return httpError(startResponse,
+                     '404 Not Found', 
+                     'Only %d files can be allocated to each job'
+                     % justin.maxFilesPerJob)
+
   # Create a stage dictionary with the next file in this stage  
   oneFile = findBestFile(jobDict)
 
@@ -1314,7 +1322,8 @@ def getFileMethod(startResponse, jsonDict):
     try:
       # Update heartbeat_time and make sure job is set to processing now
       justin.insertUpdate('UPDATE jobs SET job_state="processing",'
-                          'heartbeat_time=NOW(),has_allocations=TRUE,'
+                          'heartbeat_time=NOW(),'
+                          'allocated_files=allocated_files+1,'
                           'sent_get_file=TRUE '
                           'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"'
                          )
@@ -1358,7 +1367,7 @@ def getFileMethod(startResponse, jsonDict):
                      'Unable to update job to sent_get_file=TRUE: ' + str(e))
 
   # Use httpOK() since this does not do a rollback
-  return httpOK(startResponse,                 
+  return httpOK(startResponse,
                 'No eligible file found',
                 codeStr = '404 Not Found')
 

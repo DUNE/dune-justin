@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
                   'finished','notused','aborted','stalled','jobscript_error',
                   'outputting_failed', 'none_processed') 
                   NOT NULL DEFAULT 'submitted',
-  `has_allocations` tinyint(1) NOT NULL DEFAULT 0,
+  `allocated_files` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `sent_get_file` tinyint(1) NOT NULL DEFAULT 0,
   `allocator_name` varchar(255) NOT NULL DEFAULT '',
   `allocation_error` varchar(255) NOT NULL DEFAULT '',
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   INDEX `job_state_site_id` (`job_state`,`site_id`,
     `submitted_time`),
   INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`job_state`),
-  INDEX `has_allocations` (`has_allocations`,`job_state`),
+  INDEX `allocated_files` (`allocated_files`,`job_state`),
   INDEX `heartbeat_time` (`job_state`,`heartbeat_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 

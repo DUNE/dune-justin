@@ -1246,7 +1246,7 @@ def findStalledAbortedJobs():
   # Find jobs which have 
   # (1) not sent a heartbeat in jobStalledSeconds, or
   # (2) which have reported they have aborted or that outputting failed
-  #     and still have has_allocations set
+  #     and still have allocated_files
   # and then reset their file allocations
   #
   # We handle bad waiting jobs in findStalledCondorJobs()
@@ -1263,7 +1263,7 @@ def findStalledAbortedJobs():
              '(heartbeat_time < DATE_SUB(NOW(),INTERVAL %d SECOND))) OR '
              '((job_state="aborted" OR '
              '  job_state="jobscript_error" OR '
-             '  job_state="outputting_failed") AND has_allocations) '
+             '  job_state="outputting_failed") AND allocated_files) '
              'ORDER BY justin_job_id' % justin.jobStallSeconds)
 
     justin.cur.execute(query)
@@ -1284,7 +1284,7 @@ def findStalledAbortedJobs():
       # If not here due to an abort, we mark the job as stalled
       try:
         query = ('UPDATE jobs SET job_state="stalled",finished_time=NOW(),'
-                 'has_allocations=FALSE '
+                 'allocated_files=0 '
                  'WHERE justin_job_id=%d' % jobRow['justin_job_id'])
     
         justin.cur.execute(query)
@@ -1303,14 +1303,14 @@ def findStalledAbortedJobs():
                       siteID = jobRow['site_id'],
                       entryID = jobRow['entry_id'])
     else:
-      # An aborted, error, failed state, so just reset has_allocations
+      # An aborted, error, failed state, so just reset allocated_files
       try:
-        query = ('UPDATE jobs SET has_allocations=FALSE '
+        query = ('UPDATE jobs SET allocated_files=0 '
                  'WHERE justin_job_id=%d' % jobRow['justin_job_id'])
     
         justin.cur.execute(query)
       except Exception as e: 
-        justin.logLine('Failed to set job %s to has_allocations=FALSE: %s' 
+        justin.logLine('Failed to set job %s to allocated_files=0: %s' 
               % (jobRow['jobsub_id'], str(e)))
         continue
 
