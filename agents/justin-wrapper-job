@@ -524,14 +524,19 @@ jobPID      = os.getpid()
 justinWorkdir = os.environ['PWD']
 
 # Check our cvmfs paths are mountable
-for i in [ '/cvmfs/grid.cern.ch',
-           '/cvmfs/dune.osgstorage.org',
-           '/cvmfs/dune.opensciencegrid.org',
-           '/cvmfs/larsoft.opensciencegrid.org',
-           '/cvmfs/fifeuser1.opensciencegrid.org',
-           '/cvmfs/fifeuser2.opensciencegrid.org',
-           '/cvmfs/fifeuser3.opensciencegrid.org',
-           '/cvmfs/fifeuser4.opensciencegrid.org' ]:
+cvmfsPaths = [ '/cvmfs/grid.cern.ch',
+               '/cvmfs/dune.opensciencegrid.org',
+               '/cvmfs/larsoft.opensciencegrid.org' ]
+
+# REMOVE THIS ASAP!!!! Nasty, nasty, hardy, codey!
+if not siteName.startswith('US_NERSC-'):
+  cvmfsPaths += [ '/cvmfs/dune.osgstorage.org',
+                  '/cvmfs/fifeuser1.opensciencegrid.org',
+                  '/cvmfs/fifeuser2.opensciencegrid.org',
+                  '/cvmfs/fifeuser3.opensciencegrid.org',
+                  '/cvmfs/fifeuser4.opensciencegrid.org' ]
+
+for i in cvmfsPaths:
   try:
     s = os.stat(i)
   except Exception as e:

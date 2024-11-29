@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `jobscript` text NOT NULL,
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED;
 
 CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
@@ -99,11 +99,11 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
-  `compressed_log` blob NOT NULL DEFAULT '',
+#  `compressed_log` blob NOT NULL DEFAULT '',
   `saved_time` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY (`justin_job_id`),
   INDEX `saved_time` (`saved_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED;
 
 CREATE TABLE IF NOT EXISTS `events` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
