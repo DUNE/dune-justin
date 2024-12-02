@@ -529,7 +529,7 @@ cvmfsPaths = [ '/cvmfs/grid.cern.ch',
                '/cvmfs/larsoft.opensciencegrid.org' ]
 
 # REMOVE THIS ASAP!!!! Nasty, nasty, hardy, codey!
-if not siteName.startswith('US_NERSC-'):
+if not siteName.startswith('US_NERSC'):
   cvmfsPaths += [ '/cvmfs/dune.osgstorage.org',
                   '/cvmfs/fifeuser1.opensciencegrid.org',
                   '/cvmfs/fifeuser2.opensciencegrid.org',
