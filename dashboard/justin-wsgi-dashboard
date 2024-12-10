@@ -716,11 +716,11 @@ your user name.
   output += '''
 <input type="hidden" name="redirect_uri" 
  value="https://%s/login/cilogon/login">
-<input type="hidden" name="scope" 
- value="openid profile org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune wlcg.groups:/dune/production">
+<input type="hidden" name="scope" value="%s">
 <button type="submit" 
  style="background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer">%s</button>
-</form></p>''' % (environ['SERVER_NAME'], 'Authorize' if authorize else 'Login')
+</form></p>''' % (environ['SERVER_NAME'], justin.cilogonScopes,
+                  'Authorize' if authorize else 'Login')
 
   output += '</td>'
 
@@ -3494,6 +3494,9 @@ def showUser(environ, user, cgiValues):
     if userRow['access_token_len'] > 0:
       output += ('<h2>Your access token</h2>\n<table>')
   
+      output += ('<tr><td>Scopes requested</td><td>%s</td></tr>' 
+               % justin.cilogonScopes)
+
       output += ('<tr><td>Created</td><td>%s UTC</td></tr>' 
                % userRow['access_token_created'])
 
@@ -3503,9 +3506,14 @@ def showUser(environ, user, cgiValues):
       accessTokenDict = json.loads(base64.urlsafe_b64decode(
                             userRow['access_token'].split('.')[1] + '=='))
 
-      output += ('<tr><td colspan=2><pre>%s</pre></td></tr>' %
-                  html.escape(pprint.pformat(accessTokenDict))
-                )
+      for k in accessTokenDict:
+        output += ('<tr><td>%s</td><td>%s</td></tr>' %
+                   (k, insertWBR(str(accessTokenDict[k])).replace(' ','<br>'))
+                  )
+
+#      output += ('<tr><td colspan=2><pre>%s</pre></td></tr>' %
+#                  html.escape(pprint.pformat(accessTokenDict, width=30))
+#                )
 
       if userRow['refresh_token_len'] == 0:
         output += '<tr><td colspan="2">No refresh token!</td></tr>'

@@ -100,6 +100,10 @@ htcondorHELD                = 5
 htcondorTRANSFERRING_OUTPUT = 6
 htcondorSUSPENDED           = 7
 
+cilogonScopes       = ('openid profile org.cilogon.userinfo '
+                       'wlcg.capabilityset:/duneana wlcg.groups:/dune '
+                       'wlcg.groups:/dune/production')
+
 # Note that this assumes we are using UTC since we assume elsewhere this
 # will convert from this MySQL date to 0 in Unix seconds
 # Also Unicode date strings coming out of MySQL may not match plain strings 
