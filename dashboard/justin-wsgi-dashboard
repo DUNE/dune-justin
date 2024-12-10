@@ -3456,7 +3456,7 @@ def showUser(environ, user, cgiValues):
     justinSession = ' '
   
   query = ('SELECT users.user_id,principal_name,created_time,expires_time,'
-           'access_token_created,access_token_expires,'
+           'access_token_created,access_token_expires,access_token,'
            'LENGTH(access_token) AS access_token_len,'
            'LENGTH(refresh_token) AS refresh_token_len '
            'FROM principal_names '
@@ -3473,6 +3473,7 @@ def showUser(environ, user, cgiValues):
   except:
     return errorPage(environ, user, "Unknown user!")
 
+  # Things we only show to the user themself
   if user and user['user_name'] == userName:
     output += ('<h2>Your current session</h2>\n')
 
@@ -3498,6 +3499,13 @@ def showUser(environ, user, cgiValues):
 
       output += ('<tr><td>Expires</td><td>%s UTC</td></tr>' 
                % userRow['access_token_expires'])
+
+      accessTokenDict = json.loads(base64.urlsafe_b64decode(
+                            userRow['access_token'].split('.')[1] + '=='))
+
+      output += ('<tr><td colspan=2><pre>%s</pre></td></tr>' %
+                  html.escape(pprint.pformat(accessTokenDict))
+                )
 
       if userRow['refresh_token_len'] == 0:
         output += '<tr><td colspan="2">No refresh token!</td></tr>'
