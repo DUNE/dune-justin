@@ -18,6 +18,7 @@ in the Dashboard.
 |106|WORKFLOW_PAUSED_NOTUSED|Workflow paused, too many Notused jobs|
 |107|WORKFLOW_PAUSED_NONE_PROCESSED|Workflow paused, too many None Processed jobs|
 |108|WORKFLOW_PAUSED_JOBSCRIPT_ERROR|Workflow paused, too many jobscript errors|
+|109|WORKFLOW_FAILED_TOO_MANY_FILES|Workflow failed, too many input files|
 |201|FILE_ADDED|File added to first stage by Finder|
 |202|REPLICA_ADDED|Replica added for file by Finder|
 |203|REPLICA_STAGING_REQUESTED|Finder requests replica staging|

@@ -21,18 +21,17 @@ call to CILogon to check the validity of the authentication and obtain a WLCG
 access token, identity token, and refresh token for that user, and extracts
 the users's eduPersonPrincipalName and DUNE wlcg.groups. 
 
-The OAuth scopes requested from CILogon are currently: openid profile 
-org.cilogon.userinfo wlcg.capabilityset:/duneana 
-wlcg.groups:/dune wlcg.groups:/dune/production 
-
 The access token and refresh token are saved in the justIN database, and the
 [justIN finder agent](agents.finder.md) refreshes the access token with
 OIDC calls to CILogon so it is immediately available to the 
 [justIN allocator](services.allocator.md) without any latency.
 Refreshing continues as long as the user has an unexpired web or
-command line session. Users may view their current access token after
+command line session. 
+
+Users may view their current access token after
 logging in by clicking on the orange button with their username at the top 
-right of any page and looking at the Your Access Token table.
+right of any page and looking at the Your Access Token table. This also
+shows the OAuth scopes requested from CILogon.
 
 ## DUNE groups and Rucio scopes
 

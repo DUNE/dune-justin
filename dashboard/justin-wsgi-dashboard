@@ -3511,10 +3511,6 @@ def showUser(environ, user, cgiValues):
                    (k, insertWBR(str(accessTokenDict[k])).replace(' ','<br>'))
                   )
 
-#      output += ('<tr><td colspan=2><pre>%s</pre></td></tr>' %
-#                  html.escape(pprint.pformat(accessTokenDict, width=30))
-#                )
-
       if userRow['refresh_token_len'] == 0:
         output += '<tr><td colspan="2">No refresh token!</td></tr>'
 

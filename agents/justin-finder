@@ -51,8 +51,21 @@ updateCondorJobs     = 3600
 class justinError(Exception):
   pass
 
-def addFilesMonteCarlo(workflowID, count):
+def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
   # Add dummy files to keep track of Monte Carlo processing
+
+  if count > justin.maxFilesPerWorkflow:
+    justin.logLine('Too many counter files - workflow failed')
+
+    justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
+                    workflowID = workflowID)
+
+    justin.insertUpdate('UPDATE workflows SET state="finished",'
+              'state_message="Failed due to more than %d counter files" '
+              'WHERE workflow_id=%d' 
+              % (justin.maxFilesPerWorkflow, workflowID))
+
+    return False
   
   for i in range(1, count + 1):
     try:
@@ -65,7 +78,7 @@ def addFilesMonteCarlo(workflowID, count):
     except Exception as e:
       justin.logLine('Failed inserting dummy Monte Carlo file for workflow %d: %s' 
               % (workflowID, str(e)))
-      return
+      return False
 
     fileID = justin.cur.lastrowid
 
@@ -80,7 +93,7 @@ def addFilesMonteCarlo(workflowID, count):
     except Exception as e:
       justin.logLine('Failed inserting dummy Monte Carlo replica for workflow %d: %s' 
                % (workflowID, str(e)))
-      return
+      return False
 
     justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
@@ -89,6 +102,7 @@ def addFilesMonteCarlo(workflowID, count):
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
+  return True
 
 def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
   # Find files to be processed for each workflow in the finding state
@@ -97,10 +111,20 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
     didsList = didClient.list_files(scope, name)
   except Exception as e:
     justin.logLine("Reading file list from Rucio fails with: " + str(e))
-    return
+    return False
 
-#  if len(didsList) > maxFilesPerWorkflow:
-    
+  if len(didsList) > justin.maxFilesPerWorkflow:
+    justin.logLine('Too many files found - workflow failed')
+
+    justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
+                    workflowID = workflowID)
+
+    justin.insertUpdate('UPDATE workflows SET state="finished",'
+              'state_message="Failed due to more than %d input files" '
+              'WHERE workflow_id=%d' 
+              % (justin.maxFilesPerWorkflow, workflowID))
+
+    return False
 
   for did in didsList:  
     try:
@@ -113,7 +137,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
       justin.cur.execute(query)
     except Exception as e:
       justin.logLine('Failed inserting DID %:%s' % (did['scope'], did['name']))
-      return
+      return False
 
     justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
@@ -122,6 +146,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
+  return True
 
 def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
   # Find files matching the mql query from MetaCat
@@ -135,7 +160,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
       if response.status != 200:
         justin.logLine("Reading files list from MetaCat fails with HTTP code "
                 + str(response.status))
-        return
+        return False
 
       fileLines = response.readlines()
     except Exception as e:    
@@ -148,7 +173,20 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
         continue
       else:
         # Give up
-        return
+        return False
+
+  if len(fileLines) > justin.maxFilesPerWorkflow:
+    justin.logLine('Too many files found - workflow failed')
+
+    justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
+                    workflowID = workflowID)
+
+    justin.insertUpdate('UPDATE workflows SET state="finished",'
+              'state_message="Failed due to more than %d input files" '
+              'WHERE workflow_id=%d' 
+              % (justin.maxFilesPerWorkflow, workflowID))
+
+    return False
 
   for fileLine in fileLines:
     # Remove any weirdness
@@ -159,7 +197,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
       fileDict = json.loads(fileLine)
     except:
       justin.logLine("Parsing line from MetaCat fails with: " + str(e))
-      return
+      return False
         
     try:
       namespace = fileDict['namespace']
@@ -182,7 +220,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
     except Exception as e:
       justin.logLine('Failed inserting DID %:%s' % 
               ( fileDict['namespace'], fileDict['name'] ))
-      return
+      return False
 
     justin.logEvent(eventTypeID = justin.event_FILE_ADDED,
                     workflowID = workflowID,
@@ -191,6 +229,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
+  return True
 
 def findFiles():
   # Find files to be processed for each workflow in the running state
@@ -240,13 +279,16 @@ def findFiles():
          justin.logLine("Connect to Rucio fails with: " + str(e))
          continue
 
+      findRet = False
       datasetSplit = mqlSplit[1].split(':')
       if len(datasetSplit) == 2:
-        findFilesRucio(didClient,
+        findRet = findFilesRucio(didClient,
                        workflow['workflow_id'], 
                        datasetSplit[0], 
                        datasetSplit[1],
                        workflow['max_files_per_workflow'])
+      if not findRet:
+        continue
         
     # Monte Carlo workflow with a count
     elif len(mqlSplit) == 2 and mqlSplit[0] == 'monte-carlo':
@@ -256,12 +298,18 @@ def findFiles():
       except:
         continue
       
-      addFilesMonteCarlo(workflow['workflow_id'], count)
+      findRet = addFilesMonteCarlo(workflow['workflow_id'], count,
+                                   workflow['max_files_per_workflow'])
+      if not findRet:
+        continue
 
     else:    
-      findFilesMetaCat(workflow['workflow_id'], workflow['mql'],
-                       workflow['max_files_per_workflow'])
-    
+      findRet = findFilesMetaCat(workflow['workflow_id'], workflow['mql'],
+                                 workflow['max_files_per_workflow'])
+
+      if not findRet:
+        continue
+          
     if refindEndTime == 0:
       # We are not doing refinding and we have done the only finding we do
       # So unset refind_next_time
