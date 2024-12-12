@@ -54,7 +54,7 @@ class justinError(Exception):
 def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
   # Add dummy files to keep track of Monte Carlo processing
 
-  if count > justin.maxFilesPerWorkflow:
+  if count > maxFilesPerWorkflow:
     justin.logLine('Too many counter files - workflow failed')
 
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
@@ -63,7 +63,7 @@ def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
     justin.insertUpdate('UPDATE workflows SET state="finished",'
               'state_message="Failed due to more than %d counter files" '
               'WHERE workflow_id=%d' 
-              % (justin.maxFilesPerWorkflow, workflowID))
+              % (maxFilesPerWorkflow, workflowID))
 
     return False
   
@@ -113,7 +113,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
     justin.logLine("Reading file list from Rucio fails with: " + str(e))
     return False
 
-  if len(didsList) > justin.maxFilesPerWorkflow:
+  if len(didsList) > maxFilesPerWorkflow:
     justin.logLine('Too many files found - workflow failed')
 
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
@@ -122,7 +122,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
     justin.insertUpdate('UPDATE workflows SET state="finished",'
               'state_message="Failed due to more than %d input files" '
               'WHERE workflow_id=%d' 
-              % (justin.maxFilesPerWorkflow, workflowID))
+              % (maxFilesPerWorkflow, workflowID))
 
     return False
 
@@ -175,7 +175,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
         # Give up
         return False
 
-  if len(fileLines) > justin.maxFilesPerWorkflow:
+  if len(fileLines) > maxFilesPerWorkflow:
     justin.logLine('Too many files found - workflow failed')
 
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
@@ -184,7 +184,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
     justin.insertUpdate('UPDATE workflows SET state="finished",'
               'state_message="Failed due to more than %d input files" '
               'WHERE workflow_id=%d' 
-              % (justin.maxFilesPerWorkflow, workflowID))
+              % (maxFilesPerWorkflow, workflowID))
 
     return False
 

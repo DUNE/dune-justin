@@ -2798,7 +2798,8 @@ def listScopes(environ, user, cgiValues):
 
   output += ("<h1>Scopes</h1>")
   
-  query = ('SELECT scope_name,wlcg_group_name,condor_group_name '
+  query = ('SELECT scope_name,wlcg_group_name,condor_group_name,'
+           'max_files_per_workflow '
         'FROM scopes '
         'LEFT JOIN wlcg_groups '
         'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
@@ -2812,17 +2813,20 @@ def listScopes(environ, user, cgiValues):
   output += ('<tr>'
              '<th>Scope</th>'
              '<th>WLCG Group</th>'
-             '<th>HTCondor Group</th></tr>')
+             '<th>HTCondor Group</th>'
+             '<th>Max input files</th></tr>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
                '<td>%s</td>' 
-               '<td>%s</td></tr>' 
+               '<td>%s</td>' 
+               '<td>%d</td></tr>' 
                % (scopeRow['scope_name'],
                   scopeRow['wlcg_group_name'] 
                   if scopeRow['wlcg_group_name'] else ' ',
                   scopeRow['condor_group_name'] 
-                  if scopeRow['condor_group_name'] else ' '))
+                  if scopeRow['condor_group_name'] else ' ',
+                  scopeRow['max_files_per_workflow']))
 
   output += ("</table>")
   output += footer()
