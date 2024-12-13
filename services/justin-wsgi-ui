@@ -953,9 +953,10 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     lifetimeDays = 0
 
   # Store a catch all RSE expression to use when creating rules for 
-  # output datasets other  than per-RSE datasets 
+  # output datasets other than per-RSE datasets 
   outputExpression = ''
-  if jsonDict['output_rse_expression']:
+  if 'output_rse_expression' in jsonDict \
+     and jsonDict['output_rse_expression']:
     if not justin.stringIsExpression(jsonDict['output_rse_expression']):
       return ('400 Bad Request', 'Invalid RSE expression')
     else:
