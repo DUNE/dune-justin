@@ -293,6 +293,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'jobs.job_state,'
              'jobs.jobscript_secret,'
              'stages.max_distance,'
+             'workflows.mql,'
              'jobs.workflow_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
@@ -357,6 +358,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
            "job_state"              : job['job_state'],
            "jobscript_secret"       : job['jobscript_secret'],
            "max_distance"           : job['max_distance'],
+           "mql"                    : job['mql'],
            "requested_processors"   : job['requested_processors'],
            "requested_rss_bytes"    : job['requested_rss_bytes'],
            "requested_wall_seconds" : job['requested_wall_seconds'],
@@ -574,6 +576,7 @@ def makeJobscriptDict(jsonDict, jobDict):
   jobscriptDict['stage_id']         = jsonDict['stage_id']
   jobscriptDict['scope']            = scopeName
 
+  jobscriptDict['mql']                    = jobDict['mql']
   jobscriptDict['requested_processors']   = jobDict['requested_processors']
   jobscriptDict['requested_rss_bytes']    = jobDict['requested_rss_bytes']
   jobscriptDict['requested_wall_seconds'] = jobDict['requested_wall_seconds']

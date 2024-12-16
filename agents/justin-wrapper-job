@@ -1009,6 +1009,9 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
             }
                     }
 
+  if stageID == 1:
+    datasetMetadata['dune.workflow']['mql'] = jobscriptDict['mql']
+
   # Find the destination for this pattern in the resultsResponseDict
   destination = resultsResponseDict['patterns'][strPatternID]['destination']
   destinationNumber = \
