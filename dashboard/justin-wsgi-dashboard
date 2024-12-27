@@ -1088,6 +1088,7 @@ def showWorkflow(environ, user, cgiValues):
   
   query = ("SELECT workflows.description,workflows.state,"
            "workflows.state_message,principal_name AS user_name,"
+           "workflows.user_id,wlcg_groups.wlcg_group_name,"
            "workflows.created,workflows.submitted,workflows.started,"
            "workflows.checking,workflows.finished,mql,"
            "workflows.refind_seconds,workflows.refind_end_time,"
@@ -1095,6 +1096,8 @@ def showWorkflow(environ, user, cgiValues):
            "scopes.scope_name,condor_groups.condor_group_name "
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
+           "LEFT JOIN wlcg_groups "
+           "ON wlcg_groups.wlcg_group_id=scopes.wlcg_groupd_id "
            "LEFT JOIN users ON users.user_id=workflows.user_id "
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
@@ -1114,6 +1117,58 @@ def showWorkflow(environ, user, cgiValues):
   state  = workflowRow['state']
 
   output += "<h1>Workflow %d</h1>" % workflowID
+
+  if user:
+    buttonsHTML = ''
+
+    # Buttons you need to be an admin or in the group still for
+    if user['user_name'] in justin.justinAdmins or \
+       workflowRow['wlcg_group_name'] in user['wlcg_groups']:
+      buttonsHTML += buttonHTML(user = user,
+              nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
+                                    % workflowID,
+              label   = 'Submit',
+              key     = workflowID,
+              name    = 'workflow_submit') + ' '
+
+      buttonsHTML += buttonHTML(user = user,
+              nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
+                                    % workflowID,
+              label   = 'Restart',
+              key     = workflowID,
+              name    = 'workflow_restart') + ' '
+
+    # Buttons that users can do for any workflow submitted in their name
+    if user['user_name'] in justin.justinAdmins or \
+       workflowRow['wlcg_group_name'] in user['wlcg_groups'] or \
+       user['user_id'] == workflowRow['user_id']:
+      buttonsHTML += buttonHTML(user = user,
+              nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
+                                    % workflowID,
+              label   = 'Pause',
+              key     = workflowID,
+              name    = 'workflow_pause') + ' '
+
+      buttonsHTML += buttonHTML(user = user,
+              nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
+                                    % workflowID,
+              label   = 'Finish',
+              key     = workflowID,
+              name    = 'workflow_finish') + ' ' 
+
+    if buttonsHTML:
+      output += '<p>' + buttonsHTML + '\n'
+
+    allowed = True
+  elif workflowRow['wlcg_group_name'] in user['wlcg_groups']:
+    # Anyone in the workflow's scope's groups can change workflow states
+    allowed = True
+  elif stateChange in ['pause', 'finish'] \
+       and user['user_id'] == workflowRow['user_id']:
+    # Even if scope's groups or group membership has changed you can
+    # always stop workflows submitted under your name
+    allowed = True
+
   output += '<table>'
   output += ('<tr><td>Description</td><td>%s</td></tr>' 
              % html.escape(workflowRow['description'], quote=True))
