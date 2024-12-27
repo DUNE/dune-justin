@@ -217,6 +217,15 @@ td,th { border: thin solid #87ADD1; padding: 0.75ex }
                          text-decoration: none;  
                        }
 
+input[type=button], input[type=submit], input[type=reset] {
+  background-color: #E1703D;
+  border-style: none;
+  border-radius: 5px; 
+  padding: 5px;
+  color: white;
+  font-weight: bold;
+}
+
 </style>
 <script type="text/javascript" 
  src="https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js"></script>
@@ -4554,7 +4563,7 @@ def docsPage(startResponse, environ, user):
   for match in matches:
     processedText = re.sub(match, '', processedText)
 
-  output += markdown.markdown(processedText, extensions=['tables'])
+  output += markdown.markdown(processedText, extensions=['tables','toc'])
 
   output += '</div>\n'
   output += footer()
@@ -4583,7 +4592,6 @@ def setSiteStateHandler(cgiValues, user):
   else:
     return ('302 Moved', '')
 
-
 def setStorageStateHandler(cgiValues, user, readWrite):
 
   if user['user_name'] not in justin.justinAdmins:
@@ -4607,6 +4615,83 @@ def setStorageStateHandler(cgiValues, user, readWrite):
   else:
     return ('302 Moved', '')
 
+
+def setWorkflowStateHandler(cgiValues, user, stateChange):
+  # stateChange is submit, restart, pause, or finish
+
+  try:
+    workflowID = int(cgiValues['action_key'])
+
+    workflowRow = justin.select('SELECT workflows.state,workflows.archived,'
+                          'workflows.user_id,wlcg_groups.wlcg_group_name '
+                          'FROM workflows '
+                          'LEFT JOIN scopes '
+                          'ON scopes.scope_id=workflows.scope_id '
+                          'LEFT JOIN wlcg_groups '
+                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                          'WHERE workflow_id=%d' % workflowID)
+  except:
+    return ('400 Bad Request', 'Invalid values sent')
+
+  # Check if this user can do this - should not arise as users are not offered
+  # actions they are not allowed to do but an important security check
+  allowed = False
+
+  if user['user_name'] in justin.justinAdmins:
+    # Admins have super powers
+    allowed = True
+  elif workflowRow['wlcg_group_name'] in user['wlcg_groups']:
+    # Anyone in the workflow's scope's groups can change workflow states
+    allowed = True
+  elif stateChange in ['pause', 'finish'] \
+       and user['user_id'] == workflowRow['user_id']:
+    # Even if scope's groups or group membership has changed you can
+    # always stop workflows submitted under your name
+    allowed = True
+
+  if not allowed:
+    return ('403 Forbidden', 'You do not have permission to do that!')
+
+  if stateChange == 'submit':
+    if workflowRow['state'] == 'draft':
+      newState = 'submitted'
+    else:
+      return ('403 Forbidden', 'Only workflows in Draft can be submitted')
+
+  elif stateChange == 'restart':
+    if workflowRow['state'] == 'paused':
+      newState = 'running'
+    else:
+      return ('403 Forbidden', 'Only workflows in Pause can be restarted')
+
+  elif stateChange == 'pause':
+    if workflowRow['state'] == 'running':
+      newState = 'paused'
+    else:
+      return ('403 Forbidden', 'Only workflows in Running can be paused')
+
+  elif stateChange == 'finish':
+    if workflowRow['state'] in ['running','submitted','draft']:
+      newState = 'finished'
+    else:
+      return ('403 Forbidden', 
+              'Only workflows in Running, Submitted, or Draft can be finished')
+  else:
+    return ('400 Bad Request', 'State change not recognised')
+
+  
+  try:
+    justin.insertUpdate('UPDATE workflows SET state="%s",'
+                        'state_message="Set to %s by %s" '
+                        'WHERE workflow_id=%d' 
+                        % (newState, newState, user['user_name'], workflow_id))
+    justin.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    # Success - issue a 302 Moved response and the caller will set Location:
+    return ('302 Moved', '')
 
 # Get POST data and then a big switch to direct it to the right handler
 def postHandlers(startResponse, environ, user):
@@ -4653,6 +4738,22 @@ def postHandlers(startResponse, environ, user):
 
       elif cgiValues['action_name'] == 'set_storage_write_state':
         (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'write')
+
+      elif cgiValues['action_name'] == 'workflow_submit':
+        (httpStatus, message) = setWorkflowStateHandler(cgiValues, 
+                                                        user, 'submit')
+
+      elif cgiValues['action_name'] == 'workflow_restart':
+        (httpStatus, message) = setWorkflowStateHandler(cgiValues, 
+                                                        user, 'restart')
+
+      elif cgiValues['action_name'] == 'workflow_pause':
+        (httpStatus, message) = setWorkflowStateHandler(cgiValues, 
+                                                        user, 'pause')
+
+      elif cgiValues['action_name'] == 'workflow_finish':
+        (httpStatus, message) = setWorkflowStateHandler(cgiValues, user, 
+                                                        'finish')
 
   if httpStatus is None:
     httpStatus = '400 Bad Request'

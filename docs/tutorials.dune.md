@@ -1,5 +1,7 @@
 # DUNE justIN tutorial
 
+[TOC]
+
 ## Prerequisites
 
 This tutorial has been tested on the DUNE dunegpvm computers at Fermilab and on
