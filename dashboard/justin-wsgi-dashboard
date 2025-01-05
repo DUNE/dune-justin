@@ -1097,7 +1097,7 @@ def showWorkflow(environ, user, cgiValues):
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
            "LEFT JOIN wlcg_groups "
-           "ON wlcg_groups.wlcg_group_id=scopes.wlcg_groupd_id "
+           "ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id "
            "LEFT JOIN users ON users.user_id=workflows.user_id "
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
@@ -1118,20 +1118,24 @@ def showWorkflow(environ, user, cgiValues):
 
   output += "<h1>Workflow %d</h1>" % workflowID
 
-  if user:
+# WE DISABLE THESE OPTIONS FOR NOW. THEY NEED CHANGING FROM BUTTONS TO
+# TWO STEP CONFIRMATION: SELECT FROM MENU THEN A BUTTON MAYBE???
+  if False and user:
     buttonsHTML = ''
 
     # Buttons you need to be an admin or in the group still for
     if user['user_name'] in justin.justinAdmins or \
        workflowRow['wlcg_group_name'] in user['wlcg_groups']:
-      buttonsHTML += buttonHTML(user = user,
+      if workflowRow['state'] == 'draft':
+        buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
               label   = 'Submit',
               key     = workflowID,
               name    = 'workflow_submit') + ' '
 
-      buttonsHTML += buttonHTML(user = user,
+      if workflowRow['state'] == 'paused':
+        buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
               label   = 'Restart',
@@ -1142,14 +1146,17 @@ def showWorkflow(environ, user, cgiValues):
     if user['user_name'] in justin.justinAdmins or \
        workflowRow['wlcg_group_name'] in user['wlcg_groups'] or \
        user['user_id'] == workflowRow['user_id']:
-      buttonsHTML += buttonHTML(user = user,
+
+      if workflowRow['state'] == 'running':
+        buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
               label   = 'Pause',
               key     = workflowID,
               name    = 'workflow_pause') + ' '
 
-      buttonsHTML += buttonHTML(user = user,
+      if workflowRow['state'] in ['running','submitted','draft']:
+        buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
               label   = 'Finish',
@@ -1157,17 +1164,7 @@ def showWorkflow(environ, user, cgiValues):
               name    = 'workflow_finish') + ' ' 
 
     if buttonsHTML:
-      output += '<p>' + buttonsHTML + '\n'
-
-    allowed = True
-  elif workflowRow['wlcg_group_name'] in user['wlcg_groups']:
-    # Anyone in the workflow's scope's groups can change workflow states
-    allowed = True
-  elif stateChange in ['pause', 'finish'] \
-       and user['user_id'] == workflowRow['user_id']:
-    # Even if scope's groups or group membership has changed you can
-    # always stop workflows submitted under your name
-    allowed = True
+      output += '<p>' + buttonsHTML + '</p>\n<p>\n'
 
   output += '<table>'
   output += ('<tr><td>Description</td><td>%s</td></tr>' 
@@ -4684,7 +4681,8 @@ def setWorkflowStateHandler(cgiValues, user, stateChange):
                           'ON scopes.scope_id=workflows.scope_id '
                           'LEFT JOIN wlcg_groups '
                           'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                          'WHERE workflow_id=%d' % workflowID)
+                          'WHERE workflow_id=%d' % workflowID, 
+                          justOne = True)
   except:
     return ('400 Bad Request', 'Invalid values sent')
 
@@ -4739,7 +4737,7 @@ def setWorkflowStateHandler(cgiValues, user, stateChange):
     justin.insertUpdate('UPDATE workflows SET state="%s",'
                         'state_message="Set to %s by %s" '
                         'WHERE workflow_id=%d' 
-                        % (newState, newState, user['user_name'], workflow_id))
+                        % (newState, newState, user['user_name'], workflowID))
     justin.conn.commit()
   except:
     return ('500 Internal Server Error', 'Failed to update database')
