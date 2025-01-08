@@ -1424,8 +1424,7 @@ def processOutputFiles(outputFiles, patternsDict,
                           'creator_stage_id=%d,'
                           'creator_pattern_id=%d,'
                           'stage_id=0' %
-                          (workflowID, stageID, patternID,
-                           patternsDict[patternID]['destination'], fileName,
+                          (patternsDict[patternID]['destination'], fileName,
                            justinJobID, 
                            workflowID, stageID, patternID)
                          )
