@@ -1597,6 +1597,42 @@ def recordResultsMethod(startResponse, jsonDict):
                    jsonDict['jobscript_log'],
                    hasInnerApptainer)
 
+  # Create an ordered output RSE list specific to this stage, used for logs
+  # and any output files going to RSEs
+  try:
+    query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
+             'FROM stages_output_storages '
+             'LEFT JOIN storages '
+             'ON stages_output_storages.rse_id=storages.rse_id '
+             'LEFT JOIN sites_storages '
+             'ON (stages_output_storages.rse_id=sites_storages.rse_id '
+             'AND sites_storages.site_id=%d) '
+             'WHERE '
+             'stages_output_storages.workflow_id=%d AND '
+             'stages_output_storages.stage_id=%d AND '
+             'sites_storages.distance IS NOT NULL AND '
+             'storages.rucio_write AND '
+             'storages.justin_write AND '
+             'storages.occupancy < 1.0 AND '
+             'NOT storages.decommissioned '
+             'ORDER BY stages_output_storages.preferred DESC,'
+             'distance,storages.occupancy,RAND()'
+             % (siteID, workflowID, stageID)
+            )
+
+    rseRows = justin.select(query)
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed getting output RSEs list: ' + str(e))
+
+  responseDict['output_rses'] = []
+  for rseRow in rseRows:
+    responseDict['output_rses'].append((rseRow['rse_name'],
+                                        rseRow['lan_write_scheme'] 
+                                        if rseRow['distance'] == 0 
+                                        else rseRow['wan_write_scheme']))
+
   if 'jobscript_exit' in jsonDict and jsonDict['jobscript_exit'] != 0:
     # Jobscript said it failed by exiting with non-zero value
 
@@ -1637,8 +1673,10 @@ def recordResultsMethod(startResponse, jsonDict):
       return httpError(startResponse,
                        '500 Internal Server Error',
                        'Failed resetting allocated files: ' + str(e))
-     
-    return httpOK(startResponse, '')
+
+    # Return 200 OK and a partially filled in resonseDict
+    return httpOK(startResponse, 
+                  json.dumps(responseDict))
 
   try:
     # Use the event records to find the right replicas for this job
@@ -1783,41 +1821,6 @@ def recordResultsMethod(startResponse, jsonDict):
     return httpError(startResponse, 
                      '500 Internal Server Error', 
                      'Failed recording output files: ' + str(e))
-
-  # Create an ordered output RSE list specific to this stage
-  try:
-    query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
-             'FROM stages_output_storages '
-             'LEFT JOIN storages '
-             'ON stages_output_storages.rse_id=storages.rse_id '
-             'LEFT JOIN sites_storages '
-             'ON (stages_output_storages.rse_id=sites_storages.rse_id '
-             'AND sites_storages.site_id=%d) '
-             'WHERE '
-             'stages_output_storages.workflow_id=%d AND '
-             'stages_output_storages.stage_id=%d AND '
-             'sites_storages.distance IS NOT NULL AND '
-             'storages.rucio_write AND '
-             'storages.justin_write AND '
-             'storages.occupancy < 1.0 AND '
-             'NOT storages.decommissioned '
-             'ORDER BY stages_output_storages.preferred DESC,'
-             'distance,storages.occupancy,RAND()'
-             % (siteID, workflowID, stageID)
-            )
-
-    rseRows = justin.select(query)
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Failed getting output RSEs list: ' + str(e))
-
-  responseDict['output_rses'] = []
-  for rseRow in rseRows:
-    responseDict['output_rses'].append((rseRow['rse_name'],
-                                        rseRow['lan_write_scheme'] 
-                                        if rseRow['distance'] == 0 
-                                        else rseRow['wan_write_scheme']))
 
   try:
     jobscriptRealSeconds = int(float(jsonDict['jobscript_real_seconds']))
