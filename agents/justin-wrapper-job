@@ -904,6 +904,8 @@ if resultsResponseDict['status'] == 410:
 if resultsResponseDict['status'] != 200:
   jobAborted(312, 'record_results', '')
 
+logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
+
 # Create a logs.tgz file and upload with rucio
 # At the very least jobscript.log and ClassAds logs will be there
 try:
@@ -979,7 +981,6 @@ if jobscriptOutcome.returncode != 0:
   jobAborted(324, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
-logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
 
 # TO DO: DROP THIS FILE WRITE?
 # Write out the token for uploading to user's scratch
