@@ -1015,8 +1015,6 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
   # Find the destination for this pattern in the resultsResponseDict
   destination = resultsResponseDict['patterns'][strPatternID]['destination']
-  destinationNumber = \
-         resultsResponseDict['patterns'][strPatternID]['destination_number']
 
   if destination.startswith('https://'):
     # Uploading to user scratch
@@ -1036,8 +1034,8 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
                          'size_bytes' : fileSize }
                                              
   elif resultsResponseDict['output_rses']:
-    # Uploading file to Rucio managed storage
-        
+    # Uploading file to Rucio managed storage        
+
     # Create tmp.json metadata file for this output file
     try:
       updateMetadataTmp(fileName, 
@@ -1062,6 +1060,9 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
       jobAborted(319, 'metacat_registration', '')
 
     # If that succeeds, then try to register/upload with rucio
+    destinationNumber = \
+         resultsResponseDict['patterns'][strPatternID]['destination_number']
+
     for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
       datasets = [ { 'metadata'         : datasetMetadata,
                      'dataset_scope'    : jobscriptDict['scope'],
