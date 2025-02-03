@@ -532,7 +532,8 @@ def awtJobsToSites():
                  requestedProcessors  = 1,
                  requestedRssBytes    = 1024 * 1024 * 1024,
                  requestedWallSeconds = 3600,
-                 requestedGPU         = 0)
+                 requestedGPU         = 1 if (row['site_name'] == US_NERSC-GPU)
+                                        else 0)
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs
