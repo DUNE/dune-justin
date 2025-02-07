@@ -325,6 +325,20 @@ have an X.509 proxy or use the Rucio client. However, it is not as efficient
 as the standalone 
 .B justin-fetch-logs
 command.
+.RE
+.HP
+.B "get-token"
+.br
+Download the current WLCG Token cached by justIN for the current user. This
+is stored at $BEARER_TOKEN_FILE if set, or /run/user/UID/bt_uUID if
+/run/user/UID exists, or /tmp/bt_uUID in other cases, where UID is the local
+user's Unix user ID. If the verbose option
+is give, the path to the resulting token file and time left is shown.
+.br
+.B While DUNE is still dependent on X.509 proxies for some storages,
+this subcommand also requests a DUNE X.509 user proxy which is authorized to
+read from Rucio and Rucio-managed storage. This is stored at
+$X509_USER_PROXY if set, and at /tmp/x509up_uUID in other cases. 
 
 .SH JOBSCRIPTS
 

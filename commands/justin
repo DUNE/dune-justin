@@ -2,7 +2,7 @@
 #
 # justin - justIN command line utility
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,9 +30,10 @@ import shutil
 import urllib.request
 import argparse
 import platform
+import tempfile
 
 # The make-justin-tag script looks for this and updates it - so format matters
-versionNumber = '01.02.00'
+versionNumber = '01.03.00'
 sessionFile   = '/var/tmp/justin.session.' + str(os.getuid())
 
 def body(buf): 
@@ -60,6 +61,7 @@ commands = [ "create-workflow",
              "show-replicas", 
              "show-jobs",
              "fetch-logs",
+             "get-token",
              "whoami",
              "time" ]
 
@@ -257,6 +259,44 @@ if jsonDict['workflow_id_file']:
   except:
     pass
 
+if jsonDict['command'] == 'get-token':
+
+  userUID = int(os.getuid())
+  # Select token path
+  bearerTokenFile = os.getenv('BEARER_TOKEN_FILE')
+  
+  if not bearerTokenFile:
+    if os.path.isdir('/run/user/%d' % userUID):
+      bearerTokenFile = '/run/user/%d/bt_u%d' % (userUID, userUID)
+    else:
+      bearerTokenFile = '/tmp/bt_u' % userUID
+  
+#HERE WE MUST ADD A CHECK IF THE EXISTING TOKEN HAS PLENTY OF TIME LEFT
+#AND REFUSE TO FETCH A NEW ONE, IN CASE USER IS REPEATEDLY MAKING REQUEST
+#IF THE TOKEN IS OK, THE PROXY SHOULD BE TOO
+
+  # Select proxy path
+  x509ProxyFiles = os.getenv('X509_USER_PROXY')
+  
+  if not x509ProxyFile:
+    x509ProxyFileFile = '/tmp/x509up_u%d' % userUID
+  
+  try:
+    tempDir = tempfile.TemporaryDirectory()
+    os.system('openssl req -batch -nodes -newkey rsa:2048 '
+              '-keyout %s/key.pem -out %s/csr.pem' 
+              % (tempDir.name, tempDir.name))
+
+    with open('%s/csr.pem' % tempDir.name) as f:
+      jsonDict['proxy_csr'] = f.readlines()
+
+    with open('%s/key.pem' % tempDir.name) as f:
+      proxyKey = f.readlines()
+  except Exception as e:
+    print('Failed to create X.509 proxy request (%s)' % str(e),
+          file=sys.stderr)
+    sys.exit(1)
+
 if args.command not in commands:
   print("%s not recognised as a justin command" % args.command)
   sys.exit(1)
@@ -418,6 +458,46 @@ elif jsonDict['command'] in ['create-workflow', 'simple-workflow']:
         f.write('%d\n' % workflowID)
     
   print(output, end='')
+  
+  sys.exit(0)
+  
+elif jsonDict['command'] == 'get-token':
+
+  responseDict = json.loads(response.read().decode('utf-8'))
+
+  if 'token' in responseDict and responseDict['token'] and \
+     'token_time_left' in responseDict:
+    try:
+      with open(bearerTokenFile, 'w') as f:
+        f.write('%s' % responseDict['token'])
+    except:
+      print('Failed writing token to ' + bearerTokenFile, file=sys.stderr)
+    else:
+      if jsonDict['verbose']:
+        print('Token written to %s, time left %s' 
+              % (bearerTokenFile, responseDict['token_time_left']))
+  else:
+    if jsonDict['verbose']:
+      print('No token returned', file=sys.stderr)
+    
+  if 'proxy_cert' in responseDict and responseDict['proxy_cert'] and \
+     'proxy_time_left' in responseDict:
+    try:
+      with open(x509ProxyFile, 'w') as f:
+        f.write('%s%s%s' 
+                % (responseDict['proxy_cert'],
+                   proxyKey,
+                   responseDict['proxy_chain'])
+               )
+    except:
+      print('Failed writing proxy to ' + x509ProxyFile, file=sys.stderr)
+    else:
+      if jsonDict['verbose']:
+        print('Proxy written to %s, time left %s' 
+              % (x509ProxyFile, responseDict['proxy_time_left']))
+  else:
+    if jsonDict['verbose']:
+      print('No proxy returned', file=sys.stderr)
   
   sys.exit(0)
   
