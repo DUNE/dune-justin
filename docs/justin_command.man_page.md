@@ -49,7 +49,7 @@ This man page is distributed along with the
     
            create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
-    	      [--refind-interval-hours HOURS]
+    	      [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]
     	      Create a new, empty workflow in the database, optionally with
     	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
@@ -73,6 +73,10 @@ This man page is distributed along with the
     	      returns the new workflow's ID number.  Once the workflow is in
     	      the running state, justIN will use the MQL expression to find
     	      the list of input files from MetaCat.
+    
+    	      The option --workflow-id-file FILENAME can be used to append a
+    	      line with the ID of the new workflow to the given file.
+    
     
            show-workflows [--workflow-id ID]
     	      Show details of all workflows or optionally of a single
@@ -109,7 +113,8 @@ This man page is distributed along with the
     	      [--output-pattern PATTERN[:DESTINATION]]
     	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
     	      NAME] [--output-rse-expression EXPRESSION] [--lifetime-days
-    	      DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] [--site
+    	      SITENAME]
     	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
     	      workflow must have at least one stage.
@@ -204,6 +209,10 @@ This man page is distributed along with the
     	      --classad NAME=VALUE can be used one or more times to add
     	      ClassAds to the jobs submitted for this stage.
     
+    	      --site SITENAME can be used to restrict jobs for this stage to a
+    	      single site for testing.	If the site is not available, then no
+    	      jobs will run.
+    
     
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
@@ -212,7 +221,8 @@ This man page is distributed along with the
     	      [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
     	      [--output-rse-expression EXPRESSION] [--lifetime-days DAYS]
-    	      [--env NAME=VALUE] [--classad NAME=VALUE]
+    	      [--env NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME]
+    	      [--workflow-id-file FILENAME]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -277,6 +287,19 @@ This man page is distributed along with the
     	      and does not require that you have an X.509 proxy or use the
     	      Rucio client. However, it is not as efficient as the standalone
     	      justin-fetch-logs command.
+    
+           get-token
+    	      Download the current WLCG Token cached by justIN for the current
+    	      user. This is stored at $BEARER_TOKEN_FILE if set, or
+    	      /run/user/UID/bt_uUID if /run/user/UID exists, or /tmp/bt_uUID
+    	      in other cases, where UID is the local user's Unix user ID. If
+    	      the verbose option is give, the path to the resulting token file
+    	      and time left is shown.
+    	      While DUNE is still dependent on X.509 proxies for some
+    	      storages, this subcommand also requests a DUNE X.509 user proxy
+    	      which is authorized to read from Rucio and Rucio-managed
+    	      storage. This is stored at $X509_USER_PROXY if set, and at
+    	      /tmp/x509up_uUID in other cases.
     
     
     JOBSCRIPTS
