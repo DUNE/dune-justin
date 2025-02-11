@@ -27,6 +27,8 @@ import time
 import ssl
 import shlex
 import shutil
+import base64
+import pathlib
 import urllib.request
 import argparse
 import platform
@@ -269,32 +271,59 @@ if jsonDict['command'] == 'get-token':
     if os.path.isdir('/run/user/%d' % userUID):
       bearerTokenFile = '/run/user/%d/bt_u%d' % (userUID, userUID)
     else:
-      bearerTokenFile = '/tmp/bt_u' % userUID
-  
-#HERE WE MUST ADD A CHECK IF THE EXISTING TOKEN HAS PLENTY OF TIME LEFT
-#AND REFUSE TO FETCH A NEW ONE, IN CASE USER IS REPEATEDLY MAKING REQUEST
-#IF THE TOKEN IS OK, THE PROXY SHOULD BE TOO
+      bearerTokenFile = '/tmp/bt_u%d' % userUID
+
+  try:
+    bearerToken = open(bearerTokenFile, 'r').read()
+    bearerTokenDict = json.loads(base64.urlsafe_b64decode(
+                                     bearerToken.split('.')[1] + '=='))  
+    bearerTokenExpires = int(bearerTokenDict['exp'])
+  except:
+    if jsonDict['verbose']:
+      print('No valid bearer token file to check', file=sys.stderr)
+  else:
+    if jsonDict['verbose']:
+      print('Bearer token expires in %d seconds' %  
+            (bearerTokenExpires - int(time.time())),
+            file=sys.stderr)
+    
+    if bearerTokenExpires > int(time.time()) + 3600:
+      if jsonDict['verbose']:
+        print('Bearer token not near expiry - not updated', 
+              file=sys.stderr)
+
+      sys.exit(0)
 
   # Select proxy path
-  x509ProxyFiles = os.getenv('X509_USER_PROXY')
-  
+  x509ProxyFile = os.getenv('X509_USER_PROXY')
+
   if not x509ProxyFile:
-    x509ProxyFileFile = '/tmp/x509up_u%d' % userUID
+    x509ProxyFile = '/tmp/x509up_u%d' % userUID
   
   try:
     tempDir = tempfile.TemporaryDirectory()
+    tempDirName = tempDir.name
+# For testing. mkdtemp() leaves the temporary directory in place afterwards
+#    tempDirName = tempfile.mkdtemp()
+
+    # Minimal openssl.cnf file to make  openssl req  happy
+    open('%s/openssl.cnf' % tempDirName, 'w').write(
+         '[req]\ndistinguished_name=dn\nattributes=attr\n[dn]\n[attr]\n')
+
     os.system('openssl req -batch -nodes -newkey rsa:2048 '
-              '-keyout %s/key.pem -out %s/csr.pem' 
-              % (tempDir.name, tempDir.name))
+              '-keyout %s/key.pem -out %s/csr.pem -subj "/CN=123" '
+              '-config %s/openssl.cnf %s' 
+              % (tempDirName, tempDirName, tempDirName, 
+                 '' if jsonDict['verbose'] else '2>/dev/null'))
 
-    with open('%s/csr.pem' % tempDir.name) as f:
-      jsonDict['proxy_csr'] = f.readlines()
+    with open('%s/csr.pem' % tempDirName, 'r') as f:
+      jsonDict['proxy_csr'] = f.read()
 
-    with open('%s/key.pem' % tempDir.name) as f:
-      proxyKey = f.readlines()
+    with open('%s/key.pem' % tempDirName, 'r') as f:
+      proxyKey = f.read()
   except Exception as e:
-    print('Failed to create X.509 proxy request (%s)' % str(e),
-          file=sys.stderr)
+    print('Failed to create X.509 proxy request with openssl command (%s)' 
+          % str(e), file=sys.stderr)
     sys.exit(1)
 
 if args.command not in commands:
@@ -465,39 +494,41 @@ elif jsonDict['command'] == 'get-token':
 
   responseDict = json.loads(response.read().decode('utf-8'))
 
-  if 'token' in responseDict and responseDict['token'] and \
-     'token_time_left' in responseDict:
+  if 'access_token' in responseDict and responseDict['access_token'] and \
+     'access_token_seconds' in responseDict:
     try:
-      with open(bearerTokenFile, 'w') as f:
-        f.write('%s' % responseDict['token'])
+     filepath = pathlib.Path(bearerTokenFile)
+     filepath.unlink(missing_ok = True)
+     filepath.touch(mode = 0o600)
+     filepath.write_text(responseDict['access_token'])
     except:
       print('Failed writing token to ' + bearerTokenFile, file=sys.stderr)
     else:
       if jsonDict['verbose']:
         print('Token written to %s, time left %s' 
-              % (bearerTokenFile, responseDict['token_time_left']))
+              % (bearerTokenFile, responseDict['access_token_seconds']))
   else:
-    if jsonDict['verbose']:
-      print('No token returned', file=sys.stderr)
-    
+    print('No token returned', file=sys.stderr)
+        
   if 'proxy_cert' in responseDict and responseDict['proxy_cert'] and \
-     'proxy_time_left' in responseDict:
+     'proxy_chain' in responseDict and responseDict['proxy_chain']:
     try:
-      with open(x509ProxyFile, 'w') as f:
-        f.write('%s%s%s' 
-                % (responseDict['proxy_cert'],
-                   proxyKey,
-                   responseDict['proxy_chain'])
-               )
-    except:
-      print('Failed writing proxy to ' + x509ProxyFile, file=sys.stderr)
+     filepath = pathlib.Path(x509ProxyFile)
+     filepath.unlink(missing_ok = True)
+     filepath.touch(mode = 0o600)
+     filepath.write_text('%s\n%s\n%s' %
+                         (responseDict['proxy_cert'],
+                          proxyKey,
+                          responseDict['proxy_chain']))
+    except Exception as e:
+      print('Failed writing proxy to %s (%s)' % (x509ProxyFile, str(e)), 
+            file=sys.stderr)
     else:
       if jsonDict['verbose']:
         print('Proxy written to %s, time left %s' 
-              % (x509ProxyFile, responseDict['proxy_time_left']))
+              % (x509ProxyFile, responseDict['proxy_seconds']))
   else:
-    if jsonDict['verbose']:
-      print('No proxy returned', file=sys.stderr)
+    print('No proxy returned', file=sys.stderr)
   
   sys.exit(0)
   
