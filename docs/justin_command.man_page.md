@@ -293,8 +293,8 @@ This man page is distributed along with the
     	      user. This is stored at $BEARER_TOKEN_FILE if set, or
     	      /run/user/UID/bt_uUID if /run/user/UID exists, or /tmp/bt_uUID
     	      in other cases, where UID is the local user's Unix user ID. If
-    	      the verbose option is give, the path to the resulting token file
-    	      and time left is shown.
+    	      the verbose option is given, the path to the resulting token
+    	      file and time left is shown.
     	      While DUNE is still dependent on X.509 proxies for some
     	      storages, this subcommand also requests a DUNE X.509 user proxy
     	      which is authorized to read from Rucio and Rucio-managed
