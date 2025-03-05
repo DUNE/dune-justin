@@ -339,6 +339,12 @@ is given, the path to the resulting token file and time left is shown.
 this subcommand also requests a DUNE X.509 user proxy which is authorized to
 read from Rucio and Rucio-managed storage. This is stored at
 $X509_USER_PROXY if set, and at /tmp/x509up_uUID in other cases. 
+.br
+For both token and proxies files, if the file already exists it will be
+overwritten unless the user write permission is unset. In this case the
+command will exit with an error. This feature can be used to protect
+important proxies or tokens created by another mechanism from accidental
+replacement.
 
 .SH JOBSCRIPTS
 

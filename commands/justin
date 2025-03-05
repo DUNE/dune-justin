@@ -21,6 +21,7 @@
 
 import os
 import os.path
+import stat
 import sys
 import json
 import time
@@ -266,13 +267,27 @@ if jsonDict['command'] == 'get-token':
   userUID = int(os.getuid())
   # Select token path
   bearerTokenFile = os.getenv('BEARER_TOKEN_FILE')
-  
+
   if not bearerTokenFile:
     if os.path.isdir('/run/user/%d' % userUID):
       bearerTokenFile = '/run/user/%d/bt_u%d' % (userUID, userUID)
     else:
       bearerTokenFile = '/tmp/bt_u%d' % userUID
 
+  if jsonDict['verbose']:
+    print('Bearer token file %s' % bearerTokenFile, file=sys.stderr)
+
+  try:
+    bearerTokenFileMode = os.stat(bearerTokenFile).st_mode
+  except:
+    if jsonDict['verbose']:
+      print('No bearer token file to check permissions of', file=sys.stderr)
+  else:
+    if not (bearerTokenFileMode & stat.S_IWUSR):
+      print('Token file %s is not writeable - exiting' % bearerTokenFile, 
+            file=sys.stderr)
+      sys.exit(1)
+  
   try:
     bearerToken = open(bearerTokenFile, 'r').read()
     bearerTokenDict = json.loads(base64.urlsafe_b64decode(
@@ -299,6 +314,20 @@ if jsonDict['command'] == 'get-token':
 
   if not x509ProxyFile:
     x509ProxyFile = '/tmp/x509up_u%d' % userUID
+  
+  if jsonDict['verbose']:
+    print('X509 proxy file %s' % x509ProxyFile, file=sys.stderr)
+
+  try:
+    x509ProxyFileMode = os.stat(x509ProxyFile).st_mode
+  except:
+    if jsonDict['verbose']:
+      print('No proxy file to check permissions of', file=sys.stderr)
+  else:
+    if not (x509ProxyFileMode & stat.S_IWUSR):
+      print('Proxy file %s is not writeable - exiting' % x509ProxyFile, 
+            file=sys.stderr)
+      sys.exit(1)
   
   try:
     tempDir = tempfile.TemporaryDirectory()
