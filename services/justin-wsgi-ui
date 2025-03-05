@@ -984,8 +984,7 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
           destination = destination[:-1]
 
         # Add Workflow ID and Stage ID and patternID to URL
-        destination = destination + \
-                      '/%05d/%d/%d' % (workflowID, stageID, patternID)
+        destination = destination + '/%05d/%d' % (workflowID, stageID)
     else:
         if lifetimeDays == 0:
           return ('400 Bad Request',
