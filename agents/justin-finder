@@ -1040,10 +1040,10 @@ def createWorkflowGitRepos(workflowID):
                              workflowID, gitRepoRow['stage_id'], 
                              gitRepoRow['git_repo']))
 
-def findFinishedWorkflows():
-  # Find workflows with all files in terminal states and set to finished
+def findWorkflowsToFinish():
+  # Find workflows with all files in terminal states and set to finishing
 
-  justin.logLine('Start of finding finished workflows')
+  justin.logLine('Start of finding workflows to finish')
 
   try:
     # workflows have to be still in the running state and to have
@@ -1087,17 +1087,17 @@ def findFinishedWorkflows():
       continue
     
     try:
-      query = ('UPDATE workflows SET state="finished",finished=NOW(),'
-         'state_message="Finished as all input files are in terminal states" '
+      query = ('UPDATE workflows SET state="finishing",'
+         'state_message="Finishing as all input files are in terminal states" '
                'WHERE workflow_id=%d' % int(workflow['workflow_id']))
     
       justin.cur.execute(query)
     except:
-      justin.logLine('Failed to update state to finished for Workflow ID %d' % 
+      justin.logLine('Failed to update state to finishing for Workflow ID %d' % 
               workflow['workflow_id'])
       continue
 
-    justin.logLine('Workflow ID %d set to finished' % workflow['workflow_id'])
+    justin.logLine('Workflow ID %d set to finishing' % workflow['workflow_id'])
   justin.conn.commit()
 
 def findProblemWorkflows():
@@ -1642,9 +1642,29 @@ def oneCycle():
   findFiles()
   findReplicas()
   findProblemWorkflows()
-  findFinishedWorkflows()
+  findWorkflowsToFinish()
   findStalledAbortedJobs()
   manageCaches()
+
+# NEED TO ADD finishWorkflows() 
+# This will use rucio API to finish 
+#
+# gen=didClient.list_dids('fardet-vd', 
+#  [{'name':'*-w5241s*p*'},{'name':'w5241s*p*'}], 'dataset', True, False)
+# returns a generator giving datasets matching the name pattern:
+# {'scope': 'fardet-vd', 'name': 'fardet-vd-reco_5241-w5241s1p1', 
+# 'did_type': 'DATASET', 'bytes': None, 'length': None}
+#
+# didClient.get_did('fardet-vd', 'fardet-vd-reco_5241-w5241s1p1')
+# returns 
+# {'scope': 'fardet-vd', 'name': 'fardet-vd-reco_5241-w5241s1p1', 
+# 'type': 'DATASET', 'account': 'dunepro', 'open': True, 'monotonic': False,
+# 'expired_at': None, 'length': None, 'bytes': None}
+#
+# This can be used to find open datasets from this workflow. They can closed
+# with didClient.close('fardet-vd', 'fardet-vd-reco_5241-w5241s1p1')
+# When a cycle finds no open datasets (ie reads it back from Rucio to make
+# sure it really worked) then the workflow can be set to finished.
 
   # Is it time to update CILogon Jwks
   try:

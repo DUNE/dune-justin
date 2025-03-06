@@ -4505,7 +4505,8 @@ def awtResults(environ, user, cgiValues):
         else:
           s += ' Write=%d' % writeResult
 
-        if finishedTime < timeNow - 3600 * awtGreyHours:
+        if finishedTime is None or \
+             (finishedTime < timeNow - 3600 * awtGreyHours):
           boxColor = '#BBBBBB'
         elif readResult == 255:
           boxColor = 'white'
