@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `state` enum('draft','submitted','approved','running',
-     'paused','checking','finished','deleted','finishing') 
+     'paused','checking','finished','deleted') 
      NOT NULL DEFAULT 'finished',
   `state_message` text NOT NULL DEFAULT '',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
