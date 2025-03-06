@@ -1087,7 +1087,7 @@ def findWorkflowsToFinish():
       continue
     
     try:
-      query = ('UPDATE workflows SET state="finishing",'
+      query = ('UPDATE workflows SET state="finished",'
          'state_message="Finishing as all input files are in terminal states" '
                'WHERE workflow_id=%d' % int(workflow['workflow_id']))
     
