@@ -218,6 +218,10 @@ parser.add_argument("--site",
                     type = str,
                     help = "Sitename")
 
+parser.add_argument("--image",
+                    type = str,
+                    help = "Image name")
+
 parser.add_argument("--workflow-id-file",
                     type = str,
                     help = "Workflow ID file")

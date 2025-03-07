@@ -122,7 +122,7 @@ process.
 .B [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
-.B [--site SITENAME]
+.B [--site SITENAME] [--image IMAGENAME]
 .br
 Creates a new stage for the given workflow ID with the given stage ID. Stages
 must be numbered consecutively from 1, and each workflow must have at least
@@ -233,6 +233,12 @@ this stage.
 can be used to restrict jobs for this stage to a single site for testing.
 If the site is not available, then no jobs will run.
 
+.B --image IMAGENAME
+can override the default Apptainer image (fnal-wn-sl7:latest) in which user 
+jobscripts are run. The image tree must exist within 
+/cvmfs/singularity.opensciencegrid.org/fermilab/ and if does not contain ":"
+then ":latest" is appended to the name given.
+
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
 .B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
@@ -243,7 +249,7 @@ If the site is not available, then no jobs will run.
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
-.B [--site SITENAME] [--workflow-id-file FILENAME]
+.B [--site SITENAME] [--image IMAGENAME] [--workflow-id-file FILENAME] 
 .br
 Combines the 
 .B create-workflow, create-stage

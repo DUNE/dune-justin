@@ -848,10 +848,22 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     return ('400 Bad Request',
             '--jobscript or --jobscript-git must by given')
 
-  # Just use the defaults specified in the configuration files for now
-  jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
-                    justin.jobscriptImageSuffix + ':' + 
-                    justin.jobscriptImageVersion)
+  if jsonDict['image']:
+    # DID is A-Za-z0-9_.:- so good for images. No slashes in particular!
+    if not justin.stringIsDID(jsonDict['image']):
+      return ('400 Bad Request', 'Invalid image name')
+
+    if ':' in jsonDict['image']:
+      jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
+                        jsonDict['image'])
+    else:
+      jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
+                        jsonDict['image'] + ':latest')
+  else: 
+    # Just use the defaults specified in the configuration files for now
+    jobscriptImage = (justin.jobscriptImagePrefix + '/' + 
+                      justin.jobscriptImageSuffix + ':' + 
+                      justin.jobscriptImageVersion)
 
   try:
     justin.insertUpdate('INSERT INTO stages SET '

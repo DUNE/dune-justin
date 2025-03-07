@@ -1480,6 +1480,7 @@ def showStage(environ, user, cgiValues):
            "stages.max_distance,"
            "stages_jobscripts.jobscript,"
            "stages.jobscript_git,"
+           "stages.jobscript_image,"
            "workflows_scopes.scope_name AS workflows_scope_name "
            "FROM stages "
            "LEFT JOIN workflows "
@@ -1514,6 +1515,9 @@ def showStage(environ, user, cgiValues):
 
   output += ('<tr><td>Wall seconds</td>'
         '<td>%s</td></tr>' % stageRow["wall_seconds"])
+
+  output += ('<tr><td>Image</td>'
+        '<td>%s</td></tr>' % stageRow["jobscript__image"])
 
   output += ('<tr><td>RSS bytes</td>'
         '<td>%s (%d MiB)</td></tr>' % 

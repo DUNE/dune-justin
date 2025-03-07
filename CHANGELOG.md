@@ -1,5 +1,12 @@
 # Changelog
 
+## 01.03.00
+- justin get-token subcommand to fetch token and X.509 proxy from justIN
+- Remove Pattern ID from WebDAV paths when uploading files to dCache
+- NERSC GPU jobs now request a GPU
+- Add --image to justin create-stage and simple-workflow to allow user to
+  choose Apptainer image to use 
+
 ## 01.02.00
 - Add --gpu option to justin command, and direct jobs of GPU stages to 
   entries with GPUs, displaying GPU info on the job pages in the dashboard.
