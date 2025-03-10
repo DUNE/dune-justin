@@ -1517,7 +1517,7 @@ def showStage(environ, user, cgiValues):
         '<td>%s</td></tr>' % stageRow["wall_seconds"])
 
   output += ('<tr><td>Image</td>'
-        '<td>%s</td></tr>' % stageRow["jobscript__image"])
+        '<td>%s</td></tr>' % stageRow["jobscript_image"])
 
   output += ('<tr><td>RSS bytes</td>'
         '<td>%s (%d MiB)</td></tr>' % 

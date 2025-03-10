@@ -1127,13 +1127,14 @@ def finishWorkflows():
 
   try:
     # workflows have to be still in the finishing state 
-    query = ('SELECT scope,workflow_id FROM workflows '
-             'WHERE state="finishing" '
-             'ORDER BY workflow_id' % justin.unixEpoch)
+    query = ('SELECT scope_name,workflow_id FROM workflows '
+             'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
+             'WHERE workflows.state="finishing" '
+             'ORDER BY workflow_id')
 
     finishingWorkflows = justin.select(query)
-  except:
-    justin.logLine('Failed to get list of finishing workflows')
+  except Exception as e:
+    justin.logLine('Failed to get list of finishing workflows: ' + str(e))
     return
     
   if not finishingWorkflows:
@@ -1152,13 +1153,13 @@ def finishWorkflows():
     anyOpenDatasets = False
   
     try:
-      gen = didClient.list_dids(workflow['scope'], 
-                        [{'name':'*-%ds*p*' % int(workflow['workflow_id'])},
-                         {'name':'w%ds*p*' % int(workflow['workflow_id'])}], 
+      gen = didClient.list_dids(workflowRow['scope_name'], 
+                        [{'name':'*-%ds*p*' % int(workflowRow['workflow_id'])},
+                         {'name':'w%ds*p*'  % int(workflowRow['workflow_id'])}], 
                         'dataset', True, False)
     except Exception as e:
       justin.logLine("list_dids() fails, skipping workflow %d: %s" 
-                     % (int(workflow['workflow_id']), str(e)))
+                     % (int(workflowRow['workflow_id']), str(e)))
       continue
 
     for dataset in gen:
@@ -1183,15 +1184,17 @@ def finishWorkflows():
       try:
         query = ('UPDATE workflows SET state="finished",finished=NOW(),'
                  'state_message="Set to finished" '
-                 'WHERE workflow_id=%d' % int(workflow['workflow_id']))
+                 'WHERE workflow_id=%d and state="finishing"' 
+                 % int(workflowRow['workflow_id']))
     
         justin.cur.execute(query)
-      except:
-        justin.logLine('Failed to update state to finished for Workflow ID %d'
-                       % workflow['workflow_id'])
+      except Exception as e:
+        justin.logLine('Failed to update state to finished '
+                       'for Workflow ID %d: %s'
+                       % (workflowRow['workflow_id'], str(e)))
       else:
         justin.logLine('Workflow ID %d set to finished' 
-                       % workflow['workflow_id'])
+                       % workflowRow['workflow_id'])
         # Commit as we go along
         justin.conn.commit()
 
