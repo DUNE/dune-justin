@@ -1169,6 +1169,12 @@ def finishWorkflows():
         # Assume the worst - but we carry on and look for others to close
         anyOpenDatasets = True
       else:
+        # Ignore datasets created by someone else with our dataset format!!!
+        if didInfo['account'] != justin.justinJobsUser:
+          justin.logLine('Skipping matching dataset %s:%s created by %s' %
+                     (dataset['scope'], dataset['name'], didInfo['account']))
+          continue
+      
         if didInfo['open']:
           try:
             didClient.close(dataset['scope'], dataset['name'])

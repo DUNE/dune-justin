@@ -62,7 +62,7 @@ cilogonClientID     = None
 cilogonSecret       = None
 wlcgGroups          = None
 justinAdmins        = None
-rucioProductionUser = None
+justinJobsUser      = None
 agentUsername       = None
 proDev              = None
 htcondorSchedds     = None
@@ -137,6 +137,7 @@ filesPerNumberedDestination = 1000
 
 defaultScopeName = 'usertests'
 
+wrapperJobImage       = None
 jobscriptImageSuffix  = None
 jobscriptImagePrefix  = None 
 jobscriptImageVersion = None 
@@ -172,7 +173,7 @@ for (eventLabel, eventID, eventText) in eventsList:
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
-         proDev, wlcgGroups, rucioProductionUser, justinAdmins, \
+         proDev, wlcgGroups, justinJobsUser, justinAdmins, \
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
@@ -251,9 +252,9 @@ def readConf():
     justinAdmins = []
 
   try:
-    rucioProductionUser = parser.get('users','rucio_production_user').strip()
+    justinJobsUser = parser.get('users','justin_jobs_user').strip()
   except:
-    rucioProductionUser = 'dunepro'
+    justinJobsUser = 'dunepro'
 
   # Options for the [agents] section
 
@@ -273,6 +274,13 @@ def readConf():
                          parser.get('agents','non_justin_fraction').strip())
   except:
     nonJustinFraction = 0.5
+
+  try:
+    wrapperJobImage = parser.get('agents',
+                                 'wrapper_job_image').strip()
+  except:
+    wrapperJobImage = \
+      '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest'
 
   # Default apptainer image in cvmfs is 'prefix/suffix:latest'
   try:

@@ -192,7 +192,7 @@ def submitJobs(numberToSubmit,
 
   submitFile += """
 +Desired_Sites          = "%s"
-+SingularityImage       = "/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
++SingularityImage       = "%s"
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
 +Orig_AuthTokenGroups   = "/dune"
@@ -223,6 +223,7 @@ should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
 queue %d
 """ % (desiredSiteNames, 
+       justin.wrapperJobImage,
        requestedWallSeconds,
        scheddHostname,
        wrapperFile.name,
@@ -489,8 +490,10 @@ def workflowJobs():
  
         submitJobs(numberToSubmit       = numberToSubmit,
                    userName             = stageRow['principal_name'],
-                   needsInnerApptainer  = (stageRow['wlcg_group_name'] 
-                                           != '/dune/production'),
+                   needsInnerApptainer  = ((stageRow['wlcg_group_name'] 
+                                            != '/dune/production') || 
+                                           (stageRow['jobscript_image'] 
+                                            != justin.wrapperJobImage)),
                    jobscriptImage       = stageRow['jobscript_image'],
                    accountingGroup      = condorGroupName,
                    workflowID           = stageRow['workflow_id'],
