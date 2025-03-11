@@ -158,7 +158,7 @@ VD coldbox files. For this tutorial though, please use these commands:
        DUNE/dune-justin/testing/dc4-vd-coldbox-bottom.jobscript:01.00.00 \
     --max-distance 30 \
     --rss-mib 4000 --env NUM_EVENTS=1 --scope usertests \
-    --output-pattern '*_reco_data_*.root:output-test-01' \
+    --output-pattern '*_reco_data_*.root:output-test' \
     --lifetime-days 1
     
 What is this doing?
@@ -182,11 +182,13 @@ process just 1 event from the input file it is given.
 7. `--scope usertests` says that output files will be created with the Rucio
 scope usertests, which any DUNE member can write to. Output files will be
 created with Rucio Data Identifiers (DIDs) like usertests:aaaa.root
-8. `--output pattern '*_reco_data_*.root:output-test-01'` tells justIN to
+8. `--output pattern '*_reco_data_*.root:output-test'` tells justIN to
 look for output files matching the shell wildcard expression
 `*_reco_data_*.root` in the working directory of the jobscript, when it
-finishes. `output-test-01` is the name of a Rucio dataset to add the output
-files to, and the full name of that dataset is `usertests:output-test-01`.
+finishes. `output-test` is the prefix to a name of a Rucio dataset to 
+add the output
+files to, and the full name of that dataset is `usertests:output-test` 
+plus `-wXXXXs1p1` where XXXX is the ID number of the workflow created.
 9. `--lifetime-days` says that the output files are only guaranteed to persist
 on storage for 1 day.
 
@@ -328,7 +330,7 @@ simple-workflow with these options:
     --mql "$MQL_QUERY" \
     --jobscript my-dc4-vd-coldbox-bottom.jobscript --max-distance 30 \
     --rss-mib 4000 --env NUM_EVENTS=1 --scope usertests \
-    --output-pattern '*_reco_data_*.root:output-test-01' \
+    --output-pattern '*_reco_data_*.root:output-test' \
     --lifetime-days 1
 
 As you can see, you just need to change the whole

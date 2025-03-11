@@ -1184,6 +1184,9 @@ def finishWorkflows():
             anyOpenDatasets = True
             justin.logLine('Closing dataset %s:%s fails with %' %
                            (dataset['scope'], dataset['name'], str(e)))
+          else:
+            justin.logLine('Closed dataset %s:%s' %
+                           (dataset['scope'], dataset['name']))
     
     # If all ok, we can mark the workflow as finished        
     if not anyOpenDatasets:
