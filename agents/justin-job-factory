@@ -491,7 +491,7 @@ def workflowJobs():
         submitJobs(numberToSubmit       = numberToSubmit,
                    userName             = stageRow['principal_name'],
                    needsInnerApptainer  = ((stageRow['wlcg_group_name'] 
-                                            != '/dune/production') || 
+                                            != '/dune/production') or 
                                            (stageRow['jobscript_image'] 
                                             != justin.wrapperJobImage)),
                    jobscriptImage       = stageRow['jobscript_image'],

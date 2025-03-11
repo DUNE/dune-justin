@@ -177,6 +177,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
+         wrapperJobImage, \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
          extraEntries
 
