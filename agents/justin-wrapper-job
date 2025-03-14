@@ -762,6 +762,7 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
   os.chmod('home/jobscript-wrapper.sh', 0o755)
 
   logLine('Inner apptainer available. Run jobscript inside container')
+  logLine('Jobscript image is %s' % jobscriptImage)
   logLine('====Start of jobscript execution====')
   jobscriptStartTime=int(time.time())
 
