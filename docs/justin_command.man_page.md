@@ -114,7 +114,7 @@ This man page is distributed along with the
     	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
     	      NAME] [--output-rse-expression EXPRESSION] [--lifetime-days
     	      DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] [--site
-    	      SITENAME]
+    	      SITENAME] [--image IMAGENAME]
     	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
     	      workflow must have at least one stage.
@@ -213,6 +213,12 @@ This man page is distributed along with the
     	      single site for testing.	If the site is not available, then no
     	      jobs will run.
     
+    	      --image IMAGENAME can override the default Apptainer image
+    	      (fnal-wn-sl7:latest) in which user jobscripts are run. The image
+    	      tree must exist within
+    	      /cvmfs/singularity.opensciencegrid.org/fermilab/ and if does not
+    	      contain ":" then ":latest" is appended to the name given.
+    
     
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
@@ -222,7 +228,7 @@ This man page is distributed along with the
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
     	      [--output-rse-expression EXPRESSION] [--lifetime-days DAYS]
     	      [--env NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME]
-    	      [--workflow-id-file FILENAME]
+    	      [--image IMAGENAME] [--workflow-id-file FILENAME]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -300,6 +306,11 @@ This man page is distributed along with the
     	      which is authorized to read from Rucio and Rucio-managed
     	      storage. This is stored at $X509_USER_PROXY if set, and at
     	      /tmp/x509up_uUID in other cases.
+    	      For both token and proxies files, if the file already exists it
+    	      will be overwritten unless the user write permission is unset.
+    	      In this case the command will exit with an error. This feature
+    	      can be used to protect important proxies or tokens created by
+    	      another mechanism from accidental replacement.
     
     
     JOBSCRIPTS
