@@ -228,7 +228,8 @@ input[type=button], input[type=submit], input[type=reset] {
 
 </style>
 <script type="text/javascript" 
- src="https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js"></script>
+ Xsrc="https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js" 
+ src="/pygal-tooltips.min.js"></script>
 </head>
 <body>
 <div id="top_strip">
@@ -2587,7 +2588,7 @@ def showJob(environ, user, cgiValues):
 
   if jobRow["job_state"] in ['outputting', 'outputting_failed', 
                              'jobscript_error', 'finished']:
-    output += ('<tr><td rowspan="3">Jobscript</td>'
+    output += ('<tr><td rowspan="4">Jobscript</td>'
                '<td>Exit code</td>'
                '<td>%d</td></tr>'
                % jobRow["jobscript_exit"])
@@ -2608,6 +2609,12 @@ def showJob(environ, user, cgiValues):
                      ) 
                  )
               )
+      
+    output += ('<tr>'
+               '<td>Max RSS bytes</td>'
+               '<td>%s (%d MiB)</td></tr>' 
+               % (jobRow["jobscript_max_rss_bytes"], 
+                  int(jobRow["jobscript_max_rss_bytes"]) / 1048576))
       
   output += ('<tr><td>Outputting started</td>'
              '<td colspan="2">%s</td></tr>'

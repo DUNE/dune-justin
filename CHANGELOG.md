@@ -6,6 +6,10 @@
 - NERSC GPU jobs now request a GPU
 - Add --image to justin create-stage and simple-workflow to allow user to
   choose Apptainer image to use 
+- Put a copy of https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js
+  in root directory of dashboard website
+- Export JUSTIN_MQL to jobscripts
+- Add workflow.jobscript_max_rss_bytes to per file metadata
 
 ## 01.02.00
 - Add --gpu option to justin command, and direct jobs of GPU stages to 

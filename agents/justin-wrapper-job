@@ -459,6 +459,8 @@ def updateMetadataTmp(fileName,
   metadata['metadata']['dune.workflow']['jobscript_cpu_seconds'] \
    = recordResultsDict['jobscript_user_seconds'] + \
      recordResultsDict['jobscript_sys_seconds']
+  metadata['metadata']['dune.workflow']['jobscript_max_rss_bytes'] \
+   = recordResultsDict['jobscript_max_rss_kb'] * 1024
 
   metadata['metadata']['dune.workflow']['cpuinfo'] \
    = getJobscriptDict['cpuinfo']
@@ -675,6 +677,7 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_WORKFLOW_ID=%d\n' % workflowID)
   f.write('export JUSTIN_STAGE_ID=%d\n' % stageID)
   f.write('export JUSTIN_SCOPE=%s\n' % jobscriptDict['scope'])
+  f.write('export JUSTIN_MQL="%s"\n' % jobscriptDict['mql'])
   f.write('export JUSTIN_PROCESSORS=%d\n' 
           % jobscriptDict['requested_processors'])
   f.write('export JUSTIN_RSS_MIB=%d\n' % 

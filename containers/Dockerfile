@@ -1,6 +1,6 @@
 # Dockerfile for justIN agents on AlmaLinux 9
 #
-# Copyright 2013-24 
+# Copyright 2013-25
 # Raja Nandakumar for UKRI Science and Technology Facilities Council
 # Andrew McNab for the University of Manchester
 # 
@@ -117,6 +117,7 @@ COPY dashboard/justin-get-output        /var/lib/justin/
 COPY dashboard/justin-update-docs       /var/lib/justin/
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY dashboard/*.png                    /var/www/html/
+COPY dashboard/*.js                     /var/www/html/
 
 # If adding new file types to docs, change justin-update-docs too!
 COPY docs/*.md                          /var/www/html/docs/
