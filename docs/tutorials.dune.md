@@ -16,10 +16,6 @@ top right and follow the instructions. If you get back to the justIN
 dashboard with your NAME@fnal.gov shown in place of the Login button, you
 have the right registrations.
 
-For one section of the tutorial you will need to be able to create a VOMS
-proxy with the command `voms-proxy-init`, which anyone in DUNE should be
-able to do.
-
 Before following this tutorial, make sure you can initialise the DUNE UPS 
 environment from cvmfs and set up justin with these commands:
 
@@ -271,19 +267,9 @@ using the same `setup justin` command as for `justin` itself. It's not
 necessary to have Apptainer or Singularity installed as the command gets
 Apptainer from cvmfs.
 
-If your jobscript reads from remote storage, you also need to have a valid
-DUNE VOMS proxy created with voms-proxy-init. On a dunegpvm computer
-do something like this:
-
-    rm -f /tmp/x509up_u`id -u`
-    kx509
-    voms-proxy-init -noregen -rfc -voms dune:/dune/Role=Analysis
-
-If you normally do something else to run `voms-proxy-init` and get a VOMS
-proxy with the Analysis role, then do that.
-
-`justin-test-jobscript` will pass this proxy to
-your jobscript using the environment variable `$X509_USER_PROXY`. Commands like
+`justin-test-jobscript` will obtain a DUNE VOMS proxy for your script,
+just as justIN does for jobscripts running as jobs. The proxy file path
+is given by the environment variable `$X509_USER_PROXY`. Commands like
 `xrdcp` and `lar` use this variable to find the proxy automatically. You
 should not try to write to storage from your jobscript though. In jobs,
 justIN handles that for you using the `--output-pattern` mechanism and the

@@ -119,9 +119,10 @@ stdbuf -oL -eL  ../justin-jobscript.sh
 EOF
 chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 
-# Copy your proxy into the container's home directory
-export X509_USER_PROXY=${X509_USER_PROXY:-/tmp/x509up_u`id -u`}
-cp $X509_USER_PROXY $JUSTIN_WORKDIR/home/jobscript-proxy.pem
+# Run justin get-token to get a VOMS proxy and use $X509_USER_PROXY
+# to direct the output to the work directory
+export X509_USER_PROXY=$JUSTIN_WORKDIR/home/jobscript-proxy.pem
+justin get-token
 chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
 
 echo "====Start of jobscript execution===="

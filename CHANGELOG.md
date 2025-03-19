@@ -10,6 +10,9 @@
   in root directory of dashboard website
 - Export JUSTIN_MQL to jobscripts
 - Add workflow.jobscript_max_rss_bytes to per file metadata
+- Make justin-test-jobscript use justin get-token rather than user supplied
+  VOMS proxy
+- Remove voms-proxy-init from tutorial
 
 ## 01.02.00
 - Add --gpu option to justin command, and direct jobs of GPU stages to 
