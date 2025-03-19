@@ -63,25 +63,6 @@ then
 
   voms-proxy-info -all -file /tmp/justin-jobs-no-roles.proxy.pem
 fi
-
-echo
-echo '======= Create justin-jobs-analysis.proxy.pem'
-echo
-voms-proxy-init \
- -cert /etc/justin-secrets/justin-jobs-analysis.dune.hep.ac.uk.cert.pem \
- -key  /etc/justin-secrets/justin-jobs-analysis.dune.hep.ac.uk.key.pem \
- -voms dune \
- -valid 168:0 \
- -out /tmp/justin-jobs-analysis.proxy.pem.tmp 
-
-if [ $? = 0 -a -s /tmp/justin-jobs-analysis.proxy.pem.tmp ]
-then
-  chown $HTTPD_USER_GROUP /tmp/justin-jobs-analysis.proxy.pem.tmp
-  mv -f /tmp/justin-jobs-analysis.proxy.pem.tmp \
-        /tmp/justin-jobs-analysis.proxy.pem
-
-  voms-proxy-info -all -file /tmp/justin-jobs-analysis.proxy.pem
-fi
 echo
 date
 echo
