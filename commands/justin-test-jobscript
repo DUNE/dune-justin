@@ -120,10 +120,12 @@ EOF
 chmod +x $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 
 # Run justin get-token to get a VOMS proxy and use $X509_USER_PROXY
-# to direct the output to the work directory
+# to direct the output to the work directory. Point the token to a
+# temporary file so we are guaranteed to create fetch a new proxy.
 export X509_USER_PROXY=$JUSTIN_WORKDIR/home/jobscript-proxy.pem
+export BEARER_TOKEN_FILE=`mktemp /tmp/justin-test-jobscript.bt.XXXXXXXX`
 justin get-token
-chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem
+chmod 0400 $JUSTIN_WORKDIR/home/jobscript-proxy.pem $BEARER_TOKEN_FILE
 
 echo "====Start of jobscript execution===="
 /cvmfs/oasis.opensciencegrid.org/mis/apptainer/1.2/bin/apptainer shell \
