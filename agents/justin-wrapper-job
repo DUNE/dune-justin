@@ -671,6 +671,8 @@ with open('home/justin-jobscript-env.sh','w') as f:
   for (n,v) in jobscriptDict['stage_env']:
     f.write('export %s="%s"\n' % (n,v))
     
+  f.write('export RUCIO_ACCOUNT=justinreadonly\n')
+
   f.write('export JUSTIN_ALLOCATOR='
    'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk/api/allocator/\n')
   f.write('export JUSTIN_SITE_NAME=%s\n' % jobscriptDict['site_name'])
@@ -691,6 +693,7 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_SAM_WEB_URI='
           '"https://justin.dune.hep.ac.uk/api/samweb/%s/%s"\n' 
           % (jobscriptDict['jobsub_id'], jobscriptDict['jobscript_secret']))
+
 
   if getJobscriptDict['gpu_uuid']:
     f.write('export CUDA_VISIBLE_DEVICES=%s\n' % getJobscriptDict['gpu_uuid'])

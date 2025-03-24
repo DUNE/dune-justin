@@ -112,6 +112,7 @@ EOF
 cat <<EOF > $JUSTIN_WORKDIR/home/jobscript-wrapper.sh
 #!/bin/sh
 export JUSTIN_PATH="\$HOME"
+export RUCIO_ACCOUNT=justinreadonly
 export X509_USER_PROXY="\$HOME/jobscript-proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
