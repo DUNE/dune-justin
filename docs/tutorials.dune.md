@@ -16,9 +16,11 @@ top right and follow the instructions. If you get back to the justIN
 dashboard with your NAME@fnal.gov shown in place of the Login button, you
 have the right registrations.
 
-Before following this tutorial, make sure you can initialise the DUNE UPS 
+Before following this tutorial, make sure you can enter an SL7 Apptainer 
+container and then initialise the DUNE UPS 
 environment from cvmfs and set up justin with these commands:
 
+    /cvmfs/dune.opensciencegrid.org/products/dune/justin/justin-sl7-setup
     source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
     setup justin
     justin version
@@ -29,9 +31,10 @@ You should see a version number displayed.
 
 Now we can start the tutorial itself.
 
-Set up DUNE UPS and justin if you've not already done that within your
-session:
+Enter an SL7 Apptainer container and set up DUNE UPS and justin if you've not 
+already done that within your session:
 
+    /cvmfs/dune.opensciencegrid.org/products/dune/justin/justin-sl7-setup
     source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
     setup justin
 
@@ -202,6 +205,56 @@ tables on that page.
 Once all the files get to terminal states (processed, failed etc) then
 justIN sets the state of the workflow itself to finished and stops allocating
 any more jobs to it.
+
+## Fetching files from Rucio managed storage
+
+Leave the Apptainer container if you are already in one. To use Rucio 
+do these setup steps:
+
+    /cvmfs/dune.opensciencegrid.org/products/dune/justin/justin-sl7-setup
+    source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh
+    setup python v3_9_15
+    setup rucio
+    setup justin
+
+This changes the Python version to one needed by `rucio`, and tells `justin`
+to use the same one.
+
+You should be able to continue using the same justIN session you've already
+setup but the `justin` command will ask you to authorize a new sesssion if
+necessary. But to use the `rucio` command and storage, you also need an X.509
+VOMS Proxy. You can get one from justIN that gives read-only access with this 
+command:
+
+    justin get-token
+
+The proxy will normally be created in `/tmp/x509up_uXXXXX` where XXXXX is your
+Unix user ID, given by `id -u` .
+This also gets you a DUNE WLCG Token and eventually the X.509 feature will 
+be dropped from it. You need to tell `rucio` to use the DUNE read-only account
+and then you can start running `rucio` commands:
+
+    export RUCIO_ACCOUNT=justinreadonly
+    rucio whoami
+    rucio list-scopes
+
+When your jobs finish, the list of files they have each outputted is shown on 
+the pages for the individual jobs which we talked about earlier. You can
+download one or two from Rucio managed storage with the `rucio get`
+subcommand.
+
+Since I don't know what your output files will be called, let's use one of
+the input files as an example, and run the command in a personal temporary
+directory:
+
+    mkdir -p /tmp/$USER
+    cd /tmp/$USER
+    rucio get justin-tutorial:tut_np02bde_307160127_np02_bde_coldbox_run012352_0057_20211216T001236.hdf5
+
+This file is about 4GB in size so it takes a few seconds to fetch. The
+`rucio` command finds the list of replicas of that file and picks one 
+replica to download. It puts it in subdirectory named after the scope
+`justin-tutorial`.
 
 ## Jobs writing to scratch ##
 
