@@ -249,9 +249,11 @@ directory:
 
     mkdir -p /tmp/$USER
     cd /tmp/$USER
-    rucio get justin-tutorial:tut_np02bde_307160127_np02_bde_coldbox_run012352_0057_20211216T001236.hdf5
+    rucio get justin-tutorial:tut_np02bde_307160127\
+    _np02_bde_coldbox_run012352_0057_20211216T001236.hdf5
 
-This file is about 4GB in size so it takes a few seconds to fetch. The
+This file is about 4GB in size so it takes a few seconds to fetch. Some of
+the Rucio error messages look alarming but let the command finish. The
 `rucio` command finds the list of replicas of that file and picks one 
 replica to download. It puts it in subdirectory named after the scope
 `justin-tutorial`.
