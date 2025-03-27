@@ -37,9 +37,10 @@ justin-cvmfs-upload command itself.
     
     EXAMPLE
            justin-cvmfs-upload must be run on a computer inside the Fermilab
-           firewall. You also need a valid Bearer Token for your UID at
-           /run/users/UID/bt_uUID which you can readily create with the command
-           htgettoken
+           firewall. You also need a valid Bearer Token at $BEARER_TOKEN_FILE if
+           set or /run/users/UID/bt_uUID if it exists or /tmp/bt_uUID in other
+           cases, where UID is your local Unix user ID, which you can create with
+           the command justin get-token
     
            htgettoken -a htvaultprod.fnal.gov -i dune
            mkdir somedir
