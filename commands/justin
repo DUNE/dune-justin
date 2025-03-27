@@ -268,7 +268,9 @@ if jsonDict['workflow_id_file']:
 
 if jsonDict['command'] == 'get-token':
 
+  updateNeeded = True
   userUID = int(os.getuid())
+
   # Select token path
   bearerTokenFile = os.getenv('BEARER_TOKEN_FILE')
 
@@ -298,6 +300,7 @@ if jsonDict['command'] == 'get-token':
                                      bearerToken.split('.')[1] + '=='))  
     bearerTokenExpires = int(bearerTokenDict['exp'])
   except:
+    updateNeeded = True
     if jsonDict['verbose']:
       print('No valid bearer token file to check', file=sys.stderr)
   else:
@@ -308,10 +311,8 @@ if jsonDict['command'] == 'get-token':
     
     if bearerTokenExpires > int(time.time()) + 3600:
       if jsonDict['verbose']:
-        print('Bearer token not near expiry - not updated', 
-              file=sys.stderr)
-
-      sys.exit(0)
+        updateNeeded = False
+        print('Bearer token not near expiry', file=sys.stderr)
 
   # Select proxy path
   x509ProxyFile = os.getenv('X509_USER_PROXY')
@@ -325,13 +326,24 @@ if jsonDict['command'] == 'get-token':
   try:
     x509ProxyFileMode = os.stat(x509ProxyFile).st_mode
   except:
+    updateNeeded = True
     if jsonDict['verbose']:
-      print('No proxy file to check permissions of', file=sys.stderr)
+      print('No proxy file - update needed', file=sys.stderr)      
   else:
     if not (x509ProxyFileMode & stat.S_IWUSR):
       print('Proxy file %s is not writeable - exiting' % x509ProxyFile, 
             file=sys.stderr)
       sys.exit(1)
+
+    if os.stat(x509ProxyFile).st_mtime < int(time.time()) - 86400:
+      # If proxy older than 24 hours then force an update
+      updateNeeded = True 
+      if jsonDict['verbose']:
+        print('Proxy is over 24 hours old - updated required', file=sys.stderr)
+  
+  if not updateNeeded:
+    print('Updated not needed - exiting', file=sys.stderr)
+    sys.exit(0)
   
   try:
     tempDir = tempfile.TemporaryDirectory()
