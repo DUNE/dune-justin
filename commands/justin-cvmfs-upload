@@ -2,7 +2,7 @@
 #
 # justin-cvmfs-upload - Upload tar file Fermilab RCDS for cvmfs
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -135,9 +135,17 @@ except:
 if args.verbose:
   print('Using RCDS server: ' + rcdsServer, file=sys.stderr)
 
-tokenFile = '/run/user/%d/bt_u%d' % (os.getuid(), os.getuid())
+tokenFile = os.getenv('BEARER_TOKEN_FILE')
+if not tokenFile:
+  userUID = os.getuid()
+  if os.path.isdir('/run/user/%d' % userUID):
+    tokenFile = '/run/user/%d/bt_u%d' % (userUID, userUID)
+  else:
+    tokenFile = '/tmp/bt_u%d' % userUID
+
 if args.verbose:
   print('Reading token from %s' % tokenFile, file=sys.stderr)
+
 try:
   token = open(tokenFile, 'r').read().strip()
 except:
