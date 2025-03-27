@@ -38,8 +38,11 @@ be uploaded to cvmfs via RCDS.
 
 .B justin-cvmfs-upload
 must be run on a computer inside the Fermilab firewall. You also need a 
-valid Bearer Token for your UID at /run/users/UID/bt_uUID which you can 
-readily create with the command htgettoken 
+valid Bearer Token at $BEARER_TOKEN_FILE if set or
+/run/users/UID/bt_uUID if it exists or
+/tmp/bt_uUID in other cases, where UID is your local Unix user ID, which 
+you can create with the command 
+.B justin get-token
 
 .nf
 htgettoken -a htvaultprod.fnal.gov -i dune
