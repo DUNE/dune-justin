@@ -415,12 +415,12 @@ up like this if not already done so:
 
 and a copy of `hello_world.tar` in the current directory, do this:
 
-    htgettoken -a htvaultprod.fnal.gov -i dune    
+    justin get-token
     INPUT_TAR_DIR_LOCAL=`justin-cvmfs-upload hello_world.tar`
     echo $INPUT_TAR_DIR_LOCAL
 
-The first line makes sure you have a Bearer Token in place at
-/run/users/UID/bt_uUID where UID is your Unix user ID. You don't need to
+The first line makes sure you have a Bearer Token in place (probably at
+/run/users/UID/bt_uUID where UID is your Unix user ID.) You don't need to
 know your UID to use the command but it might help with debugging.
 
 The second line runs `justin-cvmfs-upload` to send your tar file to the RCDS
