@@ -12,6 +12,7 @@ setup python v3_9_13
 setup metacat
 setup rucio
 export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
+export X509_NOROLES_PROXY=$JUSTIN_PATH/justin-jobs-no-roles.proxy.pem
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
 setup justin
@@ -38,8 +39,9 @@ do
   echo '---------------------------------------------------------------------'
   echo $JUSTIN_SITE_NAME $rse_name $write_protocol $read_pfn
 
-  # Test download of file prepositioned on RSEs
-  xrdcp --force --nopbar --verbose "$read_pfn" "downloaded.txt"
+  # Test download of file prepositioned on RSEs using normal jobscript proxy
+  X509_USER_PROXY=$X509_NOROLES_PROXY xrdcp --force --nopbar --verbose \
+    "$read_pfn" "downloaded.txt"
   download_retval=$?
 
   echo "'xrdcp --force --nopbar --verbose $read_pfn downloaded.txt' returns $download_retval"
