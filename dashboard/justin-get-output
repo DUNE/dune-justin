@@ -2,17 +2,22 @@
 #
 # Wrapper for condor_transfer_data etc
 # 
+# This is placed in /var/lib/justin/justin-get-output and is used by
+# both the Dashboard and justin-finder agent
+# 
 
 cluster="$1"
 proc="$2"
 schedd="$3"
 
 condor_transfer_data -name "$schedd" "$cluster.$proc" >/dev/null 2>&1
+ctd_err=$?
 
 echo "======="
 echo "======= Start of condor_q -better -name $schedd $cluster.$proc output"
 echo "======="
 /usr/bin/condor_q -better -name "$schedd" "$cluster.$proc"
+cqb_err=$?
 echo "======="
 echo "======= Start of job $cluster.$proc@$schedd log"
 echo "======="
@@ -25,6 +30,7 @@ echo "======="
 echo "======= Start of condor_q -name $schedd -long $cluster.$proc"
 echo "======="
 /usr/bin/condor_q -name "$schedd" -long "$cluster.$proc"
+cq_err=$?
 echo
 echo "======="
 echo "======= Start of job $cluster.$proc@$schedd output"
@@ -36,3 +42,6 @@ else
 fi
 rm -f "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" \
       "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
+
+# Return the error code from condor_transfer_data
+exit $ctd_err

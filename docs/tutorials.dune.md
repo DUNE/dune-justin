@@ -187,7 +187,9 @@ look for output files matching the shell wildcard expression
 finishes. `output-test` is the prefix to a name of a Rucio dataset to 
 add the output
 files to, and the full name of that dataset is `usertests:output-test` 
-plus `-wXXXXs1p1` where XXXX is the ID number of the workflow created.
+plus `-wXXXXs1p1` where XXXX is the ID number of the workflow created. Make
+sure each file put into storage has a unique filename, otherwise the
+outputting step will fail. 
 9. `--lifetime-days` says that the output files are only guaranteed to persist
 on storage for 1 day.
 
