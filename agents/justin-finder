@@ -753,7 +753,7 @@ def checkGitRepo(workflowID = None, stageID = None,
     ret = os.waitstatus_to_exitcode(waitStatus)
     
     if ret:
-      raise RuntimeException('git clone / tar returns error %d' % ret)
+      raise RuntimeError('git clone / tar returns error %d' % ret)
   except Exception as e:
     justin.logLine('Failed to do git clone / tar creation: ' + str(e))
     return None
@@ -932,7 +932,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
   # return code if the dataset just already exists or there was a 
   # genuine problem ...
   except Exception as e:
-    raise RuntimeException('Failed adding dataset %s:%s to Metacat: %s' 
+    raise RuntimeError('Failed adding dataset %s:%s to Metacat: %s' 
                              % (scopeName, destination, str(e)))
   finally:
     os.remove(metadataFile)
@@ -945,7 +945,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
     pass
   else:
     if not ret:
-      raise RuntimeException('Failed adding dataset %s:%s' 
+      raise RuntimeError('Failed adding dataset %s:%s' 
                              % (scopeName, destination))
 
   # Create the per-RSE datasets and rules
@@ -967,7 +967,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
       pass
     else:
       if not ret:
-        raise RuntimeException('Failed adding dataset %s:%s' 
+        raise RuntimeError('Failed adding dataset %s:%s' 
                                % (scopeName, datasetForRSE))
 
     # Create a rule for the new per-RSE dataset
@@ -1004,7 +1004,7 @@ def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
               % datasetForRSE)
     else:
       if not ret:
-        raise RuntimeException("Failed adding rule for %s:%s" 
+        raise RuntimeError("Failed adding rule for %s:%s" 
                                % (scopeName, datasetForRSE))
 
 # SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
@@ -1764,7 +1764,7 @@ def fetchHTCondorJobLog(jobsubID):
                               stdout   = subprocess.PIPE,
                               timeout  = 120)
   except Exception as e:
-    raise RuntimeException('For %s.%s@%s justin-get-output fails with %s' 
+    raise RuntimeError('For %s.%s@%s justin-get-output fails with %s' 
                        % (cluster, proc, schedd, str(e)))
     
   if outcome.returncode != 0:
