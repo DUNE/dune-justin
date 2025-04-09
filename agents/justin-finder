@@ -1855,7 +1855,7 @@ def saveTerminalJobsLogs():
   for dbJobRow in dbJobRows:
     
     if dbJobRow['jobsub_id'] not in condorJobs:
-      # if Condor is unaware of the job, then we're never going to get 
+      # if Condor is unaware of the job, then we're never going to get it
       justin.logLine('Job %s is not known to HTCondor - put placeholder log' 
               % dbJobRow['jobsub_id'])
       try:
@@ -1873,7 +1873,7 @@ def saveTerminalJobsLogs():
 
     # If not yet in an HTCondor terminal state them skip for now
     if ((jobStatus != justin.htcondorREMOVED) and
-         jobStatus != justin.htcondorCOMPLETED))         
+        (jobStatus != justin.htcondorCOMPLETED)):
       justin.logLine('Job %s is in HTCondor state %d - skip for now' %
                 (dbJobRow['jobsub_id'], jobStatus))
       continue
