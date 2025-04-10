@@ -187,7 +187,9 @@ look for output files matching the shell wildcard expression
 finishes. `output-test` is the prefix to a name of a Rucio dataset to 
 add the output
 files to, and the full name of that dataset is `usertests:output-test` 
-plus `-wXXXXs1p1` where XXXX is the ID number of the workflow created.
+plus `-wXXXXs1p1` where XXXX is the ID number of the workflow created. Make
+sure each file put into storage has a unique filename, otherwise the
+outputting step will fail. 
 9. `--lifetime-days` says that the output files are only guaranteed to persist
 on storage for 1 day.
 
@@ -257,6 +259,52 @@ the Rucio error messages look alarming but let the command finish. The
 `rucio` command finds the list of replicas of that file and picks one 
 replica to download. It puts it in subdirectory named after the scope
 `justin-tutorial`.
+
+## Jobs using GPUs ##
+
+It's very easy to access NVIDIA GPUs on the grid using justIN: just add the
+`--gpu` option to the `justin simple-workflow` command and the jobs for your
+workflow will be directed to machines with GPUs and one GPU will be
+requested for each job.
+
+In more detail, the full command to submit a "Hello GPU" workflow looks like
+this:
+
+    justin simple-workflow --monte-carlo 10 --gpu \
+      --jobscript-git DUNE/dune-justin/testing/hello-gpu.jobscript:01.04.rc0
+
+You could add more options to save output files as we did already, but for now
+just submit the workflow and look at the jobscript logs on the justIN 
+dashboard.
+Due to the finite number of GPUs available on the grid, you might find that
+sometimes a workflow starts within minutes, but if you're really unlucky it
+might take hours to find enough free slots.
+
+The jobscript you've used is very similar to the Hello World one we started
+with, but has two extra GPU lines:
+
+    printenv | grep -i cuda
+    nvidia-smi
+
+These print out all the environment variables with variants of CUDA in the
+name. The important one is based on what the GlideInWMS pilot job tells
+justIN and looks something like this:
+
+    CUDA_VISIBLE_DEVICES=GPU-3ae786cc-80fb-24fd-16ad-8191bd0341d2
+
+That environment varible is used by CUDA applications to decide which GPUs to
+use if more than one is available. Please don't try to override that in your
+jobscript.
+
+The next command is the `nvidia-smi` utility which tells you more about the
+GPUs that are available on the machine, including the one you can use. It
+shows details of the model, memory usage, and even things like temperature.
+
+If you have a GPU enabled application that uses CUDA, it should be
+straightforward to get it running in a justIN workflow. Apptainer and the
+GlideInWMS pilot make sure the NVIDIA libraries installed on the worker
+node, including the non-free software, is available to your jobs through
+`$LD_LIBRARY_PATH` and the special directory `/.singularity.d/libs/` 
 
 ## Jobs writing to scratch ##
 
