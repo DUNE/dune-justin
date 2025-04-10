@@ -276,8 +276,8 @@ this:
 You could add more options to save output files as we did already, but for now
 just submit the workflow and look at the jobscript log on the justIN dashboard.
 Due to the finite number of GPUs available on the grid, you might find that
-sometimes a workflow starts within minutes, or even takes hours to find free
-slots if you're really unlucky.
+sometimes a workflow starts within minutes, but if you're really unlucky it
+might take hours to find enough free slots.
 
 The jobscript you've used is very similar to the Hello World one we started
 with, but has two extra GPU lines:
