@@ -5,14 +5,15 @@ GPU Hello World jobscript for justIN
 
 Submit a workflow like this to run 10 jobs on workers with GPUs:
 
-justin simple-workflow --monte-carlo 10 --jobscript hello-gpu.jobscript --gpu
+justin simple-workflow --monte-carlo 10 --gpu \
+  --jobscript-git DUNE/dune-justin/testing/hello-gpu.jobscript:01.04.rc1
 
 Or like this to run jobs and put the output file into Rucio-managed storage:
 
 justin simple-workflow \
      --monte-carlo 10 \
-     --jobscript hello-gpu.jobscript \
      --gpu \
+     --jobscript-git DUNE/dune-justin/testing/hello-gpu.jobscript:01.04.rc1 \
      --description 'Hello GPU!!!' \
      --scope usertests \
      --output-pattern 'hello-gpu-*.txt:output-test-01' \
