@@ -260,6 +260,51 @@ the Rucio error messages look alarming but let the command finish. The
 replica to download. It puts it in subdirectory named after the scope
 `justin-tutorial`.
 
+## Jobs using GPUs ##
+
+It's very easy to access NVIDIA GPUs on the grid using justIN: just add the
+`--gpu` option to the `justin simple-workflow` command and the jobs for your
+workflow will be directed to machines with GPUs and one GPU will be
+requested for each job.
+
+In more detail, the full command to submit a "Hello GPU" workflow looks like
+this:
+
+    justin simple-workflow --monte-carlo 10 --gpu \
+      --jobscript-git DUNE/dune-justin/testing/hello-gpu.jobscript:01.04.rc0
+
+You could add more options to save output files as we did already, but for now
+just submit the workflow and look at the jobscript log on the justIN dashboard.
+Due to the finite number of GPUs available on the grid, you might find that
+sometimes a workflow starts within minutes, or even takes hours to find free
+slots if you're really unlucky.
+
+The jobscript you've used is very similar to the Hello World one we started
+with, but has two extra GPU lines:
+
+    printenv | grep -i cuda
+    nvidia-smi
+
+These print out all the environment variables with variants of CUDA in the
+name. The important one is based on what the GlideInWMS pilot job tells
+justIN and looks something like this:
+
+    CUDA_VISIBLE_DEVICES=GPU-3ae786cc-80fb-24fd-16ad-8191bd0341d2
+
+That environment varible is used by CUDA applications to decide which GPUs to
+use if more than one is available. Please don't try to override that in your
+jobscript.
+
+The next command is the `nvidia-smi` utility which tells you more about the
+GPUs that are available on the machine, including the one you can use. It
+shows detials of the model, memory usage, and even things like temperature.
+
+If you have an GPU enabled application that uses CUDA, it should be
+straightforward to get it running in a justIN workflow. Apptainer and the
+GlideInWMS pilot make sure the NVIDIA libraries installed on the worker
+node, including the non-free software, is available to your jobs through
+`$LD_LIBRARY_PATH` and the special directory `/.singularity.d/libs/` 
+
 ## Jobs writing to scratch ##
 
 Instead of uploading outputs to Rucio-managed storage, it's also possible to

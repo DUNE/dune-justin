@@ -3199,7 +3199,7 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Only on request?</td><td>%s</td></tr>\n'
         % bool(siteRow['only_on_request']))
 
-  output += ('<tr><td colspan="2">Last submitted</td><td>%s</td></tr>' 
+  output += ('<tr><td colspan="2">Last AWT submitted</td><td>%s</td></tr>' 
         % siteRow['last_submitted_time'])
 
   if str(siteRow['last_get_jobscript_time']) == justin.unixEpoch:
@@ -3450,7 +3450,7 @@ def showEntry(environ, user, cgiValues):
   output += ('<tr><td>Seen in OSG config</td><td>%s</td></tr>'
              % entryRow['osg_date'])
 
-  output += ('<tr><td>Last submitted</td><td>%s</td></tr>' 
+  output += ('<tr><td>Last AWT submitted</td><td>%s</td></tr>' 
              % entryRow['last_submitted_time'])
 
   if str(entryRow['last_get_jobscript_time']) == justin.unixEpoch:
