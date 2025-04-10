@@ -274,7 +274,8 @@ this:
       --jobscript-git DUNE/dune-justin/testing/hello-gpu.jobscript:01.04.rc0
 
 You could add more options to save output files as we did already, but for now
-just submit the workflow and look at the jobscript log on the justIN dashboard.
+just submit the workflow and look at the jobscript logs on the justIN 
+dashboard.
 Due to the finite number of GPUs available on the grid, you might find that
 sometimes a workflow starts within minutes, but if you're really unlucky it
 might take hours to find enough free slots.
@@ -297,9 +298,9 @@ jobscript.
 
 The next command is the `nvidia-smi` utility which tells you more about the
 GPUs that are available on the machine, including the one you can use. It
-shows detials of the model, memory usage, and even things like temperature.
+shows details of the model, memory usage, and even things like temperature.
 
-If you have an GPU enabled application that uses CUDA, it should be
+If you have a GPU enabled application that uses CUDA, it should be
 straightforward to get it running in a justIN workflow. Apptainer and the
 GlideInWMS pilot make sure the NVIDIA libraries installed on the worker
 node, including the non-free software, is available to your jobs through
