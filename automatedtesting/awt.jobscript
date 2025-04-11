@@ -15,6 +15,7 @@ export X509_USER_PROXY=$JUSTIN_PATH/awt-proxy.pem
 export X509_NOROLES_PROXY=$JUSTIN_PATH/justin-jobs-no-roles.proxy.pem
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
+export RUCIO_ACCOUNT=dunepro
 setup justin
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
 which metacat

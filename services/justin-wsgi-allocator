@@ -1496,6 +1496,10 @@ def saveAwtResults(justinJobID, siteID, entryID,
                         'last_awt_time=NOW(), last_awt_job_id=%d '
                         'WHERE site_id=%d' % (justinJobID, siteID))
 
+    justin.insertUpdate('UPDATE entries SET '
+                        'last_awt_time=NOW(), last_awt_job_id=%d '
+                        'WHERE entry_id=%d' % (justinJobID, entryID))
+
   except Exception as e:
     print('Update awt last time fails with %s' % str(e), 
           file=sys.stderr)

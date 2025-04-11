@@ -758,7 +758,7 @@ if getJobscriptDict['has_inner_apptainer']:
   with open('home/jobscript-wrapper.sh','w') as f:
     f.write('''#!/bin/bash
 export JUSTIN_PATH="$HOME"
-export RUCIO_ACCOUNT="dunepro"
+export RUCIO_ACCOUNT="justinreadonly"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh
@@ -794,7 +794,7 @@ else:
 cd home
 export HOME="$PWD"
 export JUSTIN_PATH="$HOME"
-export RUCIO_ACCOUNT="dunepro"
+export RUCIO_ACCOUNT="justinreadonly"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 cd workspace
 . ../justin-jobscript-env.sh

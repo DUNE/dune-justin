@@ -2373,20 +2373,49 @@ def outputWrapperLog(startResponse, environ, user):
 
   try:
     filename = environ['REQUEST_URI'].split('/')[2]
-    cluster = int(filename.split('.')[0])
-    proc    = int(filename.split('.')[1])
-    schedd  = filename.split('.',2)[2]
+    cluster  = int(filename.split('.')[0])
+    proc     = int(filename.split('.')[1])
+    schedd   = filename.split('.',2)[2]
     if not justin.stringIsDomain(schedd):
       raise
 
-    output = os.popen('/var/lib/justin/justin-get-output %d %d %s'
-                      % (cluster, proc, schedd), 'r').read()
   except Exception as e:
-   print(environ['REQUEST_URI'], str(e), file=sys.stderr)
-   startResponse('302 Moved', [('Location', '/dashboard/'),
+    print(environ['REQUEST_URI'], str(e), file=sys.stderr)
+    startResponse('302 Moved', [('Location', '/dashboard/'),
                                ('Content-length', '0')
                               ])
-   return('')
+    return('')
+
+  # Try to get cached wrapper log from the database
+  try:
+    row = justin.select('SELECT wrapper_log FROM jobs '
+                        'LEFT JOIN jobs_logs '
+                        'ON jobs.justin_job_id=jobs_logs.justin_job_id '
+                        'WHERE jobsub_id="%d.%d@%s"'
+                        % (cluster, proc, schedd), justOne=True)
+
+  except Exception as e:
+    print(environ['REQUEST_URI'], str(e), file=sys.stderr)
+    startResponse('302 Moved', [('Location', '/dashboard/'),
+                               ('Content-length', '0')
+                              ])
+    return('')
+
+  if row['wrapper_log'] != '':
+    # Use cached wrapper log
+    output = 'Cached log:\n\n' + row['wrapper_log'] 
+
+  else:
+    # Not cached so try to get it from HTCondor (for an active job?)
+    try:
+      output = os.popen('/var/lib/justin/justin-get-output %d %d %s'
+                      % (cluster, proc, schedd), 'r').read()
+    except Exception as e:
+      print(environ['REQUEST_URI'], str(e), file=sys.stderr)
+      startResponse('302 Moved', [('Location', '/dashboard/'),
+                               ('Content-length', '0')
+                              ])
+      return('')
 
   startResponse('200 OK',
                 [('Content-type',        'text/plain'),
@@ -3199,8 +3228,8 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Only on request?</td><td>%s</td></tr>\n'
         % bool(siteRow['only_on_request']))
 
-  output += ('<tr><td colspan="2">Last AWT submitted</td><td>%s</td></tr>' 
-        % siteRow['last_submitted_time'])
+#  output += ('<tr><td colspan="2">Last AWT submitted</td><td>%s</td></tr>' 
+#        % siteRow['last_submitted_time'])
 
   if str(siteRow['last_get_jobscript_time']) == justin.unixEpoch:
     lastGetJobscriptStr = '&nbsp;'
@@ -3210,7 +3239,8 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Last job started</td><td>%s</td></tr>' 
              % lastGetJobscriptStr)
 
-  output += ('<tr><td colspan="2">Last AWT job</td><td>%s</td></tr>' % spaceForUnixEpoch(siteRow['last_awt_time']))
+  output += ('<tr><td colspan="2">Last AWT job</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(siteRow['last_awt_time']))
 
   output += ('<tr><td colspan="2">Always has inner apptainer</td>'
              '<td>%s</td></tr>' % 
@@ -3404,8 +3434,8 @@ def showEntry(environ, user, cgiValues):
            'sites.region,'
            'sites.last_submitted_time,'
            'sites.last_get_jobscript_time,'
-           'sites.last_awt_time,'
            'entries.gatekeeper,'
+           'entries.last_awt_time,'
            'entries.max_rss_bytes,'
            'entries.max_processors,entries.max_wall_seconds,'
            'wlcg_site_name,entries.always_inner_apptainer,'
@@ -3450,8 +3480,8 @@ def showEntry(environ, user, cgiValues):
   output += ('<tr><td>Seen in OSG config</td><td>%s</td></tr>'
              % entryRow['osg_date'])
 
-  output += ('<tr><td>Last AWT submitted</td><td>%s</td></tr>' 
-             % entryRow['last_submitted_time'])
+#  output += ('<tr><td>Last AWT submitted</td><td>%s</td></tr>' 
+#             % entryRow['last_submitted_time'])
 
   if str(entryRow['last_get_jobscript_time']) == justin.unixEpoch:
     lastGetJobscriptStr = '&nbsp;'
@@ -3460,6 +3490,9 @@ def showEntry(environ, user, cgiValues):
 
   output += ('<tr><td>Last job started</td><td>%s</td></tr>' 
              % lastGetJobscriptStr)
+
+  output += ('<tr><td>Last AWT job</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(entryRow['last_awt_time']))
 
   output += ('<tr><td>Always has inner apptainer</td>'
              '<td>%s</td></tr>' % 
@@ -4451,7 +4484,9 @@ def awtResults(environ, user, cgiValues):
         '<td><div style="writing-mode: vertical-lr">'
         'Last&nbsp;AWT&nbsp;job</div></td>'
         '<td><div style="writing-mode: vertical-lr">'
-        'Last&nbsp;OSG&nbsp;time</div></td>')
+        'Last&nbsp;OSG&nbsp;time</div></td>'
+        '<td><div style="writing-mode: vertical-lr">'
+        'GPU&nbsp;AWT</div></td>')
   
   for rseName in rseNames:  
     if rseName in outputRseNames:
@@ -4464,7 +4499,7 @@ def awtResults(environ, user, cgiValues):
           '</div></%s>\n' % (cellType, rseName, 
                              rseName.replace('-','&#8209;'), cellType))
 
-  output += ('<td> </td></tr>\n')
+  output += ('<td> &nbsp; </td></tr>\n')
 
   # Go through the sites, Row by row 
 
@@ -4497,6 +4532,8 @@ def awtResults(environ, user, cgiValues):
     else:
       output += ('<td style="text-align: right">%s</td>' % 
             daysHoursMinutes(timeNow - lastOSGTimes[siteName]))
+
+    output += '<td> </td>'
   
     for rseName in rseNames:
       (readResult, writeResult, jobsubID, finishedTime) = \
@@ -4546,7 +4583,9 @@ def awtResults(environ, user, cgiValues):
         '<td><div style="writing-mode: vertical-lr">'
         'Last&nbsp;AWT&nbsp;job</div></td>'
         '<td><div style="writing-mode: vertical-lr">'
-        'Last&nbsp;OSG&nbsp;time</div></td>')
+        'Last&nbsp;OSG&nbsp;time</div></td>'
+        '<td><div style="writing-mode: vertical-lr">'
+        'GPU&nbsp;AWT</div></td>')
   
   for rseName in rseNames:
     if rseName in outputRseNames:

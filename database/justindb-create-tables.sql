@@ -254,6 +254,8 @@ CREATE TABLE IF NOT EXISTS `entries` (
   `always_inner_apptainer` tinyint(1) NOT NULL DEFAULT 1,
   `last_osg_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_get_jobscript_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_awt_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_awt_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `file_name` varchar(255) NOT NULL DEFAULT '',
   `raw_config` text NOT NULL DEFAULT '',
   PRIMARY KEY (`entry_id`),

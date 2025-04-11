@@ -1766,10 +1766,15 @@ def fetchHTCondorJobLog(jobsubID):
   except Exception as e:
     raise RuntimeError('For %s.%s@%s justin-get-output fails with %s' 
                        % (cluster, proc, schedd, str(e)))
-    
+
   if outcome.returncode != 0:
-    raise('For %s.%s@%s justin-get-output fails with error code %d' 
-          % (cluster, proc, schedd, outcome.returncode))
+    return outcome.stdout + \
+           '\n(Error from condor_transfer_data: %d)' % outcome.returncode
+# REMOVE THIS FOR PRODUCTION
+# WITHOUT THIS WE CACHE RESULT EVEN WHEN HTCONDOR TOO LOADED TO RESPOND!!    
+#    raise RuntimeError('For %s.%s@%s justin-get-output fails with '
+#                       'error code %d' 
+#                       % (cluster, proc, schedd, outcome.returncode))
 
   return outcome.stdout
 
@@ -1784,11 +1789,12 @@ def saveTerminalJobsLogs():
     terminalWithQuotes.append('"%s"' % i)
     
   # Get a list of jobs in terminal states without saved wrapper logs
-  query = ('SELECT jobsub_id,job_state FROM jobs '
+  query = ('SELECT jobs.justin_job_id,jobsub_id,job_state FROM jobs '
            'LEFT JOIN jobs_logs '
            'ON jobs_logs.justin_job_id=jobs.justin_job_id '
            'WHERE wrapper_log="" AND job_state IN '
-           '(%s)' % ','.join(terminalWithQuotes))
+           '(%s) ORDER BY jobs.justin_job_id LIMIT 1000' 
+           % ','.join(terminalWithQuotes))
 
   dbJobRows = justin.select(query)
 
@@ -1891,9 +1897,12 @@ def saveTerminalJobsLogs():
       justin.insertUpdate('UPDATE jobs_logs '
               'SET wrapper_log="%s",saved_time=NOW() '
               'WHERE justin_job_id=%d' % 
-              (wrapperLog, dbJobRow['justin_job_id']))
+              (wrapperLog.replace('\\','\\\\').replace('"','\\"'), 
+               dbJobRow['justin_job_id']))
     except Exception as e:
-      justin.logLine('Failed to save wrapper job log - skipping')
+      justin.logLine('Failed to save wrapper job log (%s) - skipping'
+                     % str(e))
+      continue
 
     # If we got this far, the job is in a terminal state, the wrapper log
     # is saved, and we can remove it from the queue    
