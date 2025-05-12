@@ -2401,9 +2401,9 @@ def outputWrapperLog(startResponse, environ, user):
                               ])
     return('')
 
-  if row['wrapper_log'] != '':
+  if row['wrapper_log']:
     # Use cached wrapper log
-    output = 'Cached log:\n\n' + row['wrapper_log'] 
+    output = 'Cached log:\n\n' + str(row['wrapper_log'])
 
   else:
     # Not cached so try to get it from HTCondor (for an active job?)
