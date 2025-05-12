@@ -536,7 +536,9 @@ def awtJobsToSites():
                  requestedRssBytes    = 1024 * 1024 * 1024,
                  requestedWallSeconds = 3600,
                  requestedGPU         = 1 
-                                        if (row['site_name'] == 'US_NERSC-GPU')
+                                        if (row['site_name'] 
+                                          in ['US_NERSC-GPU',
+                                              'US_NERSC-CUSTOM'])
                                         else 0)
     
 def oneCycle():
