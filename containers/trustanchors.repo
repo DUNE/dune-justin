@@ -3,4 +3,4 @@ name=trustanchors
 baseurl=https://dl.igtf.net/distribution/igtf/current/
 enabled=1
 gpgcheck=1
-gpgkey=https://dl.igtf.net/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+gpgkey=https://dl.igtf.net/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-4
