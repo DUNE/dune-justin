@@ -688,13 +688,13 @@ def checkProxyStrings():
   try:
     with open(jobsNoRolesProxyFile, 'rb') as f:
       jobsNoRolesProxyString = f.read()
-  except:
+  except Exception as e:
     print('Failed loading X.509 proxy from %s : %s'
           % (jobsNoRolesProxyFile, str(e)), file=sys.stderr)
 
   try:
     with open(jobsProductionProxyFile, 'rb') as f:
       jobsProductionProxyString = f.read()
-  except:
+  except Exception as e:
     print('Failed loading X.509 proxy from %s : %s'
           % (jobsProductionProxyFile, str(e)), file=sys.stderr)

@@ -66,7 +66,7 @@ RUN yum install -y ca_policy_igtf-classic
 # We only install crond for the automatic update of VOMS proxies
 # Unless we have another use for it, it can go away when they do
 # /usr/sbin/crond has to be started by each /usr/sbin/start-justin-* script
-RUN yum install -y cronie voms-clients
+RUN yum install -y cronie voms-clients-cpp
 COPY agents/justin-create-x509-proxies /etc/cron.daily/
 RUN mkdir -p /etc/grid-security/vomsdir/dune /etc/vomses
 RUN /bin/echo -e '/DC=org/DC=incommon/C=US/ST=Illinois/O=Fermi Research Alliance/CN=voms1.fnal.gov\n/C=US/O=Internet2/CN=InCommon RSA IGTF Server CA 3' >/etc/grid-security/vomsdir/dune/voms1.fnal.gov.lsc
