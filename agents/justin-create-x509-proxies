@@ -2,7 +2,7 @@
 #
 # justin-create-x509-proxies - create X.509 proxies for justIN 
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ echo
 echo '======= Create justin-jobs-production.proxy.pem'
 echo
 date
+rm -f /tmp/justin-jobs-production.proxy.pem.tmp
 voms-proxy-init \
  -cert /etc/justin-secrets/justin-jobs-production.dune.hep.ac.uk.cert.pem \
  -key  /etc/justin-secrets/justin-jobs-production.dune.hep.ac.uk.key.pem \
@@ -48,6 +49,7 @@ fi
 echo
 echo '======= Create justin-jobs-no-roles.proxy.pem'
 echo
+rm -f /tmp/justin-jobs-no-roles.proxy.pem.tmp
 voms-proxy-init \
  -cert /etc/justin-secrets/justin-jobs-no-roles.dune.hep.ac.uk.cert.pem \
  -key  /etc/justin-secrets/justin-jobs-no-roles.dune.hep.ac.uk.key.pem \
