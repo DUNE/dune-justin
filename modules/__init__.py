@@ -359,7 +359,7 @@ def logLine(text):
                    + ']: ' + text + '\n')
   sys.stdout.flush()
 
-def agentMainLoop(agentName, oneCycle, sleepSeconds):
+def agentMainLoop(agentName, oneCycle, sleepSeconds, maxCycleSeconds):
 
   global conn, cur
 
@@ -462,8 +462,26 @@ def agentMainLoop(agentName, oneCycle, sleepSeconds):
       # The subprocess is only used for this one cycle
       sys.exit(0)
 
-    # wait for cyclePid subprocess to finish
-    os.waitpid(cyclePid, 0)
+    for count in range(0, maxCycleSeconds + 60, 60):
+      if pidIsActive(cyclePid):
+        time.sleep(60)
+      else:
+        break
+
+    if pidIsActive(cyclePid):
+      # subprocess still running despite reaching maxCycleSeconds so kill it
+      print('PID %d is still running after %d seconds - kill it' 
+            % (cyclePid, maxCycleSeconds))
+      try:
+        os.kill(cyclePid)
+      except Exception:
+        logLine('Kill of %d fails with: %s' % (cyclePid, str(e))
+   
+      try:
+        # Clear zombie state subprocss by reading outcome
+        os.waitpid(cyclePid, 0)
+      except:
+        pass
 
     # wait the allotted time between cycles
     time.sleep(sleepSeconds)
@@ -698,3 +716,18 @@ def checkProxyStrings():
   except Exception as e:
     print('Failed loading X.509 proxy from %s : %s'
           % (jobsProductionProxyFile, str(e)), file=sys.stderr)
+
+
+# Check if a process is still active
+# Linux specific but avoids installing psutil
+def pidIsActive(pid):
+
+  try:
+    statList = open('/proc/%d/stat' % pid).read().split()
+  except:
+    return False
+
+  if statList[2] in ['R', 'S', 'D']:
+    return True
+    
+  return False

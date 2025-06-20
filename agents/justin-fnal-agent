@@ -235,4 +235,4 @@ def oneCycle():
 #
 
 if __name__ == '__main__':
-  justin.agentMainLoop('fnal-agent', oneCycle, sleepSeconds)
+  justin.agentMainLoop('fnal-agent', oneCycle, sleepSeconds, 3600)

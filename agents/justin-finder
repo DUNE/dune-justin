@@ -1960,4 +1960,4 @@ def oneCycle():
 #
 
 if __name__ == '__main__':
-  justin.agentMainLoop('finder', oneCycle, sleepSeconds)
+  justin.agentMainLoop('finder', oneCycle, sleepSeconds, 3600)
