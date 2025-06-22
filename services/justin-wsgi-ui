@@ -517,7 +517,6 @@ def createWorkflow(jsonDict, user, simple = False):
               'Monte Carlo option requires an integer count')
 
   if 'scope' in jsonDict and jsonDict['scope']:
-    # --scope option given, so check the scope is known
     scopeName = jsonDict['scope'].lower()
   else:
     scopeName = justin.defaultScopeName
@@ -528,21 +527,59 @@ def createWorkflow(jsonDict, user, simple = False):
 
   try:
       scopeRow = justin.select('SELECT scope_id,wlcg_group_name,'
-                          'condor_group_id '
-                          'FROM scopes '
-                          'LEFT JOIN wlcg_groups '
-                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                          'WHERE scope_name="%s"' % scopeName, 
-                          justOne=True)
+                    'condor_group_id,condor_group_name '
+                    'FROM scopes '
+                    'LEFT JOIN wlcg_groups '
+                    'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                    'LEFT JOIN condor_groups '
+                    'ON condor_groups.condor_group_id=scopes.condor_group_id '
+                    'WHERE scope_name="%s"' % scopeName, 
+                    justOne=True)
 
-      wlcgGroupName = scopeRow['wlcg_group_name']
-      condorGroupID = int(scopeRow['condor_group_id'])
-      scopeID       = int(scopeRow['scope_id'])
+      wlcgGroupName      = scopeRow['wlcg_group_name']
+      scopeCondorGroupID = int(scopeRow['condor_group_id'])
+      scopeCondorGroup   = scopeRow['condor_group_name']
+      scopeID            = int(scopeRow['scope_id'])
       if not scopeID:
         raise
   except:
       return ('400 Bad Request', 
               'Failed to find scope %s in justIN database' % scopeName)
+
+  if 'htcondor_group' in jsonDict and jsonDict['htcondor_group']:
+    scopeCondorSplit   = scopeCondorGroup.split('.')
+    htcondorGroupName  = jsonDict['htcondor_group'].lower()
+    htcondorGroupSplit = htcondorGroupName.split('.')
+
+    if (
+        (htcondorGroupSplit[0] != scopeCondorSplit[0]) or
+        (len(htcondorGroupSplit) > 1 and 
+         len(scopeCondorSplit) == 1) or
+        (len(htcondorGroupSplit) > 1 and
+         htcondorGroupSplit[1] != scopeCondorSplit[1])
+       ):
+      return ('400 Bad Request', 
+              'Prefixes of given HTCondor group and '
+              'scope's HTCondor group do not match')
+  else:
+    htcondorGroupName = scopeCondorGroup
+
+  try:
+    groupRow = justin.select('SELECT condor_group_id '
+                    'FROM condor_groups '
+                    'WHERE condor_group_name="%s"' % htcondorGroupName, 
+                    justOne=True)
+
+    htcondorGroupID = int(groupRow['condor_group_id'])
+
+  except:
+      return ('400 Bad Request', 
+              'Failed to find HTCondor group %s in justIN database' 
+              % htcondorGroupName)
+
+  if not justin.stringIsScope(htcondorGroupName):
+      return ('400 Bad Request', 
+              'HTCondor group name can only be characters a-z 0-9 - _ .')
  
   if not wlcgGroupName:
       return ('403 Forbidden', 
@@ -604,7 +641,7 @@ def createWorkflow(jsonDict, user, simple = False):
              description,
              mql,
              scopeID,
-             condorGroupID,
+             htcondorGroupID,
              user['user_id'],
              refindSeconds,
              refindEnd))

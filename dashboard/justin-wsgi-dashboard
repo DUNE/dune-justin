@@ -2691,7 +2691,7 @@ def showJob(environ, user, cgiValues):
         '</td></tr>'
         % (jobsubID, 
            jobsubID.replace('@','.'),
-           'Cached' if jobRow['wrapper_log_len'] > 0 else 'Live'
+           'Cached' if jobRow['wrapper_log_len'] else 'Live'
           ))
 
   output += "</table>"

@@ -50,7 +50,7 @@ properly registered in justIN.
 Displays information about the current user identity and session.
 
 .HP
-.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]"
+.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--htcondor-group GROUP] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]"
 .br
 Create a new, empty workflow in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
@@ -61,6 +61,13 @@ specifies the Rucio scope used for any output files to be registered with
 Rucio and uploaded to Rucio-managed storage. Scopes also determine 
 which HTCondor group wrapper jobs are submitted to. If not given, the 
 default scope usertests is used.
+
+.B --htcondor-group GROUP
+specifies the HTCondor group used when justIN submits jobs for this
+workflow. By default the scope's own default group is used. If this option
+is used, the first two parts of the selected group must match the first two
+parts of the scope's default group. For example, "group_dune" and "prod" if 
+the scope's group is "group_dune.prod.mcsim"
 
 The options
 .B --refind-interval-hours
@@ -241,7 +248,7 @@ then ":latest" is appended to the name given.
 
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
-.B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
+.B [--scope SCOPE] [--htcondor-group GROUP] [--refind-end-date YYYYMMDD] 
 .B [--refind-interval-hours HOURS] 
 .B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
 .B [--wall-seconds N]

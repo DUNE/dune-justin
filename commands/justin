@@ -110,6 +110,10 @@ parser.add_argument("--scope",
                     type = str,
                     help = "Scope")
 
+parser.add_argument("--htcondor-group",
+                    type = str,
+                    help = "HTCondor group")
+
 parser.add_argument("--mql",
                     type = str,
                     help = "MetaCat Query")
