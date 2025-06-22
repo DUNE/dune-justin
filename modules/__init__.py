@@ -475,7 +475,7 @@ def agentMainLoop(agentName, oneCycle, sleepSeconds, maxCycleSeconds):
       try:
         os.kill(cyclePid)
       except Exception:
-        logLine('Kill of %d fails with: %s' % (cyclePid, str(e))
+        logLine('Kill of %d fails with: %s' % (cyclePid, str(e)))
    
       try:
         # Clear zombie state subprocss by reading outcome
