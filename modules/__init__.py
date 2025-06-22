@@ -52,6 +52,8 @@ MonteCarloRseID = 1
 
 justinRunDir    = '/var/run/justin'
 
+rucioProductionUser = 'dunepro'
+
 # From justin.conf etc
 mysqlUsername   = None
 mysqlPassword   = None
