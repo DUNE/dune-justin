@@ -5,7 +5,7 @@
 - Cache HTCondor log as jobs finish and remove job if log fetched
 - Dashboard offers live HTCondor log instead of cached for unfinished jobs
 - Impose time limit on Finder cycles
-- Use hierarchical HTCondor groups: group_dune.prod.mcsim etc
+- Support hierarchical HTCondor groups: group_dune.prod.mcsim etc
 
 ## 01.03.00
 - justin get-token subcommand to fetch token and X.509 proxy from justIN
