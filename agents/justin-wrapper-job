@@ -783,9 +783,9 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
   % ('--nv' if getJobscriptDict['gpu_uuid'] else '',
      justinWorkdir, justinWorkdir, jobscriptImage),
   stdout=subprocess.PIPE,
-  shell=True 
-  )
-  
+  shell=True,
+  timeout=jobscriptDict['requested_wall_seconds']
+                                   )
 else:
   # Wrapper to be run outside a container
   with open('home/jobscript-wrapper.sh','w') as f:
@@ -808,8 +808,9 @@ stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
   jobscriptOutcome = subprocess.run('/usr/bin/time -o time.txt '
                                     '-f "%%e %%U %%S %%M" '
                                     'home/jobscript-wrapper.sh ',
-                                    stdout=subprocess.PIPE,
-                                    shell=True 
+                          stdout=subprocess.PIPE,
+                          shell=True,
+                          timeout=jobscriptDict['requested_wall_seconds']
                                    )
 
 jobscriptFinishTime=int(time.time())

@@ -1,5 +1,11 @@
 # Changelog
 
+## 01.04.00
+- Add finishing state to workflows
+- Cache HTCondor log as jobs finish and remove job if log fetched
+- Dashboard offers live HTCondor log instead of cached for unfinished jobs
+- Impose time limit on Finder cycles
+
 ## 01.03.00
 - justin get-token subcommand to fetch token and X.509 proxy from justIN
 - Remove Pattern ID from WebDAV paths when uploading files to dCache

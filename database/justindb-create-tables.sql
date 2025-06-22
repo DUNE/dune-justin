@@ -99,10 +99,10 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
-  `wrapper_log` text NOT NULL DEFAULT '',
+  `wrapper_log` longtext NOT NULL DEFAULT '',
   `saved_time` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY (`justin_job_id`),
-  INDEX `saved_time` (`saved_time`)
+  INDEX `saved_time` (`saved_time`,`justin_job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED;
 
 CREATE TABLE IF NOT EXISTS `events` (
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
   `pin_recheck_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
+ 
 CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,

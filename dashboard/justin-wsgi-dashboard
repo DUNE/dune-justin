@@ -2403,13 +2403,15 @@ def outputWrapperLog(startResponse, environ, user):
 
   if row['wrapper_log']:
     # Use cached wrapper log
-    output = 'Cached log:\n\n' + str(row['wrapper_log'])
+    output = ('Cached log for %d.%d@%s :\n\n' % (cluster, proc, schedd)
+              + str(row['wrapper_log']))
 
   else:
     # Not cached so try to get it from HTCondor (for an active job?)
     try:
-      output = os.popen('/var/lib/justin/justin-get-output %d %d %s'
-                      % (cluster, proc, schedd), 'r').read()
+      output = ('Live log for %d.%d@%s :\n\n' % (cluster, proc, schedd)
+                + os.popen('/var/lib/justin/justin-get-output %d %d %s'
+                      % (cluster, proc, schedd), 'r').read())
     except Exception as e:
       print(environ['REQUEST_URI'], str(e), file=sys.stderr)
       startResponse('302 Moved', [('Location', '/dashboard/'),
@@ -2451,7 +2453,8 @@ def showJob(environ, user, cgiValues):
            "jobs.jobscript_exit,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes,"
-           "condor_groups.condor_group_name "
+           "condor_groups.condor_group_name,"
+           "LENGTH(wrapper_log) AS wrapper_log_len "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
            "LEFT JOIN users ON workflows.user_id=users.user_id "
@@ -2684,9 +2687,12 @@ def showJob(environ, user, cgiValues):
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; '
         '<a href="/wrapperlogs/%s">'
-        'Wrapper job log</a> '
+        '%s HTCondor job logs</a>'
         '</td></tr>'
-        % (jobsubID, jobsubID.replace('@','.')))
+        % (jobsubID, 
+           jobsubID.replace('@','.'),
+           'Cached' if jobRow['wrapper_log_len'] > 0 else 'Live'
+          ))
 
   output += "</table>"
 
