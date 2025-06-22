@@ -525,7 +525,7 @@ def awtJobsToSites():
                  jobscriptImage       = (justin.jobscriptImagePrefix + '/' + 
                                          justin.jobscriptImageSuffix + ':' +
                                          justin.jobscriptImageVersion),
-                 accountingGroup      = 'group_dune.prod_mcsim',
+                 accountingGroup      = 'group_dune.prod.mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
                  firstSiteID          = row['site_id'],

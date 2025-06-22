@@ -1126,7 +1126,7 @@ def updateScopes():
     duneCondorGroupID = int(row['condor_group_id'])
 
     row = justin.select('SELECT condor_group_id FROM condor_groups '
-                        'WHERE condor_group_name="group_dune.prod_mcsim"', 
+                        'WHERE condor_group_name="group_dune.prod.mcsim"', 
                         justOne = True)
     productionCondorGroupID = int(row['condor_group_id'])
   except Exception as e:

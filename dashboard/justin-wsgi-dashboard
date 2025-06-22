@@ -2915,6 +2915,11 @@ def listScopes(environ, user, cgiValues):
         'ORDER BY scope_name')
   scopeRows = justin.select(query)
 
+  query = ('SELECT condor_group_name '
+           'FROM condor_groups '
+           'ORDER BY condor_group_name')
+  groupRows = justin.select(query)
+
   output += ('<table class="center">')
   
   output += ('<tr>'
@@ -2935,7 +2940,11 @@ def listScopes(environ, user, cgiValues):
                   if scopeRow['condor_group_name'] else ' ',
                   scopeRow['max_files_per_workflow']))
 
-  output += ("</table>")
+  output += ("</table>\n<p>All HTCondor groups: ")
+
+  for groupRow in groupRows:
+    output += groupRow['condor_group_name'] + ' &nbsp; ' 
+ 
   output += footer()
   return output
 
