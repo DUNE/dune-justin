@@ -527,7 +527,7 @@ def createWorkflow(jsonDict, user, simple = False):
 
   try:
       scopeRow = justin.select('SELECT scope_id,wlcg_group_name,'
-                    'condor_group_id,condor_group_name '
+                    'scopes.condor_group_id,condor_group_name '
                     'FROM scopes '
                     'LEFT JOIN wlcg_groups '
                     'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
@@ -560,7 +560,7 @@ def createWorkflow(jsonDict, user, simple = False):
        ):
       return ('400 Bad Request', 
               'Prefixes of given HTCondor group and '
-              'scope's HTCondor group do not match')
+              'scope HTCondor group do not match')
   else:
     htcondorGroupName = scopeCondorGroup
 
