@@ -2688,19 +2688,19 @@ def showJob(environ, user, cgiValues):
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; ' % jobsubID)
 
-  if ((jobRow['wrapper_log_len'] is None) or
-      (jobRow['wrapper_log_len'] == 0)) and
-
-      (jobRow['wrapper_tries_left'] is None) or:
-      (jobRow['wrapper_tries_left'] == 0))):
-    output += '(HTCondor job logs unavailable)</td></tr>')
-    
+  if (((jobRow['wrapper_log_len'] is None) or
+       (jobRow['wrapper_log_len'] == 0)) 
+      and
+      ((jobRow['wrapper_tries_left'] is None) or
+       (jobRow['wrapper_tries_left'] == 0))
+     ):
+    output += '(HTCondor job logs unavailable)</td></tr>'
+     
   else:
     output += ('<a href="/wrapperlogs/%s">'
                '%s HTCondor job logs</a>'
                '</td></tr>'
-               % (jobsubID, 
-                  jobsubID.replace('@','.'),
+               % (jobsubID.replace('@','.'),
                   'Cached' if jobRow['wrapper_log_len'] else 'Live')
               )
 
