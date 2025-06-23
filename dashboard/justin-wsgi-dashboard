@@ -2454,6 +2454,7 @@ def showJob(environ, user, cgiValues):
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes,"
            "condor_groups.condor_group_name,"
+           "wrapper_tries_left,"
            "LENGTH(wrapper_log) AS wrapper_log_len "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
@@ -2685,14 +2686,23 @@ def showJob(environ, user, cgiValues):
 
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
-        'List job events</a> &nbsp; &nbsp; '
-        '<a href="/wrapperlogs/%s">'
-        '%s HTCondor job logs</a>'
-        '</td></tr>'
-        % (jobsubID, 
-           jobsubID.replace('@','.'),
-           'Cached' if jobRow['wrapper_log_len'] else 'Live'
-          ))
+        'List job events</a> &nbsp; &nbsp; ' % jobsubID)
+
+  if ((jobRow['wrapper_log_len'] is None) or
+      (jobRow['wrapper_log_len'] == 0)) and
+
+      (jobRow['wrapper_tries_left'] is None) or:
+      (jobRow['wrapper_tries_left'] == 0))):
+    output += '(HTCondor job logs unavailable)</td></tr>')
+    
+  else:
+    output += ('<a href="/wrapperlogs/%s">'
+               '%s HTCondor job logs</a>'
+               '</td></tr>'
+               % (jobsubID, 
+                  jobsubID.replace('@','.'),
+                  'Cached' if jobRow['wrapper_log_len'] else 'Live')
+              )
 
   output += "</table>"
 

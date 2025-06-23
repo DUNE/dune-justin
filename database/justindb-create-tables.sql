@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
   `wrapper_log` longtext NOT NULL DEFAULT '',
-  `wrapper_tries_left` tinyint(1) NOT NULL DEFAULT 10,
+  `wrapper_tries_left` tinyint(1) unsigned NOT NULL DEFAULT 10,
   `saved_time` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY (`justin_job_id`),
   INDEX `saved_time` (`saved_time`,`justin_job_id`)
