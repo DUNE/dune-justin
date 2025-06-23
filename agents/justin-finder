@@ -1703,7 +1703,7 @@ def saveTerminalJobsLogs():
               % dbJobRow['jobsub_id'])
       try:
         justin.insertUpdate('UPDATE jobs_logs '
-              'SET wrapper_log="(missing)",saved_time=NOW() '
+              'SET wrapper_tries_left=0,saved_time=NOW() '
               'WHERE justin_job_id=%d' % dbJobRow['justin_job_id'])
       except Exception as e:
         # Log but otherwise ignore error
