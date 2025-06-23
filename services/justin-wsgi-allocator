@@ -1588,12 +1588,10 @@ def recordResultsMethod(startResponse, jsonDict):
         jsonDict['jobscript_log'].replace('\\','\\\\').replace('"','\\"')
                        )                           
   except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error',
-                     'Failed saving job log: ' + str(e))
+    # Try to keep going. 
+    print('Failed to save jobscript log for %s: %s' 
+          % (str(justinJobID), str(e)), file=sys.stderr)
 
-#  print('Before call saveAwtResults %d %d' 
-#        % (workflowID, justin.awtWorkflowID), file=sys.stderr)
   if workflowID == justin.awtWorkflowID:
     saveAwtResults(justinJobID, 
                    siteID, 

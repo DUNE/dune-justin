@@ -1,7 +1,7 @@
 # Changelog
 
 ## 01.04.00
-- Cache HTCondor log as jobs finish, retrying for one hour, and remove job 
+- Cache HTCondor log as jobs finish, retrying up to 10 times, and remove job 
   from HTCondor if log is successfully cached
 - Dashboard offers live HTCondor log instead of cached for unfinished jobs
 - Impose time limit on Finder cycles

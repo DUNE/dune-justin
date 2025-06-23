@@ -1629,7 +1629,7 @@ def saveTerminalJobsLogs():
            'LEFT JOIN jobs_logs '
            'ON jobs_logs.justin_job_id=jobs.justin_job_id '
            'WHERE wrapper_log="" AND job_state IN (%s) '
-           'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) '
+           'AND wrapper_tries_left > 0 '
            'ORDER BY jobs.justin_job_id LIMIT 1000' 
            % ','.join(terminalWithQuotes))
 
@@ -1720,13 +1720,22 @@ def saveTerminalJobsLogs():
       justin.logLine('Job %s is in HTCondor state %d - skip for now' %
                 (dbJobRow['jobsub_id'], jobStatus))
       continue
-        
+
     # Try to fetch the HTCondor job log
     try:
       wrapperLog = fetchHTCondorJobLog(dbJobRow['jobsub_id'])
     except Exception as e:
       justin.logLine('Failed fetching wrapper job log for %s: %s' %
                      (dbJobRow['jobsub_id'], str(e)))
+
+      try:
+        justin.insertUpdate('UPDATE jobs_logs '
+                            'SET wrapper_tries_left=wrapper_tries_left-1 '
+                            'WHERE wrapper_tries_left > 0 AND '
+                            'justin_job_id=%d' % dbJobRow['justin_job_id'])
+      except Exception as e:
+        justin.logLine('Failed to update wrapper_tries_left (%s) - ignoring'
+                       % str(e))
       continue
       
     # Save the HTCondor job log

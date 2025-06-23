@@ -324,7 +324,14 @@ queue %d
                       siteID = firstSiteID,
                       justinJobID = justinJobID,
                       seconds = afterTime - beforeTime)
-
+      try:
+        justin.insertUpdate(
+          'INSERT INTO jobs_logs SET justin_job_id=%d,saved_time=NOW()'
+          % justinJobID) 
+      except Exception as e:
+        # Try to keep going. Handle this downstream as if deleted?
+        logLine('INSERT INTO jobs_logs fails with: ' + str(e))
+        
   # Record that we've done a submission if just for one site
   if firstSiteID:
     try:
