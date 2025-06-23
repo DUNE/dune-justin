@@ -108,7 +108,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
   # Find files to be processed for each workflow in the finding state
 
   try:
-    didsList = didClient.list_files(scope, name)
+    didsList = list(didClient.list_files(scope, name))
   except Exception as e:
     justin.logLine("Reading file list from Rucio fails with: " + str(e))
     return False
@@ -833,65 +833,6 @@ def processSubmittedWorkflow(workflow):
   except:
     condorGroupID = 0
 
-#  stages = justin.select('SELECT stage_id,processors,jobscript_git,'
-#                         'jobscript_image,wall_seconds,rss_bytes '
-#                         'FROM stages WHERE workflow_id=%d'
-#                         % workflowID)
-#
-#  for stage in stages:
-#    stageID = stage['stage_id']
-#    justin.logLine('Processing submitted w%ds%d' % (workflowID, stageID))
-#
-#    stagesOutputStorages = justin.select(
-#        'SELECT rse_name FROM stages_output_storages '
-#        'LEFT JOIN storages '
-#        'ON storages.rse_id=stages_output_storages.rse_id '
-#        'WHERE stages_output_storages.workflow_id=%d '
-#        'AND stages_output_storages.stage_id=%s '
-#        % (workflowID, stageID))
-#          
-#    rseNames = []
-#    for stageOutputStorage in stagesOutputStorages:
-#      rseNames.append(stageOutputStorage['rse_name'])
-#
-#    stagesOutputs = justin.select(
-#      'SELECT destination,lifetime_seconds,pattern_id,file_pattern '
-#      'FROM stages_outputs '
-#      'WHERE workflow_id=%d AND stage_id=%d' % (workflowID, stageID))
-#
-#    for stageOutput in stagesOutputs:
-#      if not stageOutput['destination'].startswith('https://'):
-#        justin.logLine('Processing submitted w%ds%dp%d' 
-#                % (workflowID, stageID, stageOutput['pattern_id']))
-#        # A Rucio dataset
-#
-#        # Metadata for the main dataset in MetaCat
-#        metadataDict = { "dune.workflow" : 
-#            { "workflow_id"     : workflowID,
-#              "stage_id"        : stageID,
-#              "pattern_id"      : stageOutput['pattern_id'],
-#              "file_pattern"    : stageOutput['file_pattern'],
-#              "user"            : workflow['principal_name'],
-#              "processors"      : stage['processors'],
-#              "rss_bytes"       : stage['rss_bytes'],
-#              "wall_seconds"    : stage['wall_seconds'],
-#              "jobscript_image" : stage['jobscript_image']
-#            }
-#                       }
-# ADD RCDS/Git repos in here too with tags and commit hashes
-#                         
-#        if stage['jobscript_git']:
-#          metadataDict['dune.workflow']['jobscript_git'] = stage['jobscript_git']
-#
-#        createOutputDatasets(workflowID = workflowID,
-#                             stageID = stageID,
-#                             patternID = stageOutput['pattern_id'],
-#                             metadataDict = metadataDict,
-#                             scopeName = workflow['scope_name'],
-#                             destination = stageOutput['destination'],
-#                             lifetimeSeconds = stageOutput['lifetime_seconds'],
-#                             rseNames = rseNames)
-
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
   # even if not refinding repeatedly
@@ -904,112 +845,6 @@ def processSubmittedWorkflow(workflow):
            'WHERE workflow_id=%d' % (condorGroupID, workflowID))
 
   justin.insertUpdate(query)
-
-# THIS FUNCTION IS NO LONGER USED AND CAN BE REMOVED ONCE FINISHED PUTTING
-# THIS FUNCIONALITY IN THE WRAPPER JOBS
-def createOutputDatasets(workflowID, stageID, patternID, metadataDict,
-                         scopeName, destination, lifetimeSeconds, rseNames):
-  # Create missing main pattern datasets (per-RSEs done in wrapper job)
-  # All exceptions will be caught by the caller
-  
-  justin.logLine('Try to create DID and Rule Rucio clients')
-  didClient  = rucio.client.didclient.DIDClient()
-  ruleClient = rucio.client.ruleclient.RuleClient()
-
-  # Try to create the pattern's dataset in MetaCat
-  justin.logLine('Try to add MetaCat dataset %s:%s' % (scopeName, destination))
-
-  # Temporary file to pass to metacat command 
-  (fd, metadataFile) = tempfile.mkstemp(text = True)
-  fp = os.fdopen(fd, 'w')
-  json.dump(metadataDict, fp)
-  fp.close()
-
-  try:
-    ret = executeMetaCatCommand("dataset create --metadata %s %s:%s"
-                                % (metadataFile, scopeName, destination))
-  # Carry on regardless if ret != 0 since we can't tell from the metacat 
-  # return code if the dataset just already exists or there was a 
-  # genuine problem ...
-  except Exception as e:
-    raise RuntimeError('Failed adding dataset %s:%s to Metacat: %s' 
-                             % (scopeName, destination, str(e)))
-  finally:
-    os.remove(metadataFile)
-  
-  # Try to create the pattern's dataset in Rucio if not already there
-  try:
-    justin.logLine('Try to add Rucio dataset %s:%s' % (scopeName, destination))
-    ret = didClient.add_dataset(scope = scopeName, name = destination)
-  except rucio.common.exception.DataIdentifierAlreadyExists:
-    pass
-  else:
-    if not ret:
-      raise RuntimeError('Failed adding dataset %s:%s' 
-                             % (scopeName, destination))
-
-  # Create the per-RSE datasets and rules
-  for rseName in rseNames:
-    # Try to create the per-RSE dataset in MetaCat
-    datasetForRSE = 'w%ds%dp%d-%s' % (workflowID, stageID, patternID, rseName)
-    justin.logLine('Try to add MetaCat dataset %s:%s' % (scopeName, datasetForRSE))
-    ret = executeMetaCatCommand('dataset create %s:%s' 
-                                % (scopeName, datasetForRSE))
-    # Carry on regardless if ret != 0 since we can't tell from the metacat 
-    # return code if the dataset just already exists or there was a 
-    # genuine problem ...
- 
-    # Try to create the pattern's dataset in Rucio if not already there
-    try:
-      justin.logLine('Try to add Rucio dataset %s:%s' % (scopeName, datasetForRSE))
-      ret = didClient.add_dataset(scope = scopeName, name = datasetForRSE)
-    except rucio.common.exception.DataIdentifierAlreadyExists:
-      pass
-    else:
-      if not ret:
-        raise RuntimeError('Failed adding dataset %s:%s' 
-                               % (scopeName, datasetForRSE))
-
-    # Create a rule for the new per-RSE dataset
-    justin.logLine('Try to add rule for %s:%s' % (scopeName, datasetForRSE))
-    try:
-      ret = ruleClient.add_replication_rule(
-                     dids = [ {'scope' : scopeName,
-                               'name'  : datasetForRSE} ], 
-                     copies = 1, 
-                     rse_expression = rseName,
-                     lifetime = lifetimeSeconds)
-    except rucio.common.exception.DuplicateRule:
-      # Cannot create rule now because already exists - dev/int instance?
-      justin.logLine('Failed to create rule for %s as a duplicate - skipping' 
-              % datasetForRSE)
-    except rucio.common.exception.RSEOverQuota:
-      # Cannot create rule now because RSE is currently over quota
-      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
-      # ADD RULE LATER SOMEHOW??? 
-      justin.logLine('Failed to create rule for %s as over quota - skipping' 
-              % datasetForRSE)
-    except rucio.common.exception.InsufficientAccountLimit:
-      # Cannot create rule now because RSE is currently over account limit
-      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
-      # ADD RULE LATER SOMEHOW??? 
-      logLine('Failed to create rule for %s as over account limit - skipping' 
-              % datasetForRSE)
-
-    except rucio.common.exception.RSEWriteBlocked:
-      # Cannot create rule now because RSE is currently not writeable
-      # WHY ON EARTH DOES RUCIO WORK THIS WAY!!!
-      # ADD RULE LATER SOMEHOW??? 
-      justin.logLine('Failed to create rule for %s as write disabled - skipping' 
-              % datasetForRSE)
-    else:
-      if not ret:
-        raise RuntimeError("Failed adding rule for %s:%s" 
-                               % (scopeName, datasetForRSE))
-
-# SHOULD ALSO CHECK FOR EXISTING RULES WE CREATED FOR THIS DATASET THAT
-# NEED THEIR LIFETIME EXTENDING? THIS IS NEEDED FOR LONG WORKFLOWS?
-
 
 # MOVING TO justin-fnal-agent
 def createWorkflowGitRepos(workflowID):
@@ -1789,11 +1624,13 @@ def saveTerminalJobsLogs():
     terminalWithQuotes.append('"%s"' % i)
     
   # Get a list of jobs in terminal states without saved wrapper logs
+  # that finished in the last hour (so we don't try forever)
   query = ('SELECT jobs.justin_job_id,jobsub_id,job_state FROM jobs '
            'LEFT JOIN jobs_logs '
            'ON jobs_logs.justin_job_id=jobs.justin_job_id '
-           'WHERE wrapper_log="" AND job_state IN '
-           '(%s) ORDER BY jobs.justin_job_id LIMIT 1000' 
+           'WHERE wrapper_log="" AND job_state IN (%s) '
+           'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) '
+           'ORDER BY jobs.justin_job_id LIMIT 1000' 
            % ','.join(terminalWithQuotes))
 
   dbJobRows = justin.select(query)

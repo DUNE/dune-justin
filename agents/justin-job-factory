@@ -403,7 +403,7 @@ def workflowJobs():
     if int(unallocatedCount * jobsRatio + 0.9999) > submittedCount:
       # Need to submit more jobs: find suitable entries and sites
       try:
-        entriesRows = justin.select(
+        query = (
    "SELECT DISTINCT entries.entry_name,sites.jobsub_site_name,sites.site_name "
    "FROM files "
    "LEFT JOIN replicas ON files.file_id=replicas.file_id "
@@ -436,6 +436,10 @@ def workflowJobs():
             '' if stageRow['needs_gpu'] else 'NOT',
             '' if (stageRow['wlcg_group_name'] == '/dune/production') 
             else 'AND entries.always_inner_apptainer'))
+
+        logLine(query)
+
+        entriesRows = justin.select(query)
 
       except Exception as e:
         logLine('Failed to get list of entries/sites: ' + str(e))
@@ -523,8 +527,7 @@ def awtJobsToSites():
                  userName             = 'dunepro',
                  needsInnerApptainer  = False,
                  jobscriptImage       = (justin.jobscriptImagePrefix + '/' + 
-                                         justin.jobscriptImageSuffix + ':' +
-                                         justin.jobscriptImageVersion),
+                                         justin.jobscriptImageSuffix + ':' +                                         justin.jobscriptImageVersion),
                  accountingGroup      = 'group_dune.prod.mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
