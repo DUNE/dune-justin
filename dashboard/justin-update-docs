@@ -15,10 +15,11 @@ git clone --branch $branch --depth 1 --single-branch \
   https://github.com/DUNE/dune-justin.git
   
 if [ $? == 0 ] ; then
-  # If all ok, then copy docs
-  cp -f dune-justin/*.md       /var/www/html/docs/
-  cp -f dune-justin/docs/*.md  /var/www/html/docs/
-  cp -f dune-justin/docs/*.pdf /var/www/html/docs/
+  # If all ok, then copy docs and images
+  cp -f dune-justin/*.md            /var/www/html/docs/
+  cp -f dune-justin/docs/*.md       /var/www/html/docs/
+  cp -f dune-justin/dashboard/*.png /var/www/html/dashboard/
+  cp -f dune-justin/dashboard/*.pdf /var/www/html/dashboard/
 fi
 
 # Remove temporary directory

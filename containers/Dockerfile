@@ -117,10 +117,10 @@ COPY dashboard/justin-get-output        /var/lib/justin/
 COPY dashboard/justin-update-docs       /var/lib/justin/
 COPY dashboard/justin-wsgi-dashboard    /var/www/wsgi/
 COPY dashboard/*.png                    /var/www/html/
+COPY dashboard/*.pdf                    /var/www/html/
 COPY dashboard/*.js                     /var/www/html/
 
 # If adding new file types to docs, change justin-update-docs too!
-COPY docs/*.pdf                         /var/www/html/docs/
 COPY docs/*.md                          /var/www/html/docs/
 COPY *.md                               /var/www/html/docs/
 
