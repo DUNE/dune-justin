@@ -1586,8 +1586,8 @@ def recordResultsMethod(startResponse, jsonDict):
         'UPDATE jobs_logs SET '
         'jobscript_log="%s",saved_time=NOW() WHERE justin_job_id=%d' %
         (jsonDict['jobscript_log'].replace('\\','\\\\').replace('"','\\"'),
-         justinJobID))
-                       )                           
+         justinJobID)  )
+
   except Exception as e:
     # Try to keep going. 
     print('Failed to save jobscript log for %s: %s' 

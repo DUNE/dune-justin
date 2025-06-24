@@ -9,6 +9,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 ## Tutorials
 
 - [DUNE Tutorial](tutorials.dune.md)
+- [DUNE GPU mini-tutorial](20250521-mcnab-justin-gpu.pdf)
 
 ## User Guides
 
