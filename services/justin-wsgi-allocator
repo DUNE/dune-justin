@@ -1583,9 +1583,10 @@ def recordResultsMethod(startResponse, jsonDict):
 
   try:
     justin.insertUpdate(
-        'INSERT INTO jobs_logs SET justin_job_id=' + str(justinJobID) + ','
-        'jobscript_log="%s",saved_time=NOW()' %
-        jsonDict['jobscript_log'].replace('\\','\\\\').replace('"','\\"')
+        'UPDATE jobs_logs SET '
+        'jobscript_log="%s",saved_time=NOW() WHERE justin_job_id=%d' %
+        (jsonDict['jobscript_log'].replace('\\','\\\\').replace('"','\\"'),
+         justinJobID))
                        )                           
   except Exception as e:
     # Try to keep going. 
