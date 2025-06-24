@@ -120,6 +120,7 @@ COPY dashboard/*.png                    /var/www/html/
 COPY dashboard/*.js                     /var/www/html/
 
 # If adding new file types to docs, change justin-update-docs too!
+COPY docs/*.pdf                         /var/www/html/docs/
 COPY docs/*.md                          /var/www/html/docs/
 COPY *.md                               /var/www/html/docs/
 
