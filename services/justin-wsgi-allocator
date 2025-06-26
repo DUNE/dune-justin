@@ -740,6 +740,8 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
   jobDict = makeJobDict(jsonDict)
 
   if jobDict['ping_rucio_milliseconds'] >= justin.overloadRucioMilliseconds:
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'],
+                           jobState    = 'notused')
     return httpError(startResponse,
                      '503 Service Unavailable',
                      'New processing suspended while Rucio is overloaded')

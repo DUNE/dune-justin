@@ -1058,6 +1058,7 @@ def findProblemWorkflows():
     query = ('SELECT jobs.workflow_id,job_state,count(*) AS count FROM jobs '
              'LEFT JOIN workflows ON jobs.workflow_id=workflows.workflow_id '
              'WHERE jobs.workflow_id<>1 AND workflows.state="running" '
+             'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) '
              'GROUP BY job_state,jobs.workflow_id')
 
     runningWorkflows = justin.select(query)
@@ -1789,7 +1790,7 @@ def oneCycle():
     justin.logLine('pingRucioMilliseconds() fails with ' + str(e))
   else:
     justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
-    if pingRucioMilliseconds < overloadRucioMilliseconds:
+    if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
       findFiles()
       findReplicas()
     else:

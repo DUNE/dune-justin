@@ -9,6 +9,8 @@
 - Add overload_rucio_milliseconds setting to [agents] and suspend workflow
   job submission, new processing starts, and file allocations if Rucio is
   overloaded in Rucio ping test.
+- Only last hour of activity used when deciding to pause workflows to 
+  allow restarts 
 
 ## 01.03.00
 - Add finishing state to workflows and close Rucio datasets automatically
