@@ -355,14 +355,15 @@ def mainPage(environ, user):
     output += \
      ('<p style="text-align: center">%d running job%s in %d running '
       'workflow%s. %d file%s not yet allocated to jobs. '
-      'Rucio ping %sms.'</p>\n' 
+      'Rucio ping %sms/%dms.</p>\n' 
       % (row['running_jobs'], 
           '' if row['running_jobs'] == 1 else 's',
          row['running_workflows'], 
           '' if row['running_workflows'] == 1 else 's',
          row['unallocated_files'],
           '' if row['unallocated_files'] == 1 else 's'),
-         row['ping_rucio_milliseconds'])
+         row['ping_rucio_milliseconds'],
+         justin.overloadRucioMilliseconds)
 
   cells = [
    { 'startRow'  : True,

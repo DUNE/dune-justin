@@ -181,7 +181,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         wrapperJobImage, overloadRucioSeconds \
+         wrapperJobImage, overloadRucioSeconds, \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
          extraEntries
 
@@ -749,7 +749,8 @@ def pingRucioMilliseconds():
 
   pingClient = rucio.client.pingclient.PingClient()  
   startTime  = time.time()
-  pingDict   = pingClient.ping()  
+  for i in range(0,3):
+    pingDict = pingClient.ping()  
   endTime    = time.time()
   
-  return int((endTime - startTime) * 1000)
+  return int((endTime - startTime) * 333.333)
