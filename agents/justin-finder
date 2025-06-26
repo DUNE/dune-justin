@@ -1784,17 +1784,14 @@ def oneCycle():
   findTokensToRefresh()
   findSubmittedWorkflows()
 
-  try:
-    pingRucioMilliseconds = justin.pingRucioMilliseconds()
-  except Exception as e:
-    justin.logLine('pingRucioMilliseconds() fails with ' + str(e))
+  pingRucioMilliseconds = justin.pingRucioMilliseconds()
+
+  justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
+  if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
+    findFiles()
+    findReplicas()
   else:
-    justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
-    if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
-      findFiles()
-      findReplicas()
-    else:
-      justin.logLine('Skip findFiles() and findReplicas()')
+    justin.logLine('Skip findFiles() and findReplicas()')
 
   findProblemWorkflows()
   findWorkflowsToFinish()

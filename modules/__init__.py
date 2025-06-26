@@ -745,13 +745,16 @@ def pidIsActive(pid):
 
 
 # Return the Rucio ping milliseconds 
-# Exceptions must be handled by the caller!
 def pingRucioMilliseconds():
 
   pingClient = rucio.client.pingclient.PingClient()
   startTime  = time.time()
   for i in range(0,3):
-    pingDict = pingClient.ping()  
+    try:
+      pingDict = pingClient.ping()  
+    except Exception as e:
+      logLine('Rucio ping fails with exception ' + str(e))
+      return 99999
   endTime    = time.time()
   
   return int((endTime - startTime) * 333.333)

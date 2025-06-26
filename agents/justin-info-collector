@@ -110,11 +110,7 @@ def testRucio():
   # Use rucio ping to test Rucio
   logLine('---- Start testRucio ----')
 
-  try:
-    pingRucioMilliseconds = justin.pingRucioMilliseconds()
-  except Exception as e:
-    logLine("Ping of Rucio fails with: " + str(e))
-    return
+  pingRucioMilliseconds = justin.pingRucioMilliseconds()
   
   try:
     query = ('REPLACE keys_names_values SET '

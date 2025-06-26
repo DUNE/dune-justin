@@ -570,17 +570,13 @@ def oneCycle():
     logLine("awtJobsToSites()")
     awtJobsToSites()
 
-  try:
-    pingRucioMilliseconds = justin.pingRucioMilliseconds()
-  except Exception as e:
-    justin.logLine('pingRucioMilliseconds() fails with ' + str(e))
+  pingRucioMilliseconds = justin.pingRucioMilliseconds()
+  justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
+  if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
+    logLine("Start workflowJobs()")
+    workflowJobs()
   else:
-    justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
-    if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
-      logLine("Start workflowJobs()")
-      workflowJobs()
-    else:
-      justin.logLine('Skip workflowJobs() as Rucio overloaded')
+    justin.logLine('Skip workflowJobs() as Rucio overloaded')
 
 #
 # PROGRAM MAIN
