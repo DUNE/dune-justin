@@ -29,6 +29,7 @@ import socket
 import random
 import string
 import tarfile
+import rucio.client
 import configparser
 
 #import MySQLdb
@@ -747,7 +748,7 @@ def pidIsActive(pid):
 # Exceptions must be handled by the caller!
 def pingRucioMilliseconds():
 
-  pingClient = rucio.client.pingclient.PingClient()  
+  pingClient = rucio.client.pingclient.PingClient()
   startTime  = time.time()
   for i in range(0,3):
     pingDict = pingClient.ping()  

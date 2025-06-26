@@ -32,6 +32,7 @@ import tempfile
 import warnings
 import traceback
 import subprocess
+import rucio.client
 import xml.dom.minidom
 
 # WE NEED TO REMOVE OLD MySQLdb REFERENCES STILL!
