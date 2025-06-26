@@ -488,27 +488,33 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   INDEX `user_expires` (`user_id`,`expires_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `services` (
-  `service_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `service_name` varchar(255) NOT NULL,
-  `sort_number` smallint(5) unsigned NOT NULL DEFAULT 0,
-  PRIMARY KEY (`service_id`)
+CREATE TABLE IF NOT EXISTS `keys_names_values` (
+  `key_name` varchar(255) NOT NULL,
+  `key_value` text NOT NULL DEFAULT '',
+  PRIMARY KEY (`key_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `service_tests` (
-  `service_test_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
-  `service_test_name` varchar(255) NOT NULL,
-  `service_id` smallint(5) unsigned NOT NULL,
-  `sort_number` smallint(5) unsigned NOT NULL DEFAULT 0,
-  PRIMARY KEY (`service_test_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
-CREATE TABLE IF NOT EXISTS `service_test_results` (
-  `service_test_id` smallint(5) unsigned NOT NULL,
-  `test_time` datetime NOT NULL,
-  `test_state` enum('pass','fail','warning')
-                  NOT NULL DEFAULT 'pass',
-  `test_output` text not null default '',
-  INDEX `test_time` (`test_time`,`service_test_id`),
-  INDEX `service_test_id` (`service_test_id`,`test_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+#CREATE TABLE IF NOT EXISTS `services` (
+#  `service_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+#  `service_name` varchar(255) NOT NULL,
+#  `sort_number` smallint(5) unsigned NOT NULL DEFAULT 0,
+#  PRIMARY KEY (`service_id`)
+#) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+#
+#CREATE TABLE IF NOT EXISTS `service_tests` (
+#  `service_test_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+#  `service_test_name` varchar(255) NOT NULL,
+#  `service_id` smallint(5) unsigned NOT NULL,
+#  `sort_number` smallint(5) unsigned NOT NULL DEFAULT 0,
+#  PRIMARY KEY (`service_test_id`)
+#) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+#
+#CREATE TABLE IF NOT EXISTS `service_test_results` (
+#  `service_test_id` smallint(5) unsigned NOT NULL,
+#  `test_time` datetime NOT NULL,
+#  `test_state` enum('pass','fail','warning')
+#                  NOT NULL DEFAULT 'pass',
+#  `test_output` text not null default '',
+#  INDEX `test_time` (`test_time`,`service_test_id`),
+#  INDEX `service_test_id` (`service_test_id`,`test_time`)
+#) ENGINE=InnoDB DEFAULT CHARSET=latin1;

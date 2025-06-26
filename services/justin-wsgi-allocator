@@ -313,7 +313,10 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'entries.entry_id,'
              'scopes.scope_name,'
              'wlcg_groups.wlcg_group_name,'
-             'stages_sites.site_id AS s_s_site_id '
+             'stages_sites.site_id AS s_s_site_id,'
+             '(SELECT key_value FROM keys_names_values '
+             ' WHERE key_name="ping_rucio_milliseconds") '
+             ' AS ping_rucio_milliseconds ' 
              'FROM jobs '
              'LEFT JOIN stages ON jobs.workflow_id=stages.workflow_id '
              'AND jobs.stage_id=stages.stage_id '
@@ -368,7 +371,8 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
            "scope_name"             : job['scope_name'] 
                                       if job['scope_name'] else '',
            "wlcg_group_name"        : job['wlcg_group_name']
-                                      if job['wlcg_group_name'] else ''
+                                      if job['wlcg_group_name'] else '',
+           "ping_rucio_milliseconds": int(job['ping_rucio_milliseconds'])
          }
 
 # Make a new certificate from the certificate workflow sent by the 
@@ -734,6 +738,11 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     
   # Find details of the job
   jobDict = makeJobDict(jsonDict)
+
+  if jobDict['ping_rucio_milliseconds'] >= justin.overloadRucioMilliseconds:
+    return httpError(startResponse,
+                     '503 Service Unavailable',
+                     'New processing suspended while Rucio is overloaded')
 
   if (jobDict['workflow_id'] != jsonDict['workflow_id']) or \
      (jobDict['stage_id'] != jsonDict['stage_id']):
@@ -1312,6 +1321,11 @@ def getFileMethod(startResponse, jsonDict):
                      '404 Not Found', 
                      'Only %d files can be allocated to each job'
                      % justin.maxFilesPerJob)
+
+  if jobDict['ping_rucio_milliseconds'] >= justin.overloadRucioMilliseconds:
+    return httpError(startResponse,
+                     '503 Service Unavailable', 
+                     'File allocations suspended while Rucio is overloaded')
 
   # Create a stage dictionary with the next file in this stage  
   oneFile = findBestFile(jobDict)

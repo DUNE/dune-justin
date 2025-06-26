@@ -47,11 +47,9 @@ jobsProductionProxyFile   = '/tmp/justin-jobs-production.proxy.pem'
 jobsNoRolesProxyString = None
 jobsNoRolesProxyFile   = '/tmp/justin-jobs-no-roles.proxy.pem'
 
-# Constantas
-MonteCarloRseID = 1
-
-justinRunDir    = '/var/run/justin'
-
+# Constants
+MonteCarloRseID     = 1
+justinRunDir        = '/var/run/justin'
 rucioProductionUser = 'dunepro'
 
 # From justin.conf etc
@@ -119,6 +117,10 @@ unseenSitesExpireDays = 7
 # Set in configuration, default 0.5
 nonJustinFraction = None
 
+# When rucio ping takes this many seconds, assume Rucio is overloaded
+# and back off job submissions and jobscript starts
+overloadRucioSeconds = None
+
 # Timeout is when to update cached ranks; Stale is when to remove from Finder
 sitesRankCacheTimeout = 300
 sitesRankCacheStale   = 3600
@@ -179,7 +181,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         wrapperJobImage, \
+         wrapperJobImage, overloadRucioSeconds \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
          extraEntries
 
@@ -271,6 +273,12 @@ def readConf():
   except:
     # In case of misconfiguration, the default is dev
     proDev = 'dev'
+
+  try:
+    overloadRucioMilliseconds = int(
+                 parser.get('agents','overload_rucio_milliseconds').strip())
+  except:
+    overloadRucioMilliseconds = 100000
 
   try:
     nonJustinFraction = float(
@@ -733,3 +741,15 @@ def pidIsActive(pid):
     return True
     
   return False
+
+
+# Return the Rucio ping milliseconds 
+# Exceptions must be handled by the caller!
+def pingRucioMilliseconds():
+
+  pingClient = rucio.client.pingclient.PingClient()  
+  startTime  = time.time()
+  pingDict   = pingClient.ping()  
+  endTime    = time.time()
+  
+  return int((endTime - startTime) * 1000)

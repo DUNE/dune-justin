@@ -47,6 +47,7 @@ import yaml
 
 import justin
 
+testRucioInterval      = 300
 updateSitesInterval    = 3600
 updateStoragesInterval = 3600
 updateJwksInterval     = 86400
@@ -104,6 +105,31 @@ def executeMetaCatCommand(args):
 
   return ret
 
+def testRucio():
+  # Use rucio ping to test Rucio
+  logLine('---- Start testRucio ----')
+
+  try:
+    pingRucioMilliseconds = justin.pingRucioMilliseconds()
+  except Exception as e:
+    logLine("Ping of Rucio fails with: " + str(e))
+    return
+  
+  try:
+    query = ('REPLACE keys_names_values SET '
+             'key_name="ping_rucio_milliseconds",'
+             'key_value="%d"'
+             % pingRucioMilliseconds)
+
+    justin.select(query)
+  except Exception as e:
+    # Log the error 
+    logLine('Failed putting ping Rucio milliseconds into database: %s' 
+              % str(e))
+
+  justin.conn.commit()
+  logLine('---- End testRucio ----')
+ 
 def updateJwks():
   logLine('Start update of JWT keys')
 
@@ -1208,6 +1234,17 @@ def updateScopes():
 
 def oneCycle():
 
+  # Is it time to test Rucio
+  try:
+    lastTestRucio \
+             = os.stat('/var/run/justin/last-updates/test-rucio').st_mtime
+  except:
+    lastTestRucio = 0
+
+  if lastTestRucio + testRucioInterval < time.time():
+    pathlib.Path('/var/run/justin/last-updates/test-rucio').touch(exist_ok=True)
+    testRucio()
+
   # Is it time to update CILogon Jwks
   try:
     lastUpdateJwks = os.stat('/var/run/justin/last-updates/jwks').st_mtime
@@ -1250,128 +1287,4 @@ def oneCycle():
 #
 
 if __name__ == '__main__':
-
-  if len(sys.argv) > 1 and sys.argv[1] == '--container':
-    notContainer = False
-  else:
-    notContainer = True
-    
-  if notContainer and os.fork() != 0:
-    sys.exit() # first parent
-
-  else:
-    os.chdir("/")
-    os.umask(0)
-
-    if notContainer:
-      os.setsid()
-
-    if notContainer and os.fork() != 0:
-      sys.exit() # second parent
-
-    else:
-
-      try:
-        os.makedirs('/var/run/justin/last-updates',
-                    stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | 
-                    stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-      except:
-        pass
-        
-      try:
-        f = open('/var/run/justin/info-collector.pid', 'w')
-        f.write(str(os.getpid()) + '\n')
-        f.close()
-      except:
-        print('Failed to create /var/run/justin/info-collector.pid - exiting')
-        sys.exit(1)
-
-      # Close stdin now
-      si = open('/dev/null', 'r')
-      os.dup2(si.fileno(), sys.stdin.fileno())
-
-      while True:
-
-        # Ensure /var/log/justin directory exists
-        try:
-          os.makedirs('/var/log/justin', 
-                      stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR|stat.S_IRGRP|stat.S_IXGRP|stat.S_IROTH|stat.S_IXOTH)
-        except:
-          pass
-
-        # Close and reopen stdout->log file, in case of logrotate
-        try:
-          close(so)
-        except:
-          pass
-
-        so = open('/var/log/justin/info-collector', 'a+')
-        os.dup2(so.fileno(), sys.stdout.fileno())
-
-        # Close and reopen stderr->log file, in case of logrotate
-        try:
-          close(se)
-        except:
-          pass
-
-        se = open('/var/log/justin/info-collector', 'a+')
-        os.dup2(se.fileno(), sys.stderr.fileno())
-
-        try:
-          pf = open('/var/run/justin/info-collector.pid', 'r')
-          pid = int(pf.read().strip())
-          pf.close()
-
-          if pid != os.getpid():
-            print('new /var/run/justin/info-collector.pid - exiting')
-            break
-
-        except:
-          print('no /var/run/justin/info-collector.pid - exiting')
-          break
-
-        # Fork a subprocess to run each cycle
-        cyclePid = os.fork()
-
-        if cyclePid == 0:
-          logLine('=============== Start cycle ===============')
-          
-          justin.readConf()
-          
-          try:
-            justin.conn = MySQLdb.connect(
-                            host   = socket.gethostbyname(justin.mysqlHostname),
-                            user   = justin.mysqlUsername,
-                            passwd = justin.mysqlPassword,
-                            db     = justin.mysqlDbName)
-            justin.conn.autocommit(False)
-            justin.cur = justin.conn.cursor(MySQLdb.cursors.DictCursor)
-            
-            # Do not bother us with such trifles!
-            warnings.filterwarnings('ignore', category=MySQLdb.Warning)
-          except Exception as e:
-            logLine('Failed to create database connection (' + str(e) + ') - skipping cycle')
-          else:
-            try:
-              p = pwd.getpwnam(justin.agentUsername)
-              os.chown('/var/run/justin/last-updates', p[2], p[3])
-              os.setgid(p[3])
-              os.setuid(p[2])              
-              oneCycle()
-            except Exception as e:
-              traceback.print_exc()
-              print('Cycle fails with exception ' + str(e))
-
-            justin.conn.close()
-
-          logLine('================ End cycle ================')
-          sys.exit(0)
-
-        # wait for cyclePid subprocess to finish
-        os.waitpid(cyclePid, 0)
-
-        # wait the allotted time between cycles
-        time.sleep(sleepSeconds)
-
-      sys.exit(0) # if we break out of the while loop then we exit
-
+  justin.agentMainLoop('info-collector', oneCycle, sleepSeconds, 3600)

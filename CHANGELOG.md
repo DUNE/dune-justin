@@ -6,6 +6,9 @@
 - Dashboard offers live HTCondor log instead of cached for unfinished jobs
 - Impose time limit on Finder cycles
 - Support hierarchical HTCondor groups: group_dune.prod.mcsim etc
+- Add overload_rucio_milliseconds setting to [agents] and suspend workflow
+  job submission, new processing starts, and file allocations if Rucio is
+  overloaded in Rucio ping test.
 
 ## 01.03.00
 - Add finishing state to workflows and close Rucio datasets automatically
