@@ -119,7 +119,7 @@ nonJustinFraction = None
 
 # When rucio ping takes this many seconds, assume Rucio is overloaded
 # and back off job submissions and jobscript starts
-overloadRucioSeconds = None
+overloadRucioMilliseconds = None
 
 # Timeout is when to update cached ranks; Stale is when to remove from Finder
 sitesRankCacheTimeout = 300
@@ -181,7 +181,7 @@ def readConf():
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
-         wrapperJobImage, overloadRucioSeconds, \
+         wrapperJobImage, overloadRucioMilliseconds, \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
          extraEntries
 

@@ -361,9 +361,9 @@ def mainPage(environ, user):
          row['running_workflows'], 
           '' if row['running_workflows'] == 1 else 's',
          row['unallocated_files'],
-          '' if row['unallocated_files'] == 1 else 's'),
+          '' if row['unallocated_files'] == 1 else 's',
          row['ping_rucio_milliseconds'],
-         justin.overloadRucioMilliseconds)
+         justin.overloadRucioMilliseconds))
 
   cells = [
    { 'startRow'  : True,
