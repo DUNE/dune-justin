@@ -45,7 +45,7 @@ stageID         = ###justin_stage_id###
 def logLine(text):
   print(time.strftime('%b %d %H:%M:%S ' + text + '\n'))
 
-def sendJsonURL(url, sendDict):
+def sendJsonURL(url, sendDict, timeout = 60):
 
   sendDict['jobsub_id']   = jobsubJobID
   sendDict['workflow_id'] = workflowID
@@ -73,7 +73,8 @@ def sendJsonURL(url, sendDict):
                        '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
 
   try:
-    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    response = urllib.request.urlopen(httpRequest, timeout = timeout, 
+                                      context = sslContext)
   except urllib.error.URLError as e:
     try:
       httpCode = e.code
@@ -659,7 +660,8 @@ if os.fork() == 0:
   while os.getppid() == jobPID:
     sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
                 '/api/allocator/send_heartbeat',
-                { "method" : "send_heartbeat" }
+                { "method" : "send_heartbeat" },
+                timeout = 600
                )
     time.sleep(600)
              
@@ -1248,6 +1250,15 @@ except Exception as e:
   # confirmed as ok to justIN
   logLine('Failed to set files to output_status=confirmed in MetaCat: '
           + str(e)) 
+
+try:
+  heartbeatsLog = open('heartbeats.log','r').read()
+except:
+  heartbeatsLog = ''
+
+logLine('#### start heartbeats log (last 1000 characters) ####')
+print(heartbeatsLog[-1000:])
+logLine('#### end heartbeats log ####')
 
 logLine('====End of justin-wrapper-job====')
 time.sleep(10)
