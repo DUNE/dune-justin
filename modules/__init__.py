@@ -445,6 +445,11 @@ def agentMainLoop(agentName, oneCycle, sleepSeconds, maxCycleSeconds):
       logLine('=============== Start cycle ===============')
           
       readConf()
+
+      try:
+        logLine('/proc/loadavg: ' + open('/proc/loadavg','r').read().strip())
+      except:
+        pass
           
       try:
         conn = MySQLdb.connect(
