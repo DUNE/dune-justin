@@ -919,6 +919,8 @@ try:
                   justinWorkdir + '/home/workspace/condor.job.ad.log')
   shutil.copyfile(os.environ['_CONDOR_MACHINE_AD'],
                   justinWorkdir + '/home/workspace/condor.machine.ad.log')
+  shutil.copyfile('heartbeats.log',
+                  justinWorkdir + '/home/workspace/heartbeats.log')
 except:
   pass
 
