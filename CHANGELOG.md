@@ -1,5 +1,9 @@
 # Changelog
 
+## 01.03.02
+- Back port logging of /proc/loadavg in justin-finder log
+- Back port heartbeats.log outputting
+
 ## 01.03.00
 - justin get-token subcommand to fetch token and X.509 proxy from justIN
 - Remove Pattern ID from WebDAV paths when uploading files to dCache
