@@ -647,8 +647,10 @@ if jobscriptDict['status'] != 200:
   sys.exit(0)
 
 # Start of subprocess to send regular heartbeats
+sys.stdout.flush()
+sys.stderr.flush()
 if os.fork() == 0:
-  time.sleep(600)
+  # REMOVE FOR NOW time.sleep(600)
   # Redirect stdout/stderr
   so = open('heartbeats.log', 'a+')
   os.dup2(so.fileno(), sys.stdout.fileno())
@@ -657,10 +659,14 @@ if os.fork() == 0:
   
   # Send heartbeats until parent exits
   while os.getppid() == jobPID:
+    logLine('--- Sending heartbeat ---')
     sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
                 '/api/allocator/send_heartbeat',
                 { "method" : "send_heartbeat" }
                )
+    print(str(heartbeatDict))
+    sys.stdout.flush()
+    sys.stderr.flush()
     time.sleep(600)
              
   sys.exit(0)    
@@ -917,6 +923,8 @@ try:
                   justinWorkdir + '/home/workspace/condor.job.ad.log')
   shutil.copyfile(os.environ['_CONDOR_MACHINE_AD'],
                   justinWorkdir + '/home/workspace/condor.machine.ad.log')
+  shutil.copyfile('heartbeats.log',
+                  justinWorkdir + '/home/workspace/heartbeats.log')
 except:
   pass
 
@@ -1244,6 +1252,16 @@ except Exception as e:
   # confirmed as ok to justIN
   logLine('Failed to set files to output_status=confirmed in MetaCat: '
           + str(e)) 
+
+try:
+  heartbeatsLog = open('heartbeats.log','r').read()
+except Exception as e:
+  logLine('Failed to open heartbeats.log: ' + str(e))
+  heartbeatsLog = ''
+else:
+  logLine('#### start heartbeats log (last 1000 characters) ####')
+  print(heartbeatsLog[-1000:])
+  logLine('#### end heartbeats log ####')
 
 logLine('====End of justin-wrapper-job====')
 time.sleep(10)
