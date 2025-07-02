@@ -1256,12 +1256,13 @@ except Exception as e:
 
 try:
   heartbeatsLog = open('heartbeats.log','r').read()
-except:
+except Exception as e:
+  logLine('Failed to open heartbeats.log: ' + str(e))
   heartbeatsLog = ''
-
-logLine('#### start heartbeats log (last 1000 characters) ####')
-print(heartbeatsLog[-1000:])
-logLine('#### end heartbeats log ####')
+else:
+  logLine('#### start heartbeats log (last 1000 characters) ####')
+  print(heartbeatsLog[-1000:])
+  logLine('#### end heartbeats log ####')
 
 logLine('====End of justin-wrapper-job====')
 time.sleep(10)
