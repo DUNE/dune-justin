@@ -660,7 +660,8 @@ if os.fork() == 0:
   # Send heartbeats until parent exits
   while os.getppid() == jobPID:
     logLine('--- Sending heartbeat ---')
-    sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+    heartbeatDict = \
+     sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
                 '/api/allocator/send_heartbeat',
                 { "method" : "send_heartbeat" }
                )
