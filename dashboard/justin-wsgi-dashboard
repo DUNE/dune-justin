@@ -362,6 +362,7 @@ def mainPage(environ, user):
           '' if row['running_workflows'] == 1 else 's',
          row['unallocated_files'],
           '' if row['unallocated_files'] == 1 else 's',
+
          int(row['ping_rucio_milliseconds']) / 1000.0))
 
   cells = [

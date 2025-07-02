@@ -648,6 +648,8 @@ if jobscriptDict['status'] != 200:
   sys.exit(0)
 
 # Start of subprocess to send regular heartbeats
+sys.stdout.flush()
+sys.stderr.flush()
 if os.fork() == 0:
   # REMOVE FOR NOW: time.sleep(600)
   # Redirect stdout/stderr
