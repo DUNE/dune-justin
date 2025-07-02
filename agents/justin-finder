@@ -1626,7 +1626,9 @@ def saveTerminalJobsLogs():
     
   # Get a list of jobs in terminal states without saved wrapper logs
   # that finished in the last hour (so we don't try forever)
-  query = ('SELECT jobs.justin_job_id,jobsub_id,job_state FROM jobs '
+  query = ('SELECT jobs.justin_job_id,jobsub_id,job_state,'
+           'jobs.workflow_id,jobs.stage_id,jobs.site_id,jobs.entry_id '
+           'FROM jobs '
            'LEFT JOIN jobs_logs '
            'ON jobs_logs.justin_job_id=jobs.justin_job_id '
            'WHERE wrapper_log="" AND job_state IN (%s) '
@@ -1750,6 +1752,13 @@ def saveTerminalJobsLogs():
       justin.logLine('Failed to save wrapper job log (%s) - skipping'
                      % str(e))
       continue
+    else:
+      justin.logEvent(eventTypeID = justin.event_JOB_HTCONDOR_LOGS_CACHED,
+                      workflowID  = dbJobRow['workflow_id'],
+                      stageID     = dbJobRow['stage_id'],
+                      siteID      = dbJobRow['site_id'],
+                      entryID     = dbJobRow['entry_id'],
+                      justinJobID = dbJobRow['justin_job_id'])
 
     # If we got this far, the job is in a terminal state, the wrapper log
     # is saved, and we can remove it from the queue    
@@ -1774,6 +1783,13 @@ def saveTerminalJobsLogs():
     if outcome.returncode != 0:
       justin.logLine('condor_rm fails with return code %d' % outcome.returncode)
     else:
+      justin.logEvent(eventTypeID = justin.event_JOB_REMOVED_FROM_HTCONDOR,
+                      workflowID  = dbJobRow['workflow_id'],
+                      stageID     = dbJobRow['stage_id'],
+                      siteID      = dbJobRow['site_id'],
+                      entryID     = dbJobRow['entry_id'],
+                      justinJobID = dbJobRow['justin_job_id'])
+
       justin.logLine('Job %s removed from queue' % dbJobRow['jobsub_id'])
 
   # All ok, so commit it all to the DB

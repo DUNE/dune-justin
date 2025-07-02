@@ -51,6 +51,8 @@ in the Dashboard.
 |323|JOB_ABORT_CVMFS_CHECKS|Job aborted during cvmfs checks|
 |324|JOB_ABORT_SCRIPT_ERROR|Job aborted due to jobscript error|
 |325|JOB_NONE_PROCESSED|Job asked for no files or processed none of those allocated|
+|326|JOB_HTCONDOR_LOGS_CACHED|Logs from HTCondor cached for this job|
+|327|JOB_REMOVED_FROM_HTCONDOR|Job removed from HTCondor spool|
 |401|FILE_ALLOCATED|File allocated to job|
 |402|FILE_ALLOCATED_RESET|File set back to unallocated from allocated|
 |403|FILE_SET_TO_FAILED|Too many attempts to process file: failed|

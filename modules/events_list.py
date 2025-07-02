@@ -1,5 +1,5 @@
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -154,6 +154,12 @@ eventsList = [
 ('JOB_NONE_PROCESSED', 
  325,
  'Job asked for no files or processed none of those allocated'),
+('JOB_HTCONDOR_LOGS_CACHED', 
+ 326,
+ 'Logs from HTCondor cached for this job'),
+('JOB_REMOVED_FROM_HTCONDOR', 
+ 327,
+ 'Job removed from HTCondor spool'),
 
 # File-level events during running
 ('FILE_ALLOCATED', 

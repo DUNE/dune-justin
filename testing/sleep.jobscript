@@ -8,15 +8,15 @@
 # where ID is the value printed by the first command
 #
 
-date
-sleep 1800
-date
-
 # Get an unprocessed file from this stage
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 did=`echo $did_pfn_rse | cut -f1 -d' '`
 pfn=`echo $did_pfn_rse | cut -f2 -d' '`
 rse=`echo $did_pfn_rse | cut -f3 -d' '`
+
+date
+sleep 1800
+date
 
 # We say we processed whatever we were given
 echo "$did" > justin-processed-dids.txt
