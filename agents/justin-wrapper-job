@@ -649,7 +649,7 @@ if jobscriptDict['status'] != 200:
 
 # Start of subprocess to send regular heartbeats
 if os.fork() == 0:
-  time.sleep(600)
+  # REMOVE FOR NOW: time.sleep(600)
   # Redirect stdout/stderr
   so = open('heartbeats.log', 'a+')
   os.dup2(so.fileno(), sys.stdout.fileno())
