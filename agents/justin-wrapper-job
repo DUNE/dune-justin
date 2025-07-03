@@ -1080,14 +1080,18 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
     destinationNumber = \
          resultsResponseDict['patterns'][strPatternID]['destination_number']
 
+    createdDatasetDIDs = []
+
     for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
-      datasets = [ { 'metadata'         : datasetMetadata,
+      datasets = []
+
+      datasets.append({ 'metadata'         : datasetMetadata,
                      'dataset_scope'    : jobscriptDict['scope'],
                      'dataset_name'     : 'w%ds%dp%d-%s' 
                                % (workflowID, stageID, intPatternID, rse),
                      'rse_expression'   : rse,
                      'lifetime_seconds' : 
-         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']} ]
+         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']})
              
       if resultsResponseDict['patterns'][strPatternID]['rse_expression']:
         datasets.append({ 'metadata'         : datasetMetadata,
@@ -1120,6 +1124,11 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
       except Exception as e:
         logLine('createDatasets fails "%s" - try next RSE ' % str(e))
         continue
+
+      # Save created datasets for sending back to allocator
+      for dataset in datasets:
+        createdDatasets.append(dataset['dataset_scope'] + ':' +
+                               dataset['dataset_name'])
 
       logLine('Try %s:%s to %s/%s' 
               % (jobscriptDict['scope'], fileName, rse, scheme))
@@ -1208,6 +1217,8 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
       jobAborted(321, 'set_uploaded', '')
 
     rucioUploadedDIDs.append(jobscriptDict['scope'] + ':' + fileName)
+
+    confirmResultsDict['created_dataset_dids'] = createdDatasetDIDs
 
     # Add to list of uploaded files for confirm results
     confirmResultsDict['output_files'][fileName] = {

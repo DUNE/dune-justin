@@ -2136,6 +2136,16 @@ def confirmResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error', 
                      'Failed to count FILE_PROCESSED events: ' + str(e))
 
+  for datasetDID in jsonDict['created_dataset_dids']:
+    try:
+      justin.insertUpdate('INSERT IGNORE INTO workflows_datasets '
+                          'SET workflow_id=%d,stage_id=%d,'
+                          'dataset_did="%s"' 
+                          % (workflowID, stageID, datasetDID))
+    except Exception as e:
+      # Carry on if there are errors: jobs will just retry creation/reporting
+      print('Failed inserting dataset: ' + str(e), file=sys.stderr)
+
   # Finish up and update job status
   try:
     # Jobs only finish in the none_processed state if any files were allocated

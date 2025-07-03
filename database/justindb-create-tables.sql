@@ -334,12 +334,11 @@ CREATE TABLE IF NOT EXISTS `stages_output_storages` (
   UNIQUE KEY `workflow_stage_rse` (`workflow_id`,`stage_id`,`rse_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-CREATE TABLE IF NOT EXISTS `workflows_output_datasets` (
+CREATE TABLE IF NOT EXISTS `workflows_datasets` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL,
   `dataset_did` varchar(255) NOT NULL,
-  `closed` tinyint(1) NOT NULL DEFAULT '0',
-  `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',  
-  UNIQUE KEY `workflow_dataset` (`workflow_id`,`closed`,`dataset_did`)
+  UNIQUE KEY `workflow_dataset` (`workflow_id`,`stage_id`,`dataset_did`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_input_storages` (
