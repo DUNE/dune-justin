@@ -82,7 +82,7 @@ def sendJsonURL(url, sendDict, timeout = 60):
       httpCode = 0
 
     logLine('Get JSON URL returns HTTP code %d' % httpCode)
-    logLine(e.read().decode('utf-8'))
+    logLine(str(e))
     return { 'status' : httpCode, 'response' : '' }
 
   except Exception as e:
