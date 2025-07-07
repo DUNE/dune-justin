@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `scopes` (
   `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
+  `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS `scopes` (
 CREATE TABLE IF NOT EXISTS `wlcg_groups` (
   `wlcg_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `wlcg_group_name` varchar(255) NOT NULL DEFAULT '',
+  `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY `wlcg_group_id` (`wlcg_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -451,6 +453,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `access_token_created` datetime NOT NULL DEFAULT '1970-01-01',
   `access_token_expires` datetime NOT NULL DEFAULT '1970-01-01',
   `refresh_token` text NOT NULL DEFAULT '',
+  `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`user_id`),
   INDEX `access_token_expires_created` (`access_token_expires`,`access_token_created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

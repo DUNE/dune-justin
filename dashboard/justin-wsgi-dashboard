@@ -2922,7 +2922,7 @@ def listScopes(environ, user, cgiValues):
   output += ("<h1>Scopes</h1>")
   
   query = ('SELECT scope_name,wlcg_group_name,condor_group_name,'
-           'max_files_per_workflow '
+           'max_files_per_workflow,scopes.processing_enabled '
         'FROM scopes '
         'LEFT JOIN wlcg_groups '
         'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
@@ -2942,19 +2942,22 @@ def listScopes(environ, user, cgiValues):
              '<th>Scope</th>'
              '<th>WLCG Group</th>'
              '<th>HTCondor Group</th>'
-             '<th>Max input files</th></tr>')
+             '<th>Max input files</th>')
+             '<th>Processing enabled?</th></tr>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
                '<td>%s</td>' 
                '<td>%s</td>' 
-               '<td>%d</td></tr>' 
+               '<td>%d</td>' 
+               '<td>%s</td></tr>' 
                % (scopeRow['scope_name'],
                   scopeRow['wlcg_group_name'] 
                   if scopeRow['wlcg_group_name'] else ' ',
                   scopeRow['condor_group_name'] 
                   if scopeRow['condor_group_name'] else ' ',
-                  scopeRow['max_files_per_workflow']))
+                  scopeRow['max_files_per_workflow'],
+                  str(bool(scopeRow['processing_enabled'])) ))
 
   output += ("</table>\n<p>All HTCondor groups: ")
 
@@ -3598,7 +3601,8 @@ def showUser(environ, user, cgiValues):
   query = ('SELECT users.user_id,principal_name,created_time,expires_time,'
            'access_token_created,access_token_expires,access_token,'
            'LENGTH(access_token) AS access_token_len,'
-           'LENGTH(refresh_token) AS refresh_token_len '
+           'LENGTH(refresh_token) AS refresh_token_len,'
+           'users.processing_enabled '
            'FROM principal_names '
            'LEFT JOIN users '
            'ON principal_names.pn_id=users.main_pn_id '
@@ -3622,6 +3626,9 @@ def showUser(environ, user, cgiValues):
 
     output += ('<table><tr><td>User name</td><td>%s</td></tr>' 
                % userName)
+
+    output += ('<table><tr><td>Processing enabled?</td><td>%s</td></tr>' 
+               % str(bool(userRow['processing_enabled'])))
 
     output += ('<tr><td>Groups</td><td>%s</td></tr>' 
                % ' &nbsp; '.join(user['wlcg_groups']))
