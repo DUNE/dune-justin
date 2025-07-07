@@ -2942,7 +2942,7 @@ def listScopes(environ, user, cgiValues):
              '<th>Scope</th>'
              '<th>WLCG Group</th>'
              '<th>HTCondor Group</th>'
-             '<th>Max input files</th>')
+             '<th>Max input files</th>'
              '<th>Processing enabled?</th></tr>')
   
   for scopeRow in scopeRows:  

@@ -1089,36 +1089,42 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
     for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
       datasets = []
 
-      datasets.append({ 'metadata'         : datasetMetadata,
-                     'dataset_scope'    : jobscriptDict['scope'],
-                     'dataset_name'     : 'w%ds%dp%d-%s' 
-                               % (workflowID, stageID, intPatternID, rse),
-                     'rse_expression'   : rse,
-                     'lifetime_seconds' : 
-         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']})
-             
-      if resultsResponseDict['patterns'][strPatternID]['rse_expression']:
+      datasetName = 'w%ds%dp%d-%s' % (workflowID, stageID, intPatternID, rse)
+      if ('%s:%s' % (jobscriptDict['scope'], datasetName)) not in \
+            resultsResponseDict['existing_dataset_dids']:
         datasets.append({ 'metadata'         : datasetMetadata,
                           'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : destination + destinationNumber,
-                          'rse_expression'   : 
+                          'dataset_name'     : datasetName,
+                          'rse_expression'   : rse,
+                          'lifetime_seconds' : 
+         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']})
+
+
+      if ('%s:%s' % (jobscriptDict['scope'], destination+destinationNumber)) \
+         not in resultsResponseDict['existing_dataset_dids']:           
+        if resultsResponseDict['patterns'][strPatternID]['rse_expression']:
+          datasets.append({ 'metadata'         : datasetMetadata,
+                            'dataset_scope'    : jobscriptDict['scope'],
+                            'dataset_name'     : destination+destinationNumber,
+                            'rse_expression'   : 
          resultsResponseDict['patterns'][strPatternID]['rse_expression'],
                           'lifetime_seconds' : 
          resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
                         })      
-      else:      
-        datasets.append({ 'metadata'         : datasetMetadata,
-                          'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : destination + destinationNumber,
-                          'lifetime_seconds' : 
+        else:      
+          datasets.append({ 'metadata'         : datasetMetadata,
+                            'dataset_scope'    : jobscriptDict['scope'],
+                            'dataset_name'     : destination+destinationNumber,
+                            'lifetime_seconds' : 
          resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
                         })
 
-
-      datasets.append({ 'metadata'         : datasetMetadata,
-                        'dataset_scope'    : jobscriptDict['scope'],
-                        'dataset_name'     : destination,
-                        'lifetime_seconds' : 
+      if ('%s:%s' % (jobscriptDict['scope'], destination)) \
+          not in resultsResponseDict['existing_dataset_dids']:
+        datasets.append({ 'metadata'         : datasetMetadata,
+                          'dataset_scope'    : jobscriptDict['scope'],
+                          'dataset_name'     : destination,
+                          'lifetime_seconds' : 
          resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
                       })
 

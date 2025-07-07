@@ -1766,11 +1766,6 @@ def recordResultsMethod(startResponse, jsonDict):
     query = ("SELECT destination,rse_expression,"
              "for_next_stage,pattern_id,number_files,lifetime_seconds "
              "FROM stages_outputs "
-#             "LEFT JOIN stages "
-#             "ON stages.workflow_id=stages_outputs.workflow_id "
-#             "AND stages.stage_id=stages_outputs.stage_id "
-#             "LEFT JOIN workflows "
-#             "ON workflows.workflow_id=stages_outputs.workflow_id "
              "WHERE stages_outputs.workflow_id=%d "
              "AND stages_outputs.stage_id=%d" 
              % (jsonDict['workflow_id'], jsonDict['stage_id']))
@@ -1830,6 +1825,23 @@ def recordResultsMethod(startResponse, jsonDict):
 
       responseDict['patterns'][patternID]['rse_expression'] \
              = patternRow['rse_expression']
+
+  # List of datasets already created for this workflow/stage
+  try:
+    query = ("SELECT dataset_did "
+             "FROM workflows_datasets "
+             "WHERE workflow_id=%d AND stage_id=%d" 
+             % (jsonDict['workflow_id'], jsonDict['stage_id']))
+
+    datasetRows = justin.select(query)
+  except Exception as e:
+    return httpError(startResponse, 
+                     '500 Internal Server Error', 
+                     'Failed getting list of datasets: ' + str(e))
+
+  responseDict['existing_dataset_dids'] = []
+  for datasetRow in datasetRows:
+    responseDic['existing_dataset_dids'].append(datasetRow['dataset_did'])
 
   # Record output files
 
