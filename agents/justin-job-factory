@@ -120,7 +120,7 @@ def submitJobs(numberToSubmit,
 
   for (p, s) in (
    ('###justin_job_secret###',                 justinJobSecret),
-   ('###justin_prodev###',                     justin.proDev),
+   ('###justin_instance###',                   justin.instance),
    ('###justin_workflow_id###',                str(workflowID)),
    ('###justin_stage_id###',                   str(stageID)),
    ('###justin_jobscript_image###',            jobscriptImage),
@@ -180,13 +180,13 @@ def submitJobs(numberToSubmit,
 
   if workflowID == justin.awtWorkflowID:
     # Flag justIN AWT jobs
-    submitFile += '+JUSTIN_%s_AWT = True\n' % justin.proDev.upper()
+    submitFile += '+JUSTIN_%s_AWT = True\n' % justin.instance.upper()
   else:
     # Only include stage and entries ClassAds if not an AWT job
-    submitFile += ('+JUSTIN_%s_Stage = "w%ds%d"\n' 
+    submitFile += ('+JUSTIN_%s_Stage = "%s-w%ds%d"\n'
                    '+Desired_Entries = "%s"\n'
-                   % (justin.proDev.upper(), 
-                      workflowID, stageID, desiredEntryNames))
+                   % (justin.instance.upper(), 
+                      justin.instance, workflowID, stageID, desiredEntryNames))
 
   if requestedGPU:
    submitFile += '+RequestGPUs = 1\n'

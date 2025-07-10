@@ -117,7 +117,7 @@ def jobAborted(abortCode, abortedMethod, rseName):
                    }
 
   sendJsonURL(
-    'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+    'https://justin-allocator-###justin_instance###.dune.hep.ac.uk'
     '/api/allocator/job_aborted_'
      + str(abortCode),
     jobAbortedDict)
@@ -225,7 +225,7 @@ def executeJustinRucioUpload(args):
      'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
      '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-     '###justin_prodev###/NULL/bin/justin-rucio-upload '
+     '###justin_instance###/NULL/bin/justin-rucio-upload '
      '--tries 3 %s 2>&1' % args)
 
   ret = os.system(cmd)
@@ -498,7 +498,7 @@ def createDatasets(datasets):
      'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
      'metacat auth login -m x509 dunepro ; '
      '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-     '###justin_prodev###/NULL/jobutils/justin-job-datasets')
+     '###justin_instance###/NULL/jobutils/justin-job-datasets')
      
     logLine('Try %d/3 of executing these commands in a subshell: %s' % (i, cmd))
 
@@ -556,7 +556,7 @@ os.makedirs('home/workspace')
 # Make jobutils scripts available to jobscripts in a known location
 for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
   os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-             '###justin_prodev###/NULL/jobutils/' + i, 'home/' + i)
+             '###justin_instance###/NULL/jobutils/' + i, 'home/' + i)
 
 # Log the visible IP addresses and interfaces
 os.system('/usr/sbin/ip addr')
@@ -634,7 +634,7 @@ for i in range(1,6):
   logLine('====end justin-get-stage.json====')
 
   jobscriptDict = sendJsonURL(
-    'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+    'https://justin-allocator-###justin_instance###.dune.hep.ac.uk'
     '/api/allocator/get_jobscript',
     getJobscriptDict)
 
@@ -664,7 +664,7 @@ if os.fork() == 0:
   while os.getppid() == jobPID:
     logLine('--- Sending heartbeat ---')
     heartbeatDict = \
-      sendJsonURL('https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+      sendJsonURL('https://justin-allocator-###justin_instance###.dune.hep.ac.uk'
                 '/api/allocator/send_heartbeat',
                 { "method" : "send_heartbeat" },
                 timeout = 600
@@ -685,7 +685,7 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export RUCIO_ACCOUNT=justinreadonly\n')
 
   f.write('export JUSTIN_ALLOCATOR='
-   'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk/api/allocator/\n')
+   'https://justin-allocator-###justin_instance###.dune.hep.ac.uk/api/allocator/\n')
   f.write('export JUSTIN_SITE_NAME=%s\n' % jobscriptDict['site_name'])
   f.write('export JUSTIN_WORKFLOW_ID=%d\n' % workflowID)
   f.write('export JUSTIN_STAGE_ID=%d\n' % stageID)
@@ -910,7 +910,7 @@ except:
 
 logLine('record results: ' + str(recordResultsDict))
 resultsResponseDict = sendJsonURL(
- 'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+ 'https://justin-allocator-###justin_instance###.dune.hep.ac.uk'
  '/api/allocator/record_results', 
  recordResultsDict)
 
@@ -1089,7 +1089,8 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
     for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
       datasets = []
 
-      datasetName = 'w%ds%dp%d-%s' % (workflowID, stageID, intPatternID, rse)
+      datasetName = '###justin_instance###-w%ds%dp%d-%s' \
+                    % (workflowID, stageID, intPatternID, rse)
       if ('%s:%s' % (jobscriptDict['scope'], datasetName)) not in \
             resultsResponseDict['existing_dataset_dids']:
         datasets.append({ 'metadata'         : datasetMetadata,
@@ -1242,7 +1243,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
 logLine('confirm results: ' + str(confirmResultsDict))
 confirmDict = sendJsonURL(
-  'https://justin-allocator-###justin_prodev###.dune.hep.ac.uk'
+  'https://justin-allocator-###justin_instance###.dune.hep.ac.uk'
   '/api/allocator/confirm_results',
   confirmResultsDict)
 

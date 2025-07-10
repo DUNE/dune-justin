@@ -65,7 +65,8 @@ wlcgGroups          = None
 justinAdmins        = None
 justinJobsUser      = None
 agentUsername       = None
-proDev              = None
+instance            = None
+dashboardURL        = None
 htcondorSchedds     = None
 keepWrapperFiles    = None
 extraEntries        = None
@@ -178,7 +179,7 @@ for (eventLabel, eventID, eventText) in eventsList:
 def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
-         proDev, wlcgGroups, justinJobsUser, justinAdmins, \
+         instance, dashboardURL, wlcgGroups, justinJobsUser, justinAdmins, \
          nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
@@ -203,6 +204,12 @@ def readConf():
   parser.read('/etc/justin.conf')
 
   # Options for the [database] section
+
+  try:
+    instance = parser.get('database','pro_dev').strip()
+  except:
+    # In case of misconfiguration, the default is dev
+    instance = 'dev'
 
   try:
     mysqlUsername = parser.get('database','username').strip()
@@ -268,12 +275,6 @@ def readConf():
     agentUsername = parser.get('agents','username').strip()
   except:
     agentUsername = 'dunejustin'
-
-  try:
-    proDev = parser.get('agents','pro_dev').strip()
-  except:
-    # In case of misconfiguration, the default is dev
-    proDev = 'dev'
 
   try:
     overloadRucioMilliseconds = int(
@@ -358,6 +359,15 @@ def readConf():
     bannerMessage = parser.get('dashboard', 'banner_message').strip()
   except:
     bannerMessage = ''
+
+  try:
+    # URL of dashboard without trailing space
+    dashboardURL = parser.get('dashboard', 'url').strip()
+    
+    if dashboardURL[-1] == '/':
+      dashboardURL = dashboardURL[:-1]
+  except:
+    dashboardURL = 'https://justin-%s.dune.hep.ac.uk' % instance'
 
   # FNAL Agent
   try:

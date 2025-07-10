@@ -2599,10 +2599,11 @@ def showJob(environ, user, cgiValues):
   output += ('<tr><td>Job state</td>'
              '<td colspan="2">%s</td></tr>'
              % jobRow["job_state"])
-      
-  output += ('<tr><td>Allocator name</td>'
-             '<td colspan="2">%s</td></tr>'
-             % html.escape(jobRow["allocator_name"], quote=True))
+
+# SSCM      
+#  output += ('<tr><td>Allocator name</td>'
+#             '<td colspan="2">%s</td></tr>'
+#             % html.escape(jobRow["allocator_name"], quote=True))
 
   output += ('<tr><td>Started</td>'
              '<td colspan="2">%s</td></tr>'

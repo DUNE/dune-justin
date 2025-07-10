@@ -254,17 +254,17 @@ def getClassadsCall(startResponse, environ):
       rankText = updateSitesRankCache(siteName)
       releaseCacheLock('justin_allocator_ranks_cache')
 
-  if justin.proDev == 'dev':
-    justinRank = ('isUndefined(Target.JUSTIN_DEV_Stage)'
-                    '?My.JUSTIN_PRO_Rank:My.JUSTIN_DEV_Rank')
-  else:
-    justinRank = 'My.JUSTIN_PRO_Rank'
+#  if justin.instance == 'dev':
+#    justinRank = ('isUndefined(Target.JUSTIN_DEV_Stage)'
+#                    '?My.JUSTIN_PRO_Rank:My.JUSTIN_DEV_Rank')
+#  else:
+  justinRank = 'My.JUSTIN_%s_Rank' % justin.instance.upper()
 
   # Return ClassAds to be published by the pilot/glidein
   # Non-justIN jobs get rank 0 or 101
   # If a justIN job has a stage not listed in the rankText dictionary
   # then it gets rank Undefined which equals 0
-  proDevUpper = justin.proDev.upper()
+  instanceUpper = justin.instance.upper()
   return httpOK(startResponse, 
            "JUSTIN_%s_ClassAds_Time %d\n"
            "JUSTIN_%s_Stage_Ranks_Raw %s\n"
@@ -275,12 +275,12 @@ def getClassadsCall(startResponse, environ):
            "JUSTIN_%s_Rank isUndefined(Target.JUSTIN_%s_Stage)"
              "?%d:My.JUSTIN_%s_Stage_Ranks[Target.JUSTIN_%s_Stage]\n"
            "Rank %s\n"
-              % (proDevUpper, int(time.time()),
-                 proDevUpper, rankText,
-                 proDevUpper, proDevUpper, proDevUpper, proDevUpper,
-                 proDevUpper, proDevUpper, 
+              % (instanceUpper, int(time.time()),
+                 instanceUpper, rankText,
+                 instanceUpper, instanceUpper, instanceUpper, instanceUpper,
+                 instanceUpper, instanceUpper, 
                    101 if (random.random() < justin.nonJustinFraction) else 0,
-                   proDevUpper, proDevUpper,
+                   instanceUpper, instanceUpper,
                  justinRank)
                 )
 

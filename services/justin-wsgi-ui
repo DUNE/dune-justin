@@ -1,7 +1,7 @@
 #
 # justin-wsgi-ui - justIN commands and info API service
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -649,10 +649,10 @@ def createWorkflow(jsonDict, user, simple = False):
     return ('500 Internal Server Error', 
             'Error creating workflow: ' + str(e))
 
-  if justin.proDev != 'pro' and workflowID >= 1000:
+  if justin.instance != 'pro' and workflowID >= 1000:
     return ('500 Internal Server Error', 
             'The %s database needs resetting - too many workflows created' 
-            % justin.proDev)
+            % justin.instance)
 
   return ('200 OK', workflowID)
 
@@ -962,7 +962,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
         if destination:
           destination += '-'
 
-        destination += 'w%ds%dp%d' % (workflowID, stageID, patternID)
+        destination += '%s-w%ds%dp%d' \
+                       % (justin.instance, workflowID, stageID, patternID)
         destination = justin.expandEnvVars(destination, justinEnvVars)
 
       else:
@@ -992,7 +993,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       if destination:
         destination += '-'
 
-      destination += 'w%ds%dp%d' % (workflowID, stageID, patternID)
+      destination += '%s-w%ds%dp%d' \
+                     % (justin.instance, workflowID, stageID, patternID)
       destination = justin.expandEnvVars(destination, justinEnvVars)
       outputPatterns.append((True, pattern, destination, patternID))
       patternID += 1
@@ -1033,7 +1035,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
           destination = destination[:-1]
 
         # Add Workflow ID and Stage ID and patternID to URL
-        destination = destination + '/%05d/%d' % (workflowID, stageID)
+        destination = destination + \
+                      '/%s/%05d/%d' % (justin.instance, workflowID, stageID)
     else:
         if lifetimeDays == 0:
           return ('400 Bad Request',
@@ -1621,13 +1624,13 @@ def newSession(startResponse, environ, jsonDict):
 '''
 To authorize this computer to run the justin command, visit this page with your
 usual web browser and follow the instructions within the next 10 minutes:
-https://justin%s.dune.hep.ac.uk/authorize/%s
+%s/authorize/%s
 
 Check that the Session ID displayed on that page is %s
 
 Once you've followed the instructions on that web page, you can run the justin
 command without needing to authorize this computer again for 7 days.
-''' % ('' if (justin.proDev == 'pro') else ('-' + justin.proDev),
+''' % (justin.dashboardURL,
        justinCode, justinSession[:7])
    
   return httpError(startResponse, 

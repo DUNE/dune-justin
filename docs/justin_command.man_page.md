@@ -25,6 +25,13 @@ This man page is distributed along with the
     	      service.
     
     
+           --instance INST
+    	      Use an alternative justIN service, rather than "fnal" instance
+    	      at Fermilab.  This option is normally only needed during
+    	      development and testing, and it may be convenient to set this
+    	      option via $JUSTIN_OPTIONS described in Environment below.
+    
+    
            --url URL
     	      Use an alternative justIN service, rather than https://justin-
     	      ui-pro.dune.hep.ac.uk/api/commands This option is only needed
@@ -64,10 +71,10 @@ This man page is distributed along with the
     
     	      --htcondor-group GROUP specifies the HTCondor group used when
     	      justIN submits jobs for this workflow. By default the scope's
-    	      own default group is used. If this option is used, the first two
-    	      parts of the selected group must match the first two parts of
-    	      the scope's default group. For example, "group_dune" and "prod"
-    	      if the scope's group is "group_dune.prod.mcsim"
+    	      own default group is used. If this option is given, the first
+    	      two parts of the selected group must match the first two parts
+    	      of the scope's default group. For example, "group_dune" and
+    	      "prod" if the scope's group is "group_dune.prod.mcsim"
     
     	      The options --refind-interval-hours (default 1) and
     	      --refind-end-date (default: today in UTC) can be used to cause
@@ -175,10 +182,10 @@ This man page is distributed along with the
     	      resulting output files placed there. The user's token from the
     	      justIN dashboard is used for the upload.	If an https:// URL is
     	      not given, DESTINATION is used when constructing the output
-    	      dataset names. Datasets have the form DESTINATIION-wXsYpZ where
-    	      X is the workflow ID, Y is the stage, and Z is the output
-    	      pattern ID number, starting from 1.  If DESTINATION is not given
-    	      then only the form wXsYpZ is used.
+    	      dataset names. Datasets have the form DESTINATION-INST-wXsYpZ
+    	      where INST is the instance, X is the workflow ID, Y is the
+    	      stage, and Z is the output pattern ID number, starting from 1.
+    	      If DESTINATION is not given then only the form wXsYpZ is used.
     
     	      Files for Rucio-managed storage may have a corresponding JSON
     	      metadata file with the same name but with ".json" appended, that

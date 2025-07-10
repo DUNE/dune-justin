@@ -996,8 +996,10 @@ def finishWorkflows():
   
     try:
       gen = didClient.list_dids(workflowRow['scope_name'], 
-                  [{'name':'*-w%ds*p*' % int(workflowRow['workflow_id'])},
-                   {'name':'w%ds*p*'  % int(workflowRow['workflow_id'])}], 
+                  [{'name':'*-%s-w%ds*p*' 
+                    % (justin.instance, int(workflowRow['workflow_id']))},
+                   {'name':'%s-w%ds*p*' 
+                     % (justin.instance, int(workflowRow['workflow_id']))}], 
                   'dataset', True, False)
     except Exception as e:
       justin.logLine("list_dids() fails, skipping workflow %d: %s" 

@@ -230,6 +230,10 @@ parser.add_argument("--workflow-id-file",
                     type = str,
                     help = "Workflow ID file")
 
+parser.add_argument("--instance",
+                    type = str,
+                    help = "justIN instance to use")
+
 parser.add_argument("--url",
                     type = str,
                     help = "justIN service to contact")
@@ -384,10 +388,13 @@ if jsonDict['verbose']:
 
 # Set up workflow contexts to send the command to justIN 
 
-if jsonDict['url']:
+if jsonDict['instance']:
+  url = 'https://justin-ui-%s.dune.hep.ac.uk/api/commands' \
+        % jsonDict['instance']
+elif jsonDict['url']:
   url = jsonDict['url']
 else:
-  url = 'https://justin-ui-pro.dune.hep.ac.uk/api/commands'
+  url = 'https://justin-ui-fnal.dune.hep.ac.uk/api/commands'
 
 try:
   (session, secret) = open(sessionFile, 'r').read().split()

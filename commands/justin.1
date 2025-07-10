@@ -22,6 +22,14 @@ Show help message and exit
 Turn on verbose logging of the communication with justIN service.
 
 .HP 
+.B "--instance INST"
+.br
+Use an alternative justIN service, rather than "fnal" instance at Fermilab. 
+This option is normally only needed during development and testing, and 
+it may be convenient to set this option via $JUSTIN_OPTIONS described in 
+Environment below.
+
+.HP 
 .B "--url URL"
 .br
 Use an alternative justIN service, rather than 
@@ -190,8 +198,8 @@ with or without a trailing slash. Nested subdirectories for workflow ID and
 stage ID will be added, and resulting output files placed there. The user's
 token from the justIN dashboard is used for the upload.
 If an https:// URL is not given, DESTINATION is used when constructing 
-the output dataset names. Datasets have the form DESTINATIION-wXsYpZ
-where X is the workflow ID, Y is the stage, and Z is
+the output dataset names. Datasets have the form DESTINATION-INST-wXsYpZ
+where INST is the instance, X is the workflow ID, Y is the stage, and Z is
 the output pattern ID number, starting from 1. 
 If DESTINATION is not given then only the form wXsYpZ is used. 
 
