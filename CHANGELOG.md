@@ -11,6 +11,7 @@
   overloaded in Rucio ping test.
 - Only last hour of activity used when deciding to pause workflows to 
   allow restarts 
+- Add --instance and generalized instance support
 
 ## 01.03.00
 - Add finishing state to workflows and close Rucio datasets automatically
