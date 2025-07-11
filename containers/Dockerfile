@@ -20,7 +20,7 @@
 # Build with:
 #
 # cd dune-justin
-# docker/build-justin-container
+# containers/build-justin-container
 #
 # Run agents with provided systemd .service files
 #

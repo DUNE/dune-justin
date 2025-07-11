@@ -1,7 +1,7 @@
 #!/bin/sh
-# Build Docker image for justIN agents and services on AlmaLinux 9
+# Build container image for justIN agents and services on AlmaLinux 9
 #
-# Copyright 2013-24 
+# Copyright 2013-25
 # Raja Nandakumar for UKRI Science and Technology Facilities Council
 # Andrew McNab for the University of Manchester
 # 
@@ -25,7 +25,10 @@ fi
 
 source modules/justin_version.py
 
-docker build --platform linux/amd64 --tag justin:$justinVersion \
+podman build --platform linux/amd64 --tag justin:$justinVersion \
              --file containers/Dockerfile .
 
-docker save --output /tmp/justin.tar justin:$justinVersion
+#docker build --platform linux/amd64 --tag justin:$justinVersion \
+#             --file containers/Dockerfile .
+
+#docker save --output /tmp/justin.tar justin:$justinVersion

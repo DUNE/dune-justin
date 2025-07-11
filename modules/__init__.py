@@ -367,7 +367,7 @@ def readConf():
     if dashboardURL[-1] == '/':
       dashboardURL = dashboardURL[:-1]
   except:
-    dashboardURL = 'https://justin-%s.dune.hep.ac.uk' % instance'
+    dashboardURL = 'https://justin-%s.dune.hep.ac.uk' % instance
 
   # FNAL Agent
   try:
