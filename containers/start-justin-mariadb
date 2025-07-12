@@ -1,0 +1,29 @@
+#!/bin/sh
+# Start justin-mariadb, for execution inside the justin container
+# The database files are in the volume shared at /var/lib/mysql
+#
+# Copyright 2013-25 Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# All processes get this defined
+echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
+
+# Try to initialise iff not already initialised
+if [ ! -d /var/lib/mysql/mysql ] ; then
+  mariadb-install-db --user=mysql --datadir=/var/lib/mysql
+fi
+
+# Run daemon in the foreground
+mariadbd-safe --log-error=/var/log/justin/mariadb

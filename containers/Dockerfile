@@ -41,7 +41,7 @@ RUN yum update -y
 
 # Install the RPMs we need
 RUN yum install -y git joe util-linux-user
-RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
+RUN yum install -y mariadb mariadb-server python3-PyMySQL python3-pyyaml
 RUN yum install -y make which nano procps-ng python3-pip
 RUN yum install -y python3-devel gcc swig openssl-devel
 RUN yum install -y gfal2-all python3-gfal2
@@ -127,6 +127,7 @@ COPY *.md                               /var/www/html/docs/
 COPY containers/02_dune_condor.conf     /etc/condor/config.d/
 COPY containers/justin-client.cnf       /etc/my.cnf.d/
 
+COPY containers/start-justin-mariadb        /usr/sbin/
 COPY containers/start-justin-httpd          /usr/sbin/
 COPY containers/start-justin-finder         /usr/sbin/
 COPY containers/start-justin-fnal-agent     /usr/sbin/
