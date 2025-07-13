@@ -12,11 +12,12 @@ fi
 
 tag=`podman images --format 'table {{.Tag}}' | head -2 | tail -1`
 
-exec podman run --rm --name $1 \
+podman run --detach --rm --name $1 \
   --env=CONTAINER_NAME=$1 \
   --volume $JUSTIN_VOLUMES/etc/justin.d:/etc/justin.d \
   --volume $JUSTIN_VOLUMES/etc/justin-secrets:/etc/justin-secrets \
   --volume $JUSTIN_VOLUMES/var/log/justin:/var/log/justin \
   --volume $JUSTIN_VOLUMES/var/run/justin:/var/run/justin \
   $extras justin:$tag \
-  /usr/sbin/start-$1
+  /usr/sbin/start-$1 \
+  >>$JUSTIN_VOLUMES/var/log/justin/justin-podman-wrapper-$1.log 2>&1

@@ -3,6 +3,8 @@ USE `justindb`;
 
 CREATE USER IF NOT EXISTS 'dunejustin'@'%' IDENTIFIED BY PASSWORD 'badbadbadbadbadbadbadbadbadbadbadbadbadba';
 GRANT ALL ON justindb.* TO 'dunejustin'@'%';
+# Update with real password manually with:
+# ALTER USER dunejustin IDENTIFIED BY 'REALPASSWORDHERE';
 
 CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
