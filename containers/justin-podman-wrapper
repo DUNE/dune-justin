@@ -13,7 +13,7 @@ fi
 # Create justin-pod if not already existing
 podman pod exists justin-pod
 if [ $? != 0 ] ; then
-  podman pod create --publish 3306:3306 --publish 80:80 --publish 443:443 \
+  podman pod create --publish 3306:3306 --publish 8080:80 --publish 8443:443 \
                     justin-pod
 fi
 
