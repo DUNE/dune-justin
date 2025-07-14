@@ -25,7 +25,8 @@ fi
 
 source modules/justin_version.py
 
-podman build --platform linux/amd64 --tag justin:$justinVersion \
+podman build --build-arg DUNEJUSTIN_ID=`id -u dunejustin` \
+             --platform linux/amd64 --tag justin:$justinVersion \
              --file containers/Dockerfile .
 
 #docker build --platform linux/amd64 --tag justin:$justinVersion \

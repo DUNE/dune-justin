@@ -1,0 +1,17 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN mariadb
+After=sshd.service
+#Requires=podman.service
+
+[Service]
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStop=-/usr/bin/podman stop %N
+ExecStartPre=-/usr/bin/podman stop %N
+ExecStartPre=-/usr/bin/podman rm %N
+ExecStart=/usr/sbin/justin-podman-wrapper justin-mariadb
+
+[Install]
+WantedBy=multi-user.target
