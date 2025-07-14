@@ -28,7 +28,7 @@
 FROM almalinux:9
 
 # Setup dunejustin, yum files, and update the base OS
-RUN useradd --uid 1026 --user-group dunejustin
+RUN useradd --uid `id -u dunejustin` --user-group dunejustin
 RUN dnf install -y epel-release
 RUN dnf config-manager --set-enabled crb
 RUN yum -y install \
