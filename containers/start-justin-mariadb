@@ -23,8 +23,8 @@ echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 # Try to initialise iff not already initialised
 if [ ! -d /var/lib/mysql/mysql ] ; then
   mariadb-install-db --user=root --datadir=/var/lib/mysql \
-    >>/var/log/justin/mariadb 2>&1
+    >>/var/log/mysql/mariadb.log 2>&1
 fi
 
 # Run daemon in the foreground
-mariadbd-safe --log-error=/var/log/justin/mariadb
+mariadbd-safe --log-error=/var/log/mysql
