@@ -2,7 +2,7 @@
 #
 # justin-job-factory - justIN Job Factory
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -250,9 +250,13 @@ queue %d
                ['/usr/bin/condor_submit',
                 '-name',
                 scheddHostname,
+                '-pool',
+                justin.htcondorCollector[0],
                 '-spool',
                 '-terse'
                ],
+               env      = dict(os.environ, 
+                 BEARER_TOKEN_FILE='/etc/justin-secrets/bearer-token-file'),
                input    = submitFile,
                encoding = 'utf-8',
                stderr   = subprocess.STDOUT,

@@ -1061,10 +1061,12 @@ def updateGroupsHTCondor():
     outcome = subprocess.run(
                ['/usr/bin/condor_userprio',
                 '-pool',
-                'dunegpcoll01.fnal.gov',
+                justin.htcondorCollectors[0],
                 '-quotas',
                 '-allusers'
                ],
+               env      = dict(os.environ, 
+                 BEARER_TOKEN_FILE='/etc/justin-secrets/bearer-token-file'),
                encoding = 'utf-8',
                stderr   = subprocess.STDOUT,
                stdout   = subprocess.PIPE,
