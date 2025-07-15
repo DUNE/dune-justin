@@ -6,23 +6,26 @@
 export JUSTIN_VOLUMES=/build/dunejustin/volumes
 
 if [ "$1" == "justin-httpd" ] ; then
-  extras="--volume $JUSTIN_VOLUMES/etc/justin-letsencrypt:/etc/justin-letsencrypt --volume $JUSTIN_VOLUMES/var/log/httpd:/var/log/httpd"
+  extras="--publish 80:80 --publish 443:443 --volume $JUSTIN_VOLUMES/etc/justin-letsencrypt:/etc/justin-letsencrypt --volume $JUSTIN_VOLUMES/var/log/httpd:/var/log/httpd"
 fi
 
 if [ "$1" == "justin-mariadb" ] ; then
-  extras="--volume $JUSTIN_VOLUMES/var/lib/mysql:/var/lib/mysql --volume $JUSTIN_VOLUMES/var/log/mysql:/var/log/mysql"
+# No more justin-mariadb?
+  exit 1
+#  extras="--volume $JUSTIN_VOLUMES/var/lib/mysql:/var/lib/mysql --volume $JUSTIN_VOLUMES/var/log/mysql:/var/log/mysql"
 fi
 
-# Create justin-pod if not already existing
-podman pod exists justin-pod
-if [ $? != 0 ] ; then
-  podman pod create --publish 3306:3306 --publish 80:80 --publish 443:443 \
-                    justin-pod
-fi
+## Create justin-pod if not already existing
+#podman pod exists justin-pod
+#if [ $? != 0 ] ; then
+#  podman pod create --publish 3306:3306 --publish 80:80 --publish 443:443 \
+#                    justin-pod
+#fi
 
 tag=`podman images --format 'table {{.Tag}} {{.Repository}}' | grep 'localhost/justin' | cut -f1 -d' ' | head -1`
 
-podman run --rm --name $1 --pod justin-pod --privileged \
+# --pod justin-pod
+podman run --rm --name $1 --privileged \
   --env=CONTAINER_NAME=$1 \
   --volume $JUSTIN_VOLUMES/etc/justin.d:/etc/justin.d \
   --volume $JUSTIN_VOLUMES/etc/justin-secrets:/etc/justin-secrets \
@@ -30,4 +33,3 @@ podman run --rm --name $1 --pod justin-pod --privileged \
   --volume $JUSTIN_VOLUMES/var/run/justin:/var/run/justin \
   $extras justin:$tag \
   /usr/sbin/start-$1 
- 
