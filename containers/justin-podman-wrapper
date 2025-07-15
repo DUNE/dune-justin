@@ -22,7 +22,7 @@ fi
 
 tag=`podman images --format 'table {{.Tag}} {{.Repository}}' | grep 'localhost/justin' | cut -f1 -d' ' | head -1`
 
-podman run --rm --name $1 --pod justin-pod \
+podman run --rm --name $1 --pod justin-pod --privileged \
   --env=CONTAINER_NAME=$1 \
   --volume $JUSTIN_VOLUMES/etc/justin.d:/etc/justin.d \
   --volume $JUSTIN_VOLUMES/etc/justin-secrets:/etc/justin-secrets \
