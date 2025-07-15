@@ -9,14 +9,16 @@
 cluster="$1"
 proc="$2"
 schedd="$3"
+collector="$4"
 
-condor_transfer_data -name "$schedd" "$cluster.$proc" >/dev/null 2>&1
+condor_transfer_data -name "$schedd" -pool "$collector" "$cluster.$proc" \
+ >/dev/null 2>&1
 ctd_err=$?
 
 echo "======="
-echo "======= Start of condor_q -better -name $schedd $cluster.$proc output"
+echo "======= Start of condor_q -better -name $schedd -pool $collector $cluster.$proc output"
 echo "======="
-/usr/bin/condor_q -better -name "$schedd" "$cluster.$proc"
+/usr/bin/condor_q -better -name "$schedd" -pool "$collector" "$cluster.$proc"
 cqb_err=$?
 echo "======="
 echo "======= Start of job $cluster.$proc@$schedd log"
@@ -27,9 +29,9 @@ else
  echo '(missing - deleted?)'
 fi
 echo "======="
-echo "======= Start of condor_q -name $schedd -long $cluster.$proc"
+echo "======= Start of condor_q -name $schedd -pool "$collector" -long $cluster.$proc"
 echo "======="
-/usr/bin/condor_q -name "$schedd" -long "$cluster.$proc"
+/usr/bin/condor_q -name "$schedd" -pool $collector -long "$cluster.$proc"
 cq_err=$?
 echo
 echo "======="

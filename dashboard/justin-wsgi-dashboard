@@ -2416,8 +2416,9 @@ def outputWrapperLog(startResponse, environ, user):
     # Not cached so try to get it from HTCondor (for an active job?)
     try:
       output = ('Live log for %d.%d@%s :\n\n' % (cluster, proc, schedd)
-                + os.popen('/var/lib/justin/justin-get-output %d %d %s'
-                      % (cluster, proc, schedd), 'r').read())
+                + os.popen('/var/lib/justin/justin-get-output %d %d %s %s'
+                      % (cluster, proc, schedd, 
+                         justin.htcondorCollectors[0]), 'r').read())
     except Exception as e:
       print(environ['REQUEST_URI'], str(e), file=sys.stderr)
       startResponse('302 Moved', [('Location', '/dashboard/'),

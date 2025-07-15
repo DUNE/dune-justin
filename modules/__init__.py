@@ -68,6 +68,7 @@ agentUsername       = None
 instance            = None
 dashboardURL        = None
 htcondorSchedds     = None
+htcondorCollectors  = None
 keepWrapperFiles    = None
 extraEntries        = None
 
@@ -180,7 +181,8 @@ def readConf():
   global mysqlUsername, mysqlPassword, mysqlHostname, mysqlDbName, \
          cilogonClientID, cilogonSecret, agentUsername,  \
          instance, dashboardURL, wlcgGroups, justinJobsUser, justinAdmins, \
-         nonJustinFraction, htcondorSchedds, metacatAuthServerURL, \
+         nonJustinFraction, htcondorSchedds, htcondorCollectors, \
+         metacatAuthServerURL, \
          metacatServerInputsURL, metacatServerOutputsURL, \
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
          wrapperJobImage, overloadRucioMilliseconds, \
@@ -329,6 +331,18 @@ def readConf():
   except:
     htcondorSchedds = [ 'justin-prod-sched01.dune.hep.ac.uk',
                         'justin-prod-sched02.dune.hep.ac.uk' ]
+
+  try:
+    a = parser.get('htcondor','collectors').strip()
+    htcondorCollectors = []
+    for a in a.split():
+      if not stringIsDomain(a):
+        raise 
+      htcondorCollectors.append(a.strip().lower())
+  except:
+    htcondorCollectors = [ 'dunegpcoll01.fnal.gov',
+                           'dunegpcoll02.fnal.gov' ]
+
   try:
     keepWrapperFiles = bool(parser.get('htcondor','keep_wrapper_files').strip())
   except:
