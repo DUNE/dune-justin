@@ -27,4 +27,4 @@ if [ ! -d /var/lib/mysql/mysql ] ; then
 fi
 
 # Run daemon in the foreground
-mariadbd-safe --log-error=/var/log/mysql
+mariadbd-safe --log-error=/var/log/mysql >>/var/log/mysql/mariadbd-safe.log 2>&1
