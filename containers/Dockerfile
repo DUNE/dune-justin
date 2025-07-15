@@ -99,6 +99,7 @@ COPY agents/justin-job-factory        /usr/sbin/
 
 RUN  mkdir -p             /opt/rucio/etc/
 COPY containers/rucio.cfg /opt/rucio/etc/rucio.cfg
+RUN /bin/echo "client_x509_proxy = /tmp/x509up_u${DUNEJUSTIN_ID}" >>/opt/rucio/etc/rucio.cfg
 
 RUN mkdir -p /var/lib/justin
 COPY agents/justin-wrapper-job /var/lib/justin/

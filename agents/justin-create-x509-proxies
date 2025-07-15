@@ -36,8 +36,8 @@ voms-proxy-init \
 if [ $? = 0 -a -s /tmp/justin-jobs-production.proxy.pem.tmp ]
 then
   cp -f /tmp/justin-jobs-production.proxy.pem.tmp \
-        /tmp/x509up_u1026
-  chown dunejustin.dunejustin /tmp/x509up_u1026
+        /tmp/x509up_u`id -u dunejustin`
+  chown dunejustin.dunejustin /tmp/x509up_u`id -u dunejustin`
 
   chown $HTTPD_USER_GROUP /tmp/justin-jobs-production.proxy.pem.tmp
   mv -f /tmp/justin-jobs-production.proxy.pem.tmp \
