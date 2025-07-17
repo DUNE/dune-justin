@@ -251,7 +251,7 @@ queue %d
                 '-name',
                 scheddHostname,
                 '-pool',
-                justin.htcondorCollector[0],
+                justin.htcondorCollectors[0],
                 '-spool',
                 '-terse'
                ],

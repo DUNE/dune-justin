@@ -224,7 +224,7 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `mql` text NOT NULL,
   PRIMARY KEY (`workflow_id`),
   INDEX `state` (`state`)
-) ENGINE=InnoDB AUTO_INCREMENT=500 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `archived_workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
