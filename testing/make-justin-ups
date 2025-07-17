@@ -2,7 +2,7 @@
 #
 # make-justin-ups - package justIN commands for UPS in cvmfs
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@
 # testing/make-justin-ups --default
 #
 
-export JUSTIN_VERSION=01.04.rc1
+export JUSTIN_VERSION=01.04.00
 
 export MJU_GIT_DIR=`mktemp -d /tmp/mju_git_XXXXXX`
 ( cd $MJU_GIT_DIR
