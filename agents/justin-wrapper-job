@@ -1177,7 +1177,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
     # Add the file to the per-RSE dataset
     (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
-                                       '"%s:w%ds%dp%d-%s"' 
+                                       '"%s:###justin_instance###-w%ds%dp%d-%s"' 
                                 % ( jobscriptDict['scope'], fileName,
                                     jobscriptDict['scope'], 
                                     workflowID, stageID, intPatternID, rse
@@ -1185,7 +1185,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
                                       )
 
     if ret:
-      logLine('Failed to add %s:%s to %s:w%ds%dp%d-%s' 
+      logLine('Failed to add %s:%s to %s:###justin_instance###-w%ds%dp%d-%s' 
           % (jobscriptDict['scope'], fileName, 
              jobscriptDict['scope'], workflowID, stageID, intPatternID, rse))
       jobAborted(319, 'metacat_registration', '')
