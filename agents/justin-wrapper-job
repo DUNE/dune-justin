@@ -1149,7 +1149,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
       ret = executeJustinRucioUpload('--rse %s '
                                      '--protocol %s '
                                      '--scope %s '
-                                     '--dataset w%ds%dp%d-%s '
+                                     '--dataset ###justin_instance###-w%ds%dp%d-%s '
                                      '--dataset %s '
                                      '--dataset %s '
                                      '--timeout 1200 '
