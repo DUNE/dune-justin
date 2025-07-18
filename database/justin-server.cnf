@@ -1,5 +1,6 @@
 # Copy to /etc/my.cnf.d/justin-server.cnf
 [server]
+default-time-zone='+00:00'
 max_connections = 300
 ssl
 ssl-cipher=DHE-RSA-AES256-SHA

@@ -12,7 +12,7 @@ schedd="$3"
 collector="$4"
 
 condor_transfer_data -name "$schedd" -pool "$collector" "$cluster.$proc" \
- >/dev/null 2>&1
+ >/tmp/justin-wrapper-$cluster.$proc.$schedd.ctd 2>&1
 ctd_err=$?
 
 echo "======="
@@ -26,7 +26,7 @@ echo "======="
 if [ -r "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" ] ; then
  cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.log"
 else
- echo '(missing - deleted?)'
+ echo 'Missing - deleted? not ready?'
 fi
 echo "======="
 echo "======= Start of condor_q -name $schedd -pool "$collector" -long $cluster.$proc"
@@ -40,7 +40,11 @@ echo "======="
 if [ -r "/tmp/justin-wrapper-$cluster.$proc.$schedd.out" ] ; then
  cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
 else
- echo '(missing - deleted?)'
+ echo 'Missing - deleted? not ready?'
+ echo
+ echo "condor_transfer_data output ($ctd_err):"
+ echo
+ cat /tmp/justin-wrapper-$cluster.$proc.$schedd.ctd
 fi
 rm -f "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" \
       "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"

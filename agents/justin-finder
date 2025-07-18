@@ -1600,7 +1600,9 @@ def fetchHTCondorJobLog(jobsubID):
     outcome = subprocess.run(['/var/lib/justin/justin-get-output',
                               str(cluster),
                               str(proc),
-                              str(schedd)],
+                              str(schedd),
+                              justin.htcondorCollectors[0]
+                             ],
                               encoding = 'utf-8',
                               stderr   = subprocess.STDOUT,
                               stdout   = subprocess.PIPE,

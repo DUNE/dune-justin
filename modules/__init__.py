@@ -208,7 +208,7 @@ def readConf():
   # Options for the [database] section
 
   try:
-    instance = parser.get('database','pro_dev').strip()
+    instance = parser.get('database','instance').strip()
   except:
     # In case of misconfiguration, the default is dev
     instance = 'dev'
