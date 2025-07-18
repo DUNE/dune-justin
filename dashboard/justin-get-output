@@ -11,8 +11,10 @@ proc="$2"
 schedd="$3"
 collector="$4"
 
-condor_transfer_data -name "$schedd" -pool "$collector" "$cluster.$proc" \
- >/tmp/justin-wrapper-$cluster.$proc.$schedd.ctd 2>&1
+export BEARER_TOKEN_FILE='/etc/justin-secrets/bearer-token-file'
+
+/usr/bin/condor_transfer_data -name "$schedd" -pool "$collector" \
+ "$cluster.$proc" >/tmp/justin-wrapper-$cluster.$proc.$schedd.ctd 2>&1
 ctd_err=$?
 
 echo "======="
@@ -44,7 +46,7 @@ else
  echo
  echo "condor_transfer_data output ($ctd_err):"
  echo
- cat /tmp/justin-wrapper-$cluster.$proc.$schedd.ctd
+ cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.ctd"
 fi
 rm -f "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" \
       "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
