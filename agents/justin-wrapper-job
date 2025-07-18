@@ -1131,6 +1131,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
       # Try to create the per-RSE and destination datasets
       try:
+        logLine('Creating datasets: ' + str(datasets))
         createDatasets(datasets)
       except Exception as e:
         logLine('createDatasets fails "%s" - try next RSE ' % str(e))
