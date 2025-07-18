@@ -1138,7 +1138,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
       # Save created datasets for sending back to allocator
       for dataset in datasets:
-        createdDatasets.append(dataset['dataset_scope'] + ':' +
+        createdDatasetDIDs.append(dataset['dataset_scope'] + ':' +
                                dataset['dataset_name'])
 
       logLine('Try %s:%s to %s/%s' 
