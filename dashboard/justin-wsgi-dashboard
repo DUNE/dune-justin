@@ -3276,10 +3276,10 @@ def showSite(environ, user, cgiValues):
   output += ('<tr><td colspan="2">Last job started</td><td>%s</td></tr>' 
              % lastGetJobscriptStr)
 
-  output += ('<tr><td colspan="2">Last AWT job</td><td>%s</td></tr>' 
+  output += ('<tr><td colspan="2">Last AWT job ran</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(siteRow['last_awt_time']))
 
-  output += ('<tr><td colspan="2">Last AWT GPU job</td><td>%s</td></tr>' 
+  output += ('<tr><td colspan="2">Last AWT GPU job ran</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(siteRow['last_awt_gpu_time']))
 
   output += ('<tr><td colspan="2">Always has inner apptainer</td>'
