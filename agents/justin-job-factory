@@ -529,7 +529,10 @@ def awtJobsToSites():
   # Go through the sites submitting AWT jobs
 
   try:
-    rows = justin.select('SELECT site_id,site_name,jobsub_site_name '
+    rows = justin.select('SELECT site_id,site_name,jobsub_site_name,'    
+                         '(SELECT COUNT(*) FROM entries'
+                         ' WHERE entries.site_id=sites.site_id'
+                         ' AND entry_has_gpus) > 0 AS has_gpu_entries '
                          'FROM sites ORDER BY site_name')
 
   except Exception as e:
@@ -537,11 +540,25 @@ def awtJobsToSites():
     return
   
   for row in rows:
+    # Almost always submit a catch-all job
+    if row['site_name']  in ['US_NERSC-GPU',
+                             'US_NERSC-CUSTOM']:
+      requestedGPUsList = [   ]
+    else:
+      requestedGPUsList = [ 0 ]
+
+    # Also submit a GPU job if any GPU entries
+    if row['has_gpu_entries']:
+      requestedGPUsList.append(1)
+
+    # Submit one or two jobs per site        
+    for requestedGPU in requestedGPUsList:
       submitJobs(numberToSubmit       = 1,
                  userName             = 'dunepro',
                  needsInnerApptainer  = False,
                  jobscriptImage       = (justin.jobscriptImagePrefix + '/' + 
-                                         justin.jobscriptImageSuffix + ':' +                                         justin.jobscriptImageVersion),
+                                         justin.jobscriptImageSuffix + ':' +               
+                                         justin.jobscriptImageVersion),
                  accountingGroup      = 'group_dune.prod.mcsim',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
@@ -552,11 +569,8 @@ def awtJobsToSites():
                  requestedProcessors  = 1,
                  requestedRssBytes    = 1024 * 1024 * 1024,
                  requestedWallSeconds = 3600,
-                 requestedGPU         = 1 
-                                        if (row['site_name'] 
-                                          in ['US_NERSC-GPU',
-                                              'US_NERSC-CUSTOM'])
-                                        else 0)
+                 requestedGPU         = requestedGPU)
+
     
 def oneCycle():
   # Update the database with the states of submitted jobsub jobs

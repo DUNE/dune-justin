@@ -1,3 +1,4 @@
+SET GLOBAL time_zone = '+00:00';
 CREATE DATABASE IF NOT EXISTS `justindb`;
 USE `justindb`;
 
@@ -288,6 +289,8 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `last_get_jobscript_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_awt_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `last_awt_job_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `last_awt_gpu_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `last_awt_gpu_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`site_id`),
   UNIQUE KEY `site_name` (`site_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

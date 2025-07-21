@@ -1457,10 +1457,10 @@ def processOutputFiles(outputFiles, patternsDict,
                          )
 
 def saveAwtResults(justinJobID, siteID, entryID, 
-                   jobscriptLog, hasInnerApptainer):
+                   jobscriptLog, hasInnerApptainer, requestedGPU):
 
 # REMOVE prints FOR PRODUCTION
-  print('Start saveAwtResults', file=sys.stderr)
+#  print('Start saveAwtResults', file=sys.stderr)
 
   for line in jobscriptLog.splitlines():
     if line.startswith('==awt== '):
@@ -1508,9 +1508,15 @@ def saveAwtResults(justinJobID, siteID, entryID,
               file=sys.stderr)
 
   try:
+    if requestedGPU:
+      gpuStr = ', last_awt_gpu_time=NOW(), last_awt_gpu_job_id=%d' \
+               % justinJobID
+    else:
+      gpuStr = ''
+
     justin.insertUpdate('UPDATE sites SET '
-                        'last_awt_time=NOW(), last_awt_job_id=%d '
-                        'WHERE site_id=%d' % (justinJobID, siteID))
+                        'last_awt_time=NOW(), last_awt_job_id=%d%s '
+                        'WHERE site_id=%d' % (justinJobID, siteID, gpuStr))
 
     justin.insertUpdate('UPDATE entries SET '
                         'last_awt_time=NOW(), last_awt_job_id=%d '
@@ -1560,7 +1566,7 @@ def recordResultsMethod(startResponse, jsonDict):
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'jobs.site_id, jobs.entry_id, users.access_token, '
              'jobs.has_inner_apptainer, jobs.job_state, workflows.state, '
-             'scope_name ' 
+             'scope_name, jobs.requested_gpu ' 
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN users ON users.user_id=workflows.user_id '
@@ -1576,6 +1582,7 @@ def recordResultsMethod(startResponse, jsonDict):
     siteID            = int(row['site_id'])
     entryID           = int(row['entry_id'])
     hasInnerApptainer = row['has_inner_apptainer']
+    requestedGPU      = row['requested_GPU']
     jobState          = row['job_state']
     responseDict['user_access_token'] = row['access_token']
   except:
@@ -1614,7 +1621,8 @@ def recordResultsMethod(startResponse, jsonDict):
                    siteID, 
                    entryID,
                    jsonDict['jobscript_log'],
-                   hasInnerApptainer)
+                   hasInnerApptainer,
+                   requestedGPU)
 
   # Create an ordered output RSE list specific to this stage, used for logs
   # and any output files going to RSEs
@@ -1841,7 +1849,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
   responseDict['existing_dataset_dids'] = []
   for datasetRow in datasetRows:
-    responseDic['existing_dataset_dids'].append(datasetRow['dataset_did'])
+    responseDict['existing_dataset_dids'].append(datasetRow['dataset_did'])
 
   # Record output files
 

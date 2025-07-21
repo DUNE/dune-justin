@@ -4451,6 +4451,7 @@ def awtResults(environ, user, cgiValues):
 
   query = ('SELECT site_name,enabled,'
            'UNIX_TIMESTAMP(last_awt_time) AS lwt,'
+           'UNIX_TIMESTAMP(last_awt_gpu_time) AS lwtgpu,'
            'UNIX_TIMESTAMP(last_osg_seen_time) AS lot,'
            'jobs.jobsub_id '
            'FROM sites '
@@ -4464,11 +4465,13 @@ def awtResults(environ, user, cgiValues):
   siteNames        = []
   enabledSiteNames = []
   lastJobTimes     = {}
+  lastGPUTimes     = {}
   lastOSGTimes     = {}
   lastJobIDs       = {}
   for siteRow in sitesRows:
     siteNames.append(siteRow['site_name'])
     lastJobTimes[siteRow['site_name']] = int(siteRow['lwt'])
+    lastGPUTimes[siteRow['site_name']] = int(siteRow['lwtgpu'])
     lastOSGTimes[siteRow['site_name']] = int(siteRow['lot'])
 
     if siteRow['jobsub_id']:
@@ -4574,6 +4577,20 @@ def awtResults(environ, user, cgiValues):
             daysHoursMinutes(timeNow - lastOSGTimes[siteName]))
 
     output += '<td> </td>'
+    lastGPUTimes[siteName] 
+
+    if lastGPUTimes[siteName] is None or \
+         (lastGPUTimes[siteName] < timeNow - 10 * 3600 * awtGreyHours):
+      boxColor = 'white'
+    elif lastGPUTimes[siteName] < timeNow - 3 * 3600 * awtGreyHours:
+      boxColor = '#FF8080' # red
+    elif lastGPUTimes[siteName] < timeNow - 3600 * awtGreyHours:
+      boxColor = '#FFAA00' # orange
+    else:
+      boxColor = '#80FF80' # green
+          
+    output += ('<td style="background-color: %s">'
+               '&nbsp;</td>\n' % boxColor)
   
     for rseName in rseNames:
       (readResult, writeResult, jobsubID, finishedTime) = \

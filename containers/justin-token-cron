@@ -2,4 +2,4 @@
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 MAILTO=root
-01 * * * * dunejustin /usr/bin/htgettoken --credkey=dunejustin/managedtokens/fifeutilgpvm03.fnal.gov -i dune -r justin -a htvaultprod.fnal.gov --outfile=/build/dunejustin/volumes/etc/justin-secrets/bearer-token-file >/var/tmp/justin-token-cron.log 2>&1
+01 * * * * dunejustin (/usr/bin/htgettoken --credkey=dunejustin/managedtokens/fifeutilgpvm03.fnal.gov -i dune -r justin -a htvaultprod.fnal.gov --outfile=/build/dunejustin/volumes/etc/justin-secrets/bearer-token-file-tmp ; mv -f /build/dunejustin/volumes/etc/justin-secrets/bearer-token-file-tmp /build/dunejustin/volumes/etc/justin-secrets/bearer-token-file)>/var/tmp/justin-token-cron.log 2>&1
