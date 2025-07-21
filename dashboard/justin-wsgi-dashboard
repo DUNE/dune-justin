@@ -3214,6 +3214,7 @@ def showSite(environ, user, cgiValues):
            'sites.last_submitted_time,'
            'sites.last_get_jobscript_time,'
            'sites.last_awt_time,'
+           'sites.last_awt_gpu_time,'
            'sites.max_rss_bytes,'
            'sites.max_processors,sites.max_wall_seconds,'
            'only_production,only_on_request,'
@@ -3277,6 +3278,9 @@ def showSite(environ, user, cgiValues):
 
   output += ('<tr><td colspan="2">Last AWT job</td><td>%s</td></tr>' 
              % spaceForUnixEpoch(siteRow['last_awt_time']))
+
+  output += ('<tr><td colspan="2">Last AWT GPU job</td><td>%s</td></tr>' 
+             % spaceForUnixEpoch(siteRow['last_awt_gpu_time']))
 
   output += ('<tr><td colspan="2">Always has inner apptainer</td>'
              '<td>%s</td></tr>' % 
@@ -4440,12 +4444,14 @@ def awtResults(environ, user, cgiValues):
 
   output += ("<h1>Automated Workflow Tests</h1>")
 
-  output += ('<p>Hover over each coloured box to see the most recent test '
+  output += ('<p>Hover over each coloured box to see the most recent storage test '
       'values for xrdcp read and rucio upload, run in jobs at each site, '
-      'contacting each RSE.</p>'
-      '<p>Exit code 0 = success. Other codes are failure modes.</p>'
-      '<p>Green if read and write ok; orange if only read ok; red if '
+      'contacting each RSE. '
+      'Exit code 0 = success. Other codes are failure modes. '
+      'Green if read and write ok; orange if only read ok; red if '
       'read fails; grey if no result for %d hours. '
+      'For the GPU column, green indicates a successful AWT GPU job '
+      'in the last 48 hours and grey is no AWT GPU job ran within that time. '
       'There is a <a href="/docs/awt.md">full explanation of AWT</a> in the '
       'justIN documentation.</p>' % awtGreyHours)
 
@@ -4576,21 +4582,17 @@ def awtResults(environ, user, cgiValues):
       output += ('<td style="text-align: right">%s</td>' % 
             daysHoursMinutes(timeNow - lastOSGTimes[siteName]))
 
-    output += '<td> </td>'
     lastGPUTimes[siteName] 
 
-    if lastGPUTimes[siteName] is None or \
-         (lastGPUTimes[siteName] < timeNow - 10 * 3600 * awtGreyHours):
+    if lastGPUTimes[siteName] < timeNow - justin.unseenSitesExpireDays * 86400:
       boxColor = 'white'
-    elif lastGPUTimes[siteName] < timeNow - 3 * 3600 * awtGreyHours:
-      boxColor = '#FF8080' # red
     elif lastGPUTimes[siteName] < timeNow - 3600 * awtGreyHours:
-      boxColor = '#FFAA00' # orange
+      boxColor = '#808080' # gray
     else:
       boxColor = '#80FF80' # green
           
-    output += ('<td style="background-color: %s">'
-               '&nbsp;</td>\n' % boxColor)
+    output += ('<td style="background-color: %s; width: 1em;">'
+               '&nbsp;</td>\n' % boxColor) 
   
     for rseName in rseNames:
       (readResult, writeResult, jobsubID, finishedTime) = \

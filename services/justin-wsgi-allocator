@@ -1516,7 +1516,7 @@ def saveAwtResults(justinJobID, siteID, entryID,
 
     justin.insertUpdate('UPDATE sites SET '
                         'last_awt_time=NOW(), last_awt_job_id=%d%s '
-                        'WHERE site_id=%d' % (justinJobID, siteID, gpuStr))
+                        'WHERE site_id=%d' % (justinJobID, gpuStr, siteID))
 
     justin.insertUpdate('UPDATE entries SET '
                         'last_awt_time=NOW(), last_awt_job_id=%d '
@@ -1582,7 +1582,7 @@ def recordResultsMethod(startResponse, jsonDict):
     siteID            = int(row['site_id'])
     entryID           = int(row['entry_id'])
     hasInnerApptainer = row['has_inner_apptainer']
-    requestedGPU      = row['requested_GPU']
+    requestedGPU      = row['requested_gpu']
     jobState          = row['job_state']
     responseDict['user_access_token'] = row['access_token']
   except:

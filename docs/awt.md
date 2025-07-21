@@ -97,3 +97,7 @@ Each result is also logged as a justIN event, associated with the job, RSE
 and site. There are links to lists of these events from the above pages for
 each site and storage, which can be used to view the history of the tests.
 
+For sites with at least one entry supporting GPUs, a GPU AWT jobs is also 
+submitted each time which requires at least one GPU. If this job runs
+successfully, then the site's last successful GPU job time is updated. This
+is visible on the per-site pages and the main AWT results page.
