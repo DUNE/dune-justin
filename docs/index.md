@@ -49,4 +49,4 @@ files are in written in Markdown and so they can be read directly from the
 repository
 if necessary. For convenience, the version of the documentation from the 
 current release branch is available on the justIN dashboard
-[https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)
+[https://dunejustin.fnal.gov/docs/](https://dunejustin.fnal.gov/docs/)

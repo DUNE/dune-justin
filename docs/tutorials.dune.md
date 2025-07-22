@@ -10,7 +10,7 @@ if you run into problems please use dunegpvmXX or lxplus instead.
 
 You need to be a member of DUNE and have a Fermilab computer account. You
 can check this by going to the justIN dashboard at 
-[https://justin.dune.hep.ac.uk/dashboard/](https://justin.dune.hep.ac.uk/dashboard/)
+[https://dunejustin.fnal.gov/dashboard/](https://dunejustin.fnal.gov/dashboard/)
 and logging in: go to that address, click on the orange Login button on the 
 top right and follow the instructions. If you get back to the justIN
 dashboard with your NAME@fnal.gov shown in place of the Login button, you
@@ -48,7 +48,7 @@ The justin command will display a message like this:
 
     To authorize this computer to run the justin command, visit this page with your
     usual web browser and follow the instructions within the next 10 minutes:
-    https://justin.dune.hep.ac.uk/authorize/.........
+    https://dunejustin.fnal.gov/authorize/.........
 
     Check that the Session ID displayed on that page is .......
 
@@ -105,7 +105,7 @@ WORKFLOW_ID with the number displayed by simple-workflow.
 
 The two show subcommands are useful for simple checks, but to look at workflows
 and jobs in detail you need to use the 
-[justIN dashboard](https://justin.dune.hep.ac.uk/dashboard/). Go there
+[justIN dashboard](https://dunejustin.fnal.gov/dashboard/). Go there
 and look for the Workflows link in the blue navigation the strip at the top of
 the page. The workflow you launched will be listed there, with the WORKFLOW_ID
 shown by the simple-workflow subcommand when you ran it.
@@ -536,7 +536,7 @@ Try this now and look at the output through the dashboard.
 ## More information
 
 There is a lot more about justIN in the docs area at
-[https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)
+[https://dunejustin.fnal.gov/docs/](https://dunejustin.fnal.gov/docs/)
 
 When you `setup justin`, you also get the justin, justin-test-jobscript,
 and justin-cvmfs-upload  man pages.
