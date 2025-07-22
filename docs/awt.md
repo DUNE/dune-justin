@@ -4,7 +4,7 @@ justIN's Automated Workflow Tests (AWT) test the reading and writing to
 storages from jobs, in the environment seen by user jobscripts. 
 
 The 
-[AWT results page](https://justin.dune.hep.ac.uk/dashboard/?method=awt-results)
+[AWT results page](https://dunejustin.fnal.gov/dashboard/?method=awt-results)
 shows site vs storage results for the download and upload tests run in jobs
 at each site. The text on the page explains how red, green and orange
 colours show whether the tests were successful for each combination of site
@@ -17,11 +17,11 @@ was seen in the OSG pilot factory configurations, fetched by the
 [OSG pilot factory GitHub repo](https://github.com/opensciencegrid/osg-gfactory).
 
 Wrapper jobs are tagged for AWT and targetted at each known 
-[DUNE site](https://justin.dune.hep.ac.uk/dashboard/?method=list-sites),
+[DUNE site](https://dunejustin.fnal.gov/dashboard/?method=list-sites),
 whether it is enabled for user jobs or not.
 
 The 
-[AWT Workflow](https://justin.dune.hep.ac.uk/dashboard/?method=show-workflow&workflow_id=1)
+[AWT Workflow](https://dunejustin.fnal.gov/dashboard/?method=show-workflow&workflow_id=1)
 is used to manage the jobs. It uses the metadata query
 `rucio-dataset testpro:awt` to find files in the testpro:awt Rucio dataset. 
 The [justIN finder agent](/docs/agents.finder.md) looks for new files in
@@ -52,7 +52,7 @@ no replicas of files in testpro:awt then it is ignored.
 
 The jobscript is taken from the single stage of the AWT workflow and is 
 visible at the foot of 
-[that stage's page](https://justin.dune.hep.ac.uk/dashboard/?method=show-stage&workflow_id=1&stage_id=1).
+[that stage's page](https://dunejustin.fnal.gov/dashboard/?method=show-stage&workflow_id=1&stage_id=1).
 
 The production VOMS proxy normally used by the wrapper job for file uploads
 is made available to the AWT jobscript at `$JUSTIN_PATH/awt-proxy.pem` and
@@ -88,10 +88,10 @@ Log section at the foot of each job's page in the justIN dashboard.
 When the jobscript log is uploaded to the justIN allocator, it is parsed to
 extract the test outcomes. These are stored in the justIN database and
 visible on the pages for each site and storage accessible from the lists
-of [all sites](https://justin.dune.hep.ac.uk/dashboard/?method=list-sites),
-[all storages](https://justin.dune.hep.ac.uk/dashboard/?method=list-storages),
+of [all sites](https://dunejustin.fnal.gov/dashboard/?method=list-sites),
+[all storages](https://dunejustin.fnal.gov/dashboard/?method=list-storages),
 and on the 
-[AWT results page](https://justin.dune.hep.ac.uk/dashboard/?method=awt-results).
+[AWT results page](https://dunejustin.fnal.gov/dashboard/?method=awt-results).
 
 Each result is also logged as a justIN event, associated with the job, RSE
 and site. There are links to lists of these events from the above pages for

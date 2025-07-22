@@ -3,7 +3,7 @@
 The justIN system relies on a central database and a set of agents and
 services, including the web dashboard, which together constitute an 
 *instance*. The DUNE production instance's dashboard has URL
-[https://justin.dune.hep.ac.uk/dashboard/](https://justin.dune.hep.ac.uk/dashboard/)
+[https://dunejustin.fnal.gov/dashboard/](https://dunejustin.fnal.gov/dashboard/)
 
 ## Production vs integration
 
