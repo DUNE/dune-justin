@@ -2,7 +2,7 @@
 #
 # justin-info-collector - justIN info collector agent
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -752,9 +752,8 @@ def updateSitesStorages():
         and 'NERSC' in storageRow['rse_name']:
         # Everything at NERSC is zero distance
         distance = 0
-      elif siteRow['site_name'].startswith('US_NERSC') \
-        or 'NERSC' in storageRow['rse_name']:
-        # Otherwise if NERSC involved then set distance as unmatchable
+      elif 'NERSC' in storageRow['rse_name']:
+        # Otherwise if NERSC storage then distance = unmatchable
         distance = 101
       elif sitePrefix and rseSitePrefix \
            and sitePrefix == rseSitePrefix:

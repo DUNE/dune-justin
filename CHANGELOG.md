@@ -1,5 +1,8 @@
 # Changelog
 
+## 01.05.00
+- Allow file matching from jobs at NERSC to offsite storages
+
 ## 01.04.00
 - Cache HTCondor log as jobs finish, retrying up to 10 times, and remove job 
   from HTCondor if log is successfully cached
