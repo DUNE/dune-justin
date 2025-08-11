@@ -443,7 +443,8 @@ This section shows you how to do this for justIN jobs too, using the
 using the same `setup justin` command as for `justin` itself.
 
 First, you need to make a tar file containing the files you want to include.
-You don't need to be on a Fermilab computer for this step.
+You don't need to be on a Fermilab computer for this step but you **must**
+make a tar file, not one file by itself or a tar.gz file.
 
     mkdir somedir
     cd somedir
