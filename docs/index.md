@@ -42,6 +42,7 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 - [File processing lifecycle](file_processing.md)
 - [Security model](security_model.md)
 - [Download statistics](download_statistics.md)
+- [External API rates](external_api_rates.md)
 
 Versioned copies of this documentation are kept in the docs subdirectory
 of the [dune-justin GitHub repo](https://github.com/DUNE/dune-justin/). All the
@@ -49,4 +50,4 @@ files are in written in Markdown and so they can be read directly from the
 repository
 if necessary. For convenience, the version of the documentation from the 
 current release branch is available on the justIN dashboard
-[https://justin.dune.hep.ac.uk/docs/](https://justin.dune.hep.ac.uk/docs/)
+[https://dunejustin.fnal.gov/docs/](https://dunejustin.fnal.gov/docs/)
