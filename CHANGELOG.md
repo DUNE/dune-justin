@@ -2,6 +2,7 @@
 
 ## 01.04.01
 - Allow file matching from jobs at NERSC to offsite storages
+- Remove allowed workflow ID ranges previously applied to dev and int
 
 ## 01.04.00
 - Cache HTCondor log as jobs finish, retrying up to 10 times, and remove job 
