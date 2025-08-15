@@ -4,6 +4,8 @@ This page explains how often components of justIN call external services,
 including Rucio and MetaCat. It is arranged by justIN service or agent, and
 is kept in sync with the code of this version.
 
+[TOC]
+
 ### Create X509 Proxies
 
 The justin-create-x509-proxies script is run each day from cron inside each
@@ -124,7 +126,7 @@ Then the function ping() of rucio.client.pingclient.PingClient() of the
 Rucio ping API is called three times to measure average Rucio responsiveness.
 If sufficiently low, workflowJobs() is called which submits up to 2000 jobs
 (in HTCondor clusters) in each cycle depending how many unallocated files
-there are associated with activate workflows. 
+there are associated with active workflows. 
 
 ### Wrapper jobs
 
@@ -163,7 +165,7 @@ entirely, the job is aborted. Then `justin-rucio-upload` is used to
 try to upload the file. This makes three attempts to upload the file 
 and add it to one dataset with 
 upload() from rucio.client.uploadclient.UploadClient(). If the upload
-succeeds, the file is added to two more datasets using attach_dids()
+succeeds, the file is added to three more datasets using attach_dids()
 from rucio.client.didclient.DIDClient(), trying each operation three times
 and failing if the file cannot be added. Finally, list_replicas() from
 rucio.client.replicaclient.ReplicaClient() 
@@ -207,5 +209,20 @@ initiated by users.
 During logins, https://cilogon.org is called once to obtain tokens from 
 CI Logon using OAuth2.
 
- 
+### Per-file summary
 
+This summary assumes a simple scenario of N files, each processed
+by one job and producing one output file, with no failures or retries. 
+Only per-file API call counts are included. For
+example, the calls to create a datasets for thousands of files aren't included.
+ 
+|Component  |API Call              |MetaCat|Rucio|HTCondor|
+|-----------|----------------------|-------|-----|--------|
+|Finder     |condor_q              |      0|    0|       1|
+|Finder     |condor_transfer_data  |      0|    0|       1|
+|Finder     |condor_rm             |      0|    0|       1|
+|Wrapper Job|metacat file declare  |      2|    0|       0|
+|Wrapper Job|upload()              |      0|    2|       0|
+|Wrapper Job|attach_dids()         |      0|    4|       0|
+|Wrapper Job|metacat dataset add-files|   4|    0|       0|
+|Wrapper Job|metacat file update   |      2|    0|       0|
