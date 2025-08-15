@@ -76,7 +76,7 @@ Like all justIN agents, processing is done in cycles and the Finder
 sleeps for 60 seconds between each cycle. Timers are maintained and checked 
 during each cycle and the appropriate functions run.
 
-findTokensToRefresh() finds tokens expiring within the next hour which are
+**findTokensToRefresh()** finds tokens expiring within the next hour which are
 owned by users with active justIN sessions. For each token, it sends an
 OIDC refresh request to CI Logon to obtain a new token.
 
@@ -86,26 +86,26 @@ If the result is low enough, then findFiles() and findReplicas() are
 executed.
 
 For most workflows, where the input files are defined by a MQL query to
-be evaluated once at the start, the findFilesMetaCat() function is used
+be evaluated once at the start, the **findFilesMetaCat()** function is used
 to get a list of all input files for each workflow after it enters the
 running state. For each workflow, three attempts are made with direct
 HTTP REST requests to the MetaCat service. 
 
-findReplicas() selects the highest priority workflow with
+**findReplicas()** selects the highest priority workflow with
 files still in the finding state, and then finds up to 500 files still in
 the finding state and then uses list_replicas from 
 rucio.client.replicaclient.ReplicaClient() to find the replicas of all
 those files with a single call, first for the domain `wan` and then for
 `lan`. 
 
-saveTerminalJobsLogs() runs `condor_q` for each HTCondor scheduler to
+**saveTerminalJobsLogs()** runs `condor_q` for each HTCondor scheduler to
 obtain list of jobs' states. For jobs found to be in terminal states but
 without saved HTCondor log files, `condor_transfer_data` and 
 `condor_q -better` are run and the resulting log files saved to the justIN 
 database. If this all succeeds, the job is removed from the spool with
 `condor_rm`.
 
-Every hour, findStalledCondorJobs() is run which runs `condor_q` for each
+Every hour, **findStalledCondorJobs()** is run which runs `condor_q` for each
 HTCondor scheduler to find a list of job states, and marks stalled jobs
 in the justIN internal database.
 
@@ -190,15 +190,15 @@ dune.output_status=confirmed for each file.
 The User Interface service only acts in response to requests from command
 line clients initiated by users. 
 
-The function showJobscriptCmd() calls https://raw.githubusercontent.com 
+The function **showJobscriptCmd()** calls https://raw.githubusercontent.com 
 to fetch a jobscript using a GitHub path and tag.
 
-The function showReplicasCmd() calls the MetaCat server to get a list of
+The function **showReplicasCmd()** calls the MetaCat server to get a list of
 files matching a given MQL query, and then uses list_replicas() from 
 rucio.client.replicaclient.ReplicaClient() to get a list of replicas for
 each file.
 
-The function showFilesCmd() calls the MetaCat server to get a list of
+The function **showFilesCmd()** calls the MetaCat server to get a list of
 files matching a given MQL query.
 
 ### Dashboard
