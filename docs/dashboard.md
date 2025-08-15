@@ -5,7 +5,7 @@ The justIN dashboard gives convenient views of the contents of the
 
 It is currently implemented as an Apache WSGI application written in
 Python 3 and accessible at 
-[https://justin.dune.hep.ac.uk/dashboard/](https://justin.dune.hep.ac.uk/dashboard/).
+[https://dunejustin.fnal.gov/dashboard/](https://dunejustin.fnal.gov/dashboard/).
 
 The dashboard uses the [justIN database](database.md) section
 of the configuration files, and also the [cilogon] section which has client 

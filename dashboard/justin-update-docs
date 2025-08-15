@@ -18,8 +18,8 @@ if [ $? == 0 ] ; then
   # If all ok, then copy docs and images
   cp -f dune-justin/*.md            /var/www/html/docs/
   cp -f dune-justin/docs/*.md       /var/www/html/docs/
-  cp -f dune-justin/dashboard/*.png /var/www/html/dashboard/
-  cp -f dune-justin/dashboard/*.pdf /var/www/html/dashboard/
+  cp -f dune-justin/dashboard/*.png /var/www/html/
+  cp -f dune-justin/dashboard/*.pdf /var/www/html/
 fi
 
 # Remove temporary directory
