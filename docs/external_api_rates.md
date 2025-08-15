@@ -67,7 +67,45 @@ sites and entries.
 
 ### Finder
 
+The [justIN Finder](agents.finder.md) finds jobs, files, and tokens in 
+various states and performs necessary operations on them.
 
+Like all justIN agents, processing is done in cycles and the Finder
+sleeps for 60 seconds between each cycle. Timers are maintained and checked 
+during each cycle and the appropriate functions run.
+
+findTokensToRefresh() finds tokens expiring within the next hour which are
+owned by users with active justIN sessions. For each token, it sends an
+OIDC refresh request to CI Logon to obtain a new token.
+
+Then the function ping() of rucio.client.pingclient.PingClient() of the
+Rucio ping API is called three times to measure average Rucio responsiveness.
+If the result is low enough, then findFiles() and findReplicas() are
+executed.
+
+For most workflows, where the input files are defined by a MQL query to
+be evaluated once at the start, the findFilesMetaCat() function is used
+to get a list of all input files for each workflow after it enters the
+running state. For each workflow, three attempts are made with direct
+HTTP REST requests to the MetaCat service. 
+
+findReplicas() selects the highest priority workflow with
+files still in the finding state, and then finds up to 500 files still in
+the finding state and then uses list_replicas from 
+rucio.client.replicaclient.ReplicaClient() to find the replicas of all
+those files with a single call, first for the domain `wan` and then for
+`lan`. 
+
+saveTerminalJobsLogs() runs `condor_q` for each HTCondor scheduler to
+obtain list of jobs' states. For jobs found to be in terminal states but
+without saved HTCondor log files, `condor_transfer_data` and 
+`condor_q -better` are run and the resulting log files saved to the justIN 
+database. If this all succeeds, the job is removed from the spool with
+`condor_rm`.
+
+Every hour, findStalledCondorJobs() is run which runs `condor_q` for each
+HTCondor scheduler to find a list of job states, and marks stalled jobs
+in the justIN internal database.
 
 ### Job Factory 
 
@@ -99,9 +137,6 @@ The job attempts to register the logs.tgz file with `metacat file declare`
 up to three times. `metacat file show` is run to check the file is
 registered. `justin-rucio-upload` is used to try to upload the file up to
 three times with upload() of rucio.client.uploadclient.UploadClient() 
-ADD TO DATASETS
-RULES
-CHECKS VIA RUCIO
 
 The job creates a list of datasets it will need for outputting but removes
 those which have already been created by other jobs. The maximal list in a
@@ -114,9 +149,39 @@ dataset with `metacat dataset create` and add_dataset() from
 rucio.client.didclient.DIDClient() and add_replication_rule() from
 rucio.client.ruleclient.RuleClient()
 
-SIMILAR TO logs.tgz AS ABOVE
+If the jobscript ends with success (0) then the output files it creates, 
+identified by the patterns given when the stage was defined, are also
+uploaded in a similar way to Rucio managed storage (or to scratch at Fermilab.)
 
-METACAT confirmed ETC AT EACH STEP
+For the log files and the output files to be uploaded to Rucio managed
+storage, the same procedure is followed for each file. 
+
+
+First, three attempts are made to register the file with Metacat, 
+with `metacat file declare` . If the registration of the file fails
+entirely, the job is aborted. Then `justin-rucio-upload` is used to
+try to upload the file. This makes three attempts to upload the file 
+and add it to one dataset with 
+upload() from rucio.client.uploadclient.UploadClient(). If the upload
+succeeds, the file is added to two more datasets using attach_dids()
+from rucio.client.didclient.DIDClient(), trying each operation three times
+and failing if the file cannot be added. Finally, list_replicas() from
+rucio.client.replicaclient.ReplicaClient() 
+list_files() rucio.client.didclient.DIDClient() 
+are used to check the file has
+been registered in Rucio and in the datasets 
+to work around false reports of upload success
+from Rucio. This check is tried three times and again overall failure
+causes an abort.
+
+For each file, `metacat dataset add-files` is then used to add files to
+MetaCat datasets too. `metacat file update --metadata` is used to set 
+dune.output_status=uploaded for the file, from the initial value of recorded.
+
+After the wrapper job has reported the successful uploads to the justIN
+Allocator Service and they have been recorded in the justIN database without
+any conflicts (eg from duplicate/resubmitted jobs), then `metacat file update --metadata` is used to set 
+dune.output_status=confirmed for each file.
 
 ### UI service
 
