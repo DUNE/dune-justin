@@ -4,6 +4,12 @@ This page explains how often components of justIN call external services,
 including Rucio and MetaCat. It is arranged by justIN service or agent, and
 is kept in sync with the code of this version.
 
+### Create X509 Proxies
+
+The justin-create-x509-proxies script is run each day from cron inside each
+services/agents container. It runs voms-proxy-init twice to contact the
+DUNE VOMS service and obtain VOMS proxies.
+
 ### Info Collector
 
 The [justIN Info Collector](agents.info_collector.md) gathers information
@@ -61,13 +67,80 @@ sites and entries.
 
 ### Finder
 
+
+
 ### Job Factory 
+
+The [justIN Job Factory](agents.job_factory.md) decides whether to submit
+justIN Wrapper Jobs to HTCondor.
+
+Like all justIN agents, processing is done in cycles and the Job Factory
+sleeps for 60 seconds between each cycle. Timers are maintained and checked 
+during each cycle and the appropriate functions run.
+
+Every 21600 seconds (6 hours) an AWT job is submitted targetted at each
+site justIN is aware of using `condor_submit` to a HTCondor schedd randomly
+chosen from all the schedds justIN is aware of.
+
+Then the function ping() of rucio.client.pingclient.PingClient() of the
+Rucio ping API is called three times to measure average Rucio responsiveness.
+If sufficiently low, workflowJobs() is called which submits up to 2000 jobs
+(in HTCondor clusters) in each cycle depending how many unallocated files
+there are associated with activate workflows. 
 
 ### Wrapper jobs
 
+Each wrapper job potentially makes multiple calls to MetaCat and Rucio but
+only during the outputting phase. At the start of this phase, the job is 
+supplied with a list of existing datasets created for this stage and known
+to justIN. 
+
+The job attempts to register the logs.tgz file with `metacat file declare`
+up to three times. `metacat file show` is run to check the file is
+registered. `justin-rucio-upload` is used to try to upload the file up to
+three times with upload() of rucio.client.uploadclient.UploadClient() 
+ADD TO DATASETS
+RULES
+CHECKS VIA RUCIO
+
+The job creates a list of datasets it will need for outputting but removes
+those which have already been created by other jobs. The maximal list in a
+job is a per-RSE, per-pattern dataset within this stage, a numbered dataset 
+for each pattern within this stage, and an overal dataset for this
+stage and pattern. For each dataset that needs to be created, up to three
+attempts are made to create the dataset with 
+`justin-job-datasets` which also makes up to three attempts to create each
+dataset with `metacat dataset create` and add_dataset() from
+rucio.client.didclient.DIDClient() and add_replication_rule() from
+rucio.client.ruleclient.RuleClient()
+
+SIMILAR TO logs.tgz AS ABOVE
+
+METACAT confirmed ETC AT EACH STEP
+
 ### UI service
 
+The User Interface service only acts in response to requests from command
+line clients initiated by users. 
+
+The function showJobscriptCmd() calls https://raw.githubusercontent.com 
+to fetch a jobscript using a GitHub path and tag.
+
+The function showReplicasCmd() calls the MetaCat server to get a list of
+files matching a given MQL query, and then uses list_replicas() from 
+rucio.client.replicaclient.ReplicaClient() to get a list of replicas for
+each file.
+
+The function showFilesCmd() calls the MetaCat server to get a list of
+files matching a given MQL query.
+
 ### Dashboard
+
+The Dashboard service only acts in response to requests from web clients
+initiated by users.
+
+During logins, https://cilogon.org is called once to obtain tokens from 
+CI Logon using OAuth2.
 
  
 

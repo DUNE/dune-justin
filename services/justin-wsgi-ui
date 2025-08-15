@@ -649,10 +649,10 @@ def createWorkflow(jsonDict, user, simple = False):
     return ('500 Internal Server Error', 
             'Error creating workflow: ' + str(e))
 
-  if justin.instance != 'pro' and workflowID >= 1000:
-    return ('500 Internal Server Error', 
-            'The %s database needs resetting - too many workflows created' 
-            % justin.instance)
+#  if justin.instance not in ['fnal' and workflowID >= 1000:
+#    return ('500 Internal Server Error', 
+#            'The %s database needs resetting - too many workflows created' 
+#            % justin.instance)
 
   return ('200 OK', workflowID)
 
@@ -1013,8 +1013,6 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
       return ('400 Bad Request', 'Invalid RSE expression')
     else:
       outputExpression = jsonDict['output_rse_expression']
-
-  didClient  = rucio.client.didclient.DIDClient()
 
   for (forNextStage, pattern, destination, patternID) in outputPatterns:
 
