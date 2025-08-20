@@ -165,7 +165,7 @@ entirely, the job is aborted. Then `justin-rucio-upload` is used to
 try to upload the file. This makes three attempts to upload the file 
 and add it to one dataset with 
 upload() from rucio.client.uploadclient.UploadClient(). If the upload
-succeeds, the file is added to three more datasets using attach_dids()
+succeeds, output files are then added to two more datasets using attach_dids()
 from rucio.client.didclient.DIDClient(), trying each operation three times
 and failing if the file cannot be added. Finally, list_replicas() from
 rucio.client.replicaclient.ReplicaClient() 
@@ -223,6 +223,6 @@ example, the calls to create a datasets for thousands of files aren't included.
 |Finder     |condor_rm             |      0|    0|       1|
 |Wrapper Job|metacat file declare  |      2|    0|       0|
 |Wrapper Job|upload()              |      0|    2|       0|
-|Wrapper Job|attach_dids()         |      0|    4|       0|
+|Wrapper Job|attach_dids()         |      0|    2|       0|
 |Wrapper Job|metacat dataset add-files|   4|    0|       0|
 |Wrapper Job|metacat file update   |      2|    0|       0|
