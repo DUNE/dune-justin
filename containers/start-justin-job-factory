@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+(
+
 # All processes get this defined
 echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 
@@ -45,3 +47,5 @@ if [ -x /var/run/justin/overrides/justin-job-factory ] ; then
 else
   /usr/sbin/justin-job-factory --container
 fi
+
+) > /var/log/justin/start-justin-job-factory.log 2>&1

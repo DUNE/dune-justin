@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+(
+
 # All processes get this defined
 echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 
@@ -50,3 +52,5 @@ if [ -x /var/run/justin/overrides/justin-info-collector ] ; then
 else
   /usr/sbin/justin-info-collector --container
 fi
+
+) >/var/log/justin/start-justin-info-collector.log 2>&1

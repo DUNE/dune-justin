@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+(
+
 # All processes get this defined
 echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 
@@ -84,3 +86,5 @@ fi
 
 # Run daemon in the foreground
 /usr/sbin/httpd -DFOREGROUND
+
+) >/var/log/justin/start-justin-httpd.log 2>&1
