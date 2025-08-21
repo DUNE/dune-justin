@@ -3,7 +3,7 @@
 # 
 
 # JUST FOR dunebuild01 !! CHANGE!!
-export JUSTIN_VOLUMES=/build/dunejustin/volumes
+#export JUSTIN_VOLUMES=/build/dunejustin/volumes
 
 if [ "$1" == "justin-httpd" ] ; then
   extras="--publish 80:80 --publish 443:443 --volume $JUSTIN_VOLUMES/etc/justin-letsencrypt:/etc/justin-letsencrypt --volume $JUSTIN_VOLUMES/var/log/httpd:/var/log/httpd"
@@ -21,6 +21,9 @@ fi
 #  podman pod create --publish 3306:3306 --publish 80:80 --publish 443:443 \
 #                    justin-pod
 #fi
+
+# Make sure this exists in case of a reboot
+mkdir -p $JUSTIN_VOLUMES/var/run/justin
 
 tag=`podman images --format 'table {{.Tag}} {{.Repository}}' | grep 'localhost/justin' | cut -f1 -d' ' | head -1`
 
