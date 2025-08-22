@@ -106,7 +106,7 @@ htcondorSUSPENDED           = 7
 cilogonScopes       = ('openid profile org.cilogon.userinfo '
                        'wlcg.capabilityset:/duneana wlcg.groups:/dune '
                        'wlcg.groups:/dune/production '
-                       'wlcg.groups:/dune/dunele')
+                       'wlcg.groups:/dune/lowenergy')
 
 # Note that this assumes we are using UTC since we assume elsewhere this
 # will convert from this MySQL date to 0 in Unix seconds
