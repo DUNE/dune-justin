@@ -1,5 +1,5 @@
 #
-# Copyright 2013-23, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -105,7 +105,8 @@ htcondorSUSPENDED           = 7
 
 cilogonScopes       = ('openid profile org.cilogon.userinfo '
                        'wlcg.capabilityset:/duneana wlcg.groups:/dune '
-                       'wlcg.groups:/dune/production')
+                       'wlcg.groups:/dune/production '
+                       'wlcg.groups:/dune/dunele')
 
 # Note that this assumes we are using UTC since we assume elsewhere this
 # will convert from this MySQL date to 0 in Unix seconds

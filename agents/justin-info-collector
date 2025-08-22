@@ -1261,10 +1261,10 @@ def oneCycle():
 
   if lastUpdateStorages + updateStoragesInterval < time.time():
     pathlib.Path('/var/run/justin/last-updates/storages').touch(exist_ok=True)
-    updateStorages()
-    updateLogsDatasets()
     updateGroupsHTCondor()
     updateGroupsWLCG()
+    updateStorages()
+    updateLogsDatasets()
     updateScopes()
 
   # It is time to update sites from the OSG pilot factory config?
