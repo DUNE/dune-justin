@@ -1,7 +1,7 @@
 #!/bin/sh
 # Start justin-info-collector, for execution inside the justin container
 #
-# Copyright 2013-24 Andrew McNab for the University of Manchester
+# Copyright 2013-25 Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@
 
 # All processes get this defined
 echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
+
+# Needed for STFC OpenStack VMs to be able to contact github.com etc
+ip link set dev eth0 mtu 1450
 
 # Create a set of VOMS proxies
 /etc/cron.daily/justin-create-x509-proxies

@@ -526,7 +526,7 @@ def buildSites(sitesDict):
 
   tmpDir = tempfile.TemporaryDirectory()
   os.system('cd /tmp ; printenv ; git '
-            'clone https://github.com/opensciencegrid/osg-gfactory.git '
+            'clone -v -v -v https://github.com/opensciencegrid/osg-gfactory.git '
              + tmpDir.name)
 
   for fileName in os.listdir(tmpDir.name):

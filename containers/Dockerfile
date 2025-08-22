@@ -41,7 +41,7 @@ RUN yum -y install \
 RUN yum update -y
 
 # Install the RPMs we need
-RUN yum install -y git joe util-linux-user
+RUN yum install -y git joe util-linux-user iproute
 #RUN yum install -y mariadb-server
 RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
 RUN yum install -y make which nano procps-ng python3-pip

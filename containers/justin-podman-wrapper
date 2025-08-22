@@ -22,8 +22,9 @@ fi
 #                    justin-pod
 #fi
 
-# Make sure this exists in case of a reboot
-mkdir -p $JUSTIN_VOLUMES/var/run/justin
+# Make sure these exist in case of a reboot
+mkdir -p $JUSTIN_VOLUMES/var/run/justin/last-updates
+mkdir -p $JUSTIN_VOLUMES/var/run/justin/overrides
 
 tag=`podman images --format 'table {{.Tag}} {{.Repository}}' | grep 'localhost/justin' | cut -f1 -d' ' | head -1`
 

@@ -21,6 +21,9 @@
 # All processes get this defined
 echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
 
+# Needed for STFC OpenStack VMs to be able to contact github.com etc
+ip link set dev eth0 mtu 1450
+
 # Create a set of VOMS proxies
 /etc/cron.daily/justin-create-x509-proxies
 
