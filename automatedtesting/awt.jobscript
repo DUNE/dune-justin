@@ -25,6 +25,7 @@ rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
 metacat auth login -m x509 dunepro
 export upload_dataset=`date --utc +'awt-uploads-%Y%W'`
+export X509_CERT_DIR=/cvmfs/oasis.opensciencegrid.org/mis/certificates/
 
 touch results.txt
 export now=`date +'%s'`
