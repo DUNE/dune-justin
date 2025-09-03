@@ -274,4 +274,4 @@ def oneCycle():
 #
 
 if __name__ == '__main__':
-  justin.agentMainLoop('finder', oneCycle, sleepSeconds, 3600)
+  justin.agentMainLoop('job-logs', oneCycle, sleepSeconds, 3600)
