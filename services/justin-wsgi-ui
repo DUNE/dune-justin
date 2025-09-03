@@ -1626,8 +1626,8 @@ usual web browser and follow the instructions within the next 10 minutes:
 
 Check that the Session ID displayed on that page is %s
 
-Once you've followed the instructions on that web page, please rereun the 
-command you tried. You won't need to authorize this computer again for 7 days.
+Once you've followed the instructions on that web page, please run the command
+you tried again. You won't need to authorize this computer again for 7 days.
 ''' % (justin.dashboardURL,
        justinCode, justinSession[:7])
    
