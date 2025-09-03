@@ -198,6 +198,7 @@ def executeMetaCatCommand(args):
      'export METACAT_AUTH_SERVER_URL=###justin_metacat_auth_server_url### ; '
      'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
      'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
+     'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'metacat auth login -m x509 dunepro ; '
      'metacat %s 2>&1' % args)
      
@@ -223,6 +224,7 @@ def executeJustinRucioUpload(args):
      'export RUCIO_ACCOUNT=dunepro ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
+     'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
      '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
      '###justin_instance###/NULL/bin/justin-rucio-upload '
