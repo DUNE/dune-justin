@@ -1,0 +1,17 @@
+# Install in /usr/lib/systemd/system
+[Unit]
+Description=justIN Job Logs Container
+After=sshd.service
+#Requires=podman.service
+
+[Service]
+Type=simple
+TimeoutStartSec=0
+Restart=always
+ExecStop=-/usr/bin/podman stop %N
+ExecStartPre=-/usr/bin/podman stop %N
+ExecStartPre=-/usr/bin/podman rm %N
+ExecStart=/usr/sbin/justin-podman-wrapper justin-job-logs
+
+[Install]
+WantedBy=multi-user.target
