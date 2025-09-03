@@ -49,6 +49,36 @@ sleepSeconds = 60
 class justinError(Exception):
   pass
 
+def fetchHTCondorJobLog(jobsubID):
+
+  try:
+    (clusterProc, schedd) = jobsubID.split('@')
+    (cluster, proc)       = clusterProc.split('.')
+
+    outcome = subprocess.run(['/var/lib/justin/justin-get-output',
+                              str(cluster),
+                              str(proc),
+                              str(schedd),
+                              justin.htcondorCollectors[0]
+                             ],
+                              encoding = 'utf-8',
+                              stderr   = subprocess.STDOUT,
+                              stdout   = subprocess.PIPE,
+                              timeout  = 120)
+  except Exception as e:
+    raise RuntimeError('For %s.%s@%s justin-get-output fails with %s' 
+                       % (cluster, proc, schedd, str(e)))
+
+  if outcome.returncode != 0:
+    return outcome.stdout + \
+           '\n(Error from condor_transfer_data: %d)' % outcome.returncode
+# REMOVE THIS FOR PRODUCTION
+# WITHOUT THIS WE CACHE RESULT EVEN WHEN HTCONDOR TOO LOADED TO RESPOND!!    
+#    raise RuntimeError('For %s.%s@%s justin-get-output fails with '
+#                       'error code %d' 
+#                       % (cluster, proc, schedd, outcome.returncode))
+
+  return outcome.stdout
 def saveTerminalJobsLogs():
 
   justin.logLine('Start of saving HTCondor jobs')
