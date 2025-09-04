@@ -2,6 +2,10 @@
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages
+- Create justin-job-logs agent with sole task for saving HTCondor job logs
+- Export X509_CERT_DIR to jobscripts and Rucio/MetaCat in wrapper jobs
+- Re-port back to RAL environment after changes for FNAL
+- Make justin command Python 3.6 compatible again 
 
 ## 01.04.00
 - Cache HTCondor log as jobs finish, retrying up to 10 times, and remove job 
