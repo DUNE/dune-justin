@@ -553,8 +553,13 @@ elif jsonDict['command'] == 'get-token':
   if 'access_token' in responseDict and responseDict['access_token'] and \
      'access_token_seconds' in responseDict:
     try:
+      # Make sure it does not already exist
+      os.remove(bearerTokenFile)
+    except:
+      pass
+
+    try:
      filepath = pathlib.Path(bearerTokenFile)
-     filepath.unlink(missing_ok = True)
      filepath.touch(mode = 0o600)
      filepath.write_text(responseDict['access_token'])
     except:
@@ -569,8 +574,13 @@ elif jsonDict['command'] == 'get-token':
   if 'proxy_cert' in responseDict and responseDict['proxy_cert'] and \
      'proxy_chain' in responseDict and responseDict['proxy_chain']:
     try:
+      # Make sure it does not already exist
+      os.remove(x509ProxyFile)
+    except:
+      pass
+
+    try:
      filepath = pathlib.Path(x509ProxyFile)
-     filepath.unlink(missing_ok = True)
      filepath.touch(mode = 0o600)
      filepath.write_text('%s\n%s\n%s' %
                          (responseDict['proxy_cert'],
