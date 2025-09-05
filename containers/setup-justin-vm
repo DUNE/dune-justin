@@ -30,13 +30,13 @@ yum -y update
 dnf config-manager \
   --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
 yum -y install ca_policy_igtf-classic git joe mariadb-server \
-               docker-ce docker-ce-cli containerd.io
+               podman
 
 chown mysql.mysql /etc/justin-secrets/justin-db-*.pem
 
-echo '{ "mtu": 1450 }' > /etc/docker/daemon.json
-systemctl enable docker
-systemctl start docker
+#echo '{ "mtu": 1450 }' > /etc/docker/daemon.json
+#systemctl enable docker
+#systemctl start docker
 
 (
 cd /tmp
