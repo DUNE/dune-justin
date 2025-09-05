@@ -79,7 +79,9 @@ def fetchHTCondorJobLog(jobsubID):
 #                       % (cluster, proc, schedd, outcome.returncode))
 
   return outcome.stdout
+
 def saveTerminalJobsLogs():
+  # Returns the number of jobs with logs saved this time
 
   justin.logLine('Start of saving HTCondor jobs')
 
@@ -132,19 +134,19 @@ def saveTerminalJobsLogs():
                             ) 
     except Exception as e:
       justin.logLine("condor_q fails with error: " + str(e))
-      return
+      return 0
 
     justin.logLine('condor_q exit code: ' + str(outcome.returncode))
     
     if outcome.returncode != 0:
       justin.logLine("condor_q fails with return code %d" % outcome.returncode)
-      return
+      return 0
 
     try:
       jsonJobs = json.loads(outcome.stdout)
     except:
       justin.logLine('Failed to load JSON output by condor_q')
-      return
+      return 0
 
     for jsonJob in jsonJobs:  
       if 'jobstatus' not in jsonJob or \
@@ -162,11 +164,12 @@ def saveTerminalJobsLogs():
   if not condorJobs:
     # If we get nothing at all then something must be going wrong
     justin.logLine('Failed to find any job info from HTCondor')
-    return
+    return 0
 
   # Go back to the list of jobs from the database that have no wrapper log
   # saved and check each one against its HTCondor status, and try to fetch
   # logs
+  numberSaved = 0
   for dbJobRow in dbJobRows:
     
     if dbJobRow['jobsub_id'] not in condorJobs:
@@ -256,6 +259,7 @@ def saveTerminalJobsLogs():
     if outcome.returncode != 0:
       justin.logLine('condor_rm fails with return code %d' % outcome.returncode)
     else:
+      numberSaved += 1
       justin.logEvent(eventTypeID = justin.event_JOB_REMOVED_FROM_HTCONDOR,
                       workflowID  = dbJobRow['workflow_id'],
                       stageID     = dbJobRow['stage_id'],
@@ -268,40 +272,19 @@ def saveTerminalJobsLogs():
   # All ok, so commit it all to the DB
   justin.conn.commit()
 
+  return numberSaved
+ 
 def oneCycle():
 
-#  findTokensToRefresh()
-#  findSubmittedWorkflows()
-#
-#  pingRucioMilliseconds = justin.pingRucioMilliseconds()
-#
-#  justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
-#  if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
-#    findFiles()
-#    findReplicas()
-#  else:
-#    justin.logLine('Skip findFiles() and findReplicas()')
-
-#  findProblemWorkflows()
-#  findWorkflowsToFinish()
-#  finishWorkflows()
-#  findStalledAbortedJobs()
-  saveTerminalJobsLogs()
-#  manageCaches()
-
-#  # Is it time to update CILogon Jwks
-#  try:
-#    lastUpdateCondorJobs = \
-#              os.stat('/var/run/justin/last-updates/condorjobs').st_mtime
-#  except:
-#    lastUpdateCondorJobs = 0
-#
-#  if lastUpdateCondorJobs + updateCondorJobs < time.time():
-#    pathlib.Path('/var/run/justin/last-updates/condorjobs').touch(exist_ok=True)
-#    findStalledCondorJobs()
+  if saveTerminalJobsLogs() == 0:
+    # Only sleep between cycles if we found no logs to save
+    # This means if the job rate is big enough, we never sleep
+    justin.logLine('No logs saved, so sleep for %d seconds' % sleepSeconds)
+    time.sleep(sleepSeconds)
 #
 # PROGRAM MAIN
 #
 
 if __name__ == '__main__':
-  justin.agentMainLoop('job-logs', oneCycle, sleepSeconds, 3600)
+  # 0 means no sleeps between cycles. We do the sleeps in oneCycle() itself
+  justin.agentMainLoop('job-logs', oneCycle, 0, 3600)
