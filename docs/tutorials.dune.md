@@ -50,10 +50,10 @@ The justin command will display a message like this:
     usual web browser and follow the instructions within the next 10 minutes:
     https://dunejustin.fnal.gov/authorize/.........
 
-    Check that the Session ID displayed on that page is .......
-
-    Once you've followed the instructions on that web page, you can run the justin
-    command without needing to authorize this computer again for 7 days.
+    Check that the Session ID displayed on that page is ....
+ 
+    Once you've followed the instructions on that web page, please run the command
+    you tried again. You won't need to authorize this computer again for 7 days.
 
 Follow those instructions to authorize the justin command to run on your
 account on that computer. Then repeat the time subcommand. 
