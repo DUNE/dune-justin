@@ -92,7 +92,8 @@ def saveTerminalJobsLogs():
     terminalWithQuotes.append('"%s"' % i)
     
   # Get a list of jobs in terminal states without saved wrapper logs
-  # that finished in the last hour (so we don't try forever)
+  # that finished in the last week and still have tries left 
+  # (so we don't try forever)
   query = ('SELECT jobs.justin_job_id,jobsub_id,job_state,'
            'jobs.workflow_id,jobs.stage_id,jobs.site_id,jobs.entry_id '
            'FROM jobs '
@@ -100,6 +101,7 @@ def saveTerminalJobsLogs():
            'ON jobs_logs.justin_job_id=jobs.justin_job_id '
            'WHERE wrapper_log="" AND job_state IN (%s) '
            'AND wrapper_tries_left > 0 '
+           'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 7 DAY) '
            'ORDER BY jobs.justin_job_id LIMIT 1000' 
            % ','.join(terminalWithQuotes))
 
