@@ -897,6 +897,7 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
       
     outputFiles.append((matchingFile, fileSize, patternID, pattern))
     recordResultsDict['output_files'].append((matchingFile, patternID))
+    logLine('Output file to be uploaded: ' + matchingFile)
 
 recordResultsDict['processed_dids'] = []
 try:

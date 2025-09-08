@@ -1,5 +1,8 @@
 # Changelog
 
+## 01.06.00
+- Return HTTP 409 error to wrapper job if duplicate output file
+
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages
 - Create justin-job-logs agent with sole task for saving HTCondor job logs

@@ -1,7 +1,7 @@
 #
 # justin-wsgi-allocator - justIN allocator API service
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1784,15 +1784,6 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error', 
                      'Failed getting patterns list: ' + str(e))
 
-#  try:
-#    # We set stageID=-1 so that when 1 is added, the output only 
-#    # StageID of 0 is recorded
-#    processOutputDids(jsonDict['output_dids'], workflowID, -1, justinJobID)
-#  except Exception as e:
-#    return httpError(startResponse, 
-#                     '500 Internal Server Error', 
-#                     'Failed recording outputs: ' + str(e))
-
   # First pass to count how many files per destination already, allowing for
   # multiple patterns outputting to the same destination
   destinationCounts = {}
@@ -1856,6 +1847,10 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     processOutputFiles(jsonDict['output_files'], responseDict['patterns'],
                        scopeName, workflowID, stageID, justinJobID)
+  except MySQLdb.IntegrityError:
+    return httpError(startResponse, 
+                     '409 Duplicate output file name', 
+                     'Duplicate output file name')
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 
