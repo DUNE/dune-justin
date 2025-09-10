@@ -1230,6 +1230,91 @@ def updateScopes():
 
   justin.conn.commit()
 
+def updateRucioUsers():
+  # Get info about users Rucio knows about
+  logLine('---- Start updateRucioUsers ----')
+
+  # Make a list of Rucio user names we already have in the database
+  justinRucioUserNames = []
+  try:
+    justinRucioUserRows = justin.select('SELECT rucio_user_name '
+                                         'FROM rucio_users')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN Rucio users')
+    return
+    
+  for justinRucioUserRow in justinRucioUserRows:
+    justinRucioUserNames.append(justinRucioUserRow['rucio_user_name'])
+
+  # Make a list of all the justIN users in the database
+  justinPrincipalNames = []
+
+  try:
+    justinPrincipalNameRows = justin.select('SELECT principal_name,user_id '
+                                            'FROM principal_names')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN Rucio users')
+    return
+    
+  for justinPrincipalNameRow in justinPrincipalNameRows:
+  
+    nameUnderscore = justinPrincpalNameRow['principal_name'].replace(
+  
+    justinPrincipalNames[justinPrincpalNameRow['principal_name']) = \
+                                        justinPrincpalNameRow['user_id']
+
+  # Look for new user names in Rucio itself
+  try:
+    accountClient = rucio.client.accountclient.AccountClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+    
+  try:
+    rucioUsers = accountClient.list_accounts()
+  except Exception as e:
+    logLine("Reading accounts list from Rucio fails with: " + str(e))
+    return
+
+  for rucioUser in rucioUser:
+    if rucioUser['account'] in justinRucioUserNames:
+      # We already know this one - does it need to be updated?
+
+      if rucioUser['account'] in     
+      try:
+        justin.insertUpdate('UPDATE rucio_users INSERT INTO rucio_users '
+                              'SET rucio_user_name="%s"'
+                              % rucioUser['account']))
+          logLine('Added Rucio user %s' % rucioUser['account'])
+        except Exception as e:
+          logLine('Failed to insert new Rucio user %s into database: %s'
+                   % (rucioUser['account'], str(e)))
+          # We just continue if one fails
+
+    else:  
+    try:
+      userIdentities = accountClient.list_identities(rucioUser['account'])
+    except Exception as e:
+      logLine("Reading identities list from Rucio fails with: " + str(e))
+      return
+    
+    for userIdentity in userIdentities:
+      if userIdentity['type'] == 'X509' and \
+         userIdentity['identity'] == justin.productionDN:
+        try:
+          justin.insertUpdate('INSERT INTO rucio_users '
+                              'SET rucio_user_name="%s"'
+                              % rucioUser['account']))
+          logLine('Added Rucio user %s' % rucioUser['account'])
+        except Exception as e:
+          logLine('Failed to insert new Rucio user %s into database: %s'
+                   % (rucioUser['account'], str(e)))
+          # We just continue if one fails
+
+        break
+          
+  justin.conn.commit()
+
 def oneCycle():
 
   # Is it time to test Rucio
@@ -1265,6 +1350,7 @@ def oneCycle():
     updateGroupsWLCG()
     updateStorages()
     updateLogsDatasets()
+    updateRucioUsers()
     updateScopes()
 
   # It is time to update sites from the OSG pilot factory config?

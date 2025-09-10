@@ -17,7 +17,10 @@ CREATE TABLE IF NOT EXISTS `stages_jobscripts` (
 CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
+  `rucio_user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+# TO BE REMOVED vvvv
   `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+# TO BE REMOVED ^^^^
   `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
   `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
@@ -449,6 +452,16 @@ CREATE TABLE IF NOT EXISTS `jwt_keys` (
   `jwks_use` varchar(255) NOT NULL,
   `jwks_kty` varchar(255) NOT NULL,
   PRIMARY KEY (`jwks_kid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE IF NOT EXISTS `rucio_users` (
+  `rucio_user_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `rucio_user_name` varchar(255) NOT NULL,
+  `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`rucio_user_id`),
+  INDEX `user_group` (`rucio_user_id`,`wlcg_group_id`,`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `users` (

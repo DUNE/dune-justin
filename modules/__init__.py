@@ -52,6 +52,8 @@ jobsNoRolesProxyFile   = '/tmp/justin-jobs-no-roles.proxy.pem'
 MonteCarloRseID     = 1
 justinRunDir        = '/var/run/justin'
 rucioProductionUser = 'dunepro'
+productionDN = \
+ '/C=UK/O=eScience/OU=Manchester/L=HEP/CN=justin-jobs-production.dune.hep.ac.uk'
 
 # From justin.conf etc
 mysqlUsername   = None
