@@ -66,7 +66,8 @@ commands = [ "create-workflow",
              "fetch-logs",
              "get-token",
              "whoami",
-             "time" ]
+             "time",
+             "version" ]
 
 parser.add_argument("command",
                     type = str,
@@ -252,6 +253,10 @@ except:
   parser.print_help()
   sys.exit(0)
 
+if args.command not in commands:
+  print("%s not recognised as a justin command" % args.command)
+  sys.exit(1)
+
 jsonDict = vars(args)
 
 if jsonDict['command'] == 'version':
@@ -378,10 +383,6 @@ if jsonDict['command'] == 'get-token':
     print('Failed to create X.509 proxy request with openssl command (%s)' 
           % str(e), file=sys.stderr)
     sys.exit(1)
-
-if args.command not in commands:
-  print("%s not recognised as a justin command" % args.command)
-  sys.exit(1)
 
 if jsonDict['verbose']:
   print(jsonDict)

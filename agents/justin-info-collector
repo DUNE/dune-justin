@@ -18,6 +18,7 @@
 #
 
 import os
+import re
 import sys
 import stat
 import pwd
@@ -1131,123 +1132,121 @@ def updateScopes():
   # Get info about scopes Rucio knows about
   logLine('---- Start updateScopes ----')
 
+  # Set up for Rucio queries
   try:
-    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
-                        'WHERE wlcg_group_name="/dune"', justOne = True)
-    duneWLCGGroupID = int(row['wlcg_group_id'])
-
-    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
-                        'WHERE wlcg_group_name="/dune/production"', 
-                        justOne = True)
-    productionWLCGGroupID = int(row['wlcg_group_id'])
+    scopeClient = rucio.client.scopeclient.ScopeClient()
   except Exception as e:
-    logLine('Failed getting /dune and /dune/production group IDs: ' + str(e))
+    logLine("Connect to Rucio fails with: " + str(e))
     return
+
+  # Make a list of scopes we already know
+  justinScopes = {}
+  try:
+    justinScopeRows = justin.select('SELECT scope_name,condor_group_id,'
+                                    'quota_id FROM scopes')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN scopes')
+    return
+    
+  for justinScopeRow in justinScopeRows:
+    justinScopes[justinScopeRow['scope_name']] = \
+     {
+       'condor_group_id' : justinScopeRow['condor_group_id'],
+       'quota_id'        : justinScopeRow['quota_id']
+     }
+
+  # Go through all the named quotas / Rucio users we know justIN can access
+  try:
+    justinQuotaRows = justin.select(
+               'SELECT quota_name,quota_id,wlcg_group_id,'
+               'condor_group_id '
+               'FROM named_quotas WHERE for_justin')
+  except Exception as e:
+    logLine('Failed to get names of existing justIN Rucio users')
+    return
+    
+  for justinQuotaRow in justinQuotaRows:
+    # Find the scopes owned by each Rucio user accessible to justIN
+    try:
+      scopesForUser = scopeClient.list_scopes_for_account(
+                                   justinQuotaRow['quota_name'])
+    except Exception as e:
+      logLine("Reading scopes list from Rucio fails with: " + str(e))
+      continue
+
+    for scopeForUser in scopesForUser:
+      if scopeForUser not in justinScopes:
+        # A new scope we need to add!
+        logLine('Adding new scope %s from Rucio' % scopeForUser)
+
+        try:
+          justin.insertUpdate('INSERT INTO scopes SET scope_name="%s",'
+                              'quota_id=%d,condor_group_id=%d' %
+                              (scopeForUser, 
+                               justinQuotaRow['quota_id'],
+                               justinQuotaRow['condor_group_id']))
+        except Exception as e:
+          logLine('Failed to insert new scope %s into justIN database: %s'
+                % (scopeForUser, str(e)))
+          continue
+
+      elif ((justinScopes[scopeForUser]['quota_id'] 
+               != justinQuotaRow['quota_id']) ||
+            (justinScopes[scopeForUser]['condor_group_id'] == 0)):
+        # An existing scope need to update
+        logLine('Update scope %s' % scopeForUser)
+
+        if justinScopes[scopeForUser]['condor_group_id'] == 0:
+          # Set it to the quota's default if not already set
+          condorGroupID = justinQuotaRow['condor_group_id']
+        else:
+          # Keep it if already set
+          condorGroupID = justinScopes[scopeForUser]['condor_group_id']
+        
+        try:
+          justin.insertUpdate('UPDATE scopes SET '
+                              'quota_id=%d,condor_group_id=%d '
+                              'WHERE scope_name="%s"' %
+                              (justinQuotaRow['quota_id'],
+                               condorGroupID,
+                               scopeForUser))
+        except Exception as e:
+          logLine('Failed to update scope %s in justIN database: %s'
+                % (scopeForUser, str(e)))
+          continue        
+
+  justin.conn.commit()
+
+def updateNamedQuotas():
+  # Get info about named quotas / users Rucio knows about
+  logLine('---- Start updateNamedQuotas ----')
 
   try:
     row = justin.select('SELECT condor_group_id FROM condor_groups '
                         'WHERE condor_group_name="group_dune"', justOne = True)
     duneCondorGroupID = int(row['condor_group_id'])
 
-    row = justin.select('SELECT condor_group_id FROM condor_groups '
-                        'WHERE condor_group_name="group_dune.prod_mcsim"', 
-                        justOne = True)
-    productionCondorGroupID = int(row['condor_group_id'])
   except Exception as e:
     logLine('Failed getting Condor group IDs: ' + str(e))
     return
-    
-  justinScopeNames = []
+
+  # Make a dictionary of Rucio user names we already have in the database
+  justinQuotaNames = {}
   try:
-    justinScopeRows = justin.select('SELECT scope_name FROM scopes')
+    justinQuotaRows = justin.select('SELECT quota_name,user_id,'
+                                        'wlcg_group_id '
+                                        'FROM named_quotas')
   except Exception as e:
-    logLine('Failed to get names of existing justIN scopes')
+    logLine('Failed to get names of existing justIN named quotas / Rucio users')
     return
     
-  for justinScopeRow in justinScopeRows:
-    justinScopeNames.append(justinScopeRow['scope_name'])
+  for justinQuotaRow in justinQuotaRows:
+    justinQuotaNames[justinQuotaRow['quota_name']] = \
+     { 'user_id'       : justinQuotaRow['user_id'],
+       'wlcg_group_id' : justinQuotaRow['wlcg_group_id'] }
 
-  try:
-    scopeClient = rucio.client.scopeclient.ScopeClient()
-  except Exception as e:
-    logLine("Connect to Rucio fails with: " + str(e))
-    return
-    
-  try:
-    rucioScopeNames = scopeClient.list_scopes()
-  except Exception as e:
-    logLine("Reading scope list from Rucio fails with: " + str(e))
-    return
-
-  try:
-    productionScopeNames = scopeClient.list_scopes_for_account(
-                                                  justin.rucioProductionUser)
-  except Exception as e:
-    logLine("Reading production scopes list from Rucio fails with: " + str(e))
-    return
-
-  for rucioScopeName in rucioScopeNames:
-    if rucioScopeName not in justinScopeNames:
-      # A new scope we need to add
-      logLine('Adding new scope %s from Rucio' % rucioScopeName)
-
-      try:
-        justin.insertUpdate('INSERT INTO scopes SET scope_name="%s"'
-                            % rucioScopeName)
-      except Exception as e:
-        logLine('Failed to insert new scope %s into justIN database: %s'
-                % (rucioScopeName, str(e)))
-        continue
-        
-    if rucioScopeName in productionScopeNames:
-      # A production scope, that wrapper jobs can write to
-      if rucioScopeName == 'usertests':
-        # Any /dune member can write to usertests via justIN
-        wlcgGroupID   = duneWLCGGroupID
-        condorGroupID = duneCondorGroupID
-      else:
-        # Everything else requires /dune/production group membership
-        wlcgGroupID   = productionWLCGGroupID
-        condorGroupID = productionCondorGroupID
-    else:
-      # If not writeable via wrapper jobs as production user, then no groups
-      wlcgGroupID   = 0
-      condorGroupID = 0
-
-    logLine('Update scope %s with wlcg_group_id=%d' 
-            % (rucioScopeName, wlcgGroupID))
-    try:
-      justin.insertUpdate('UPDATE scopes SET wlcg_group_id=%d,'
-                          'condor_group_id=%d '
-                          'WHERE scope_name="%s"' 
-                          % (wlcgGroupID, 
-                             condorGroupID,
-                             rucioScopeName))
-    except Exception as e:
-      logLine('Failed updating wlcg_group_id=%d condor_group_id=%d for %s: %s'
-              % (wlcgGroupID, condorGroupID, rucioScopeName, str(e)))
-      continue
-
-  justin.conn.commit()
-
-def updateRucioUsers():
-  # Get info about users Rucio knows about
-  logLine('---- Start updateRucioUsers ----')
-
-  # Make a list of Rucio user names we already have in the database
-  justinRucioUserNames = []
-  try:
-    justinRucioUserRows = justin.select('SELECT rucio_user_name '
-                                         'FROM rucio_users')
-  except Exception as e:
-    logLine('Failed to get names of existing justIN Rucio users')
-    return
-    
-  for justinRucioUserRow in justinRucioUserRows:
-    justinRucioUserNames.append(justinRucioUserRow['rucio_user_name'])
-
-  # Make a list of all the justIN users in the database
-  justinPrincipalNames = []
+  # Make a dictionary of all the justIN users in the database
+  justinUnderscoreNames = {}
 
   try:
     justinPrincipalNameRows = justin.select('SELECT principal_name,user_id '
@@ -1256,12 +1255,10 @@ def updateRucioUsers():
     logLine('Failed to get names of existing justIN Rucio users')
     return
     
-  for justinPrincipalNameRow in justinPrincipalNameRows:
-  
-    nameUnderscore = justinPrincpalNameRow['principal_name'].replace(
-  
-    justinPrincipalNames[justinPrincpalNameRow['principal_name']) = \
-                                        justinPrincpalNameRow['user_id']
+  for justinPrincipalNameRow in justinPrincipalNameRows:  
+    nameUnderscores = re.sub('[^0-9a-zA-Z]+', '_',
+                            justinPrincpalNameRow['principal_name'])
+    justinUnderscoreNames[nameUnderscores) = justinPrincpalNameRow['user_id']
 
   # Look for new user names in Rucio itself
   try:
@@ -1276,43 +1273,104 @@ def updateRucioUsers():
     logLine("Reading accounts list from Rucio fails with: " + str(e))
     return
 
-  for rucioUser in rucioUser:
-    if rucioUser['account'] in justinRucioUserNames:
-      # We already know this one - does it need to be updated?
+  for rucioUser in rucioUsers:
+    if rucioUser['account'] not in justinQuotaNames:
+      # We do not know this one - need to add it
 
-      if rucioUser['account'] in     
+      # Check if justIN can access this account
       try:
-        justin.insertUpdate('UPDATE rucio_users INSERT INTO rucio_users '
-                              'SET rucio_user_name="%s"'
-                              % rucioUser['account']))
-          logLine('Added Rucio user %s' % rucioUser['account'])
-        except Exception as e:
-          logLine('Failed to insert new Rucio user %s into database: %s'
-                   % (rucioUser['account'], str(e)))
-          # We just continue if one fails
-
-    else:  
-    try:
-      userIdentities = accountClient.list_identities(rucioUser['account'])
-    except Exception as e:
-      logLine("Reading identities list from Rucio fails with: " + str(e))
-      return
+        userIdentities = accountClient.list_identities(rucioUser['account'])
+      except Exception as e:
+        logLine("Reading identities list from Rucio fails with: " + str(e))
+        return
     
-    for userIdentity in userIdentities:
-      if userIdentity['type'] == 'X509' and \
-         userIdentity['identity'] == justin.productionDN:
-        try:
-          justin.insertUpdate('INSERT INTO rucio_users '
-                              'SET rucio_user_name="%s"'
-                              % rucioUser['account']))
-          logLine('Added Rucio user %s' % rucioUser['account'])
-        except Exception as e:
-          logLine('Failed to insert new Rucio user %s into database: %s'
-                   % (rucioUser['account'], str(e)))
-          # We just continue if one fails
+      forJustIN = False
+      for userIdentity in userIdentities:
+        if userIdentity['type'] == 'X509' and \
+             userIdentity['identity'] == justin.productionDN:
+          forJustIN = True
+          break
+    
+      if rucioUser['account'] in justinUnderscoreNames:
+        # If there is a corresponding justIN user, store its user_id
+        storedUserID = justinUnderscoreNames[rucioUser['account']]
+      else:
+        storedUserID = 0
+    
+      try:
+        justin.insertUpdate('INSERT INTO named_quotas '
+                            'SET quota_name="%s",user_id=%d,'
+                            'condor_group_id=%d,for_justin=%s'
+                            % (rucioUser['account'], storedUserID, 
+                               duneCondorGroupID, forJustIN))
+        logLine('Added Rucio user %s' % rucioUser['account'])
+      except Exception as e:
+        logLine('Failed to insert new Rucio user %s into database: %s'
+                % (rucioUser['account'], str(e)))
+        # We just continue if this one fails
+        continue
+    
+    else if rucioUser['account'] in justinUnderscoreNames:
+      # We know the Rucio account and there is a corresponding justIN user
 
-        break
-          
+      # Recheck if justIN can access this account to set for_justin
+      try:
+        userIdentities = accountClient.list_identities(rucioUser['account'])
+      except Exception as e:
+        logLine("Reading identities list from Rucio fails with: " + str(e))
+        continue
+    
+      forJustIN = False
+      for userIdentity in userIdentities:
+        if userIdentity['type'] == 'X509' and \
+             userIdentity['identity'] == justin.productionDN:
+          forJustIN = True
+          break
+      
+      try:
+        justin.insertUpdate('UPDATE named_quotas '
+                            'SET user_id=%d,wclg_group_id=0,for_justin=%s '
+                            'WHERE quota_name="%s"'
+                  % (justinQuotaNames[rucioUser['account']]['user_id'],
+                     forJustIN,
+                     rucioUser['account']))
+          logLine('Update Rucio user %s' % rucioUser['account'])
+        except Exception as e:
+          logLine('Failed to update Rucio user %s in database: %s'
+                   % (rucioUser['account'], str(e)))
+          # We just continue if this one fails
+          continue
+
+    else if justinQuotaNames[rucioUser['account']]['wlcg_group_id']:
+      # We know the Rucio account and the wlcg_group_id is set
+
+      # Recheck if justIN can access this account to set for_justin
+      try:
+        userIdentities = accountClient.list_identities(rucioUser['account'])
+      except Exception as e:
+        logLine("Reading identities list from Rucio fails with: " + str(e))
+        continue
+    
+      forJustIN = False
+      for userIdentity in userIdentities:
+        if userIdentity['type'] == 'X509' and \
+             userIdentity['identity'] == justin.productionDN:
+          forJustIN = True
+          break
+      
+      try:
+        # Set for_justin and ensure user_id is zero for this group account
+        justin.insertUpdate('UPDATE named_quota '
+                            'SET user_id=0,for_justin=%s '
+                            'WHERE quota_name="%s"'
+                  % (forJustIN, rucioUser['account']))
+        logLine('Update Rucio user %s' % rucioUser['account'])
+      except Exception as e:
+        logLine('Failed to update Rucio user %s in database: %s'
+                 % (rucioUser['account'], str(e)))
+        # We just continue if this one fails
+        continue
+
   justin.conn.commit()
 
 def oneCycle():
@@ -1350,7 +1408,7 @@ def oneCycle():
     updateGroupsWLCG()
     updateStorages()
     updateLogsDatasets()
-    updateRucioUsers()
+    updateNamedQuotas()
     updateScopes()
 
   # It is time to update sites from the OSG pilot factory config?
