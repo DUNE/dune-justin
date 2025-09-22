@@ -1,7 +1,7 @@
 ## dune-justin
 justIN - DUNE workflow system
 
-See https://justin.dune.hep.ac.uk/ for documentation
+See https://dunejustin.fnal.gov/docs/ for documentation
 
 ### Branches/tags policy
 
