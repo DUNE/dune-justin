@@ -1,0 +1,57 @@
+#!/bin/bash
+
+export YEAR=`date +'%Y'`
+
+mysql justindb -B --skip-column-names -e \
+ "SELECT CONCAT('ral-',workflows.workflow_id,',',DATE(workflows.started),',',
+ scope_name,
+ ',',
+ (SELECT COUNT(*) FROM jobs WHERE jobs.workflow_id=workflows.workflow_id), 
+ ',',
+ (SELECT SUM(jobscript_real_seconds) FROM jobs 
+  WHERE jobs.workflow_id=workflows.workflow_id)
+ )
+ FROM workflows 
+ LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id 
+ WHERE workflows.workflow_id > 1 AND YEAR(workflows.submitted) = $YEAR
+ ORDER BY workflow_id" | grep -v '^NULL' >/tmp/per_workflow.csv
+
+# production is wlcg_group_id=2
+
+mysql justindb -B --skip-column-names -e \
+ "SELECT CONCAT(scope_name,
+ ',',
+ (SELECT COUNT(*) FROM jobs 
+  LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id 
+  WHERE workflows.scope_id=scopes.scope_id 
+  AND YEAR(allocation_time)=$YEAR), 
+ ',',
+ (SELECT SUM(jobscript_real_seconds) FROM jobs 
+  LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id 
+  WHERE workflows.scope_id=scopes.scope_id 
+  AND YEAR(allocation_time)=$YEAR)
+ )
+ FROM scopes 
+ WHERE scopes.wlcg_group_id=2 
+ ORDER BY scope_name" | grep -v NULL >/tmp/per_scope.csv
+ 
+# production is wlcg_group_id=2
+
+mysql justindb -B --skip-column-names -e \
+ "SELECT CONCAT(site_name,
+ ',',
+ (SELECT COUNT(*) FROM jobs 
+  LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id 
+  LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id
+  WHERE jobs.site_id=sites.site_id 
+  AND scopes.wlcg_group_id=2 AND YEAR(allocation_time)=$YEAR), 
+ ',',
+ (SELECT SUM(jobscript_real_seconds) FROM jobs 
+  LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id 
+  LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id
+  WHERE jobs.site_id=sites.site_id 
+  AND scopes.wlcg_group_id=2
+  AND YEAR(allocation_time)=$YEAR)
+ )
+ FROM sites ORDER BY site_name" | grep -v NULL >/tmp/per_site.csv
+
