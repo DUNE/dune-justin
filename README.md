@@ -5,8 +5,6 @@ See https://dunejustin.fnal.gov/docs/ for documentation
 
 ### Branches/tags policy
 
-(This will be adopted in the near future.)
-
 Most development happens on the main branch, via pull requests. 
 
 Version numbers in the form MM.mm.pp with major, minor and patch versions.
