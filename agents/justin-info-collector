@@ -247,7 +247,8 @@ def processOneFileXML(sitesDict, fileName):
                 jobsubSiteName = xmlAttr.getAttribute('value')
 
               elif name == 'GLIDEIN_ResourceName':
-                wlcgSiteName = xmlAttr.getAttribute('value')
+                # This is because UKI-SCOTGRID-DURHAM has a space!
+                wlcgSiteName = xmlAttr.getAttribute('value').strip()
 
               elif name == 'GLIDEIN_CPUS':
                 try:
