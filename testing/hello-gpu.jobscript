@@ -26,6 +26,7 @@ printenv | grep -i cuda
 nvidia-smi
 
 # Try to get an unprocessed file from this stage
+# The justin-get-file command must ALWAYS be present, even for MC workflows
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 
 if [ "$did_pfn_rse" != "" ] ; then

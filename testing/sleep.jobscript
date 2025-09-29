@@ -9,6 +9,7 @@
 #
 
 # Get an unprocessed file from this stage
+# The justin-get-file command must ALWAYS be present, even for MC workflows
 did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
 did=`echo $did_pfn_rse | cut -f1 -d' '`
 pfn=`echo $did_pfn_rse | cut -f2 -d' '`

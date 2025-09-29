@@ -1,7 +1,7 @@
 # Copy to /etc/my.cnf.d/justin-server.cnf
 [server]
 default-time-zone='+00:00'
-max_connections = 300
+max_connections = 500
 ssl
 ssl-cipher=DHE-RSA-AES256-SHA
 ssl_capath=/etc/grid-security/certificates
