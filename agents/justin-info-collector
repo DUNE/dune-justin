@@ -1192,7 +1192,7 @@ def updateScopes():
           continue
 
       elif ((justinScopes[scopeForUser]['quota_id'] 
-               != justinQuotaRow['quota_id']) ||
+               != justinQuotaRow['quota_id']) or
             (justinScopes[scopeForUser]['condor_group_id'] == 0)):
         # An existing scope need to update
         logLine('Update scope %s' % scopeForUser)
@@ -1258,8 +1258,8 @@ def updateNamedQuotas():
     
   for justinPrincipalNameRow in justinPrincipalNameRows:  
     nameUnderscores = re.sub('[^0-9a-zA-Z]+', '_',
-                            justinPrincpalNameRow['principal_name'])
-    justinUnderscoreNames[nameUnderscores) = justinPrincpalNameRow['user_id']
+                            justinPrincipalNameRow['principal_name'])
+    justinUnderscoreNames[nameUnderscores] = justinPrincipalNameRow['user_id']
 
   # Look for new user names in Rucio itself
   try:
@@ -1311,7 +1311,7 @@ def updateNamedQuotas():
         # We just continue if this one fails
         continue
     
-    else if rucioUser['account'] in justinUnderscoreNames:
+    elif rucioUser['account'] in justinUnderscoreNames:
       # We know the Rucio account and there is a corresponding justIN user
 
       # Recheck if justIN can access this account to set for_justin
@@ -1335,14 +1335,14 @@ def updateNamedQuotas():
                   % (justinQuotaNames[rucioUser['account']]['user_id'],
                      forJustIN,
                      rucioUser['account']))
-          logLine('Update Rucio user %s' % rucioUser['account'])
-        except Exception as e:
-          logLine('Failed to update Rucio user %s in database: %s'
+        logLine('Update Rucio user %s' % rucioUser['account'])
+      except Exception as e:
+        logLine('Failed to update Rucio user %s in database: %s'
                    % (rucioUser['account'], str(e)))
-          # We just continue if this one fails
-          continue
+        # We just continue if this one fails
+        continue
 
-    else if justinQuotaNames[rucioUser['account']]['wlcg_group_id']:
+    elif justinQuotaNames[rucioUser['account']]['wlcg_group_id']:
       # We know the Rucio account and the wlcg_group_id is set
 
       # Recheck if justIN can access this account to set for_justin

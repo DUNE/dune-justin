@@ -1,7 +1,7 @@
 #
 # justin-wsgi-dashboard - justIN workflow system dashboard
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-25, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -2921,15 +2921,21 @@ def listScopes(environ, user, cgiValues):
       
   output = header(environ, user, "justIN: Scopes")
 
-  output += ("<h1>Scopes</h1>")
+  output += ("<h1>Scopes</h1>\n")
+
+  output += ("<p>Scopes available for justIN workflows</p>\n")
   
   query = ('SELECT scope_name,wlcg_group_name,condor_group_name,'
-           'max_files_per_workflow,scopes.processing_enabled '
+           'max_files_per_workflow,scopes.processing_enabled,'
+           'quota_name '
         'FROM scopes '
         'LEFT JOIN wlcg_groups '
         'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=scopes.condor_group_id '
+        'LEFT JOIN named_quotas '
+        'ON named_quotas.quota_id=scopes.quota_id '
+        'WHERE scopes.quota_id<>0 '
         'ORDER BY scope_name')
   scopeRows = justin.select(query)
 
@@ -2942,6 +2948,7 @@ def listScopes(environ, user, cgiValues):
   
   output += ('<tr>'
              '<th>Scope</th>'
+             '<th>Quota</th>'
              '<th>WLCG Group</th>'
              '<th>HTCondor Group</th>'
              '<th>Max input files</th>'
@@ -2951,9 +2958,11 @@ def listScopes(environ, user, cgiValues):
     output += ('<tr><td>%s</td>'
                '<td>%s</td>' 
                '<td>%s</td>' 
+               '<td>%s</td>' 
                '<td>%d</td>' 
                '<td>%s</td></tr>' 
                % (scopeRow['scope_name'],
+                  scopeRow['quota_name'] if scopeRow['quota_name'] else ' ',
                   scopeRow['wlcg_group_name'] 
                   if scopeRow['wlcg_group_name'] else ' ',
                   scopeRow['condor_group_name'] 

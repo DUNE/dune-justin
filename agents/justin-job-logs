@@ -59,7 +59,8 @@ def fetchHTCondorJobLog(jobsubID):
                               str(cluster),
                               str(proc),
                               str(schedd),
-                              justin.htcondorCollectors[0]
+                              justin.htcondorCollectors[0],
+                              'remove'
                              ],
                               encoding = 'utf-8',
                               stderr   = subprocess.STDOUT,
@@ -69,14 +70,11 @@ def fetchHTCondorJobLog(jobsubID):
     raise RuntimeError('For %s.%s@%s justin-get-output fails with %s' 
                        % (cluster, proc, schedd, str(e)))
 
+
   if outcome.returncode != 0:
-    return outcome.stdout + \
-           '\n(Error from condor_transfer_data: %d)' % outcome.returncode
-# REMOVE THIS FOR PRODUCTION
-# WITHOUT THIS WE CACHE RESULT EVEN WHEN HTCONDOR TOO LOADED TO RESPOND!!    
-#    raise RuntimeError('For %s.%s@%s justin-get-output fails with '
-#                       'error code %d' 
-#                       % (cluster, proc, schedd, outcome.returncode))
+    raise RuntimeError('For %s.%s@%s justin-get-output fails with '
+                       'error code %d'
+                       % (cluster, proc, schedd, outcome.returncode))
 
   return outcome.stdout
 
@@ -171,7 +169,10 @@ def saveTerminalJobsLogs():
   # Go back to the list of jobs from the database that have no wrapper log
   # saved and check each one against its HTCondor status, and try to fetch
   # logs
-  numberSaved = 0
+  
+  subprocessDir  = tempfile.mkdtemp(prefix='justin-job-logs-')
+  subprocessList = []
+
   for dbJobRow in dbJobRows:
     
     if dbJobRow['jobsub_id'] not in condorJobs:
@@ -198,78 +199,102 @@ def saveTerminalJobsLogs():
                 (dbJobRow['jobsub_id'], jobStatus))
       continue
 
-    # Try to fetch the HTCondor job log
+    # In a terminal state so try to get the logs and remove from spool
     try:
-      wrapperLog = fetchHTCondorJobLog(dbJobRow['jobsub_id'])
-    except Exception as e:
-      justin.logLine('Failed fetching wrapper job log for %s: %s' %
-                     (dbJobRow['jobsub_id'], str(e)))
-
-      try:
-        justin.insertUpdate('UPDATE jobs_logs '
-                            'SET wrapper_tries_left=wrapper_tries_left-1 '
-                            'WHERE wrapper_tries_left > 0 AND '
-                            'justin_job_id=%d' % dbJobRow['justin_job_id'])
+      justin.insertUpdate('UPDATE jobs_logs '
+                          'SET wrapper_tries_left=wrapper_tries_left-1 '
+                          'WHERE wrapper_tries_left > 0 AND '
+                          'justin_job_id=%d' % dbJobRow['justin_job_id'])
       except Exception as e:
         justin.logLine('Failed to update wrapper_tries_left (%s) - ignoring'
                        % str(e))
+        continue
+
+    subprocessPID = fork()
+    
+    if subprocessPID == 0:
+      # In subprocess, try to fetch logs and remove job
+      try:
+        wrapperLog = fetchHTCondorJobLog(dbJobRow['jobsub_id'])
+      except Exception as e:
+        justin.logLine('Failed fetching wrapper job log for %s: %s' %
+                       (dbJobRow['jobsub_id'], str(e)))
+      else:
+        try:
+          f = open(subprocessDir+'/'+str(dbJobRow['justin_job_id']), 'w')
+          f.write(wrapperLog)
+          f.close()
+        except Exception as e:
+          justin.logLine('Failed writing wrapper log for %s: %s' %
+                         (dbJobRow['jobsub_id'], str(e)))                         
+      sys.exit(0)
+          
+    # In parent
+    subprocessList.append(subprocessPID)
+
+    if len(subprocessList) > 10:
+      # We only fork so many times
+      break
+
+  # Wait until all subprocesses have finished
+  for count in range(0, 31):
+    anyActive = False
+    for i in subprocessList:
+      if justin.pidIsActive(i):
+        anyActive = True
+        break
+    
+    if not anyActive:
+      break
+      
+    time.sleep(1)
+
+  # Kill any still running
+  if anyActive:
+    for i in subprocessList:
+      if justin.pidIsActive(i):
+        try:
+          os.kill(cyclePid)
+        except Exception:
+          # Not much we can do except log it
+          logLine('Kill of %d fails with: %s' % (i, str(e)))
+
+  # Go through the subprocess outputs and save logs in the database
+  numberSaved = 0
+  for justinJobID in os.listdir(subprocessDir):
+    try:
+      wrapperLog = open(subprocessDir + '/' + justinJobID, 'w').readlines()
+    except Exception as e:
+      justin.logLine('Failed reading logs file for %s: %s' %
+                     (justinJobID, str(e)))
       continue
       
     # Save the HTCondor job log
     try:
       justin.insertUpdate('UPDATE jobs_logs '
               'SET wrapper_log="%s",saved_time=NOW() '
-              'WHERE justin_job_id=%d' % 
+              'WHERE justin_job_id=%s' % 
               (wrapperLog.replace('\\','\\\\').replace('"','\\"'), 
-               dbJobRow['justin_job_id']))
+               justinJobID))
     except Exception as e:
       justin.logLine('Failed to save wrapper job log (%s) - skipping'
                      % str(e))
       continue
     else:
       justin.logEvent(eventTypeID = justin.event_JOB_HTCONDOR_LOGS_CACHED,
-                      workflowID  = dbJobRow['workflow_id'],
-                      stageID     = dbJobRow['stage_id'],
-                      siteID      = dbJobRow['site_id'],
-                      entryID     = dbJobRow['entry_id'],
-                      justinJobID = dbJobRow['justin_job_id'])
-
-    # If we got this far, the job is in a terminal state, the wrapper log
-    # is saved, and we can remove it from the queue    
-    try: 
-      outcome = subprocess.run(
-               ['/usr/bin/condor_rm',
-                '-name',
-                dbJobRow['jobsub_id'].split('@')[1],
-                dbJobRow['jobsub_id'].split('@')[0],
-                '-pool',
-                justin.htcondorCollectors[0],
-               ],
-               env      = dict(os.environ, 
-                 BEARER_TOKEN_FILE='/etc/justin-secrets/bearer-token-file'),
-               encoding = 'utf-8',
-               stderr   = subprocess.STDOUT,
-               stdout   = subprocess.PIPE,
-               timeout  = 120
-                            ) 
-    except Exception as e:
-      justin.logLine('condor_rm fails with error: ' + str(e))
-      continue
-
-    justin.logLine('condor_rm exit code: ' + str(outcome.returncode))
+#                      workflowID  = dbJobRow['workflow_id'],
+#                      stageID     = dbJobRow['stage_id'],
+#                      siteID      = dbJobRow['site_id'],
+#                      entryID     = dbJobRow['entry_id'],
+                      justinJobID = justinJobID)
     
-    if outcome.returncode != 0:
-      justin.logLine('condor_rm fails with return code %d' % outcome.returncode)
-    else:
-      numberSaved += 1
-      justin.logEvent(eventTypeID = justin.event_JOB_REMOVED_FROM_HTCONDOR,
-                      workflowID  = dbJobRow['workflow_id'],
-                      stageID     = dbJobRow['stage_id'],
-                      siteID      = dbJobRow['site_id'],
-                      entryID     = dbJobRow['entry_id'],
-                      justinJobID = dbJobRow['justin_job_id'])
-
-      justin.logLine('Job %s removed from queue' % dbJobRow['jobsub_id'])
+    numberSaved += 1
+    justin.logEvent(eventTypeID = justin.event_JOB_REMOVED_FROM_HTCONDOR,
+#                      workflowID  = dbJobRow['workflow_id'],
+#                      stageID     = dbJobRow['stage_id'],
+#                      siteID      = dbJobRow['site_id'],
+#                      entryID     = dbJobRow['entry_id'],
+                      justinJobID = justinJobID)
 
   # All ok, so commit it all to the DB
   justin.conn.commit()
