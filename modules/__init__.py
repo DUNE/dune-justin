@@ -141,7 +141,8 @@ jobStatesAll = [ 'submitted', 'started', 'processing', 'outputting' ] \
                + jobStatesTerminal
 
 jobStallSeconds = 3660
-maxFilesPerJob     = 20
+maxFilesPerJob  = 20
+parallelJobLogs = None
 
 filesPerNumberedDestination = 1000
 
@@ -190,7 +191,7 @@ def readConf():
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
          wrapperJobImage, overloadRucioMilliseconds, \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
-         extraEntries
+         extraEntries, parallelJobLogs
 
   parser = configparser.RawConfigParser()
 
@@ -323,6 +324,11 @@ def readConf():
     awtWorkflowID = int(parser.get('agents','awt_workflow_id').strip())
   except:
     awtWorkflowID = 1
+
+  try:
+    parallelJobLogs = int(parser.get('agents','parallel_job_logs').strip())
+  except:
+    parallelJobLogs = 10
 
   try:
     a = parser.get('htcondor','schedds').strip()

@@ -52,7 +52,7 @@ fi
 rm -f "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" \
       "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
 
-if [ "$5" = "remove" -a "$ctd_err" = 0 ] ; then
+if [ "$removejob" = "remove" -a "$ctd_err" = 0 ] ; then
   echo
   echo "======="
   echo "======= Removing job $cluster.$proc@$schedd"

@@ -24,6 +24,7 @@ import stat
 import json
 import time
 import base64
+import shutil
 import hashlib
 import tempfile
 import subprocess
@@ -205,12 +206,12 @@ def saveTerminalJobsLogs():
                           'SET wrapper_tries_left=wrapper_tries_left-1 '
                           'WHERE wrapper_tries_left > 0 AND '
                           'justin_job_id=%d' % dbJobRow['justin_job_id'])
-      except Exception as e:
-        justin.logLine('Failed to update wrapper_tries_left (%s) - ignoring'
+    except Exception as e:
+      justin.logLine('Failed to update wrapper_tries_left (%s) - ignoring'
                        % str(e))
-        continue
+      continue
 
-    subprocessPID = fork()
+    subprocessPID = os.fork()
     
     if subprocessPID == 0:
       # In subprocess, try to fetch logs and remove job
@@ -220,6 +221,8 @@ def saveTerminalJobsLogs():
         justin.logLine('Failed fetching wrapper job log for %s: %s' %
                        (dbJobRow['jobsub_id'], str(e)))
       else:
+        justin.logLine('Fetched wrapper job log for %s (%d)' %
+                       (dbJobRow['jobsub_id'], dbJobRow['justin_job_id']))
         try:
           f = open(subprocessDir+'/'+str(dbJobRow['justin_job_id']), 'w')
           f.write(wrapperLog)
@@ -230,9 +233,13 @@ def saveTerminalJobsLogs():
       sys.exit(0)
           
     # In parent
+    justin.logLine('Forked %d for %s (%d)' % 
+                   (subprocessPID, 
+                    dbJobRow['jobsub_id'], 
+                    dbJobRow['justin_job_id']))
     subprocessList.append(subprocessPID)
 
-    if len(subprocessList) > 10:
+    if len(subprocessList) > justin.parallelJobLogs:
       # We only fork so many times
       break
 
@@ -257,13 +264,14 @@ def saveTerminalJobsLogs():
           os.kill(cyclePid)
         except Exception:
           # Not much we can do except log it
-          logLine('Kill of %d fails with: %s' % (i, str(e)))
+          justin.logLine('Kill of %d fails with: %s' % (i, str(e)))
 
   # Go through the subprocess outputs and save logs in the database
   numberSaved = 0
   for justinJobID in os.listdir(subprocessDir):
+    justin.logLine('Processing %s' % justinJobID)
     try:
-      wrapperLog = open(subprocessDir + '/' + justinJobID, 'w').readlines()
+      wrapperLog = open(subprocessDir + '/' + justinJobID, 'r').read()
     except Exception as e:
       justin.logLine('Failed reading logs file for %s: %s' %
                      (justinJobID, str(e)))
@@ -296,7 +304,8 @@ def saveTerminalJobsLogs():
 #                      entryID     = dbJobRow['entry_id'],
                       justinJobID = justinJobID)
 
-  # All ok, so commit it all to the DB
+  # All ok, so remove temp directory and commit everything to the DB
+  shutil.rmtree(subprocessDir, ignore_errors = True)
   justin.conn.commit()
 
   return numberSaved
