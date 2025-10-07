@@ -2,6 +2,8 @@
 
 ## 01.06.00
 - Return HTTP 409 error to wrapper job if duplicate output file
+- Add named_quotas
+- Fetch job logs from HTCondor in parallel
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages
