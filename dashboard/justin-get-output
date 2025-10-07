@@ -10,6 +10,7 @@ cluster="$1"
 proc="$2"
 schedd="$3"
 collector="$4"
+removejob="$5"
 
 export BEARER_TOKEN_FILE='/etc/justin-secrets/bearer-token-file'
 
@@ -50,6 +51,14 @@ else
 fi
 rm -f "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" \
       "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
+
+if [ "$removejob" = "remove" -a "$ctd_err" = 0 ] ; then
+  echo
+  echo "======="
+  echo "======= Removing job $cluster.$proc@$schedd"
+  echo "======="
+  /usr/bin/condor_rm -name "$schedd" -pool "$collector" "$cluster.$proc" 2>&1
+fi
 
 # Return the error code from condor_transfer_data
 exit $ctd_err
