@@ -36,7 +36,7 @@ import platform
 import tempfile
 
 # The make-justin-tag script looks for this and updates it - so format matters
-versionNumber = '01.05.00'
+versionNumber = '01.05.01'
 sessionFile   = '/var/tmp/justin.session.' + str(os.getuid())
 
 def body(buf): 
