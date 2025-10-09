@@ -20,11 +20,13 @@ ctd_err=$?
 
 echo "======="
 echo "======= Start of condor_q -better -name $schedd -pool $collector $cluster.$proc output"
+echo "======= "`date`
 echo "======="
 /usr/bin/condor_q -better -name "$schedd" -pool "$collector" "$cluster.$proc"
 cqb_err=$?
 echo "======="
 echo "======= Start of job $cluster.$proc@$schedd log"
+echo "======= "`date`
 echo "======="
 if [ -r "/tmp/justin-wrapper-$cluster.$proc.$schedd.log" ] ; then
  cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.log"
@@ -33,12 +35,14 @@ else
 fi
 echo "======="
 echo "======= Start of condor_q -name $schedd -pool "$collector" -long $cluster.$proc"
+echo "======= "`date`
 echo "======="
 /usr/bin/condor_q -name "$schedd" -pool $collector -long "$cluster.$proc"
 cq_err=$?
 echo
 echo "======="
 echo "======= Start of job $cluster.$proc@$schedd output"
+echo "======= "`date`
 echo "======="
 if [ -r "/tmp/justin-wrapper-$cluster.$proc.$schedd.out" ] ; then
  cat "/tmp/justin-wrapper-$cluster.$proc.$schedd.out"
@@ -56,6 +60,7 @@ if [ "$removejob" = "remove" -a "$ctd_err" = 0 ] ; then
   echo
   echo "======="
   echo "======= Removing job $cluster.$proc@$schedd"
+  echo "======= "`date`
   echo "======="
   /usr/bin/condor_rm -name "$schedd" -pool "$collector" "$cluster.$proc" 2>&1
 fi
