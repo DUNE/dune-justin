@@ -2926,7 +2926,7 @@ def listScopes(environ, user, cgiValues):
   output += ("<p>Scopes available for justIN workflows</p>\n")
   
   query = ('SELECT scope_name,wlcg_group_name,condor_group_name,'
-           'max_files_per_workflow,scopes.processing_enabled,'
+           'max_files_per_workflow,named_quotas.processing_enabled,'
            'quota_name '
         'FROM scopes '
         'LEFT JOIN wlcg_groups '
@@ -2949,10 +2949,10 @@ def listScopes(environ, user, cgiValues):
   output += ('<tr>'
              '<th>Scope</th>'
              '<th>Quota</th>'
+             '<th>Processing enabled?</th>'
              '<th>WLCG Group</th>'
              '<th>HTCondor Group</th>'
-             '<th>Max input files</th>'
-             '<th>Processing enabled?</th></tr>')
+             '<th>Max input files</th></tr>')
   
   for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
@@ -2963,12 +2963,12 @@ def listScopes(environ, user, cgiValues):
                '<td>%s</td></tr>' 
                % (scopeRow['scope_name'],
                   scopeRow['quota_name'] if scopeRow['quota_name'] else ' ',
+                  str(bool(scopeRow['processing_enabled'])),
                   scopeRow['wlcg_group_name'] 
                   if scopeRow['wlcg_group_name'] else ' ',
                   scopeRow['condor_group_name'] 
                   if scopeRow['condor_group_name'] else ' ',
-                  scopeRow['max_files_per_workflow'],
-                  str(bool(scopeRow['processing_enabled'])) ))
+                  scopeRow['max_files_per_workflow'] ))
 
   output += ("</table>\n<p>All HTCondor groups: ")
 

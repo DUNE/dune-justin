@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS `scopes` (
 # TO BE REMOVED ^^^^
   `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
-  `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -31,7 +30,6 @@ CREATE TABLE IF NOT EXISTS `scopes` (
 CREATE TABLE IF NOT EXISTS `wlcg_groups` (
   `wlcg_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `wlcg_group_name` varchar(255) NOT NULL DEFAULT '',
-  `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY `wlcg_group_id` (`wlcg_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -314,6 +312,7 @@ CREATE TABLE IF NOT EXISTS `stages` (
   `stage_priority` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `processors` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `needs_gpu` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `inputs_per_job` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `jobscript_git` varchar(255) NOT NULL DEFAULT '',
   `jobscript_image` varchar(255) NOT NULL DEFAULT '',
   `wall_seconds` mediumint(8) unsigned DEFAULT NULL,

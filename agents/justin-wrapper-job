@@ -216,19 +216,19 @@ def executeMetaCatCommand(args):
 
   return (outcome.returncode, outcome.stdout)
   
-def executeJustinRucioUpload(args):
+def executeJustinRucioUpload(args, account = 'dunepro'):
 
   cmd = (
      'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
      'setup python v3_9_13 ; setup rucio ; setup justin ; '
-     'export RUCIO_ACCOUNT=dunepro ; '
+     'export RUCIO_ACCOUNT=%s ; '
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
      '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
      '###justin_instance###/NULL/bin/justin-rucio-upload '
-     '--tries 3 %s 2>&1' % args)
+     '--tries 3 %s 2>&1' % (account, args))
 
   ret = os.system(cmd)
   logLine('justin-rucio-upload returns %d - %s' 
@@ -1165,7 +1165,8 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
                                       workflowID, stageID, intPatternID, rse,
                                       destination + destinationNumber,
                                       destination,
-                                      fileName))
+                                      fileName),
+                                     'dunepro')
       uploadEndTime = time.time()
       if ret == 0:
         logLine('Uploaded %s:%s to %s in %.3fs' %
