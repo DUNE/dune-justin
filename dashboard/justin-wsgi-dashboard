@@ -545,7 +545,8 @@ def cilogonCallback(startResponse, environ):
   # associate the session with the corresponding user (and create if needed)
 
   try:
-    row = justin.select('SELECT user_id FROM principal_names '
+    row = justin.select('SELECT user_id '
+                        'FROM principal_names '
                         'WHERE principal_name="%s"' % eppn, justOne = True)
     userID = int(row['user_id'])
   except:
@@ -579,6 +580,9 @@ def cilogonCallback(startResponse, environ):
     output = errorPage(environ, 'Failed to store your tokens')
     startResponseOK(startResponse, output)
     return output
+
+FIND QUOTAS FOR THIS USER VIA wlcg_groups AND username AND INSERT INTO
+SESSIONS
         
   if authorizeSessionID:
      # If authorizing a computer, we create an extra session for that
@@ -785,7 +789,8 @@ def getUser(environ):
     return None
 
   try:
-    query = ('SELECT principal_name,sessions.user_id,justin_code,wlcg_groups '
+    query = ('SELECT principal_name,sessions.user_id,justin_code,wlcg_groups,'
+             'named_quotas '
              'FROM sessions '
              'LEFT JOIN users '
              'ON users.user_id=sessions.user_id '
@@ -795,11 +800,12 @@ def getUser(environ):
              'NOW() < expires_time AND sessions.user_id > 0'
              % (justinSession, justinSecret))
 
-    row        = justin.select(query, justOne = True)    
-    userName   = row['principal_name']
-    userID     = row['user_id']
-    justinCode = row['justin_code']
-    wlcgGroups = row['wlcg_groups'].split()
+    row         = justin.select(query, justOne = True)    
+    userName    = row['principal_name']
+    userID      = row['user_id']
+    justinCode  = row['justin_code']
+    wlcgGroups  = row['wlcg_groups'].split()
+    namedQuotas = row['named_quotas'].split()
     print(userName,userID,file=sys.stderr)
   except:
     return None
@@ -808,7 +814,8 @@ def getUser(environ):
            'user_id'        : userID,
            'justin_session' : justinSession,
            'justin_code'    : justinCode,
-           'wlcg_groups'    : wlcgGroups  }
+           'wlcg_groups'    : wlcgGroups,
+           'named_quotas'   : namedQuotas }
 
 def createUser(principalName):
   
@@ -2959,8 +2966,8 @@ def listScopes(environ, user, cgiValues):
                '<td>%s</td>' 
                '<td>%s</td>' 
                '<td>%s</td>' 
-               '<td>%d</td>' 
-               '<td>%s</td></tr>' 
+               '<td>%s</td>' 
+               '<td>%d</td></tr>' 
                % (scopeRow['scope_name'],
                   scopeRow['quota_name'] if scopeRow['quota_name'] else ' ',
                   str(bool(scopeRow['processing_enabled'])),
@@ -3642,11 +3649,14 @@ def showUser(environ, user, cgiValues):
     output += ('<table><tr><td>User name</td><td>%s</td></tr>' 
                % userName)
 
-    output += ('<table><tr><td>Processing enabled?</td><td>%s</td></tr>' 
+    output += ('<tr><td>Processing enabled?</td><td>%s</td></tr>' 
                % str(bool(userRow['processing_enabled'])))
 
     output += ('<tr><td>Groups</td><td>%s</td></tr>' 
                % ' &nbsp; '.join(user['wlcg_groups']))
+
+    output += ('<tr><td>Quotas</td><td>%s</td></tr>' 
+               % ' &nbsp; '.join(user['named_quotas']))
 
     output += ('<tr><td>Valid</td><td>%s to %s UTC</td></tr>' 
                % (userRow['created_time'], userRow['expires_time']))

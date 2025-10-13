@@ -252,6 +252,7 @@ def findFiles():
            'scope_name,max_files_per_workflow '
            'FROM workflows '
            'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
+           'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
            'WHERE state="running" AND '
            'refind_next_time <= NOW() AND '
            'refind_next_time > "%s" '

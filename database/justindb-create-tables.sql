@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS `scopes` (
   `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
 # TO BE REMOVED ^^^^
   `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -461,6 +460,7 @@ CREATE TABLE IF NOT EXISTS `named_quotas` (
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `for_justin` tinyint(1) NOT NULL DEFAULT '0',
+  `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
   PRIMARY KEY (`quota_id`),
   INDEX `user_group` (`quota_id`,`wlcg_group_id`,`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

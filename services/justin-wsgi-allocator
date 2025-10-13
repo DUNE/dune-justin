@@ -454,13 +454,17 @@ def makeJobscriptDict(jsonDict, jobDict):
   scopeName = jobDict['scope_name']
 
   try:
-    query = ("SELECT jobscript,principal_name,jobscript_image,jobscript_git "
+    query = ("SELECT jobscript,principal_name,jobscript_image,jobscript_git,"
+             "quota_name "
              "FROM stages_jobscripts "
              "LEFT JOIN workflows "
              "ON workflows.workflow_id=stages_jobscripts.workflow_id "
              "LEFT JOIN stages "
              "ON stages.workflow_id=stages_jobscripts.workflow_id "
              "AND stages.stage_id=stages_jobscripts.stage_id "
+             "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
+             "LEFT JOIN named_quotas "
+             "ON named_quotas.quota_id=scopes.quota_id "
              "LEFT JOIN users ON users.user_id=workflows.user_id "
              "LEFT JOIN principal_names "
              "ON principal_names.pn_id=users.main_pn_id "
@@ -472,6 +476,7 @@ def makeJobscriptDict(jsonDict, jobDict):
     jobscriptDict['principal_name']   = row['principal_name']
     jobscriptDict['jobscript']        = row['jobscript']
     jobscriptDict['jobscript_image']  = row['jobscript_image']
+    jobscriptDict['quota_name']       = row['quota_name']
 
     if row['jobscript_git']:
       jobscriptDict['jobscript_git'] = row['jobscript_git']

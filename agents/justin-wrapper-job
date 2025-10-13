@@ -1166,7 +1166,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
                                       destination + destinationNumber,
                                       destination,
                                       fileName),
-                                     'dunepro')
+                                     jobscriptDict['quota_name'])
       uploadEndTime = time.time()
       if ret == 0:
         logLine('Uploaded %s:%s to %s in %.3fs' %

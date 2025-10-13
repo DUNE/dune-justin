@@ -5,6 +5,11 @@ justIN implements the workflow system design described in chapter 13 of the
 A. Abed Abud et al (the DUNE Collaboration), FERMILAB-DESIGN-2022-01, 
 28 October 2022.
 
+The system is summarised in ["Just-in-time workflow management for DUNE"](https://www.epj-conferences.org/articles/epjconf/abs/2025/22/epjconf_chep2025_01216/epjconf_chep2025_01216.html),
+Andrew McNab and Christopher Brew, 
+EPJ Web of Conferences 337, 01216 (2025). This is the
+best paper reference to give for the justIN system.
+
 The justIN system includes all aspects of orchestrating the execution 
 of code to generate simulated data and to process real or simulated 
 data at computing sites around the world.
