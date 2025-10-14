@@ -1343,7 +1343,8 @@ def updateNamedQuotas():
         continue
 
     elif justinQuotaNames[rucioUser['account']]['wlcg_group_id']:
-      # We know the Rucio account and the wlcg_group_id is set
+      # We know the Rucio account and the wlcg_group_id is set (they have
+      # to be set manually at the moment)
 
       # Recheck if justIN can access this account to set for_justin
       try:

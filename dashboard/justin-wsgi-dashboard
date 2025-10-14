@@ -588,14 +588,16 @@ def cilogonCallback(startResponse, environ):
 
   try:
     rows = justin.select('SELECT DISTINCT quota_name '
-                    'FROM wlcg_groups '
-                    'LEFT JOIN named_quotas '
+                    'FROM named_quotas '
+                    'LEFT JOIN wlcg_groups '
                     'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
-                    'WHERE wlcg_groups.wlcg_group_name IN (%s)' %
-                    ','.join(wlcgGroupsQuotes))
-
+                    'WHERE wlcg_groups.wlcg_group_name IN (%s) '
+                    'OR named_quotas.user_id=%d' %
+                    (','.join(wlcgGroupsQuotes), userID))
+ 
     for row in rows:
-      namedQuotas.append(row['quota_name'])
+      if row['quota_name']:
+        namedQuotas.append(row['quota_name'])
 
   except Exception as e:
     print('Failed to get named quotas: ' + str(e), file=sys.stderr)
@@ -634,7 +636,7 @@ def cilogonCallback(startResponse, environ):
                   justinSession, justinSecret))
       justin.insertUpdate(query)
   except Exception as e:
-      print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
+      print('UPDATE web sessions fails: ' + str(e), file=sys.stderr)
   else:
       # This is where the created user gets committed too
       justin.conn.commit()
