@@ -497,6 +497,7 @@ CREATE TABLE IF NOT EXISTS `sessions` (
   `justin_secret` varchar(255) NOT NULL,
   `justin_code` varchar(255) NOT NULL,
   `wlcg_groups` text NOT NULL DEFAULT '',
+  `named_quotas` text NOT NULL DEFAULT '',
   `saved_uri` varchar(255) NOT NULL DEFAULT '',
   `user_agent` varchar(255) NOT NULL DEFAULT '',
   `os_release` varchar(255) NOT NULL DEFAULT '',

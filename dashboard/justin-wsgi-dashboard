@@ -581,17 +581,40 @@ def cilogonCallback(startResponse, environ):
     startResponseOK(startResponse, output)
     return output
 
-FIND QUOTAS FOR THIS USER VIA wlcg_groups AND username AND INSERT INTO
-SESSIONS
-        
+  namedQuotas      = []
+  wlcgGroupsQuotes = []
+  for i in wlcgGroups:
+    wlcgGroupsQuotes.append('"' + i + '"')
+
+  try:
+    rows = justin.select('SELECT DISTINCT quota_name '
+                    'FROM wlcg_groups '
+                    'LEFT JOIN named_quotas '
+                    'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+                    'WHERE wlcg_groups.wlcg_group_name IN (%s)' %
+                    ','.join(wlcgGroupsQuotes))
+
+    for row in rows:
+      namedQuotas.append(row['quota_name'])
+
+  except Exception as e:
+    print('Failed to get named quotas: ' + str(e), file=sys.stderr)
+    output = errorPage(environ, 'Failed to get named quotas')
+    startResponseOK(startResponse, output)
+    return output
+
   if authorizeSessionID:
      # If authorizing a computer, we create an extra session for that
      try:
         query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s",'
+                 'named_quotas="%s",'
                  'expires_time=DATE_ADD(NOW(),INTERVAL 7 DAY) '
                  'WHERE session_id = %d AND NOW() < expires_time AND '
                  'user_id = 0 AND session_type = "command"'
-                 % (userID, ' '.join(wlcgGroups), authorizeSessionID))
+                 % (userID, 
+                    ' '.join(wlcgGroups), 
+                    ' '.join(namedQuotas), 
+                    authorizeSessionID))
         
         justin.insertUpdate(query)
      except Exception as e:
@@ -601,10 +624,14 @@ SESSIONS
 
   # We always create a web session, since we are here anyway
   try:
-      query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s" '
+      query = ('UPDATE sessions SET user_id=%d,wlcg_groups="%s",'
+               'named_quotas="%s" '
                'WHERE justin_session="%s" AND justin_secret="%s" AND '
                'user_id=0 AND session_type="web"'
-               % (userID, ' '.join(wlcgGroups), justinSession, justinSecret))
+               % (userID, 
+                  ' '.join(wlcgGroups),
+                  ' '.join(namedQuotas),
+                  justinSession, justinSecret))
       justin.insertUpdate(query)
   except Exception as e:
       print('UPDATE sessions fails: ' + str(e), file=sys.stderr)
