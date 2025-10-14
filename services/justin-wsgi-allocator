@@ -1852,10 +1852,10 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     processOutputFiles(jsonDict['output_files'], responseDict['patterns'],
                        scopeName, workflowID, stageID, justinJobID)
-  except MySQLdb.IntegrityError:
+  except MySQLdb.IntegrityError as e:
     return httpError(startResponse, 
                      '409 Duplicate output file name', 
-                     'Duplicate output file name')
+                     'Duplicate output file name: ' + str(e))
   except Exception as e:
     return httpError(startResponse, 
                      '500 Internal Server Error', 

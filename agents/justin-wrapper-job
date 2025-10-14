@@ -926,6 +926,7 @@ if resultsResponseDict['status'] == 410:
   sys.exit(0)
 
 if resultsResponseDict['status'] != 200:
+  logLine('record_results returns:' % resultsResponseDict['response'])
   jobAborted(312, 'record_results', '')
 
 logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
@@ -1064,7 +1065,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
     # Create tmp.json metadata file for this output file
     try:
-      updateMetadataTmp(fileName, 
+      updateMetadataTmp(fileName, s
                         getJobscriptDict, jobscriptDict, recordResultsDict)
 
       fileAdler32 = calculateAdler32('home/workspace/' + fileName)
