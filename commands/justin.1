@@ -348,7 +348,7 @@ as the standalone
 command.
 .RE
 .HP
-.B "get-token"
+.B "get-token [--production]"
 .br
 Download the current WLCG Token cached by justIN for the current user. This
 is stored at $BEARER_TOKEN_FILE if set, or /run/user/UID/bt_uUID if
@@ -359,7 +359,12 @@ is given, the path to the resulting token file and time left is shown.
 .B While DUNE is still dependent on X.509 proxies for some storages,
 this subcommand also requests a DUNE X.509 user proxy which is authorized to
 read from Rucio and Rucio-managed storage. This is stored at
-$X509_USER_PROXY if set, and at /tmp/x509up_uUID in other cases. 
+$X509_USER_PROXY if set, and at /tmp/x509up_uUID in other cases. If the
+option 
+.B --production
+is given and you are member of the group /dune/production, this proxy is 
+also capable of writing directly to storage and issuing Rucio 
+data management commands.
 .br
 For both token and proxies files, if the file already exists it will be
 overwritten unless the user write permission is unset. In this case the
