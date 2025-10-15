@@ -1033,21 +1033,29 @@ def updateStoragesQuotas():
                 '- skipping' % usage['rse'])
         continue
 
-      if usage['bytes'] = float('inf'):
+      if usage['bytes'] == float('inf'):
         usage['bytes'] = 18446744073709551615
 
-      if usage['bytes_limit'] = float('inf'):
+      if usage['bytes_limit'] == float('inf'):
         usage['bytes_limit'] = 18446744073709551615
 
       rseID = storages[usage['rse']]
     
       justin.insertUpdate('REPLACE INTO storages_quotas '
-                          'SET quota_id=%d,rse_id=%d,bytes=%d,bytes_limit=%d'
+                          'SET quota_id=%d,rse_id=%d,bytes=%d,bytes_limit=%d,'
+                          'last_seen_time=NOW()'
                           % (namedQuotaRow['quota_id'],
                              rseID,
                              usage['bytes'],
                              usage['bytes_limit']))
-                             
+
+  try:
+    justin.insertUpdate('DELETE FROM storages_quotas '
+                        'WHERE last_seen_time < '
+                        'DATE_SUB(NOW(),INTERVAL 24 HOUR)')
+  except Exception as e:
+    logLine('Failed removing old storages_quotas entries: ' + str(e))
+                            
   justin.conn.commit()
 
 def updateLogsDatasets():
@@ -1294,8 +1302,7 @@ def updateNamedQuotas():
   justinQuotaNames = {}
   try:
     justinQuotaRows = justin.select('SELECT quota_name,user_id,'
-                                        'wlcg_group_id '
-                                        'FROM named_quotas')
+                                    'wlcg_group_id FROM named_quotas')
   except Exception as e:
     logLine('Failed to get names of existing justIN named quotas / Rucio users')
     return

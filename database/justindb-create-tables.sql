@@ -18,9 +18,6 @@ CREATE TABLE IF NOT EXISTS `scopes` (
   `scope_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `scope_name` varchar(255) NOT NULL DEFAULT '',
   `quota_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-# TO BE REMOVED vvvv
-  `wlcg_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-# TO BE REMOVED ^^^^
   `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY `scope_id` (`scope_id`),
   UNIQUE KEY `scope_name` (`scope_name`)
@@ -447,7 +444,9 @@ CREATE TABLE IF NOT EXISTS `storages_quotas` (
   `quota_id` smallint(5) unsigned NOT NULL,
   `bytes` bigint unsigned NOT NULL,
   `bytes_limit` bigint unsigned NOT NULL,
-  UNIQUE KEY `quota_rse_id` (`quota_id`,`rse_id`)
+  `last_seen_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  UNIQUE KEY `quota_rse_id` (`quota_id`,`rse_id`),
+  INDEX `last_seen_rse_quota_id` (`last_seen_time`,`rse_id`,`quota_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jwt_keys` (

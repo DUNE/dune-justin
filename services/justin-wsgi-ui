@@ -529,8 +529,10 @@ def createWorkflow(jsonDict, user, simple = False):
       scopeRow = justin.select('SELECT scope_id,wlcg_group_name,'
                     'scopes.condor_group_id,condor_group_name '
                     'FROM scopes '
+                    'LEFT JOIN named_quotas '
+                    'ON named_quotas.quota_id=scopes.quota_id '
                     'LEFT JOIN wlcg_groups '
-                    'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+                    'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
                     'LEFT JOIN condor_groups '
                     'ON condor_groups.condor_group_id=scopes.condor_group_id '
                     'WHERE scope_name="%s"' % scopeName, 
@@ -701,13 +703,15 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
 
   try:
     row = justin.select('SELECT workflows.user_id,workflows.state,'
-                        'wlcg_group_name FROM workflows '
-                        'LEFT JOIN scopes '
-                        'ON scopes.scope_id=workflows.scope_id '
-                        'LEFT JOIN wlcg_groups '
-                        'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                        'WHERE workflows.workflow_id=%d' % workflowID,
-                        justOne = True)
+                    'wlcg_group_name FROM workflows '
+                    'LEFT JOIN scopes '
+                    'ON scopes.scope_id=workflows.scope_id '
+                    'LEFT JOIN named_quotas '
+                    'ON scopes.quota_id=named_quotas.quota_id '
+                    'LEFT JOIN wlcg_groups '
+                    'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
+                    'WHERE workflows.workflow_id=%d' % workflowID,
+                    justOne = True)
 
     workflowUserID = int(row['user_id'])
     workflowState  = row['state']
@@ -790,13 +794,15 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     # Check reference is to a valid existing workflow
     try:
       workflowRow = justin.select('SELECT workflows.scope_id,scope_name,'
-                           'wlcg_group_name,workflows.user_id FROM workflows '
-                           'LEFT JOIN scopes '
-                           'ON scopes.scope_id=workflows.scope_id '
-                           'LEFT JOIN wlcg_groups '
-                           'ON wlcg_group.wlcg_group_id=scopes.wlcg_group_id '
-                           'WHERE workflow_id=%d' % workflowID, 
-                           justOne = True)
+                     'wlcg_group_name,workflows.user_id FROM workflows '
+                     'LEFT JOIN scopes '
+                     'ON scopes.scope_id=workflows.scope_id '
+                     'LEFT JOIN named_quotas '
+                     'ON scopes.quota_id=named_quotas.quota_id '
+                     'LEFT JOIN wlcg_groups '
+                     'ON wlcg_group.wlcg_group_id=named_quotas.wlcg_group_id '
+                     'WHERE workflow_id=%d' % workflowID, 
+                     justOne = True)
       workflowUserID = int(workflowRow['user_id'])
       scopeID       = int(workflowRow['scope_id'])
       scopeName     = workflowRow['scope_name']
@@ -1307,13 +1313,15 @@ def failFilesCmd(startResponse, jsonDict, user):
 
   try:
     row = justin.select('SELECT workflows.user_id,wlcg_group_name '
-                        'FROM workflows '
-                        'LEFT JOIN scopes '
-                        'ON scopes.scope_id=workflows.scope_id '
-                        'LEFT JOIN wlcg_groups '
-                        'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                        'WHERE workflows.workflow_id=%d' % workflowID, 
-                        justOne = True)
+                   'FROM workflows '
+                   'LEFT JOIN scopes '
+                   'ON scopes.scope_id=workflows.scope_id '
+                   'LEFT JOIN named_quotas '
+                   'ON scopes.quota_id=named_quotas.quota_id '
+                   'LEFT JOIN wlcg_groups '
+                   'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
+                   'WHERE workflows.workflow_id=%d' % workflowID, 
+                   justOne = True)
 
     workflowUserID = row['user_id']
     wlcgGroupName = row['wlcg_group_name']
@@ -1644,9 +1652,11 @@ you tried again. You won't need to authorize this computer again for 7 days.
 def scopesInfo(startResponse):
 
   rows = justin.select('SELECT scope_name,wlcg_group_name FROM scopes '
-                       'LEFT JOIN wlcg_groups '
-                       'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
-                       'ORDER BY scope_name')
+                   'LEFT JOIN named_quotas '
+                   'ON named_quotas.quota_id=scopes.quota_id '
+                   'LEFT JOIN wlcg_groups '
+                   'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+                   'ORDER BY scope_name')
   output = ''
   for row in rows:
     

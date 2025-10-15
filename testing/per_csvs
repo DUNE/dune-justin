@@ -32,7 +32,8 @@ mysql justindb -B --skip-column-names -e \
   AND YEAR(allocation_time)=$YEAR)
  )
  FROM scopes 
- WHERE scopes.wlcg_group_id=2 
+ LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id 
+ WHERE named_quotas.wlcg_group_id=2 
  ORDER BY scope_name" | grep -v NULL >/tmp/per_scope.csv
  
 # production is wlcg_group_id=2
@@ -43,14 +44,16 @@ mysql justindb -B --skip-column-names -e \
  (SELECT COUNT(*) FROM jobs 
   LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id 
   LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id
+  LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id 
   WHERE jobs.site_id=sites.site_id 
-  AND scopes.wlcg_group_id=2 AND YEAR(allocation_time)=$YEAR), 
+  AND named_quotas.wlcg_group_id=2 AND YEAR(allocation_time)=$YEAR), 
  ',',
  (SELECT SUM(jobscript_real_seconds) FROM jobs 
   LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id 
   LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id
+  LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id 
   WHERE jobs.site_id=sites.site_id 
-  AND scopes.wlcg_group_id=2
+  AND named_quotas.wlcg_group_id=2
   AND YEAR(allocation_time)=$YEAR)
  )
  FROM sites ORDER BY site_name" | grep -v NULL >/tmp/per_site.csv

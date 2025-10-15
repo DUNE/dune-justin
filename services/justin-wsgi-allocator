@@ -328,8 +328,9 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'LEFT JOIN entries ON jobs.entry_id=entries.entry_id '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
+             'LEFT JOIN named_quotas ON scopes.quota_id=named_quotas.quota_id '
              'LEFT JOIN wlcg_groups '
-             'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
+             'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
              'WHERE jobs.jobsub_id="%s"'
              % jsonDict['jobsub_id'])
 

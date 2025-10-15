@@ -399,6 +399,10 @@ def mainPage(environ, user):
      'uri'       : '/dashboard/?method=list-storages',
      'text'      : 'Storages' },
    { 'startRow'  : True,
+     'endRow'    : False,
+     'uri'       : '/dashboard/?method=list-quotas',
+     'text'      : 'Quotas' },
+   { 'startRow'  : False,
      'endRow'    : True,
      'uri'       : '/docs/',
      'text'      : 'Documentation' }
@@ -1139,8 +1143,9 @@ def showWorkflow(environ, user, cgiValues):
            "scopes.scope_name,condor_groups.condor_group_name "
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
+           "LEFT JOIN named_quotas ON scopes.quota_id=named_quotas.quota_id "
            "LEFT JOIN wlcg_groups "
-           "ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id "
+           "ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id "
            "LEFT JOIN users ON users.user_id=workflows.user_id "
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
@@ -2965,12 +2970,12 @@ def listScopes(environ, user, cgiValues):
            'max_files_per_workflow,named_quotas.processing_enabled,'
            'quota_name '
         'FROM scopes '
-        'LEFT JOIN wlcg_groups '
-        'ON scopes.wlcg_group_id=wlcg_groups.wlcg_group_id '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=scopes.condor_group_id '
         'LEFT JOIN named_quotas '
         'ON named_quotas.quota_id=scopes.quota_id '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
         'WHERE scopes.quota_id<>0 '
         'ORDER BY scope_name')
   scopeRows = justin.select(query)
@@ -3010,6 +3015,55 @@ def listScopes(environ, user, cgiValues):
 
   for groupRow in groupRows:
     output += groupRow['condor_group_name'] + ' &nbsp; ' 
+ 
+  output += footer()
+  return output
+
+def listQuotas(environ, user, cgiValues):
+      
+  output = header(environ, user, "justIN: Named quotas")
+
+  output += ("<h1>Named quotas</h1>\n")
+
+  output += ("<p>Named quotas available for justIN workflows</p>\n")
+  
+  query = ('SELECT wlcg_group_name,condor_group_name,'
+           'max_files_per_workflow,named_quotas.processing_enabled,'
+           'quota_name '
+        'FROM named_quotas '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN condor_groups '
+        'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
+        'WHERE named_quotas.for_justin '
+        'ORDER BY quota_name')
+
+  quotaRows = justin.select(query)
+
+  output += ('<table class="center">')
+  
+  output += ('<tr>'
+             '<th>Quota</th>'
+             '<th>Processing enabled?</th>'
+             '<th>WLCG Group</th>'
+             '<th>HTCondor Group</th>'
+             '<th>Max input files</th></tr>')
+  
+  for quotaRow in quotaRows:  
+    output += ('<tr><td>%s</td>'
+               '<td>%s</td>' 
+               '<td>%s</td>' 
+               '<td>%s</td>' 
+               '<td>%d</td></tr>' 
+               % (quotaRow['quota_name'],
+                  str(bool(quotaRow['processing_enabled'])),
+                  quotaRow['wlcg_group_name'] 
+                  if quotaRow['wlcg_group_name'] else ' ',
+                  quotaRow['condor_group_name'] 
+                  if quotaRow['condor_group_name'] else ' ',
+                  quotaRow['max_files_per_workflow'] ))
+
+  output += ("</table>\n")
  
   output += footer()
   return output
@@ -4833,14 +4887,16 @@ def setWorkflowStateHandler(cgiValues, user, stateChange):
     workflowID = int(cgiValues['action_key'])
 
     workflowRow = justin.select('SELECT workflows.state,workflows.archived,'
-                          'workflows.user_id,wlcg_groups.wlcg_group_name '
-                          'FROM workflows '
-                          'LEFT JOIN scopes '
-                          'ON scopes.scope_id=workflows.scope_id '
-                          'LEFT JOIN wlcg_groups '
-                          'ON wlcg_groups.wlcg_group_id=scopes.wlcg_group_id '
-                          'WHERE workflow_id=%d' % workflowID, 
-                          justOne = True)
+                    'workflows.user_id,wlcg_groups.wlcg_group_name '
+                    'FROM workflows '
+                    'LEFT JOIN scopes '
+                    'ON scopes.scope_id=workflows.scope_id '
+                    'LEFT JOIN named_quotas '
+                    'ON scopes.quota_id=named_quotas.quota_id '
+                    'LEFT JOIN wlcg_groups '
+                    'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
+                    'WHERE workflow_id=%d' % workflowID, 
+                    justOne = True)
   except:
     return ('400 Bad Request', 'Invalid values sent')
 
@@ -5111,6 +5167,9 @@ def application(environ, startResponse):
 
   elif method == "list-scopes":
     output = listScopes(environ, user, cgiValues)
+
+  elif method == "list-quotas":
+    output = listQuotas(environ, user, cgiValues)
 
   elif method == "list-sites":
     output = listSites(environ, user, cgiValues)
