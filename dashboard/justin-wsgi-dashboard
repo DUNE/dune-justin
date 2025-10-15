@@ -2968,50 +2968,101 @@ def listScopes(environ, user, cgiValues):
   
   query = ('SELECT scope_name,wlcg_group_name,condor_group_name,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
-           'quota_name '
+           'quota_name,principal_name '
         'FROM scopes '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=scopes.condor_group_id '
         'LEFT JOIN named_quotas '
         'ON named_quotas.quota_id=scopes.quota_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
         'WHERE scopes.quota_id<>0 '
-        'ORDER BY scope_name')
+        'ORDER BY quota_name,scope_name')
   scopeRows = justin.select(query)
 
-  query = ('SELECT condor_group_name '
-           'FROM condor_groups '
-           'ORDER BY condor_group_name')
-  groupRows = justin.select(query)
+  scopes = []
+  for scopeRow in scopeRows:  
+
+    if scopeRow['wlcg_group_name']:
+      owner = scopeRow['wlcg_group_name']
+    elif scopeRow['principal_name']:
+      owner = scopeRow['principal_name']
+    else:
+      owner = ' '
+
+    scopes.append({ 'scope_name' : scopeRow['scope_name'],
+                    'quota_name' : scopeRow['quota_name'],
+                    'processing_enabled' : 
+                       str(bool(scopeRow['processing_enabled'])),
+                    'owner' : owner,
+                    'condor_group_name' : scopeRow['condor_group_name'] 
+                       if scopeRow['condor_group_name'] else ' ',
+                    'max_files_per_workflow' : 
+                       str(scopeRow['max_files_per_workflow']) })
 
   output += ('<table class="center">')
   
   output += ('<tr>'
              '<th>Scope</th>'
+             '<th>HTCondor Group</th>'
              '<th>Quota</th>'
              '<th>Processing enabled?</th>'
-             '<th>WLCG Group</th>'
-             '<th>HTCondor Group</th>'
+             '<th>Owner</th>'
              '<th>Max input files</th></tr>')
+
+  startOfQuota = 1
+  i = 1
+
+  while True:
+
+    if i + 1 < len(scopes) and \
+      scopes[i]['quota_name'] == scopes[startOfQuota]['quota_name']:
+      # Still in the current block
+      i += 1
+      continue
+
+    # i-1 is end of the current block
   
-  for scopeRow in scopeRows:  
     output += ('<tr><td>%s</td>'
                '<td>%s</td>' 
-               '<td>%s</td>' 
-               '<td>%s</td>' 
-               '<td>%s</td>' 
-               '<td>%d</td></tr>' 
-               % (scopeRow['scope_name'],
-                  scopeRow['quota_name'] if scopeRow['quota_name'] else ' ',
-                  str(bool(scopeRow['processing_enabled'])),
-                  scopeRow['wlcg_group_name'] 
-                  if scopeRow['wlcg_group_name'] else ' ',
-                  scopeRow['condor_group_name'] 
-                  if scopeRow['condor_group_name'] else ' ',
-                  scopeRow['max_files_per_workflow'] ))
+               '<td style="vertical-align: top" rowspan="%d">'
+               '<a href="/dashboard/?method=show-quota&quota_name=%s">%s</a></td>' 
+               '<td style="vertical-align: top" rowspan="%d">%s</td>' 
+               '<td style="vertical-align: top" rowspan="%d">%s</td>' 
+               '<td style="vertical-align: top" rowspan="%d">%s</td></tr>' 
+               % (scopes[startOfQuota]['scope_name'],
+                  scopes[startOfQuota]['condor_group_name'],
+                  i - startOfQuota, scopes[startOfQuota]['quota_name'], 
+                  scopes[startOfQuota]['quota_name'],
+                  i - startOfQuota,
+                  scopes[startOfQuota]['processing_enabled'],
+                  i - startOfQuota,
+                  scopes[startOfQuota]['owner'],
+                  i - startOfQuota,
+                  scopes[startOfQuota]['max_files_per_workflow'] ))
+
+    for j in range(startOfQuota+1, i):
+      output += ('<tr><td>%s</td>'
+                 '<td>%s</td></tr>'
+                 % (scopes[j]['scope_name'],
+                    scopes[j]['condor_group_name'] ))
+    
+    if i+1 == len(scopes):
+      break
+
+    startOfQuota = i
+    i += 1
 
   output += ("</table>\n<p>All HTCondor groups: ")
+
+  query = ('SELECT condor_group_name '
+           'FROM condor_groups '
+           'ORDER BY condor_group_name')
+  groupRows = justin.select(query)
 
   for groupRow in groupRows:
     output += groupRow['condor_group_name'] + ' &nbsp; ' 
@@ -3029,10 +3080,14 @@ def listQuotas(environ, user, cgiValues):
   
   query = ('SELECT wlcg_group_name,condor_group_name,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
-           'quota_name '
+           'quota_name,principal_name '
         'FROM named_quotas '
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
         'WHERE named_quotas.for_justin '
@@ -3045,25 +3100,110 @@ def listQuotas(environ, user, cgiValues):
   output += ('<tr>'
              '<th>Quota</th>'
              '<th>Processing enabled?</th>'
-             '<th>WLCG Group</th>'
+             '<th>Owner</th>'
              '<th>HTCondor Group</th>'
              '<th>Max input files</th></tr>')
   
   for quotaRow in quotaRows:  
-    output += ('<tr><td>%s</td>'
+    if quotaRow['wlcg_group_name']:
+      owner = quotaRow['wlcg_group_name']
+    elif quotaRow['principal_name']:
+      owner = quotaRow['principal_name']
+    else:
+      owner = ' '
+
+    output += ('<tr><td><a href="/dashboard/?method=show-quota&quota_name=%s">'
+               '%s</a></td>'
                '<td>%s</td>' 
                '<td>%s</td>' 
                '<td>%s</td>' 
                '<td>%d</td></tr>' 
-               % (quotaRow['quota_name'],
+               % (quotaRow['quota_name'], quotaRow['quota_name'],
                   str(bool(quotaRow['processing_enabled'])),
-                  quotaRow['wlcg_group_name'] 
-                  if quotaRow['wlcg_group_name'] else ' ',
+                  owner,
                   quotaRow['condor_group_name'] 
                   if quotaRow['condor_group_name'] else ' ',
                   quotaRow['max_files_per_workflow'] ))
 
   output += ("</table>\n")
+ 
+  output += footer()
+  return output
+
+def showQuota(environ, user, cgiValues):
+      
+  try:
+    quotaName = cgiValues["quota_name"]
+  except:
+    return errorPage(environ, user, "quota_name must be given")
+
+  output = header(environ, user, "justIN: Named quota %s" % quotaName)
+
+  output += ("<h1>Named quota %s</h1>\n" % quotaName)
+  
+  query = ('SELECT wlcg_group_name,condor_group_name,'
+           'max_files_per_workflow,named_quotas.processing_enabled,'
+           'quota_name,principal_name,quota_id '
+        'FROM named_quotas '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
+        'LEFT JOIN condor_groups '
+        'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
+        'WHERE quota_name="%s" '
+        'ORDER BY quota_name' % quotaName)
+
+  quotaRow = justin.select(query, justOne = True)
+
+  output += ('<table>')
+  
+  output += ('<tr><td>Quota</td><td>%s</td></tr>'
+             '<tr><td>Processing enabled?</td><td>%s</td></tr>' %
+             (
+               quotaRow['quota_name'],
+               str(bool(quotaRow['processing_enabled']))
+             )
+            )
+  
+  if quotaRow['wlcg_group_name']:
+    output += ('<tr><td>WLCG Group name</td><td>%s</td></tr>' %
+               quotaRow['wlcg_group_name'])
+  elif quotaRow['principal_name']:
+    output += ('<tr><td>Owned by user</td><td>%s</td></tr>' %
+               quotaRow['principal_name'])
+
+  output += ('<tr><td>HTCondor Group</td><td>%s</td></tr>'
+             '<tr><td>Max input files</td><td>%s</td></tr>' %
+             (
+               quotaRow['condor_group_name'] 
+                if quotaRow['condor_group_name'] else ' ',
+               quotaRow['max_files_per_workflow'] 
+             )
+            )
+  
+  output += ('</table>\n')
+
+  output += '<h2>Storage quota and usage</h2>\n<table>\n'
+
+  output += '<tr><th>RSE</th><th>Usage</th><th>Quota</th></tr>'
+
+  query = ('SELECT rse_name,bytes,bytes_limit FROM storages_quotas '
+           'LEFT JOIN storages ON storages_quotas.rse_id=storages.rse_id '
+           'WHERE quota_id=%d ORDER BY rse_name' % quotaRow['quota_id'])
+
+  storageRows = justin.select(query)
+  
+  for storageRow in storageRows:
+    output += ('<tr><td><a href="/dashboard/?method=show-storage&rse_name=%s">'
+               '%s</a></td><td>%s</td><td>%s</td></tr>' % 
+               (storageRow['rse_name'], storageRow['rse_name'], 
+                justin.bytesToUnits(storageRow['bytes']), 
+                justin.bytesToUnits(storageRow['bytes_limit'])))
+
+  output += '</table>'
  
   output += footer()
   return output
@@ -5170,6 +5310,9 @@ def application(environ, startResponse):
 
   elif method == "list-quotas":
     output = listQuotas(environ, user, cgiValues)
+
+  elif method == "show-quota":
+    output = showQuota(environ, user, cgiValues)
 
   elif method == "list-sites":
     output = listSites(environ, user, cgiValues)
