@@ -1013,7 +1013,7 @@ def updateStoragesQuotas():
 
   try:
     namedQuotaRows = justin.select('SELECT quota_id,quota_name '
-                                   'FROM named_quotas')
+                                   'FROM named_quotas WHERE for_justin')
   except:
     logLine('Failed to get list of named_quotas')
     return
@@ -1032,6 +1032,12 @@ def updateStoragesQuotas():
         logLine('Quota exists for RSE %s in Rucio but not in justIN DB '
                 '- skipping' % usage['rse'])
         continue
+
+      if usage['bytes'] = float('inf'):
+        usage['bytes'] = 18446744073709551615
+
+      if usage['bytes_limit'] = float('inf'):
+        usage['bytes_limit'] = 18446744073709551615
 
       rseID = storages[usage['rse']]
     
@@ -1383,7 +1389,7 @@ def updateNamedQuotas():
       
       try:
         justin.insertUpdate('UPDATE named_quotas '
-                            'SET user_id=%d,wclg_group_id=0,for_justin=%s '
+                            'SET user_id=%d,wlcg_group_id=0,for_justin=%s '
                             'WHERE quota_name="%s"'
                   % (justinQuotaNames[rucioUser['account']]['user_id'],
                      forJustIN,
@@ -1415,7 +1421,7 @@ def updateNamedQuotas():
       
       try:
         # Set for_justin and ensure user_id is zero for this group account
-        justin.insertUpdate('UPDATE named_quota '
+        justin.insertUpdate('UPDATE named_quotas '
                             'SET user_id=0,for_justin=%s '
                             'WHERE quota_name="%s"'
                   % (forJustIN, rucioUser['account']))
