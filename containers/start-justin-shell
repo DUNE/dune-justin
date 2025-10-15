@@ -44,6 +44,12 @@ if [ $? != 0 ] ; then
   exit 1
 fi
 
+# This is normally the command to start the service or agent itself with
+# options to run in the foreground if necessary to achieve that
+# Here we just run sleep so develpers can use 
+#            podman exec -ti justin-shell /bin/bash
+# to enter this when a running container and try out commands in the 
+# justIN container environment.
 sleep infinity
 
 ) >/var/log/justin/start-justin-shell.log 2>&1
