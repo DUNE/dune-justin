@@ -577,18 +577,18 @@ def stringNoQuotes(s):
 
 def bytesToUnits(bytes):
   if bytes < 1000*1000:
-    return "%.1f KB" % bytes/1000.0
+    return "%.1f KB" % (bytes/1000.0)
   
   if bytes < 1000*1000*1000:
-    return "%.1f MB" % bytes/1000000.0
+    return "%.1f MB" % (bytes/1000000.0)
   
   if bytes < 1000*1000*1000*1000:
-    return "%.1f GB" % bytes/1000000000.0
+    return "%.1f GB" % (bytes/1000000000.0)
   
   if bytes < 1000*1000*1000*1000*1000:
-    return "%.1f TB" % bytes/1000000000000.0
+    return "%.1f TB" % (bytes/1000000000000.0)
 
-  return "%.1f PB" % bytes/1000000000000000.0
+  return "%.1f PB" % (bytes/1000000000000000.0)
   
 # Use os.path.expandvars() to replace environment variables from dictionary envs
 def expandEnvVars(s, envs):
