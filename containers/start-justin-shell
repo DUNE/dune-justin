@@ -1,0 +1,49 @@
+#!/bin/sh
+# Start instance of the justin container for testing with the shell
+#
+# Copyright 2013-25 Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+(
+
+# All processes get this defined
+echo "CONTAINER_NAME=$CONTAINER_NAME" >>/etc/environment
+
+# Needed for STFC OpenStack VMs to be able to contact github.com etc
+ip link set dev eth0 mtu 1450
+
+# Create a set of VOMS proxies
+/etc/cron.daily/justin-create-x509-proxies
+
+# Start crond (just to refresh VOMS proxies?)
+/usr/sbin/crond
+
+# Set up and start munge daemon, which runs in the background
+cp -f /etc/justin-secrets/munge.key /etc/justin-secrets/munge.key.b64 \
+      /etc/munge
+chown munge.munge /etc/munge/munge.key*
+chmod 0400 /etc/munge/munge.key*
+
+# su requires that munge has an executable shell not nologin 
+chsh -s /bin/bash munge
+su -c /usr/sbin/munged munge
+if [ $? != 0 ] ; then
+  echo "Failed to start munged - exiting ($?)"
+  exit 1
+fi
+
+sleep infinity
+
+) >/var/log/justin/start-justin-shell.log 2>&1

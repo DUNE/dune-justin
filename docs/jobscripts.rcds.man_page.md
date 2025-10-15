@@ -14,7 +14,10 @@ justin-cvmfs-upload command itself.
            justin-cvmfs-upload is a command-line utility for uploading one or more
            files contained in a tar archive file to cvmfs using the Fermilab Rapid
            Code Distribution Service (RCDS). The full cvmfs path is then output by
-           the command.
+           the command. Files should persist in cvmfs for 30 days but it is good
+           practice to rerun the command before each workflow that uses it is
+           submitted. The hash of the tar file is used to avoid transferring the
+           tar file if RCDS is already aware of it.
     
            The environment variable JOBSUB_DROPBOX_SERVER_LIST is used to find a
            random RCDS server to use, or rcds01.fnal.gov if the variable is not

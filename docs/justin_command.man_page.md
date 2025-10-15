@@ -309,7 +309,7 @@ This man page is distributed along with the
     	      Rucio client. However, it is not as efficient as the standalone
     	      justin-fetch-logs command.
     
-           get-token
+           get-token [--production]
     	      Download the current WLCG Token cached by justIN for the current
     	      user. This is stored at $BEARER_TOKEN_FILE if set, or
     	      /run/user/UID/bt_uUID if /run/user/UID exists, or /tmp/bt_uUID
@@ -320,7 +320,10 @@ This man page is distributed along with the
     	      storages, this subcommand also requests a DUNE X.509 user proxy
     	      which is authorized to read from Rucio and Rucio-managed
     	      storage. This is stored at $X509_USER_PROXY if set, and at
-    	      /tmp/x509up_uUID in other cases.
+    	      /tmp/x509up_uUID in other cases. If the option --production is
+    	      given and you are member of the group /dune/production, this
+    	      proxy is also capable of writing directly to storage and issuing
+    	      Rucio data management commands.
     	      For both token and proxies files, if the file already exists it
     	      will be overwritten unless the user write permission is unset.
     	      In this case the command will exit with an error. This feature

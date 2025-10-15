@@ -140,4 +140,5 @@ COPY containers/start-justin-fnal-agent     /usr/sbin/
 COPY containers/start-justin-finder-bringonline /usr/sbin/
 COPY containers/start-justin-job-factory    /usr/sbin/
 COPY containers/start-justin-info-collector /usr/sbin/
+COPY containers/start-justin-shell          /usr/sbin/
 
