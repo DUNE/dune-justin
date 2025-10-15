@@ -442,6 +442,14 @@ CREATE TABLE IF NOT EXISTS `storages` (
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
+CREATE TABLE IF NOT EXISTS `storages_quotas` (
+  `rse_id` smallint(5) unsigned NOT NULL,
+  `quota_id` smallint(5) unsigned NOT NULL,
+  `bytes` bigint unsigned NOT NULL,
+  `bytes_limit` bigint unsigned NOT NULL,
+  UNIQUE KEY `quota_rse_id` (`quota_id`,`rse_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `jwt_keys` (
   `jwks_n` text NOT NULL,
   `jwks_e` varchar(255) NOT NULL,

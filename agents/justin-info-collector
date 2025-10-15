@@ -991,6 +991,59 @@ def updateStorages():
 
   justin.conn.commit()
 
+def updateStoragesQuotas():
+  # Get info about storage quotas Rucio knows about
+  logLine('---- Start updateStoragesQuotas ----')
+  
+  try:
+    accountClient = rucio.client.accountclient.AccountClient()
+  except Exception as e:
+    logLine("Connect to Rucio fails with: " + str(e))
+    return
+
+  try:
+    storageRows = justin.select('SELECT rse_id,rse_name FROM storages')
+  except:
+    logLine('Failed to get list of storages')
+    return
+
+  storages = {}
+  for storage in storageRows:
+    storages[storage['rse_name']] = storage['rse_id']
+
+  try:
+    namedQuotaRows = justin.select('SELECT quota_id,quota_name '
+                                   'FROM named_quotas')
+  except:
+    logLine('Failed to get list of named_quotas')
+    return
+
+  for namedQuotaRow in namedQuotaRows:  
+    try:
+      accountUsages = \
+          accountClient.get_local_account_usage(namedQuotaRow['quota_name'])
+    except Exception as e:
+      logLine('Failed to get accountUsages for %s: %s' 
+              % (namedQuotaRow['quota_name'], str(e)))
+      continue      
+  
+    for usage in accountUsages:
+      if usage['rse'] not in storages:
+        logLine('Quota exists for RSE %s in Rucio but not in justIN DB '
+                '- skipping' % usage['rse'])
+        continue
+
+      rseID = storages[usage['rse']]
+    
+      justin.insertUpdate('REPLACE INTO storages_quotas '
+                          'SET quota_id=%d,rse_id=%d,bytes=%d,bytes_limit=%d'
+                          % (namedQuotaRow['quota_id'],
+                             rseID,
+                             usage['bytes'],
+                             usage['bytes_limit']))
+                             
+  justin.conn.commit()
+
 def updateLogsDatasets():
   # Ensure that logs datasets exists for each RSE
   # like justin-logs:logstgz-1710000000-MANCHESTER
@@ -1412,6 +1465,7 @@ def oneCycle():
     updateLogsDatasets()
     updateNamedQuotas()
     updateScopes()
+    updateStoragesQuotas()
 
   # It is time to update sites from the OSG pilot factory config?
   try:
