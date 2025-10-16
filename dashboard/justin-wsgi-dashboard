@@ -3188,21 +3188,57 @@ def showQuota(environ, user, cgiValues):
 
   output += '<h2>Storage quota and usage</h2>\n<table>\n'
 
-  output += '<tr><th>RSE</th><th>Usage</th><th>Quota</th></tr>'
+  output += '<tr><th>RSE</th><th>Usage</th><th>Quota</th><th>Occupancy</th></tr>'
 
   query = ('SELECT rse_name,bytes,bytes_limit FROM storages_quotas '
            'LEFT JOIN storages ON storages_quotas.rse_id=storages.rse_id '
-           'WHERE quota_id=%d ORDER BY rse_name' % quotaRow['quota_id'])
+           'WHERE quota_id=%d '
+           'ORDER BY bytes_limit=18446744073709551615,rse_name' 
+           % quotaRow['quota_id'])
 
-  storageRows = justin.select(query)
+  totalBytes   = 0
+  totalLimit   = 0
+  totalPrinted = False
+  storageRows  = justin.select(query)
   
   for storageRow in storageRows:
+
+    if not totalPrinted and storageRow['bytes_limit'] == 18446744073709551615:
+
+      if totalLimit == 0:
+        occ = ' '
+      else:
+        occ = '%.1f%%' % ((100.0 * totalBytes) / totalLimit)
+
+      totalPrinted = True
+      output += ('<tr><td><b>Sub total</b></td><td><b>%s</b></td>'
+                 '<td><b>%s</b></td><td><b>%s</b></td></tr>' 
+                 % (justin.bytesToUnits(totalBytes),
+                    justin.bytesToUnits(totalLimit),
+                    occ
+                   )
+                )
+
+    totalBytes += storageRow['bytes']
+    totalLimit += storageRow['bytes_limit']
+
+    if storageRow['bytes_limit'] in [0, 18446744073709551615]:
+      occ = ' '
+    else:
+      occ = ('%.1f%%' 
+             % ((100.0 * storageRow['bytes']) / storageRow['bytes_limit']))
+
     output += ('<tr><td><a href="/dashboard/?method=show-storage&rse_name=%s">'
-               '%s</a></td><td>%s</td><td>%s</td></tr>' % 
+               '%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
                (storageRow['rse_name'], storageRow['rse_name'], 
                 justin.bytesToUnits(storageRow['bytes']), 
-                justin.bytesToUnits(storageRow['bytes_limit'])))
+                justin.bytesToUnits(storageRow['bytes_limit']),
+                occ                
+               )
+              )
 
+  output += ('<tr><td><b>Total<b></td><td colspan="3"><b>%s</b></td></tr>' 
+                 % justin.bytesToUnits(totalBytes))
   output += '</table>'
  
   output += footer()
