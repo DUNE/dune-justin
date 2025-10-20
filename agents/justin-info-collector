@@ -1028,6 +1028,8 @@ def updateStoragesQuotas():
       continue      
   
     for usage in accountUsages:
+      logLine(str(usage))
+    
       if usage['rse'] not in storages:
         logLine('Quota exists for RSE %s in Rucio but not in justIN DB '
                 '- skipping' % usage['rse'])
@@ -1040,14 +1042,18 @@ def updateStoragesQuotas():
         usage['bytes_limit'] = 18446744073709551615
 
       rseID = storages[usage['rse']]
-    
-      justin.insertUpdate('REPLACE INTO storages_quotas '
+
+      try:
+        justin.insertUpdate('REPLACE INTO storages_quotas '
                           'SET quota_id=%d,rse_id=%d,bytes=%d,bytes_limit=%d,'
                           'last_seen_time=NOW()'
                           % (namedQuotaRow['quota_id'],
                              rseID,
                              usage['bytes'],
                              usage['bytes_limit']))
+      except Exception as e:
+        logLine('Failed replacing storage quota for %s/%s: %s' %
+                (namedQuotaRow['quota_name'], usage['rse'], str(e)))
 
   try:
     justin.insertUpdate('DELETE FROM storages_quotas '

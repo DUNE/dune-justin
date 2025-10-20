@@ -3198,19 +3198,19 @@ def showQuota(environ, user, cgiValues):
 
   totalBytes   = 0
   totalLimit   = 0
-  totalPrinted = False
+  subTotalPrinted = False
   storageRows  = justin.select(query)
   
   for storageRow in storageRows:
 
-    if not totalPrinted and storageRow['bytes_limit'] == 18446744073709551615:
+    if not subTotalPrinted and storageRow['bytes_limit'] == 18446744073709551615:
 
       if totalLimit == 0:
         occ = ' '
       else:
         occ = '%.1f%%' % ((100.0 * totalBytes) / totalLimit)
 
-      totalPrinted = True
+      subTotalPrinted = True
       output += ('<tr><td><b>Sub total</b></td><td><b>%s</b></td>'
                  '<td><b>%s</b></td><td><b>%s</b></td></tr>' 
                  % (justin.bytesToUnits(totalBytes),
@@ -3222,23 +3222,45 @@ def showQuota(environ, user, cgiValues):
     totalBytes += storageRow['bytes']
     totalLimit += storageRow['bytes_limit']
 
-    if storageRow['bytes_limit'] in [0, 18446744073709551615]:
+    if storageRow['bytes_limit'] == 0:
+      bytesLimit = '0'
+      occ = ' '
+    elif  storageRow['bytes_limit'] == 18446744073709551615:
+      bytesLimit = ' '
       occ = ' '
     else:
+      bytesLimit = justin.bytesToUnits(storageRow['bytes_limit'])
       occ = ('%.1f%%' 
              % ((100.0 * storageRow['bytes']) / storageRow['bytes_limit']))
+
 
     output += ('<tr><td><a href="/dashboard/?method=show-storage&rse_name=%s">'
                '%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
                (storageRow['rse_name'], storageRow['rse_name'], 
                 justin.bytesToUnits(storageRow['bytes']), 
-                justin.bytesToUnits(storageRow['bytes_limit']),
+                bytesLimit,
                 occ                
                )
               )
 
-  output += ('<tr><td><b>Total<b></td><td colspan="3"><b>%s</b></td></tr>' 
+
+  if subTotalPrinted:
+    output += ('<tr><td><b>Total<b></td><td colspan="3"><b>%s</b></td></tr>' 
                  % justin.bytesToUnits(totalBytes))
+  else:
+    if totalLimit == 0:
+      occ = ' '
+    else:
+      occ = '%.1f%%' % ((100.0 * totalBytes) / totalLimit)
+
+    output += ('<tr><td><b>Total</b></td><td><b>%s</b></td>'
+               '<td><b>%s</b></td><td><b>%s</b></td></tr>' 
+                 % (justin.bytesToUnits(totalBytes),
+                    justin.bytesToUnits(totalLimit),
+                    occ
+                   )
+              )
+
   output += '</table>'
  
   output += footer()
@@ -4108,6 +4130,82 @@ def showStorage(environ, user, cgiValues):
                (rseName, siteRow['site_name']))
 
   output += ("</table>")
+
+  output += '<h2>Quotas and usage</h2>\n<table>\n'
+
+  output += '<tr><th>Quota name</th><th>Usage</th><th>Quota</th><th>Occupancy</th></tr>'
+
+  query = ('SELECT quota_name,bytes,bytes_limit FROM storages_quotas '
+           'LEFT JOIN named_quotas '
+           'ON storages_quotas.quota_id=named_quotas.quota_id '
+           'WHERE rse_id=%d '
+           'ORDER BY bytes_limit=18446744073709551615,quota_name' 
+           % storageRow['rse_id'])
+
+  totalBytes   = 0
+  totalLimit   = 0
+  subTotalPrinted = False
+  quotaRows    = justin.select(query)
+  
+  for quotaRow in quotaRows:
+
+    if not subTotalPrinted and quotaRow['bytes_limit'] == 18446744073709551615:
+
+      if totalLimit == 0:
+        occ = ' '
+      else:
+        occ = '%.1f%%' % ((100.0 * totalBytes) / totalLimit)
+
+      subTotalPrinted = True
+      output += ('<tr><td><b>Sub total</b></td><td><b>%s</b></td>'
+                 '<td><b>%s</b></td><td><b>%s</b></td></tr>' 
+                 % (justin.bytesToUnits(totalBytes),
+                    justin.bytesToUnits(totalLimit),
+                    occ
+                   )
+                )
+
+    totalBytes += quotaRow['bytes']
+    totalLimit += quotaRow['bytes_limit']
+
+    if quotaRow['bytes_limit'] == 0:
+      bytesLimit = '0'
+      occ = ' '
+    elif  quotaRow['bytes_limit'] == 18446744073709551615:
+      bytesLimit = ' '
+      occ = ' '
+    else:
+      bytesLimit = justin.bytesToUnits(quotaRow['bytes_limit'])
+      occ = ('%.1f%%' 
+             % ((100.0 * quotaRow['bytes']) / quotaRow['bytes_limit']))
+
+    output += ('<tr><td><a href="/dashboard/?method=show-quota&quota_name=%s">'
+               '%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>' % 
+               (quotaRow['quota_name'], quotaRow['quota_name'], 
+                justin.bytesToUnits(quotaRow['bytes']), 
+                bytesLimit,
+                occ                
+               )
+              )
+
+  if subTotalPrinted:
+    output += ('<tr><td><b>Total<b></td><td colspan="3"><b>%s</b></td></tr>' 
+                 % justin.bytesToUnits(totalBytes))
+  else:
+    if totalLimit == 0:
+      occ = ' '
+    else:
+      occ = '%.1f%%' % ((100.0 * totalBytes) / totalLimit)
+
+    output += ('<tr><td><b>Total</b></td><td><b>%s</b></td>'
+               '<td><b>%s</b></td><td><b>%s</b></td></tr>' 
+                 % (justin.bytesToUnits(totalBytes),
+                    justin.bytesToUnits(totalLimit),
+                    occ
+                   )
+              )
+
+  output += '</table>'
 
   output += footer()
   return output
