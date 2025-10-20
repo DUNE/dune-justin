@@ -479,6 +479,10 @@ def makeJobscriptDict(jsonDict, jobDict):
     jobscriptDict['jobscript_image']  = row['jobscript_image']
     jobscriptDict['quota_name']       = row['quota_name']
 
+    # TO BE REMOVED ONCE ALL USERS HAVE PERSONAL QUOTAS
+    if jobscriptDict['quota_name'] == 'usertests':
+      jobscriptDict['quota_name'] = 'dunepro'      
+
     if row['jobscript_git']:
       jobscriptDict['jobscript_git'] = row['jobscript_git']
 
@@ -1572,11 +1576,13 @@ def recordResultsMethod(startResponse, jsonDict):
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'jobs.site_id, jobs.entry_id, users.access_token, '
              'jobs.has_inner_apptainer, jobs.job_state, workflows.state, '
-             'scope_name, jobs.requested_gpu ' 
+             'scope_name, jobs.requested_gpu, scopes.quota_id, '
+             'quota_name, named_quotas.processing_enabled '
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN users ON users.user_id=workflows.user_id '
              'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
+             'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
              'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.select(query, justOne = True)
@@ -1591,6 +1597,7 @@ def recordResultsMethod(startResponse, jsonDict):
     requestedGPU      = row['requested_gpu']
     jobState          = row['job_state']
     responseDict['user_access_token'] = row['access_token']
+    quotaID           = row['quota_id']
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -1604,6 +1611,12 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Cannot record results as workflow now in %s state' 
                      % row['state'])
     
+  if not row['processing_enabled']:
+    return httpError(startResponse,
+                  '410 Gone', 
+                  'Cannot record results as processing now not enabled for %s'
+                  % row['quota_name'])
+
   if jobState != 'started' and jobState != 'processing':
     return httpError(startResponse, 
                      '410 Gone', 
@@ -1633,6 +1646,7 @@ def recordResultsMethod(startResponse, jsonDict):
   # Create an ordered output RSE list specific to this stage, used for logs
   # and any output files going to RSEs
   try:
+    # 10000000000 bytes = 10 GB is buffer space to allow for other jobs
     query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
              'FROM stages_output_storages '
              'LEFT JOIN storages '
@@ -1640,7 +1654,11 @@ def recordResultsMethod(startResponse, jsonDict):
              'LEFT JOIN sites_storages '
              'ON (stages_output_storages.rse_id=sites_storages.rse_id '
              'AND sites_storages.site_id=%d) '
+             'LEFT JOIN storages_quotas '
+             'ON storages_quotas.quota_id=%d '
+             'AND storages_quotas.rse_id=storages.rse_id '
              'WHERE '
+             '(bytes + 10000000000 < bytes_limit) AND '
              'stages_output_storages.workflow_id=%d AND '
              'stages_output_storages.stage_id=%d AND '
              'sites_storages.distance IS NOT NULL AND '
@@ -1650,7 +1668,7 @@ def recordResultsMethod(startResponse, jsonDict):
              'NOT storages.decommissioned '
              'ORDER BY stages_output_storages.preferred DESC,'
              'distance,storages.occupancy,RAND()'
-             % (siteID, workflowID, stageID)
+             % (siteID, quotaID, workflowID, stageID)
             )
 
     rseRows = justin.select(query)

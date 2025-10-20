@@ -1019,12 +1019,18 @@ def updateStoragesQuotas():
     return
 
   for namedQuotaRow in namedQuotaRows:  
+  
+    rucioAccountName = namedQuotaRow['quota_name']
+    # THIS CAN BE REMOVED ONCE ALL USERS HAVE PERSONAL NAMED QUOTAS
+    if rucioAccountName == 'usertests':
+      rucioAccountName = 'dunepro'
+    
     try:
       accountUsages = \
-          accountClient.get_local_account_usage(namedQuotaRow['quota_name'])
+          accountClient.get_local_account_usage(rucioAccountName)
     except Exception as e:
       logLine('Failed to get accountUsages for %s: %s' 
-              % (namedQuotaRow['quota_name'], str(e)))
+              % (rucioAccountName, str(e)))
       continue      
   
     for usage in accountUsages:
@@ -1180,9 +1186,9 @@ def updateGroupsHTCondor():
         logLine('Failed finding Condor Group %s in database : %s'
                 % (groupName, str(e)))
       
-      try;
-        justin.insertUpdate('UPDATE condor_groups SET config_quota=%f,'
-                            'effective_quota=%f '
+      try:
+        justin.insertUpdate('UPDATE condor_groups SET config_quota=%s,'
+                            'effective_quota=%s '
                             'WHERE condor_group_name="%s"' % 
                             (confQuota, effQuota, groupName))
       except Exception as e:
@@ -1310,7 +1316,16 @@ def updateNamedQuotas():
     duneCondorGroupID = int(row['condor_group_id'])
 
   except Exception as e:
-    logLine('Failed getting Condor group IDs: ' + str(e))
+    logLine('Failed getting group_dune Condor group ID: ' + str(e))
+    return
+
+  try:
+    row = justin.select('SELECT wlcg_group_id FROM wlcg_groups '
+                        'WHERE wlcg_group_name="/dune"', justOne = True)
+    duneWLCGGroupID = int(row['wlcg_group_id'])
+
+  except Exception as e:
+    logLine('Failed getting /dune WLCG group ID: ' + str(e))
     return
 
   # Make a dictionary of Rucio user names we already have in the database
@@ -1326,6 +1341,18 @@ def updateNamedQuotas():
     justinQuotaNames[justinQuotaRow['quota_name']] = \
      { 'user_id'       : justinQuotaRow['user_id'],
        'wlcg_group_id' : justinQuotaRow['wlcg_group_id'] }
+
+  # TO BE REMOVED ONCE ALL USERS HAVE PERSONAL NAMED QUOTAS
+  # Make sure the usertests quota is there
+  if 'usertests' not in justinQuotaNames:
+    try:
+      justin.insertUpdate('INSERT INTO named_quotas SET '
+                          'quota_name="usertests",wlcg_group_id=%d,'
+                          'condor_group_id=%d,processing_enabled=1,'
+                          'for_justin=1' 
+                          % (duneWLCGGroupID, duneCondorGroupID))
+    except Exception as e:
+      logLine('Failed to insert usertests named quota: ' + str(e))
 
   # Make a dictionary of all the justIN users in the database
   justinUnderscoreNames = {}

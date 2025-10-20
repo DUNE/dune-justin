@@ -3161,8 +3161,8 @@ def showQuota(environ, user, cgiValues):
 
   output += ('<table>')
   
-  output += ('<tr><td>Quota</td><td>%s</td></tr>'
-             '<tr><td>Processing enabled?</td><td>%s</td></tr>' %
+  output += ('<tr><th colspan=2>Quota</th><th>%s</th></tr>'
+             '<tr><td colspan=2>Processing enabled?</td><td>%s</td></tr>' %
              (
                quotaRow['quota_name'],
                str(bool(quotaRow['processing_enabled']))
@@ -3170,10 +3170,10 @@ def showQuota(environ, user, cgiValues):
             )
   
   if quotaRow['wlcg_group_name']:
-    output += ('<tr><td>WLCG Group name</td><td>%s</td></tr>' %
+    output += ('<tr><td colspan=2>WLCG Group name</td><td>%s</td></tr>' %
                quotaRow['wlcg_group_name'])
   elif quotaRow['principal_name']:
-    output += ('<tr><td>Owned by user</td><td>%s</td></tr>' %
+    output += ('<tr><td colspan=2>Owned by user</td><td>%s</td></tr>' %
                quotaRow['principal_name'])
 
   output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
