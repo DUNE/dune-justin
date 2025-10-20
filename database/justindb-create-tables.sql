@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS `wlcg_groups` (
 CREATE TABLE IF NOT EXISTS `condor_groups` (
   `condor_group_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
   `condor_group_name` varchar(255) NOT NULL DEFAULT '',
+  `effective_quota` float NOT NULL DEFAULT 0.0,
+  `config_quota` float NOT NULL DEFAULT 0.0,
   PRIMARY KEY `condor_group_id` (`condor_group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 

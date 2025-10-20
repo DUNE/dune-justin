@@ -3141,7 +3141,8 @@ def showQuota(environ, user, cgiValues):
 
   output += ("<h1>Named quota %s</h1>\n" % quotaName)
   
-  query = ('SELECT wlcg_group_name,condor_group_name,'
+  query = ('SELECT wlcg_group_name,condor_group_name,config_quota,'
+           'condor_groups.config_quota,condor_groups.effective_quota,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
            'quota_name,principal_name,quota_id '
         'FROM named_quotas '
@@ -3175,11 +3176,16 @@ def showQuota(environ, user, cgiValues):
     output += ('<tr><td>Owned by user</td><td>%s</td></tr>' %
                quotaRow['principal_name'])
 
-  output += ('<tr><td>HTCondor Group</td><td>%s</td></tr>'
-             '<tr><td>Max input files</td><td>%s</td></tr>' %
+  output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
+             '<tr><td>Config quota</td><td>%.02f</td></tr>'
+             '<tr><td>Effective quota</td><td>%.02f</td></tr>'
+             '<tr><td colspan=2>Max input files per workflow</td>'
+             '<td>%s</td></tr>' %
              (
                quotaRow['condor_group_name'] 
                 if quotaRow['condor_group_name'] else ' ',
+               quotaRow['config_quota'],
+               quotaRow['effective_quota'],
                quotaRow['max_files_per_workflow'] 
              )
             )

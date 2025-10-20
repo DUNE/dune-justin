@@ -1179,6 +1179,15 @@ def updateGroupsHTCondor():
       except Exception as e:
         logLine('Failed finding Condor Group %s in database : %s'
                 % (groupName, str(e)))
+      
+      try;
+        justin.insertUpdate('UPDATE condor_groups SET config_quota=%f,'
+                            'effective_quota=%f '
+                            'WHERE condor_group_name="%s"' % 
+                            (confQuota, effQuota, groupName))
+      except Exception as e:
+        logLine('Failed updating Condor Group %s : %s' % (groupName, str(e)))
+                            
 
 # Make sure WLCG groups in config are in database
 def updateGroupsWLCG():
