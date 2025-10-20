@@ -1065,7 +1065,7 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
 
     # Create tmp.json metadata file for this output file
     try:
-      updateMetadataTmp(fileName, s
+      updateMetadataTmp(fileName, 
                         getJobscriptDict, jobscriptDict, recordResultsDict)
 
       fileAdler32 = calculateAdler32('home/workspace/' + fileName)
