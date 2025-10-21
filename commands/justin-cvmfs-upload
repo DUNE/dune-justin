@@ -62,7 +62,7 @@ def sendRequest(token, url, method, data):
                                                    'Bearer ' + token },
                                        method = method)
 
-  sslContext = ssl.SSLContext()
+  sslContext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
   if 'X509_CERTIFICATES' in os.environ and os.environ['X509_CERTIFICATES']:
     sslContext.load_verify_locations(capath = os.environ['X509_CERTIFICATES'])

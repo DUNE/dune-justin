@@ -36,7 +36,7 @@ import platform
 import tempfile
 
 # The make-justin-tag script looks for this and updates it - so format matters
-versionNumber = '01.05.01'
+versionNumber = '01.05.02'
 sessionFile   = '/var/tmp/justin.session.' + str(os.getuid())
 
 def body(buf): 
@@ -421,7 +421,7 @@ httpRequest = urllib.request.Request(url + '/' + args.command,
                                                  'justin ' + versionNumber },
                                      method = 'POST')
 
-sslContext = ssl.SSLContext()
+sslContext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 sslContext.verify_mode = ssl.CERT_REQUIRED
 sslContext.check_hostname = True
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 01.05.02
+- Backport SSLContext() warnings fix for Python 3.9 etc
+
 ## 01.05.01
 - Backport parallel justin-job-logs agent from 01.06
 
