@@ -1280,9 +1280,11 @@ def updateScopes():
           continue
 
       elif ((justinScopes[scopeForUser]['quota_id'] 
-               != justinQuotaRow['quota_id']) or
-            (justinScopes[scopeForUser]['condor_group_id'] == 0)):
-        # An existing scope need to update
+               != justinQuotaRow['quota_id']
+# REMOVE THE usertests CHECK ONCE EVERYONE HAS A PERSONAL QUOTA+SCOPE
+             and scopeForUser != 'usertests')
+            or (justinScopes[scopeForUser]['condor_group_id'] == 0)):
+        # An existing scope we need to update
         logLine('Update scope %s' % scopeForUser)
 
         if justinScopes[scopeForUser]['condor_group_id'] == 0:
