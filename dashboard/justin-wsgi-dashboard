@@ -226,6 +226,17 @@ input[type=button], input[type=submit], input[type=reset] {
   font-weight: bold;
 }
 
+a.button {
+  background-color: #E1703D;
+  border-style: none;
+  border-radius: 5px; 
+  border: 1px outset buttonborder;
+  padding: 5px;
+  color: white;
+  font-weight: bold;
+  font-size: 11px;
+}
+
 </style>
 <script type="text/javascript" 
  Xsrc="https://kozea.github.io/pygal.js/2.0.x/pygal-tooltips.min.js" 
@@ -312,6 +323,10 @@ def makePager(pageNumber, pageLength, rowsLen, urlTemplate):
 def buttonHTML(user = None, key = None, name = None, value = None, 
                label = None, nextURI = ''):
 
+  # key is some meaningful context for justIN, like a workflowID
+  # name is the name of the action, like 'workflow_finish'
+  # value is the value to set something to in that context, like 'finished'
+
   return ( '<form style="display:inline">'
            '<input type="submit" value="%s" formmethod="post" '
            'formaction="/dashboard/">'
@@ -323,6 +338,69 @@ def buttonHTML(user = None, key = None, name = None, value = None,
            '</form>'
            % (label, nextURI, user['justin_code'], 
               str(key), name, str(value)) 
+         )
+
+def inputHTML(cgiValues, user, key = None, name = None, value = None,
+              size = 6, nextURI = ''):
+
+  # key is some meaningful context for justIN, like a workflowID
+  # name is the name of the action, like 'workflow_finish'
+  # value is the value to set something to in that context, like 'finished'
+
+  if 'input_key' in cgiValues and 'input_name' in cgiValues and \
+     cgiValues['input_key']  == key and \
+     cgiValues['input_name'] == name:
+    # This does the real input field box
+    return ( '<form style="display:inline">'
+             '<input type="hidden" name="next_uri" value="%s">'
+             '<input type="hidden" name="justin_code" value="%s">'
+             '<input type="hidden" name="action_key" value="%s">'
+             '<input type="hidden" name="action_name" value="%s">'
+             '<input type="text" name="action_value" value="%s" size="%d"> '
+             '<input type="submit" value="Save" formmethod="post" '
+             'formaction="/dashboard/">'
+             '</form>'
+             % (nextURI, user['justin_code'], 
+                str(key), name, str(value), size) 
+         )
+
+  # This does the version with the value as text and then the Edit button
+  return ( '%s <a href="%s&input_key=%s&input_name=%s" class="button">'
+           'Edit</a>' % (str(value), nextURI, str(key), name)
+         )
+
+def selectHTML(cgiValues, user, key = None, name = None, value = None,
+               options = None, nextURI = ''):
+
+  # key is some meaningful context for justIN, like a workflowID
+  # name is the name of the action, like 'workflow_finish'
+  # value is the value to set something to in that context, like 'finished'
+
+  if 'input_key' in cgiValues and 'input_name' in cgiValues and \
+     cgiValues['input_key']  == key and \
+     cgiValues['input_name'] == name:
+    # This does the real input field box
+    s = ( '<form style="display:inline">'
+          '<input type="hidden" name="next_uri" value="%s">'
+          '<input type="hidden" name="justin_code" value="%s">'
+          '<input type="hidden" name="action_key" value="%s">'
+          '<input type="hidden" name="action_name" value="%s">'
+          '<select name="action_value">'
+          % (nextURI, user['justin_code'], str(key), name) )
+
+    for option in options:
+      s += '<option value="%s">%s</option>' % (option, option)
+    
+    s += ( '</select> '
+           '<input type="submit" value="Save" formmethod="post" '
+           'formaction="/dashboard/">'
+           '</form>' )
+    
+    return s
+
+  # This does the version with the value as text and then the Edit button
+  return ( '%s <a href="%s&input_key=%s&input_name=%s" class="button">'
+           'Edit</a>' % (str(value), nextURI, str(key), name)
          )
 
 def mainPage(environ, user):
@@ -3200,27 +3278,48 @@ def showQuota(environ, user, cgiValues):
             )
   
   if quotaRow['wlcg_group_name']:
-    output += ('<tr><td colspan=2>WLCG Group name</td><td>%s</td></tr>' %
-               quotaRow['wlcg_group_name'])
+    output += ('<tr><td colspan=2>WLCG Group name</td><td>' +
+               selectHTML(cgiValues, user, 
+                    key = quotaRow['quota_name'],
+                    name = 'quota_wlcg_group',
+                    value = quotaRow['wlcg_group_name'],
+                    options = ['/dune','/dune/production'],
+                    nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+                               % quotaName) +
+               '</td></tr>')
+
   elif quotaRow['principal_name']:
-    output += ('<tr><td colspan=2>Owned by user</td>'
+    output +=  ('<tr><td colspan=2>Owned by user</td>'
                '<td><a href="/dashboard/?method=show-user&user_name=%s">'
                '%s</a></td></tr>' %
                (quotaRow['principal_name'], quotaRow['principal_name']))
 
   output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
              '<tr><td>Config quota</td><td>%.02f</td></tr>'
-             '<tr><td>Effective quota</td><td>%.02f</td></tr>'
-             '<tr><td colspan=2>Max input files per workflow</td>'
-             '<td>%s</td></tr>' %
+             '<tr><td>Effective quota</td><td>%.02f</td></tr>' %
              (
                quotaRow['condor_group_name'] 
                 if quotaRow['condor_group_name'] else ' ',
                quotaRow['config_quota'],
-               quotaRow['effective_quota'],
-               quotaRow['max_files_per_workflow'] 
+               quotaRow['effective_quota']
              )
             )
+
+  if user and user['user_name'] in justin.justinAdmins:  
+    output += ('<tr><td colspan=2>Max input files per workflow</td>'
+               '<td>%s</td></tr>' %
+               inputHTML(cgiValues, user, 
+                     key = quotaRow['quota_name'],
+                     name = 'set_quota_max_inputs',
+                     value = quotaRow['max_files_per_workflow'],
+                     size = 6,
+                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+                               % quotaName)
+               
+              )
+  else:
+    output += ('<tr><td colspan=2>Max input files per workflow</td>'
+               '<td>%d</td></tr>' % quotaRow['max_files_per_workflow'])
   
   output += ('</table>\n')
 
@@ -5232,7 +5331,7 @@ def setUserProcessingHandler(cgiValues, user):
   else:
     return ('302 Moved', '')
 
-def setStorageStateHandler(cgiValues, user, readWrite):
+def setStorageStateHandler(cgiValues, user):
 
   if user['user_name'] not in justin.justinAdmins:
     return ('403 Forbidden', 'You are not a justIN admin')
@@ -5245,9 +5344,11 @@ def setStorageStateHandler(cgiValues, user, readWrite):
 
   try:
     justin.insertUpdate('UPDATE storages SET justin_%s=%s WHERE rse_id=%d' 
-                        % ('read' if (readWrite == 'read') else 'write',
-                           newState, 
-                           rseID))
+             % ('read' 
+                if (cgiValues['action_name'] == 'set_storage_read_state') 
+                else 'write',
+                newState, 
+                rseID))
     justin.conn.commit()
   except:
     return ('500 Internal Server Error', 'Failed to update database')
@@ -5256,7 +5357,7 @@ def setStorageStateHandler(cgiValues, user, readWrite):
     return ('302 Moved', '')
 
 
-def setWorkflowStateHandler(cgiValues, user, stateChange):
+def setWorkflowStateHandler(cgiValues, user):
   # stateChange is submit, restart, pause, or finish
 
   try:
@@ -5284,9 +5385,9 @@ def setWorkflowStateHandler(cgiValues, user, stateChange):
     # Admins have super powers
     allowed = True
   elif workflowRow['wlcg_group_name'] in user['wlcg_groups']:
-    # Anyone in the workflow's scope's groups can change workflow states
+    # Anyone in the workflow's scope/quota's groups can change workflow states
     allowed = True
-  elif stateChange in ['pause', 'finish'] \
+  elif cgiValues['action_name'] in ['workflow_pause', 'workflow_finish'] \
        and user['user_id'] == workflowRow['user_id']:
     # Even if scope's groups or group membership has changed you can
     # always stop workflows submitted under your name
@@ -5295,25 +5396,25 @@ def setWorkflowStateHandler(cgiValues, user, stateChange):
   if not allowed:
     return ('403 Forbidden', 'You do not have permission to do that!')
 
-  if stateChange == 'submit':
+  if cgiValues['action_name'] == 'workflow_submit':
     if workflowRow['state'] == 'draft':
       newState = 'submitted'
     else:
       return ('403 Forbidden', 'Only workflows in Draft can be submitted')
 
-  elif stateChange == 'restart':
+  elif cgiValues['action_name'] == 'workflow_restart':
     if workflowRow['state'] == 'paused':
       newState = 'running'
     else:
       return ('403 Forbidden', 'Only workflows in Pause can be restarted')
 
-  elif stateChange == 'pause':
+  elif cgiValues['action_name'] == 'workflow_pause':
     if workflowRow['state'] == 'running':
       newState = 'paused'
     else:
       return ('403 Forbidden', 'Only workflows in Running can be paused')
 
-  elif stateChange == 'finish':
+  elif cgiValues['action_name'] == 'workflow_finish':
     if workflowRow['state'] in ['running','submitted','draft']:
       newState = 'finished'
     else:
@@ -5336,6 +5437,31 @@ def setWorkflowStateHandler(cgiValues, user, stateChange):
     # Success - issue a 302 Moved response and the caller will set Location:
     return ('302 Moved', '')
 
+def setQuotaMaxInputsHandler(cgiValues, user):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    quotaName    = cgiValues['action_key']
+    newMaxInputs = int(cgiValues['action_value'])
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if not justin.stringIsSite(quotaName):
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  try:
+    justin.insertUpdate('UPDATE named_quotas SET max_files_per_workflow=%d '
+                        'WHERE quota_name="%s"' 
+                        % (newMaxInputs, quotaName))
+    justin.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
 # Get POST data and then a big switch to direct it to the right handler
 def postHandlers(startResponse, environ, user):
 
@@ -5343,6 +5469,19 @@ def postHandlers(startResponse, environ, user):
   message    = ''
   nextURI    = '/'
   cgiValues  = {}
+
+  allActions = { 
+    'set_site_state'             : setSiteStateHandler,
+    'set_storage_read_state'     : setStorageStateHandler,
+    'set_storage_write_state'    : setStorageStateHandler,
+    'set_quota_processing_state' : setQuotaProcessingHandler,
+    'set_user_processing_state'  : setUserProcessingHandler,
+    'workflow_submit'            : setWorkflowStateHandler,
+    'workflow_restart'           : setWorkflowStateHandler,
+    'workflow_pause'             : setWorkflowStateHandler,
+    'workflow_finish'            : setWorkflowStateHandler,
+    'set_quota_max_inputs'       : setQuotaMaxInputsHandler
+               }
 
   if user is None:
     httpStatus = '403 Forbidden'
@@ -5369,40 +5508,14 @@ def postHandlers(startResponse, environ, user):
         httpStatus = '403 Forbidden'
         message    = 'Inconsistent session/code'
 
-      elif 'action_name' not in cgiValues:
+      elif 'action_name' not in cgiValues or \
+           cgiValues['action_name'] not in allActions:
         httpStatus = '400 Bad Request'
         message    = 'Malformed request'
 
-      elif cgiValues['action_name'] == 'set_site_state':
-        (httpStatus, message) = setSiteStateHandler(cgiValues, user)
-
-      elif cgiValues['action_name'] == 'set_storage_read_state':
-        (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'read')
-
-      elif cgiValues['action_name'] == 'set_storage_write_state':
-        (httpStatus, message) = setStorageStateHandler(cgiValues, user, 'write')
-
-      elif cgiValues['action_name'] == 'set_quota_processing_state':
-        (httpStatus, message) = setQuotaProcessingHandler(cgiValues, user)
-
-      elif cgiValues['action_name'] == 'set_user_processing_state':
-        (httpStatus, message) = setUserProcessingHandler(cgiValues, user)
-
-      elif cgiValues['action_name'] == 'workflow_submit':
-        (httpStatus, message) = setWorkflowStateHandler(cgiValues, 
-                                                        user, 'submit')
-
-      elif cgiValues['action_name'] == 'workflow_restart':
-        (httpStatus, message) = setWorkflowStateHandler(cgiValues, 
-                                                        user, 'restart')
-
-      elif cgiValues['action_name'] == 'workflow_pause':
-        (httpStatus, message) = setWorkflowStateHandler(cgiValues, 
-                                                        user, 'pause')
-
-      elif cgiValues['action_name'] == 'workflow_finish':
-        (httpStatus, message) = setWorkflowStateHandler(cgiValues, user, 
-                                                        'finish')
+      else:
+        (httpStatus, message) = \
+            allActions[cgiValues['action_name']](cgiValues, user)
 
   if httpStatus is None:
     httpStatus = '400 Bad Request'
