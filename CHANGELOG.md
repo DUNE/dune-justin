@@ -7,6 +7,7 @@
 - Add --production option to justin get-token
 - Add justin-shell container flavour for development and testing
 - Buttons and forms to edit user, scope, quota limits etc
+- Always require and check for /cvmfs/dune.osgstorage.org/ in jobs
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages

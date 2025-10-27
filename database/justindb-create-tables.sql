@@ -470,6 +470,7 @@ CREATE TABLE IF NOT EXISTS `named_quotas` (
   `processing_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `for_justin` tinyint(1) NOT NULL DEFAULT '0',
   `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
+  `max_running_jobs` mediumint(8) unsigned NOT NULL DEFAULT 2000,
   PRIMARY KEY (`quota_id`),
   INDEX `user_group` (`quota_id`,`wlcg_group_id`,`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

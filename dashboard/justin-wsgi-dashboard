@@ -3239,7 +3239,7 @@ def showQuota(environ, user, cgiValues):
   query = ('SELECT wlcg_group_name,condor_group_name,config_quota,'
            'condor_groups.config_quota,condor_groups.effective_quota,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
-           'quota_name,principal_name,quota_id '
+           'quota_name,principal_name,quota_id,named_quotas.max_running_jobs '
         'FROM named_quotas '
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
@@ -3317,9 +3317,24 @@ def showQuota(environ, user, cgiValues):
                                % quotaName)
                
               )
+
+    output += ('<tr><td colspan=2>Max running jobs</td>'
+               '<td>%s</td></tr>' %
+               inputHTML(cgiValues, user, 
+                     key = quotaRow['quota_name'],
+                     name = 'set_max_running_jobs',
+                     value = quotaRow['max_running_jobs'],
+                     size = 6,
+                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+                               % quotaName)
+               
+              )
   else:
     output += ('<tr><td colspan=2>Max input files per workflow</td>'
                '<td>%d</td></tr>' % quotaRow['max_files_per_workflow'])
+  
+    output += ('<tr><td colspan=2>Max running jobs</td>'
+               '<td>%d</td></tr>' % quotaRow['max_running_jobs'])
   
   output += ('</table>\n')
 
