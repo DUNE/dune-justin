@@ -202,11 +202,11 @@ if not reps or 'pfns' not in reps or not reps['pfns']:
 for i in range(1, tries + 1):
     print('--- Dataset %s check try %d/%d' % (dataset, i, tries))
     try:
-      parentsGen = didClient.list_parents(args['scope'], filename)
+      parentsGen = didClient.list_parent_dids(args['scope'], filename)
       break
     except Exception as e:
       parentsGen = None
-      print('--- Rucio list_parents %s call %d/%d fails: %s' % 
+      print('--- Rucio list_parent_dids %s call %d/%d fails: %s' % 
             (filename, i, tries, str(e)))
 
 if not parentsGen:

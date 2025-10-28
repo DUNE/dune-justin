@@ -376,10 +376,6 @@ def selectHTML(cgiValues, user, key = None, name = None, value = None,
   # name is the name of the action, like 'workflow_finish'
   # value is the value to set something to in that context, like 'finished'
 
-  if not user:
-    # If not logged in, just return the value
-    return str(value)
-
   if 'input_key' in cgiValues and 'input_name' in cgiValues and \
      cgiValues['input_key']  == key and \
      cgiValues['input_name'] == name:
@@ -3166,12 +3162,15 @@ def listScopes(environ, user, cgiValues):
            condorGroup.startswith(scopes[j]['quota_condor_group_name'] + '.'):
           myCondorGroups.append(condorGroup)
 
-      output += selectHTML(cgiValues, user, 
+      if user and user['user_name'] in justin.justinAdmins:  
+        output += selectHTML(cgiValues, user, 
                     key = scopes[j]['scope_name'],
                     name = 'scope_condor_group',
                     value = scopes[j]['scope_condor_group_name'],
                     options = myCondorGroups,
                     nextURI = '/dashboard/?method=list-scopes')
+      else:
+        output += scopes[j]['scope_condor_group_name']
 
       if j == startOfQuota:
         # First row has the quota info too  
@@ -3335,7 +3334,8 @@ def showQuota(environ, user, cgiValues):
 
     wlcgGroupsList = sorted(wlcgGroupsDict().keys())
 
-    output += ('<tr><td colspan=2>WLCG Group name</td><td>' +
+    if user and user['user_name'] in justin.justinAdmins:
+      output += ('<tr><td colspan=2>WLCG Group name</td><td>' +
                selectHTML(cgiValues, user, 
                     key = quotaRow['quota_name'],
                     name = 'quota_wlcg_group',
@@ -3344,27 +3344,32 @@ def showQuota(environ, user, cgiValues):
                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
                                % quotaName) +
                '</td></tr>')
+    else:
+      output += '<tr><td colspan=2>%s</td></tr>' % wlcgGroupName
 
   condorGroupName = quotaRow['condor_group_name']
   if not condorGroupName:
     condorGroupName = ''
 
-  condorGroupsList = sorted(condorGroupsDict().keys())
+  if user and user['user_name'] in justin.justinAdmins:
+    condorGroupsList = sorted(condorGroupsDict().keys())
 
-  output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
-             '<tr><td>Config quota</td><td>%.02f</td></tr>'
-             '<tr><td>Effective quota</td><td>%.02f</td></tr>' %
-             (
-               selectHTML(cgiValues, user,
+    output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
+               % selectHTML(cgiValues, user,
                     key = quotaRow['quota_name'],
                     name = 'quota_condor_group',
                     value = condorGroupName,
                     options = condorGroupsList,
                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
-                               % quotaName),
-               quotaRow['config_quota'],
-               quotaRow['effective_quota']
-             )
+                               % quotaName)
+              )
+  else:
+    output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
+               % condorGroupName)
+
+  output += ('<tr><td>Config quota</td><td>%.02f</td></tr>'
+             '<tr><td>Effective quota</td><td>%.02f</td></tr>' %
+              ( quotaRow['config_quota'], quotaRow['effective_quota'] )
             )
 
   if user and user['user_name'] in justin.justinAdmins:  
@@ -3380,15 +3385,15 @@ def showQuota(environ, user, cgiValues):
                
               )
 
-    output += ('<tr><td colspan=2>Max running jobs</td>'
-               '<td>%s</td></tr>' %
-               inputHTML(cgiValues, user, 
-                     key = quotaRow['quota_name'],
-                     name = 'quota_max_running_jobs',
-                     value = quotaRow['max_running_jobs'],
-                     size = 6,
-                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
-                               % quotaName)
+#    output += ('<tr><td colspan=2>Max running jobs</td>'
+#               '<td>%s</td></tr>' %
+#               inputHTML(cgiValues, user, 
+#                     key = quotaRow['quota_name'],
+#                     name = 'quota_max_running_jobs',
+#                     value = quotaRow['max_running_jobs'],
+#                     size = 6,
+#                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+#                               % quotaName)
                
               )
   else:

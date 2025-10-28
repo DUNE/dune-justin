@@ -359,7 +359,7 @@ def workflowJobs():
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
      'wlcg_group_name,stages.processors,stages.needs_gpu,'
-     'stages.wall_seconds,stages.rss_bytes,'
+     'stages.wall_seconds,stages.rss_bytes,scopes.quota_id,'
      'principal_names.principal_name,condor_group_name,jobscript_image '
      'FROM workflows '
      'LEFT JOIN stages ON stages.workflow_id=workflows.workflow_id '
