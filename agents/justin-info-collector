@@ -1397,8 +1397,11 @@ def updateNamedQuotas():
     
       forJustIN = False
       for userIdentity in userIdentities:
+# REMOVE THE amcnab EXCEPTION ONCE IT NO LONGER HAS THE PRODUCTION
+# X509 CERTIFICATE DN! 
         if userIdentity['type'] == 'X509' and \
-             userIdentity['identity'] == justin.productionDN:
+             userIdentity['identity'] == justin.productionDN and \:
+             rucioUser['account'] != 'amcnab':
           forJustIN = True
           break
     

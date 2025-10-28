@@ -376,11 +376,15 @@ def selectHTML(cgiValues, user, key = None, name = None, value = None,
   # name is the name of the action, like 'workflow_finish'
   # value is the value to set something to in that context, like 'finished'
 
+  if not user:
+    # If not logged in, just return the value
+    return str(value)
+
   if 'input_key' in cgiValues and 'input_name' in cgiValues and \
      cgiValues['input_key']  == key and \
      cgiValues['input_name'] == name:
     # This does the real input field box
-    s = ( '<form style="display:inline">'
+    s = ( '<form style="display:inline; text-align:right">' 
           '<input type="hidden" name="next_uri" value="%s">'
           '<input type="hidden" name="justin_code" value="%s">'
           '<input type="hidden" name="action_key" value="%s">'
@@ -389,7 +393,8 @@ def selectHTML(cgiValues, user, key = None, name = None, value = None,
           % (nextURI, user['justin_code'], str(key), name) )
 
     for option in options:
-      s += '<option value="%s">%s</option>' % (option, option)
+      s += '<option value="%s" %s>%s</option>' % \
+           (option, 'selected' if option==value else '', option)
     
     s += ( '</select> '
            '<input type="submit" value="Save" formmethod="post" '
@@ -402,6 +407,36 @@ def selectHTML(cgiValues, user, key = None, name = None, value = None,
   return ( '%s <a href="%s&input_key=%s&input_name=%s" class="button">'
            'Edit</a>' % (str(value), nextURI, str(key), name)
          )
+
+def wlcgGroupsDict():
+
+  try:
+    rows = justin.select('SELECT wlcg_group_name,wlcg_group_id '
+                         'FROM wlcg_groups '
+                         'ORDER BY wlcg_group_name')
+  except:
+    return {}
+
+  allGroups = {}
+  for row in rows:
+    allGroups[row['wlcg_group_name']] = row['wlcg_group_id']
+
+  return allGroups
+
+def condorGroupsDict():
+
+  try:
+    rows = justin.select('SELECT condor_group_name,condor_group_id '
+                         'FROM condor_groups '
+                         'ORDER BY condor_group_name')
+  except:
+    return {}
+
+  allGroups = {}
+  for row in rows:
+    allGroups[row['condor_group_name']] = row['condor_group_id']
+
+  return allGroups
 
 def mainPage(environ, user):
 
@@ -2383,8 +2418,8 @@ def showFile(environ, user, cgiValues):
     fileID = int(fileRow["file_id"])
 
   except Exception as e:
-    return errorPage(environ, user, "invalid file_id (%d,%d,%s): %s\n%s" 
-                     % (workflowID, stageID, fileDID, str(e), query))
+    return errorPage(environ, user, "invalid file_id (%s,%s,%s): %s\n%s" 
+                     % (str(workflowID), str(stageID), fileDID, str(e), query))
 
   query = ("SELECT job_state,jobsub_id,event_time,"
            "site_name,rse_name FROM events "
@@ -3091,11 +3126,6 @@ def listScopes(environ, user, cgiValues):
                     'max_files_per_workflow' : 
                        str(scopeRow['max_files_per_workflow']) })
 
-
-
-#  output += ('<p>' + str(scopes) + '</p>')
-
-
   output += ('<table class="center">')
   
   output += ('<tr>'
@@ -3109,6 +3139,8 @@ def listScopes(environ, user, cgiValues):
   startOfQuota = 0
   endOfQuota = 0
 
+  allCondorGroups = sorted(condorGroupsDict().keys())
+
   while True:
 
     if endOfQuota < len(scopes)-1 and \
@@ -3119,17 +3151,24 @@ def listScopes(environ, user, cgiValues):
 
     # endOfQuota really is now at the end of the current block
 
-    # First row has the quota info too  
-    output += ('<tr><td>%s</td>'
-               '<td>%s</td>' 
-               '<td style="vertical-align: top" rowspan="%d">'
+    for j in range(startOfQuota, endOfQuota+1):
+      output += '<tr><td>%s</td><td>' % scopes[j]['scope_name']
+
+      output += selectHTML(cgiValues, user, 
+                    key = scopes[j]['scope_name'],
+                    name = 'scope_condor_group',
+                    value = scopes[j]['condor_group_name'],
+                    options = allCondorGroups,
+                    nextURI = '/dashboard/?method=list-scopes')
+
+      if j == startOfQuota:
+        # First row has the quota info too  
+        output += ('</td><td style="vertical-align: top" rowspan="%d">'
                '<a href="/dashboard/?method=show-quota&quota_name=%s">%s</a></td>' 
                '<td style="vertical-align: top" rowspan="%d">%s</td>' 
                '<td style="vertical-align: top" rowspan="%d">%s</td>' 
-               '<td style="vertical-align: top" rowspan="%d">%s</td></tr>' 
-               % (scopes[startOfQuota]['scope_name'],
-                  scopes[startOfQuota]['condor_group_name'],
-                  1 + endOfQuota - startOfQuota, scopes[startOfQuota]['quota_name'], 
+               '<td style="vertical-align: top" rowspan="%d">%s</td>' 
+               % (1 + endOfQuota - startOfQuota, scopes[startOfQuota]['quota_name'], 
                   scopes[startOfQuota]['quota_name'],
                   1 + endOfQuota - startOfQuota,
                   scopes[startOfQuota]['processing_enabled'],
@@ -3137,13 +3176,9 @@ def listScopes(environ, user, cgiValues):
                   scopes[startOfQuota]['owner'],
                   1 + endOfQuota - startOfQuota,
                   scopes[startOfQuota]['max_files_per_workflow'] ))
-
-    # Subsequent rows just have the scope info
-    for j in range(startOfQuota+1, endOfQuota+1):
-      output += ('<tr><td>%s</td>'
-                 '<td>%s</td></tr>'
-                 % (scopes[j]['scope_name'],
-                    scopes[j]['condor_group_name'] ))
+      else:
+        # Subsequent rows just have the scope info
+        output += '</td></tr>'
     
     if endOfQuota >= len(scopes)-1:
       # We had already done all the scopes so stop
@@ -3152,16 +3187,8 @@ def listScopes(environ, user, cgiValues):
     startOfQuota = endOfQuota + 1
     endofQuota   = startOfQuota
 
-  output += ("</table>\n<p>All HTCondor groups: ")
+  output += "</table>\n"
 
-  query = ('SELECT condor_group_name '
-           'FROM condor_groups '
-           'ORDER BY condor_group_name')
-  groupRows = justin.select(query)
-
-  for groupRow in groupRows:
-    output += groupRow['condor_group_name'] + ' &nbsp; ' 
- 
   output += footer()
   return output
 
@@ -3277,29 +3304,49 @@ def showQuota(environ, user, cgiValues):
              )
             )
   
-  if quotaRow['wlcg_group_name']:
-    output += ('<tr><td colspan=2>WLCG Group name</td><td>' +
-               selectHTML(cgiValues, user, 
-                    key = quotaRow['quota_name'],
-                    name = 'quota_wlcg_group',
-                    value = quotaRow['wlcg_group_name'],
-                    options = ['/dune','/dune/production'],
-                    nextURI = '/dashboard/?method=show-quota&quota_name=%s'
-                               % quotaName) +
-               '</td></tr>')
-
-  elif quotaRow['principal_name']:
+  if quotaRow['principal_name']:
+    # If a principal_name is available then a per-user quota
     output +=  ('<tr><td colspan=2>Owned by user</td>'
                '<td><a href="/dashboard/?method=show-user&user_name=%s">'
                '%s</a></td></tr>' %
                (quotaRow['principal_name'], quotaRow['principal_name']))
 
+  else:
+    # Otherwise always assume a per-group quota
+    wlcgGroupName = quotaRow['wlcg_group_name']
+
+    if not wlcgGroupName:
+      wlcgGroupName = ''
+
+    wlcgGroupsList = sorted(wlcgGroupsDict().keys())
+
+    output += ('<tr><td colspan=2>WLCG Group name</td><td>' +
+               selectHTML(cgiValues, user, 
+                    key = quotaRow['quota_name'],
+                    name = 'quota_wlcg_group',
+                    value = wlcgGroupName,
+                    options = wlcgGroupsList,
+                    nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+                               % quotaName) +
+               '</td></tr>')
+
+  condorGroupName = quotaRow['condor_group_name']
+  if not condorGroupName:
+    condorGroupName = ''
+
+  condorGroupsList = sorted(condorGroupsDict().keys())
+
   output += ('<tr><td rowspan=3>HTCondor</td><td>Group</td><td>%s</td></tr>'
              '<tr><td>Config quota</td><td>%.02f</td></tr>'
              '<tr><td>Effective quota</td><td>%.02f</td></tr>' %
              (
-               quotaRow['condor_group_name'] 
-                if quotaRow['condor_group_name'] else ' ',
+               selectHTML(cgiValues, user,
+                    key = quotaRow['quota_name'],
+                    name = 'quota_condor_group',
+                    value = condorGroupName,
+                    options = condorGroupsList,
+                    nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+                               % quotaName),
                quotaRow['config_quota'],
                quotaRow['effective_quota']
              )
@@ -3322,7 +3369,7 @@ def showQuota(environ, user, cgiValues):
                '<td>%s</td></tr>' %
                inputHTML(cgiValues, user, 
                      key = quotaRow['quota_name'],
-                     name = 'set_max_running_jobs',
+                     name = 'quota_max_running_jobs',
                      value = quotaRow['max_running_jobs'],
                      size = 6,
                      nextURI = '/dashboard/?method=show-quota&quota_name=%s'
@@ -5477,6 +5524,121 @@ def setQuotaMaxInputsHandler(cgiValues, user):
   else:
     return ('302 Moved', '')
 
+def handlerQuotaMaxRunningJobs(cgiValues, user):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    quotaName         = cgiValues['action_key']
+    newMaxRunningJobs = int(cgiValues['action_value'])
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if not justin.stringIsSite(quotaName) or newMaxRunningJobs < 0:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  try:
+    justin.insertUpdate('UPDATE named_quotas SET max_running_jobs=%d '
+                        'WHERE quota_name="%s"' 
+                        % (newMaxRunningJobs, quotaName))
+    justin.conn.commit()
+  except:
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
+def handlerQuotaWLCGGroup(cgiValues, user):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    quotaName     = cgiValues['action_key']
+    wlcgGroupName = cgiValues['action_value']
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if not justin.stringIsSite(quotaName):
+    return ('400 Bad Request', 'Bad quota name')
+
+  groups = wlcgGroupsDict()
+  if wlcgGroupName not in groups:
+    return ('400 Bad Request', 'Bad WLCG group name')
+
+  try:
+    justin.insertUpdate('UPDATE named_quotas SET wlcg_group_id=%d '
+                        'WHERE quota_name="%s"' 
+                        % (groups[wlcgGroupName], quotaName))
+    justin.conn.commit()
+  except Exception as e:
+    print('Failed to update database: %s' % str(e))
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
+def handlerQuotaCondorGroup(cgiValues, user):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    quotaName       = cgiValues['action_key']
+    condorGroupName = cgiValues['action_value']
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if not justin.stringIsSite(quotaName):
+    return ('400 Bad Request', 'Bad quota name')
+
+  groups = condorGroupsDict()
+  if condorGroupName not in groups:
+    return ('400 Bad Request', 'Bad HTCondor group name')
+
+  try:
+    justin.insertUpdate('UPDATE named_quotas SET condor_group_id=%d '
+                        'WHERE quota_name="%s"' 
+                        % (groups[condorGroupName], quotaName))
+    justin.conn.commit()
+  except Exception as e:
+    print('Failed to update database: %s' % str(e))
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
+def handlerScopeCondorGroup(cgiValues, user):
+
+  if user['user_name'] not in justin.justinAdmins:
+    return ('403 Forbidden', 'You are not a justIN admin')
+
+  try:
+    scopeName       = cgiValues['action_key']
+    condorGroupName = cgiValues['action_value']
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if not justin.stringIsSite(scopeName):
+    return ('400 Bad Request', 'Bad quota name')
+
+  groups = condorGroupsDict()
+  if condorGroupName not in groups:
+    return ('400 Bad Request', 'Bad HTCondor group name')
+
+  try:
+    justin.insertUpdate('UPDATE scopes SET condor_group_id=%d '
+                        'WHERE scope_name="%s"' 
+                        % (groups[condorGroupName], scopeName))
+    justin.conn.commit()
+  except Exception as e:
+    print('Failed to update database: %s' % str(e))
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
 # Get POST data and then a big switch to direct it to the right handler
 def postHandlers(startResponse, environ, user):
 
@@ -5495,7 +5657,11 @@ def postHandlers(startResponse, environ, user):
     'workflow_restart'           : setWorkflowStateHandler,
     'workflow_pause'             : setWorkflowStateHandler,
     'workflow_finish'            : setWorkflowStateHandler,
-    'set_quota_max_inputs'       : setQuotaMaxInputsHandler
+    'set_quota_max_inputs'       : setQuotaMaxInputsHandler,
+    'quota_max_running_jobs'     : handlerQuotaMaxRunningJobs,
+    'quota_wlcg_group'           : handlerQuotaWLCGGroup,
+    'quota_condor_group'         : handlerQuotaCondorGroup,
+    'scope_condor_group'         : handlerScopeCondorGroup
                }
 
   if user is None:
