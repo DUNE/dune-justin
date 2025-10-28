@@ -384,7 +384,7 @@ def selectHTML(cgiValues, user, key = None, name = None, value = None,
      cgiValues['input_key']  == key and \
      cgiValues['input_name'] == name:
     # This does the real input field box
-    s = ( '<form style="display:inline; text-align:right">' 
+    s = ( '<form style="display:inline">' 
           '<input type="hidden" name="next_uri" value="%s">'
           '<input type="hidden" name="justin_code" value="%s">'
           '<input type="hidden" name="action_key" value="%s">'
@@ -3088,21 +3088,25 @@ def listScopes(environ, user, cgiValues):
 
   output += ("<p>Scopes available for justIN workflows</p>\n")
   
-  query = ('SELECT scope_name,wlcg_group_name,condor_group_name,'
+  query = ('SELECT scope_name,wlcg_group_name,'
+           'scope_condor_groups.condor_group_name AS scope_condor_group_name,'
+           'quota_condor_groups.condor_group_name AS quota_condor_group_name,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
            'quota_name,principal_name '
         'FROM scopes '
-        'LEFT JOIN condor_groups '
-        'ON condor_groups.condor_group_id=scopes.condor_group_id '
+        'LEFT JOIN condor_groups AS scope_condor_groups '
+        'ON scope_condor_groups.condor_group_id=scopes.condor_group_id '
         'LEFT JOIN named_quotas '
         'ON named_quotas.quota_id=scopes.quota_id '
+        'LEFT JOIN condor_groups AS quota_condor_groups '
+        'ON quota_condor_groups.condor_group_id=named_quotas.condor_group_id '
         'LEFT JOIN users '
         'ON named_quotas.user_id=users.user_id '
         'LEFT JOIN principal_names '
         'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
-        'WHERE scopes.quota_id<>0 '
+        'WHERE scopes.quota_id<>0 AND named_quotas.for_justin '
         'ORDER BY quota_name,scope_name')
   scopeRows = justin.select(query)
 
@@ -3121,8 +3125,10 @@ def listScopes(environ, user, cgiValues):
                     'processing_enabled' : 
                        str(bool(scopeRow['processing_enabled'])),
                     'owner' : owner,
-                    'condor_group_name' : scopeRow['condor_group_name'] 
-                       if scopeRow['condor_group_name'] else ' ',
+               'scope_condor_group_name' : scopeRow['scope_condor_group_name'] 
+                       if scopeRow['scope_condor_group_name'] else ' ',
+               'quota_condor_group_name' : scopeRow['quota_condor_group_name'] 
+                       if scopeRow['quota_condor_group_name'] else ' ',
                     'max_files_per_workflow' : 
                        str(scopeRow['max_files_per_workflow']) })
 
@@ -3154,11 +3160,17 @@ def listScopes(environ, user, cgiValues):
     for j in range(startOfQuota, endOfQuota+1):
       output += '<tr><td>%s</td><td>' % scopes[j]['scope_name']
 
+      myCondorGroups = []
+      for condorGroup in allCondorGroups:
+        if condorGroup == scopes[j]['quota_condor_group_name'] or \
+           condorGroup.startswith(scopes[j]['quota_condor_group_name'] + '.'):
+          myCondorGroups.append(condorGroup)
+
       output += selectHTML(cgiValues, user, 
                     key = scopes[j]['scope_name'],
                     name = 'scope_condor_group',
-                    value = scopes[j]['condor_group_name'],
-                    options = allCondorGroups,
+                    value = scopes[j]['scope_condor_group_name'],
+                    options = myCondorGroups,
                     nextURI = '/dashboard/?method=list-scopes')
 
       if j == startOfQuota:
@@ -3276,10 +3288,13 @@ def showQuota(environ, user, cgiValues):
         'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
-        'WHERE quota_name="%s" '
+        'WHERE quota_name="%s" AND for_justin '
         'ORDER BY quota_name' % quotaName)
 
   quotaRow = justin.select(query, justOne = True)
+
+  if not quotaRow:
+    return errorPage(environ, user, "No such quota")
 
   output += ('<table>')
   
@@ -5620,8 +5635,8 @@ def handlerScopeCondorGroup(cgiValues, user):
   except:
     return ('400 Bad Request', 'Cannot parse values sent')
 
-  if not justin.stringIsSite(scopeName):
-    return ('400 Bad Request', 'Bad quota name')
+  if not justin.stringIsScope(scopeName):
+    return ('400 Bad Request', 'Bad scope name')
 
   groups = condorGroupsDict()
   if condorGroupName not in groups:

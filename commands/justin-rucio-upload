@@ -173,6 +173,11 @@ if args['no_check']:
   print('--- Exit with 0, success')
   sys.exit(0)
 
+# THESE CHECKS SHOULD NOT BE NECESSARY AS THEY CAN ONLY HAPPEN IF RUCIO
+# REPORTS SUCCESSFUL UPLOAD/REGISTRATION BUT IT HAS IN FACT FAILED
+
+# Codes 96/97/98 are returned when one of these silent failures is detected
+
 # Check the file is registered in Rucio, with replica(s)
 repClient = rucio.client.replicaclient.ReplicaClient()
 for i in range(1, tries + 1):
@@ -193,35 +198,30 @@ if not reps or 'pfns' not in reps or not reps['pfns']:
   print('--- No replica in Rucio, exit 98')
   sys.exit(98)
 
-# Check the given file is in the parent datasets
-for dataset in datasets:
-  for i in range(1, tries + 1):
+# Get dataset parents of the file
+for i in range(1, tries + 1):
     print('--- Dataset %s check try %d/%d' % (dataset, i, tries))
     try:
-      filesGen = didClient.list_files(args['scope'], dataset)
+      parentsGen = didClient.list_parents(args['scope'], filename)
       break
     except Exception as e:
-      filesGen = None
-      print('--- Rucio list_files %s call %d/%d fails: %s' % 
-            (dataset, i, tries, str(e)))
+      parentsGen = None
+      print('--- Rucio list_parents %s call %d/%d fails: %s' % 
+            (filename, i, tries, str(e)))
 
-  if not filesGen:
-    # No files DIDs returned!
-    print('--- No files in dataset %s, exit 97' % dataset)
-    sys.exit(97)
+if not parentsGen:
+  # No parents returned!
+  print('--- No parents of file %s, exit 97' % filename)
+  sys.exit(97)
+    
+parents = []
+for parent in parentsGen:
+  if 'scope' in parent and 'name' in parent:
+    parents.append(parent['scope'] + ':' + parent['name'])
 
-  # Try to find the given file in the dataset
-  found = False
-  for file in filesGen:
-    if ('scope' in file and 
-        'name'  in file and 
-        file['scope'] == args['scope'] and 
-        file['name']  == filename):
-      # Found the given filename in this dataset
-      found = True
-      break
-      
-  if not found:
+# Check the given file is in the parent datasets
+for dataset in datasets:
+  if args['scope'] + ':' + dataset not in parents:
     # We didn't find the given file in the parent dataset!
     print('--- Did not find the file in the parent dataset %s, exit 96' 
           % dataset)

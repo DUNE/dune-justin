@@ -1164,7 +1164,6 @@ def updateGroupsHTCondor():
     try:
       (groupName, effQuota, confQuota, surplus, subtreeQuota, weighted) \
         = line.split()
-# SHOULD RECORD confQuota IN JUSTINDB
     except:
       groupName = ''
 
@@ -1255,13 +1254,17 @@ def updateScopes():
     return
     
   for justinQuotaRow in justinQuotaRows:
-    # Find the scopes owned by each Rucio user accessible to justIN
-    try:
-      scopesForUser = scopeClient.list_scopes_for_account(
+# REMOVE THE usertests HANDLING ONCE EVERYONE HAS A PERSONAL QUOTA
+    if justinQuotaRow['quota_name'] == 'usertests':
+      scopesForUser = ['usertests']
+    else:
+      # Find the scopes owned by each Rucio user accessible to justIN
+      try:
+        scopesForUser = scopeClient.list_scopes_for_account(
                                    justinQuotaRow['quota_name'])
-    except Exception as e:
-      logLine("Reading scopes list from Rucio fails with: " + str(e))
-      continue
+      except Exception as e:
+        logLine("Reading scopes list from Rucio fails with: " + str(e))
+        continue
 
     for scopeForUser in scopesForUser:
       if scopeForUser not in justinScopes:
@@ -1280,9 +1283,7 @@ def updateScopes():
           continue
 
       elif ((justinScopes[scopeForUser]['quota_id'] 
-               != justinQuotaRow['quota_id']
-# REMOVE THE usertests CHECK ONCE EVERYONE HAS A PERSONAL QUOTA+SCOPE
-             and scopeForUser != 'usertests')
+             != justinQuotaRow['quota_id'])
             or (justinScopes[scopeForUser]['condor_group_id'] == 0)):
         # An existing scope we need to update
         logLine('Update scope %s' % scopeForUser)
@@ -1400,7 +1401,7 @@ def updateNamedQuotas():
 # REMOVE THE amcnab EXCEPTION ONCE IT NO LONGER HAS THE PRODUCTION
 # X509 CERTIFICATE DN! 
         if userIdentity['type'] == 'X509' and \
-             userIdentity['identity'] == justin.productionDN and \:
+             userIdentity['identity'] == justin.productionDN and \
              rucioUser['account'] != 'amcnab':
           forJustIN = True
           break

@@ -160,6 +160,9 @@ eventsList = [
 ('JOB_REMOVED_FROM_HTCONDOR', 
  327,
  'Job removed from HTCondor spool'),
+('JOB_ABORT_RUCIO_SILENT_FAILURE',
+ 328,
+ 'Job aborted due to silent Rucio upload failure'),
 
 # File-level events during running
 ('FILE_ALLOCATED', 

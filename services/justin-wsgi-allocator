@@ -971,7 +971,8 @@ def jobAbortedMethod(startResponse, jsonDict):
                         justin.event_JOB_ABORT_CREATING_METADATA,
                         justin.event_JOB_ABORT_METACAT_REGISTRATION,
                         justin.event_JOB_ABORT_RUCIO_UPLOAD_FILE,
-                        justin.event_JOB_ABORT_METACAT_UPLOADED ]:
+                        justin.event_JOB_ABORT_METACAT_UPLOADED,
+                        justin.event_JOB_ABORT_RUCIO_SILENT_FAILURE ]:
 # WANT TO RESET FILE ALLOCATIONS TOO HERE?
     state = 'outputting_failed'
   else:

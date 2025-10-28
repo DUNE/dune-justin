@@ -990,7 +990,12 @@ for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
                                     1000000 * int(time.time() / 1000000),
                                     rse,
                                     tgzName))
-  if ret == 0:
+  if ret in [96, 97, 98]:
+    logLine('Silent Rucio failure uploading justin-logs:%s to %s' 
+                % (tgzName, rse))
+    jobAborted(328, 'rucio_silent_failure', '')
+
+  elif ret == 0:
     logLine('Uploaded justin-logs:%s to %s' % (tgzName, rse))
     break
   else:
@@ -1166,7 +1171,13 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
                                       fileName),
                                      jobscriptDict['quota_name'])
       uploadEndTime = time.time()
-      if ret == 0:
+      
+      if ret in [96, 97, 98]:
+        logLine('Silent Rucio failure uploading %s:%s to %s' 
+                % (jobscriptDict['scope'], fileName, rse))
+        jobAborted(328, 'rucio_silent_failure', '')
+             
+      elif ret == 0:
         logLine('Uploaded %s:%s to %s in %.3fs' %
                 (jobscriptDict['scope'], fileName, rse, 
                  uploadEndTime - uploadStartTime))

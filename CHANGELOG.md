@@ -8,6 +8,8 @@
 - Add justin-shell container flavour for development and testing
 - Buttons and forms to edit user, scope, quota limits etc
 - Always require and check for /cvmfs/dune.osgstorage.org/ in jobs
+- New event JOB_ABORT_RUCIO_SILENT_FAILURE raised if justIN detects that
+  Rucio has silently failed during a file upload
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages
