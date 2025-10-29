@@ -39,4 +39,6 @@ group starting with the named quota's HTCondor group or the group itself.
 For example, named quota dunepro has HTCondor group group_dune.prod and its 
 scopes could be set to group_dune.prod.mcsim .
 
-
+Each user and named quota has a processing enabled switch, set to enabled or
+disabled. Admins can change this by going to the user's or named quota's
+own page.

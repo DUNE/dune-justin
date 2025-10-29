@@ -3394,8 +3394,8 @@ def showQuota(environ, user, cgiValues):
 #                     size = 6,
 #                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
 #                               % quotaName)
-               
-              )
+#               
+#              )
   else:
     output += ('<tr><td colspan=2>Max input files per workflow</td>'
                '<td>%d</td></tr>' % quotaRow['max_files_per_workflow'])

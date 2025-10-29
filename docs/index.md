@@ -34,7 +34,8 @@ design described in the DUNE Offline Computing Conceptual Design Report.
 
 ## Reference 
 
-- [Current change log](CHANGELOG.md)
+- [Change log](CHANGELOG.md)
+- [Release Notes](RELEASES.md)
 - [Integration instance](integration_instance.md)
 - [Event types](event_types.md)
 - [Wrapper jobs](wrapper_jobs.md)

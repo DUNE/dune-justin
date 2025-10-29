@@ -662,7 +662,7 @@ def updateSites():
              entryDict['raw_config'].replace('\\','\\\\').replace('"','\\"'))
                   )
 
-          logLine(query)
+#          logLine(query)
           try:
             newID = justin.insertUpdate(query)
           except Exception as e:
@@ -695,7 +695,7 @@ def updateSites():
                       entryDict['entry_name']
                      )
                   )
-          logLine(query)
+#          logLine(query)
           try:
             justin.insertUpdate(query)
           except Exception as e:
@@ -1267,6 +1267,13 @@ def updateScopes():
         continue
 
     for scopeForUser in scopesForUser:
+    
+# REMOVE THE usertests HANDLING ONCE EVERYONE HAS A PERSONAL QUOTA
+      if scopeForUser == 'usertests' and \
+         justinQuotaRow['quota_name'] != 'usertests':         
+        # Skip if usertests as a dunepro scope
+        continue
+    
       if scopeForUser not in justinScopes:
         # A new scope we need to add!
         logLine('Adding new scope %s from Rucio' % scopeForUser)
