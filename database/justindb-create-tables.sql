@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `heartbeat_time` datetime NOT NULL DEFAULT '1970-01-01',
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `quota_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `hostname` varchar(255) NOT NULL DEFAULT '',
   `cpuinfo` varchar(255) NOT NULL DEFAULT '',
   `has_inner_apptainer` tinyint(1) NOT NULL DEFAULT 0,

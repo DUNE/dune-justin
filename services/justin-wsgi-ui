@@ -526,11 +526,15 @@ def createWorkflow(jsonDict, user, simple = False):
               'Scope name can only be characters a-z 0-9 - _ .')
 
   try:
-      scopeRow = justin.select('SELECT scope_id,wlcg_group_name,'
-                    'scopes.condor_group_id,condor_group_name '
+      scopeRow = justin.select('SELECT scope_id,wlcg_group_name,quota_name,'
+                    'scopes.condor_group_id,condor_group_name,principal_name '
                     'FROM scopes '
                     'LEFT JOIN named_quotas '
                     'ON named_quotas.quota_id=scopes.quota_id '
+                    'LEFT JOIN users '
+                    'ON users.user_id=named_quotas.user_id '
+                    'LEFT JOIN principal_names '
+                    'ON principal_names.pn_id=users.main_pn_id '
                     'LEFT JOIN wlcg_groups '
                     'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
                     'LEFT JOIN condor_groups '
@@ -538,7 +542,9 @@ def createWorkflow(jsonDict, user, simple = False):
                     'WHERE scope_name="%s"' % scopeName, 
                     justOne=True)
 
+      quotaName          = scopeRow['quota_name']
       wlcgGroupName      = scopeRow['wlcg_group_name']
+      principalName      = scopeRow['principal_name']
       scopeCondorGroupID = int(scopeRow['condor_group_id'])
       scopeCondorGroup   = scopeRow['condor_group_name']
       scopeID            = int(scopeRow['scope_id'])
@@ -582,15 +588,25 @@ def createWorkflow(jsonDict, user, simple = False):
   if not justin.stringIsScope(htcondorGroupName):
       return ('400 Bad Request', 
               'HTCondor group name can only be characters a-z 0-9 - _ .')
- 
-  if not wlcgGroupName:
-      return ('403 Forbidden', 
-              'Scope %s has no group defined and cannot yet be used via justIN'  
-              % scopeName)
 
-  if wlcgGroupName not in user['wlcg_groups']:
+  if not quotaName:
       return ('403 Forbidden', 
-              'You need to be in group %s to use scope %s' % (wlcgGroupName, scopeName))
+       'Scope %s has no named quota defined and cannot yet be used via justIN'
+       % scopeName)
+
+  # Check authorization to do this
+  if wlcgGroupName:
+    # Needs a WLCG group, check if the user has it
+    if wlcgGroupName not in user['wlcg_groups']:
+      return ('403 Forbidden', 
+              'You need to be in group %s to use scope %s' 
+              % (wlcgGroupName, scopeName))
+
+  elif principalName != user['user_name']:
+    # Needs user but name doesn't match
+    return ('403 Forbidden', 
+            'You need to be %s to use scope %s' 
+              % (principalName, scopeName))
 
   refindEnd     = justin.unixEpoch
   refindSeconds = 0
