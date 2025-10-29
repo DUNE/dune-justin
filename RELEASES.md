@@ -23,3 +23,20 @@ For example the named quota amcnab_fnal_gov is owned by amcnab@fnal.gov and
 dunele is associated with /dune/lowenergy and usable by people within that
 WLCG group.
 
+justIN reads the per-RSE storage usage and quotas from Rucio for each named
+quota, and uses that information when selecting the list of RSEs to attempt
+to uploaded output files to. Each named quota has a page on the justIN
+dashboard and they are all listed on the page Quotas which has a link from
+the main page of the Dashboard. The per-RSE limits are shown on each 
+named quota's page.
+
+Each named quota is also associated with an HTCondor group and justIN reads
+the config and effective quotas from HTCondor. These are visible on the 
+named quota's page. On the page listing all the Rucio scopes that justIN
+can manage are the HTCondor group associated with each scope. People with
+justIN admin access can change these per-scope HTCondor groups to any 
+group starting with the named quota's HTCondor group or the group itself.
+For example, named quota dunepro has HTCondor group group_dune.prod and its 
+scopes could be set to group_dune.prod.mcsim .
+
+
