@@ -18,7 +18,8 @@ dashboard. The version is also displayed at the bottom of every page.
 
 The justIN documentation is maintained in GitHub, versioned along with the 
 code, and installed in the [docs area of the dashboard](./). For this reason,
-you should consult the docs and [change log](CHANGELOG.md) for the instance
+you should consult the docs, [change log](CHANGELOG.md) and 
+[release notes](RELEASES.md) for the instance
 you are using (production or integration).
 
 The integration instance is typically installed with a recent snapshot of the 
@@ -42,9 +43,9 @@ also possible to do a [standalone installation](justin_command.standalone.md)
 and the allows you to pick the integration version from the main branch.
 
 Wherever the command is located, it is necessary to override the built-in
-production instance URL with the `--url` option. For example:
+production instance URL with the `--instance` option. For example:
 
-    justin --url https://justin-ui-int.dune.hep.ac.uk/api/commands time
+    justin --instance int time
 
 will give you the current time in UTC, according to the integration
 instance.
@@ -52,19 +53,13 @@ instance.
 For convenience, you can set the environment variable $JUSTIN_OPTIONS to
 a string to be prepended to the list of command line options:
 
-    export JUSTIN_OPTIONS='--url https://justin-ui-int.dune.hep.ac.uk/api/commands'
+    export JUSTIN_OPTIONS='--instance int'
     justin time
 
 Alternatively, you may prefer to define an alias in your shell profile,
 as this makes it more explicit which instance you are connecting to. 
 In Bash:
 
-    alias justin-int='justin --url https://justin-ui-int.dune.hep.ac.uk/api/commands'
+    alias justin-int='justin --instance int'
     justin-int time
-
-## Workflow numbering
-
-To avoid interfering with work done using the production instance, the
-integration instance recycles the workflow IDs between 500 and 999. This 
-number is reset every time the integration database it wiped and recreated.
 
