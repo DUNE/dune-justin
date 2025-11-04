@@ -86,6 +86,10 @@ parser.add_argument("--stage-id",
                     type = int,
                     help = "Stage ID number")
 
+parser.add_argument("--campaign-id",
+                    type = int,
+                    help = "Campaign ID number")
+
 parser.add_argument("--file-did",
                     type = str,
                     help = "File DID")
@@ -110,10 +114,6 @@ parser.add_argument("--name",
 parser.add_argument("--scope",
                     type = str,
                     help = "Scope")
-
-parser.add_argument("--htcondor-group",
-                    type = str,
-                    help = "HTCondor group")
 
 parser.add_argument("--mql",
                     type = str,

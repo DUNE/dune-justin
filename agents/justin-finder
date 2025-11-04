@@ -791,12 +791,10 @@ def findSubmittedWorkflows():
 
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
-                    'condor_groups.condor_group_id,principal_name '
+                    'scopes.condor_group_id,principal_name '
                     'FROM workflows '
                     'LEFT JOIN scopes '
                     'ON workflows.scope_id=scopes.scope_id '
-                    'LEFT JOIN condor_groups '
-                    'ON condor_groups.condor_group_id=scopes.condor_group_id '
                     'LEFT JOIN users ON users.user_id=workflows.user_id '
                     'LEFT JOIN principal_names '
                     'ON principal_names.pn_id=users.main_pn_id '
@@ -841,9 +839,8 @@ def processSubmittedWorkflow(workflow):
            'started=NOW(),'
            'state="running",'
            'state_message="Moved to running state by justIN",'
-           'refind_next_time=NOW(),'
-           'condor_group_id=%d '
-           'WHERE workflow_id=%d' % (condorGroupID, workflowID))
+           'refind_next_time=NOW() '
+           'WHERE workflow_id=%d' % workflowID)
 
   justin.insertUpdate(query)
 
@@ -1027,7 +1024,7 @@ def finishWorkflows():
           except Exception as e:
             # Set to True if fail to close
             anyOpenDatasets = True
-            justin.logLine('Closing dataset %s:%s fails with %' %
+            justin.logLine('Closing dataset %s:%s fails with %s' %
                            (dataset['scope'], dataset['name'], str(e)))
           else:
             justin.logLine('Closed dataset %s:%s' %
@@ -1117,17 +1114,20 @@ def findProblemWorkflows():
       pauseEvent   = justin.event_WORKFLOW_PAUSED_NONE_PROCESSED
       pauseMessage = \
         'Paused after too many jobs with no provided input files processed'
-    
-    # Too many not used jobs      
-    elif (d[workflowID]['notused'] > 10 and 
-        d[workflowID]['notused'] > 
-            d[workflowID]['started'] +
-            d[workflowID]['processing'] +
-            d[workflowID]['outputting'] +
-            d[workflowID]['finished']
-       ):
-      pauseEvent   = justin.event_WORKFLOW_PAUSED_NOTUSED
-      pauseMessage = 'Paused after too many jobs ending not used'
+ 
+# TOO MANY WAYS FOR THIS TO HAPPEN IN HARMLESS WAYS UNRELEATED TO THE
+# WORKFLOW AND WHICH ARE NOT GENERAL SHOW STOPPERS? INCLUDING HITTING THE
+# RUNNING JOBS LIMIT   
+#    # Too many not used jobs      
+#    elif (d[workflowID]['notused'] > 10 and 
+#        d[workflowID]['notused'] > 
+#            d[workflowID]['started'] +
+#            d[workflowID]['processing'] +
+#            d[workflowID]['outputting'] +
+#            d[workflowID]['finished']
+#       ):
+#      pauseEvent   = justin.event_WORKFLOW_PAUSED_NOTUSED
+#      pauseMessage = 'Paused after too many jobs ending not used'
     
     if pauseEvent:
       try:
@@ -1452,6 +1452,17 @@ def findTokensToRefresh():
 def manageCaches():
 
   justin.logLine('Start of manage caches')
+
+  # Cache named quota running job numbers  
+  try:
+    justin.insertUpdate('UPDATE named_quotas '
+        'SET running_jobs=(SELECT COUNT(*) FROM jobs '
+        'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
+        'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
+        'WHERE job_state IN ("started","processing","outputting") '
+        'AND scopes.quota_id=named_quotas.quota_id')
+  except Exception as e:
+    justin.logLine('Update named_quotas running_jobs fails: ' + str(e))
 
   # Remove stale rank cache entries
   try:

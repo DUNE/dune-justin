@@ -55,9 +55,8 @@ This man page is distributed along with the
     
     
            create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
-    	      [--scope SCOPE] [--htcondor-group GROUP] [--refind-end-date
-    	      YYYYMMDD] [--refind-interval-hours HOURS] [--workflow-id-file
-    	      FILENAME]
+    	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
+    	      [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]
     	      Create a new, empty workflow in the database, optionally with
     	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
@@ -68,13 +67,6 @@ This man page is distributed along with the
     	      storage. Scopes also determine which HTCondor group wrapper jobs
     	      are submitted to. If not given, the default scope usertests is
     	      used.
-    
-    	      --htcondor-group GROUP specifies the HTCondor group used when
-    	      justIN submits jobs for this workflow. By default the scope's
-    	      own default group is used. If this option is given, the first
-    	      two parts of the selected group must match the first two parts
-    	      of the scope's default group. For example, "group_dune" and
-    	      "prod" if the scope's group is "group_dune.prod.mcsim"
     
     	      The options --refind-interval-hours (default 1) and
     	      --refind-end-date (default: today in UTC) can be used to cause
@@ -236,8 +228,8 @@ This man page is distributed along with the
     
     
            simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
-    	      [--scope SCOPE] [--htcondor-group GROUP] [--refind-end-date
-    	      YYYYMMDD] [--refind-interval-hours HOURS] --jobscript
+    	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
+    	      [--refind-interval-hours HOURS] --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
     	      [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]

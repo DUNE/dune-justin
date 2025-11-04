@@ -58,7 +58,7 @@ properly registered in justIN.
 Displays information about the current user identity and session.
 
 .HP
-.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--htcondor-group GROUP] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]"
+.B "create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] [--scope SCOPE] [--refind-end-date YYYYMMDD] [--refind-interval-hours HOURS] [--workflow-id-file FILENAME] [--campaign ID]"
 .br
 Create a new, empty workflow in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
@@ -70,12 +70,11 @@ Rucio and uploaded to Rucio-managed storage. Scopes also determine
 which HTCondor group wrapper jobs are submitted to. If not given, the 
 default scope usertests is used.
 
-.B --htcondor-group GROUP
-specifies the HTCondor group used when justIN submits jobs for this
-workflow. By default the scope's own default group is used. If this option
-is given, the first two parts of the selected group must match the first two
-parts of the scope's default group. For example, "group_dune" and "prod" if 
-the scope's group is "group_dune.prod.mcsim"
+.B --campaign-id ID
+specifies the campaign ID to use when creating the workflow. If not given,
+then the next available ID number is used and a new campaign created. If
+given, the ID must match an existing campaign which is owned by the same
+named quota as the scope of the workflow.
 
 The options
 .B --refind-interval-hours
@@ -256,7 +255,7 @@ then ":latest" is appended to the name given.
 
 .HP
 .B "simple-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT] 
-.B [--scope SCOPE] [--htcondor-group GROUP] [--refind-end-date YYYYMMDD] 
+.B [--scope SCOPE] [--refind-end-date YYYYMMDD] 
 .B [--refind-interval-hours HOURS] 
 .B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
 .B [--wall-seconds N]
@@ -265,6 +264,7 @@ then ":latest" is appended to the name given.
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
 .B [--site SITENAME] [--image IMAGENAME] [--workflow-id-file FILENAME] 
+.B [--campaign-id ID]
 .br
 Combines the 
 .B create-workflow, create-stage

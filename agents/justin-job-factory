@@ -81,6 +81,7 @@ def submitJobs(numberToSubmit,
                accountingGroup,
                workflowID,
                stageID,
+               quotaID,
                firstSiteID,
                classads,
                desiredSiteNames,
@@ -298,6 +299,7 @@ queue %d
                       'SET factory_name="%s",'
                       'workflow_id=%d,'
                       'stage_id=%d,'
+                      'quota_id=%d,'
                       'site_id=%d,'
                       'requested_processors=%d,'
                       'requested_gpu=%d,'
@@ -310,6 +312,7 @@ queue %d
                       % (os.uname()[1],
                          workflowID,
                          stageID,
+                         quotaID,
                          firstSiteID,
                          requestedProcessors,
                          requestedGPU,
@@ -371,7 +374,7 @@ def workflowJobs():
      'LEFT JOIN principal_names '
      'ON principal_names.user_id=users.main_pn_id '
      'LEFT JOIN condor_groups '
-     'ON condor_groups.condor_group_id=workflows.condor_group_id '
+     'ON condor_groups.condor_group_id=scopes.condor_group_id '
      'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
      'AND users.processing_enabled AND named_quotas.processing_enabled '
      'ORDER BY workflows.workflow_id'
@@ -386,19 +389,6 @@ def workflowJobs():
   
     logLine('Processing ' + str(stageRow))
 
-    # Count unallocated files for this stage    
-    try:
-      row = justin.select('SELECT COUNT(*) AS count FROM files '
-                          'WHERE workflow_id=%d AND stage_id=%d '
-                          'AND state="unallocated"'
-                          % (stageRow['workflow_id'],
-                             stageRow['stage_id']), justOne = True)
-   
-      unallocatedCount = int(row['count'])
-    except Exception as e:
-      logLine('Failed to get unallocated count: ' + str(e))
-      continue
-
     # Count submitted jobs for this stage    
     try:
       row = justin.select('SELECT COUNT(*) AS count FROM jobs '
@@ -411,6 +401,23 @@ def workflowJobs():
       submittedCount = int(row['count'])
     except Exception as e:
       logLine('Failed to get submitted count: ' + str(e))
+      continue
+
+    if submittedCount > maxSubmitted:
+      logLine('Skipping due to number already submitted > %d' % maxSubmitted)
+      continue
+
+    # Count unallocated files for this stage    
+    try:
+      row = justin.select('SELECT COUNT(*) AS count FROM files '
+                          'WHERE workflow_id=%d AND stage_id=%d '
+                          'AND state="unallocated"'
+                          % (stageRow['workflow_id'],
+                             stageRow['stage_id']), justOne = True)
+   
+      unallocatedCount = int(row['count'])
+    except Exception as e:
+      logLine('Failed to get unallocated count: ' + str(e))
       continue
 
     logLine('unallocatedCount=%d  submittedCount=%d  maxSubmitted=%d' 
@@ -463,10 +470,6 @@ def workflowJobs():
         
       logLine('entriesRows %s' % str(entriesRows))
  
-      if submittedCount > maxSubmitted:
-        logLine('Skipping due to number already submitted > %d' % maxSubmitted)
-        continue
-
       desiredSites   = set()
       desiredEntries = set()
     
@@ -518,6 +521,7 @@ def workflowJobs():
                    accountingGroup      = condorGroupName,
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
+                   quotaID              = stageRow['quota_id'],
                    classads             = classads,
                    firstSiteID          = 0,
                    desiredSiteNames     = desiredSiteNames,
@@ -529,7 +533,6 @@ def workflowJobs():
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
-
   try:
     rows = justin.select('SELECT site_id,site_name,jobsub_site_name,'    
                          '(SELECT COUNT(*) FROM entries'
@@ -564,6 +567,7 @@ def awtJobsToSites():
                  accountingGroup      = 'group_dune.prod',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
+                 quotaID              = 0, # Only used in dashboard anyway?
                  firstSiteID          = row['site_id'],
                  classads             = [],
                  desiredSiteNames     = row['jobsub_site_name'],

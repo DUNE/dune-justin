@@ -527,7 +527,7 @@ def createWorkflow(jsonDict, user, simple = False):
 
   try:
       scopeRow = justin.select('SELECT scope_id,wlcg_group_name,quota_name,'
-                    'scopes.condor_group_id,condor_group_name,principal_name '
+                    'principal_name,scopes.quota_id '
                     'FROM scopes '
                     'LEFT JOIN named_quotas '
                     'ON named_quotas.quota_id=scopes.quota_id '
@@ -537,57 +537,19 @@ def createWorkflow(jsonDict, user, simple = False):
                     'ON principal_names.pn_id=users.main_pn_id '
                     'LEFT JOIN wlcg_groups '
                     'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
-                    'LEFT JOIN condor_groups '
-                    'ON condor_groups.condor_group_id=scopes.condor_group_id '
                     'WHERE scope_name="%s"' % scopeName, 
                     justOne=True)
 
-      quotaName          = scopeRow['quota_name']
-      wlcgGroupName      = scopeRow['wlcg_group_name']
-      principalName      = scopeRow['principal_name']
-      scopeCondorGroupID = int(scopeRow['condor_group_id'])
-      scopeCondorGroup   = scopeRow['condor_group_name']
-      scopeID            = int(scopeRow['scope_id'])
+      scopeQuotaID   = int(scopeRow['quota_id'])
+      quotaName      = scopeRow['quota_name']
+      wlcgGroupName  = scopeRow['wlcg_group_name']
+      principalName  = scopeRow['principal_name']
+      scopeID        = int(scopeRow['scope_id'])
       if not scopeID:
         raise
   except:
       return ('400 Bad Request', 
               'Failed to find scope %s in justIN database' % scopeName)
-
-  if 'htcondor_group' in jsonDict and jsonDict['htcondor_group']:
-    scopeCondorSplit   = scopeCondorGroup.split('.')
-    htcondorGroupName  = jsonDict['htcondor_group'].lower()
-    htcondorGroupSplit = htcondorGroupName.split('.')
-
-    if (
-        (htcondorGroupSplit[0] != scopeCondorSplit[0]) or
-        (len(htcondorGroupSplit) > 1 and 
-         len(scopeCondorSplit) == 1) or
-        (len(htcondorGroupSplit) > 1 and
-         htcondorGroupSplit[1] != scopeCondorSplit[1])
-       ):
-      return ('400 Bad Request', 
-              'Prefixes of given HTCondor group and '
-              'scope HTCondor group do not match')
-  else:
-    htcondorGroupName = scopeCondorGroup
-
-  try:
-    groupRow = justin.select('SELECT condor_group_id '
-                    'FROM condor_groups '
-                    'WHERE condor_group_name="%s"' % htcondorGroupName, 
-                    justOne=True)
-
-    htcondorGroupID = int(groupRow['condor_group_id'])
-
-  except:
-      return ('400 Bad Request', 
-              'Failed to find HTCondor group %s in justIN database' 
-              % htcondorGroupName)
-
-  if not justin.stringIsScope(htcondorGroupName):
-      return ('400 Bad Request', 
-              'HTCondor group name can only be characters a-z 0-9 - _ .')
 
   if not quotaName:
       return ('403 Forbidden', 
@@ -607,6 +569,39 @@ def createWorkflow(jsonDict, user, simple = False):
     return ('403 Forbidden', 
             'You need to be %s to use scope %s' 
               % (principalName, scopeName))
+
+  try: 
+    campaignID = int(jsonDict['campaign_id'])
+  except:
+    return('400 Bad Request', '--campaign-id must give an integer')
+
+  if campaignID == 0:
+    # No campaign ID given, so create a new campaign
+    try:
+      campaignID = justin.insertUpdate('INSERT INTO campaigns SET '
+                                       'created=NOW(),'
+                                       'quota_id=%d,'
+                                       'user_id=%d'
+                                       % (scopeQuotaID, user['user_id']))
+    except Exception as e:
+      return ('500 Internal Server Error', 
+              'Error creating new campaign for workflow: ' + str(e))
+  else:
+    try:
+      campaignRow = justin.select('SELECT quota_id FROM campaigns '
+                                  'WHERE campaign_id=%d' % campaignID,
+                                  justOne=True)
+      campaignQuotaID = int(campaignRow['quota_id'])
+    except:
+      return ('400 Bad Request', 
+              'Failed to find campaign %d in justIN database' % campaignID)
+
+    # Check the user can use that campaign, via the scope's named quota that
+    # we have already checked
+    if scopeQuotaID != campaignQuotaID:
+      return ('403 Forbidden', 
+ 'The campaign ID %d and scope %s you gave are owned by different named quotas'
+              % (campaignID, scopeName))
 
   refindEnd     = justin.unixEpoch
   refindSeconds = 0
@@ -649,7 +644,7 @@ def createWorkflow(jsonDict, user, simple = False):
           'description="%s",'
           'mql="%s",'
           'scope_id=%d,'
-          'condor_group_id=%d,'
+          'campaign_id=%d,'
           'user_id=%d,'
           'refind_seconds=%d,'
           'refind_end_time="%s" '
@@ -659,7 +654,7 @@ def createWorkflow(jsonDict, user, simple = False):
              description,
              mql,
              scopeID,
-             htcondorGroupID,
+             campaignID,
              user['user_id'],
              refindSeconds,
              refindEnd))

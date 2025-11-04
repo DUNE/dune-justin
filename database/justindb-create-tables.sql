@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `heartbeat_time` datetime NOT NULL DEFAULT '1970-01-01',
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
-  `quota_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `hostname` varchar(255) NOT NULL DEFAULT '',
   `cpuinfo` varchar(255) NOT NULL DEFAULT '',
   `has_inner_apptainer` tinyint(1) NOT NULL DEFAULT 0,
@@ -202,6 +201,16 @@ CREATE TABLE IF NOT EXISTS `replicas_pins` (
   PRIMARY KEY(`replica_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
  
+CREATE TABLE IF NOT EXISTS `campaigns` (
+  `campaign_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
+  `description` varchar(255) NOT NULL DEFAULT '',
+  `created` datetime NOT NULL,
+  `quota_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `archived` tinyint(1) unsigned NOT NULL DEFAULT 0
+  PRIMARY KEY (`campaign_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
+
 CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
@@ -210,7 +219,6 @@ CREATE TABLE IF NOT EXISTS `workflows` (
      NOT NULL DEFAULT 'finished',
   `state_message` text NOT NULL DEFAULT '',
   `scope_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `condor_group_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `description` varchar(255) NOT NULL DEFAULT '',
   `created` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `submitted` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -224,6 +232,7 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `archived` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `mql` text NOT NULL,
   PRIMARY KEY (`workflow_id`),
+  INDEX `campaign` (`campaign_id`),
   INDEX `state` (`state`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
@@ -472,6 +481,7 @@ CREATE TABLE IF NOT EXISTS `named_quotas` (
   `for_justin` tinyint(1) NOT NULL DEFAULT '0',
   `max_files_per_workflow` mediumint(8) unsigned NOT NULL DEFAULT 10000,
   `max_running_jobs` mediumint(8) unsigned NOT NULL DEFAULT 2000,
+  `running_jobs` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`quota_id`),
   INDEX `user_group` (`quota_id`,`wlcg_group_id`,`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

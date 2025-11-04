@@ -1242,14 +1242,16 @@ def showWorkflow(environ, user, cgiValues):
   except:
     return errorPage(environ, user, "workflow_id must be given")
   
-  query = ("SELECT workflows.description,workflows.state,"
+  query = ("SELECT workflows.description AS workflow_description,"
+           "workflows.state,"
            "workflows.state_message,principal_name AS user_name,"
            "workflows.user_id,wlcg_groups.wlcg_group_name,"
            "workflows.created,workflows.submitted,workflows.started,"
            "workflows.checking,workflows.finished,mql,"
            "workflows.refind_seconds,workflows.refind_end_time,"
            "workflows.refind_next_time,quota_name,"
-           "scopes.scope_name,condor_groups.condor_group_name "
+           "scopes.scope_name,condor_groups.condor_group_name,campaign_id,"
+           "campaigns.description AS campaign_description "
            "FROM workflows "
            "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
            "LEFT JOIN named_quotas ON scopes.quota_id=named_quotas.quota_id "
@@ -1259,7 +1261,9 @@ def showWorkflow(environ, user, cgiValues):
            "LEFT JOIN principal_names "
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN condor_groups "
-           "ON condor_groups.condor_group_id=workflows.condor_group_id "
+           "ON condor_groups.condor_group_id=scopes.condor_group_id "
+           "LEFT JOIN campaigns "
+           "ON campaigns.campaign_id=workflows.campaign_id "
            "WHERE workflow_id=%d "
            "ORDER BY workflow_id" % workflowID)
 
@@ -1324,8 +1328,19 @@ def showWorkflow(environ, user, cgiValues):
       output += '<p>' + buttonsHTML + '</p>\n<p>\n'
 
   output += '<table>'
-  output += ('<tr><td>Description</td><td>%s</td></tr>' 
-             % html.escape(workflowRow['description'], quote=True))
+
+  output += ('<tr><td>Workflow</td><td>%d</td></tr>'
+             % workflowRow['workflow_id'])
+  output += ('<tr><td>Workflow description</td><td>%s</td></tr>' 
+             % html.escape(workflowRow['workflow_description'], quote=True))
+
+  if workflowRow['campaign_id']: 
+    output += ('<tr><td>Campaign</td><td>%d</td></tr>' % 
+                workflowRow['campaign_id'])
+
+    if workflowRow['campaign_description']:
+      output += ('<tr><td>Campaign description</td><td>%s</td></tr>' %
+                 html.escape(workflowRow['campaign_description'], quote=True))
 
   output += ('<tr><td>State</td><td>%s</td></tr>' % state)
   if workflowRow['state_message']:
@@ -1647,7 +1662,8 @@ def showStage(environ, user, cgiValues):
            "stages_jobscripts.jobscript,"
            "stages.jobscript_git,"
            "stages.jobscript_image,"
-           "workflows_scopes.scope_name AS workflows_scope_name "
+           "workflows_scopes.scope_name AS workflows_scope_name,"
+           "workflows.camopaign_id "
            "FROM stages "
            "LEFT JOIN workflows "
            "ON workflows.workflow_id=stages.workflow_id "
@@ -1669,6 +1685,14 @@ def showStage(environ, user, cgiValues):
   output += ("<h1>Workflow %d, Stage %d</h1>" % (workflowID, stageID))
   
   output += '<table>'
+
+  output += ('<tr><td>Workflow</td><td>'
+             '<a href="/dashboard/?method=show-workflow&workflow_id=%d">'
+             '%d</a></td></tr>' % (workflowID, workflowID))
+
+  if stageRow['campaign_id']: 
+    output += ('<tr><td>Campaign</td><td>%d</td></tr>' % 
+                stageRow['campaign_id'])
 
   output += ('<tr><td>Priority</td>'
         '<td>%d</td></tr>' % stageRow["stage_priority"])
@@ -2631,7 +2655,7 @@ def showJob(environ, user, cgiValues):
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
            "LEFT JOIN condor_groups "
-           "ON condor_groups.condor_group_id=workflows.condor_group_id "
+           "ON condor_groups.condor_group_id=scopes.condor_group_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   jobRow = justin.select(query, justOne = True)
@@ -3345,7 +3369,8 @@ def showQuota(environ, user, cgiValues):
                                % quotaName) +
                '</td></tr>')
     else:
-      output += '<tr><td colspan=2>%s</td></tr>' % wlcgGroupName
+      output += ('<tr><td colspan=2>WLCG Group name</td><td>%s</td></tr>' 
+                 % wlcgGroupName)
 
   condorGroupName = quotaRow['condor_group_name']
   if not condorGroupName:
@@ -3385,17 +3410,17 @@ def showQuota(environ, user, cgiValues):
                
               )
 
-#    output += ('<tr><td colspan=2>Max running jobs</td>'
-#               '<td>%s</td></tr>' %
-#               inputHTML(cgiValues, user, 
-#                     key = quotaRow['quota_name'],
-#                     name = 'quota_max_running_jobs',
-#                     value = quotaRow['max_running_jobs'],
-#                     size = 6,
-#                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
-#                               % quotaName)
-#               
-#              )
+    output += ('<tr><td colspan=2>Max running jobs</td>'
+               '<td>%s</td></tr>' %
+               inputHTML(cgiValues, user, 
+                     key = quotaRow['quota_name'],
+                     name = 'quota_max_running_jobs',
+                     value = quotaRow['max_running_jobs'],
+                     size = 6,
+                     nextURI = '/dashboard/?method=show-quota&quota_name=%s'
+                               % quotaName)
+               
+              )
   else:
     output += ('<tr><td colspan=2>Max input files per workflow</td>'
                '<td>%d</td></tr>' % quotaRow['max_files_per_workflow'])

@@ -10,6 +10,10 @@
 - Always require and check for /cvmfs/dune.osgstorage.org/ in jobs
 - New event JOB_ABORT_RUCIO_SILENT_FAILURE raised if justIN detects that
   Rucio has silently failed during a file upload
+- Remove --htcondor-group option when creating workflows: now always taken 
+  from scope definition
+- Automatically create a new campaign for each workflow unless the
+  --campaign-id option is used to add it to an existing campaign
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages
