@@ -55,7 +55,7 @@ commands = [ "create-workflow",
              "pause-workflow",
              "finish-workflow",
              "create-stage", 
-             "create-jobscript",
+             "create-campaign",
              "simple-workflow", 
              "show-workflows", "show-stages", "show-jobscript",
              "show-stage-outputs",
@@ -114,6 +114,10 @@ parser.add_argument("--name",
 parser.add_argument("--scope",
                     type = str,
                     help = "Scope")
+
+parser.add_argument("--quota",
+                    type = str,
+                    help = "Quota")
 
 parser.add_argument("--mql",
                     type = str,
@@ -235,6 +239,10 @@ parser.add_argument("--image",
 parser.add_argument("--workflow-id-file",
                     type = str,
                     help = "Workflow ID file")
+
+parser.add_argument("--campaign-id-file",
+                    type = str,
+                    help = "Campaign ID file")
 
 parser.add_argument("--instance",
                     type = str,
@@ -547,6 +555,23 @@ elif jsonDict['command'] in ['create-workflow', 'simple-workflow']:
     if jsonDict['workflow_id_file']:
       with open(jsonDict['workflow_id_file'], 'a') as f:
         f.write('%d\n' % workflowID)
+    
+  print(output, end='')
+  
+  sys.exit(0)
+  
+elif jsonDict['command'] == 'create-campaign':
+  output = response.read().decode('utf-8')
+  
+  try:
+    campaignID = int(output)
+  except:
+    print('Failed to get campaign ID from output\n\n' + output + '\n')
+    sys.exit(1)
+  else:
+    if jsonDict['campaign_id_file']:
+      with open(jsonDict['campaign_id_file'], 'a') as f:
+        f.write('%d\n' % campaignID)
     
   print(output, end='')
   

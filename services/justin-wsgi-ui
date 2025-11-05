@@ -570,11 +570,14 @@ def createWorkflow(jsonDict, user, simple = False):
             'You need to be %s to use scope %s' 
               % (principalName, scopeName))
 
-  try: 
-    campaignID = int(jsonDict['campaign_id'])
-  except:
-    return('400 Bad Request', '--campaign-id must give an integer')
-
+  if 'campaign_id' not in jsonDict or not jsonDict['campaign_id']:
+    campaignID = 0
+  else:
+    try: 
+      campaignID = int(jsonDict['campaign_id'])
+    except:
+      return('400 Bad Request', '--campaign-id must give an integer')
+  
   if campaignID == 0:
     # No campaign ID given, so create a new campaign
     try:
@@ -700,6 +703,77 @@ def simpleWorkflowCmd(startResponse, jsonDict, user):
 
   # We output the message from the workflow creation
   return httpOK(startResponse, str(workflowMessage) + '\n')
+
+def createCampaignCmd(startResponse, jsonDict, user):
+
+  if 'description' in jsonDict and jsonDict['description']:
+    description = jsonDict['description']
+  else:
+    description = ''
+
+  if 'quota' in jsonDict and jsonDict['quota']:
+    quotaName = jsonDict['quota'].lower()
+  else:
+# HARD CODE THIS FOR NOW BECAUSE THE DEFAULT WILL BECOME PEOPLE'S 
+# PER-USER NAMED QUOTA
+    quotaName = 'usertests'
+
+  if not justin.stringIsScope(scopeName):
+      return httpError(startResponse, '400 Bad Request', 
+              'Quota name can only be characters a-z 0-9 _')
+
+  try:
+      quotaRow = justin.select('SELECT quota_id,wlcg_group_name,quota_name,'
+                    'principal_name,scopes.quota_id '
+                    'FROM named_quotas '
+                    'LEFT JOIN users '
+                    'ON users.user_id=named_quotas.user_id '
+                    'LEFT JOIN principal_names '
+                    'ON principal_names.pn_id=users.main_pn_id '
+                    'LEFT JOIN wlcg_groups '
+                    'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
+                    'WHERE quota_name="%s"' % quotaName, 
+                    justOne=True)
+
+      quotaName      = quotaRow['quota_name']
+      wlcgGroupName  = quotaRow['wlcg_group_name']
+      principalName  = quotaRow['principal_name']
+      quotaID        = int(quotaRow['quota_id'])
+      if not quotaID:
+        raise
+  except:
+      return httpError(startResponse, '400 Bad Request', 
+              'Failed to find quota %s in justIN database' % quotaName)
+
+  # Check authorization to do this
+  if wlcgGroupName:
+    # Needs a WLCG group, check if the user has it
+    if wlcgGroupName not in user['wlcg_groups']:
+      return httpError(startResponse, '403 Forbidden', 
+              'You need to be in group %s to use quota %s' 
+              % (wlcgGroupName, quotaName))
+
+  elif principalName != user['user_name']:
+    # Needs user but name doesn't match
+    return httpError(startResponse, '403 Forbidden', 
+                     'You need to be %s to use quota %s' 
+                     % (principalName, quotaName))
+
+  try:
+    campaignID = justin.insertUpdate('INSERT INTO campaigns SET created=NOW(),'
+          'description="%s",'
+          'quota_id=%d,'
+          'user_id=%d '
+          % (description,
+             quotaID,
+             user['user_id']))
+  except Exception as e:
+    return httpError(startResponse, '500 Internal Server Error', 
+                     'Error creating campaign: ' + str(e))
+
+  return httpOK(startResponse, str(campaignID) + '\n')
+
+#  return httpError(startResponse, code, message)
 
 def modifyWorkflowCmds(startResponse, jsonDict, user):
   # Generic handler for restart-workflow, submit-workflow, pause-workflow and
@@ -1885,6 +1959,9 @@ def application(environ, startResponse):
   if jsonDict['command'] == 'show-replicas':
     return showReplicasCmd(startResponse, jsonDict)
 
+  if jsonDict['command'] == 'create-campaign':
+    return createCampaignCmd(startResponse, jsonDict, user)
+
   if jsonDict['command'] == 'create-workflow':
     return createWorkflowCmd(startResponse, jsonDict, user)
 
@@ -1897,9 +1974,6 @@ def application(environ, startResponse):
 
   if jsonDict['command'] == 'create-stage':
     return createStageCmd(startResponse, jsonDict, user)
-
-  if jsonDict['command'] == 'create-jobscript':
-    return createJobscriptCmd(startResponse, jsonDict, user)
 
   if jsonDict['command'] == 'show-jobs':
     return showJobsCmd(startResponse, jsonDict)

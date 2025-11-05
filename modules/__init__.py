@@ -610,6 +610,7 @@ def expandEnvVars(s, envs):
 # errors. You must ensure events are committed along with anything else
 # you are writing to the database!!!
 def logEvent(eventTypeID = event_UNDEFINED,
+             campaignID = 0,
              workflowID = 0,
              stageID = 0,
              fileID = 0,
@@ -644,6 +645,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
   try:
     query = ('INSERT INTO events SET '
              'event_type_id=%d,'
+             'campaign_id=%d,'
              'workflow_id=%d,'
              'stage_id=%d,'
              'file_id=%d,'
@@ -655,6 +657,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'seconds=%.3f,'
              'event_time=NOW()' %
              (eventTypeID,
+              campaignID,
               workflowID,
               stageID,
               fileID,

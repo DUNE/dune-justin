@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `event_type_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `file_id` int(10) unsigned NOT NULL DEFAULT 0,
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
@@ -207,7 +208,7 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
   `created` datetime NOT NULL,
   `quota_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
-  `archived` tinyint(1) unsigned NOT NULL DEFAULT 0
+  `archived` tinyint(1) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`campaign_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 

@@ -81,7 +81,6 @@ def submitJobs(numberToSubmit,
                accountingGroup,
                workflowID,
                stageID,
-               quotaID,
                firstSiteID,
                classads,
                desiredSiteNames,
@@ -299,7 +298,6 @@ queue %d
                       'SET factory_name="%s",'
                       'workflow_id=%d,'
                       'stage_id=%d,'
-                      'quota_id=%d,'
                       'site_id=%d,'
                       'requested_processors=%d,'
                       'requested_gpu=%d,'
@@ -312,7 +310,6 @@ queue %d
                       % (os.uname()[1],
                          workflowID,
                          stageID,
-                         quotaID,
                          firstSiteID,
                          requestedProcessors,
                          requestedGPU,
@@ -521,7 +518,6 @@ def workflowJobs():
                    accountingGroup      = condorGroupName,
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
-                   quotaID              = stageRow['quota_id'],
                    classads             = classads,
                    firstSiteID          = 0,
                    desiredSiteNames     = desiredSiteNames,
@@ -567,7 +563,6 @@ def awtJobsToSites():
                  accountingGroup      = 'group_dune.prod',
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
-                 quotaID              = 0, # Only used in dashboard anyway?
                  firstSiteID          = row['site_id'],
                  classads             = [],
                  desiredSiteNames     = row['jobsub_site_name'],

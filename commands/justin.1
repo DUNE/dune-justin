@@ -275,6 +275,21 @@ options are repeated from the first two subcommands and are described in their
 respective sections above.
 
 .HP
+.B "create-campaign [--description DESC] [--quota QUOTA] [--campaign-id-file FILENAME]"
+.br
+Create a new campaign in the database, optionally with the given
+short, human-readable description.
+
+.B --quota QUOTA
+specifies the named quota to assign the campaign to instead of the default
+usertests.
+
+The option
+.B --campaign-id-file FILENAME
+can be used to append a line with the ID of the new campaign to the
+given file.
+
+.HP
 .B "show-stages --workflow-id ID [--stage-id ID]"
 .br
 Shows details of all stages of the given workflow or optionally of a single 
