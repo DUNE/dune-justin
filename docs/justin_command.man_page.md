@@ -57,6 +57,7 @@ This man page is distributed along with the
            create-workflow [--description DESC] [--mql QUERY|--monte-carlo COUNT]
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] [--workflow-id-file FILENAME]
+    	      [--campaign ID]
     	      Create a new, empty workflow in the database, optionally with
     	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
@@ -67,6 +68,12 @@ This man page is distributed along with the
     	      storage. Scopes also determine which HTCondor group wrapper jobs
     	      are submitted to. If not given, the default scope usertests is
     	      used.
+    
+    	      --campaign-id ID specifies the campaign ID to use when creating
+    	      the workflow. If not given, then the next available ID number is
+    	      used and a new campaign created. If given, the ID must match an
+    	      existing campaign which is owned by the same named quota as the
+    	      scope of the workflow.
     
     	      The options --refind-interval-hours (default 1) and
     	      --refind-end-date (default: today in UTC) can be used to cause
@@ -235,12 +242,25 @@ This man page is distributed along with the
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
     	      [--output-rse-expression EXPRESSION] [--lifetime-days DAYS]
     	      [--env NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME]
-    	      [--image IMAGENAME] [--workflow-id-file FILENAME]
+    	      [--image IMAGENAME] [--workflow-id-file FILENAME] [--campaign-id
+    	      ID]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
     	      subcommands and are described in their respective sections
     	      above.
+    
+    
+           create-campaign [--description DESC] [--quota QUOTA]
+    	      [--campaign-id-file FILENAME]
+    	      Create a new campaign in the database, optionally with the given
+    	      short, human-readable description.
+    
+    	      --quota QUOTA specifies the named quota to assign the campaign
+    	      to instead of the default usertests.
+    
+    	      The option --campaign-id-file FILENAME can be used to append a
+    	      line with the ID of the new campaign to the given file.
     
     
            show-stages --workflow-id ID [--stage-id ID]
