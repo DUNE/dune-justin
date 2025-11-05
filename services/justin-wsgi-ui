@@ -718,13 +718,13 @@ def createCampaignCmd(startResponse, jsonDict, user):
 # PER-USER NAMED QUOTA
     quotaName = 'usertests'
 
-  if not justin.stringIsScope(scopeName):
+  if not justin.stringIsScope(quotaName):
       return httpError(startResponse, '400 Bad Request', 
               'Quota name can only be characters a-z 0-9 _')
 
   try:
       quotaRow = justin.select('SELECT quota_id,wlcg_group_name,quota_name,'
-                    'principal_name,scopes.quota_id '
+                    'principal_name,named_quotas.quota_id '
                     'FROM named_quotas '
                     'LEFT JOIN users '
                     'ON users.user_id=named_quotas.user_id '
@@ -741,7 +741,8 @@ def createCampaignCmd(startResponse, jsonDict, user):
       quotaID        = int(quotaRow['quota_id'])
       if not quotaID:
         raise
-  except:
+  except Exception as e:
+      print('Quota query error: ' + str(e), file=sys.stderr)
       return httpError(startResponse, '400 Bad Request', 
               'Failed to find quota %s in justIN database' % quotaName)
 

@@ -370,7 +370,7 @@ def inputHTML(cgiValues, user, key = None, name = None, value = None,
          )
 
 def selectHTML(cgiValues, user, key = None, name = None, value = None,
-               options = None, nextURI = ''):
+               options = None, nextURI = '', valueURL = None):
 
   # key is some meaningful context for justIN, like a workflowID
   # name is the name of the action, like 'workflow_finish'
@@ -402,9 +402,14 @@ def selectHTML(cgiValues, user, key = None, name = None, value = None,
     return s
 
   # This does the version with the value as text and then the Edit button
-  return ( '%s <a href="%s&input_key=%s&input_name=%s" class="button">'
-           'Edit</a>' % (str(value), nextURI, str(key), name)
-         )
+  if valueURL:
+    return ( '<a href="%s">%s</a> ' 
+             '<a href="%s&input_key=%s&input_name=%s" class="button">'
+             'Edit</a>' % (valueURL, str(value), nextURI, str(key), name) )
+
+  else:
+    return ( '%s <a href="%s&input_key=%s&input_name=%s" class="button">'
+             'Edit</a>' % (str(value), nextURI, str(key), name) )
 
 def wlcgGroupsDict():
 
@@ -1069,7 +1074,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
   quotaRows = justin.select('SELECT quota_name FROM named_quotas '
                             'WHERE for_justin ORDER BY quota_name')
 
-  output = header(environ, user, "justIN: Campaignss")
+  output = header(environ, user, "justIN: Campaigns")
 
   output += "<h1>Campaigns</h1>"
 
@@ -1170,17 +1175,18 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
                   (row['files_processed'], row['files_total'],  
                    100.0 * row['files_processed'] /  row['files_total']))
 
-    output += ('<tr><td>%d</td><td>%s</td>'
+    output += ('<tr><td><a href="/dashboard/?method=show-campaign&campaign_id=%d">'
+       '%d</a></td>'
+       '<td>%s</td>'
        '<td><a href="/dashboard/?method=show-quota&quota_name=%s">%s</a></td>'
        '<td>%s</td><td>%s</td>'
-       '<td><a href="/dashboard/?method=list-workflows&campaign_id=%d">'
-       '%d</a><td>%s</td></tr>' % 
-          (row["campaign_id"],
+       '<td>%d<td>%s</td></tr>' % 
+          (row["campaign_id"], row["campaign_id"],
            html.escape(row["description"], quote=True),
            row["quota_name"], row["quota_name"],
            row["user_name"],
            spaceForUnixEpoch(row['created']),
-           row["campaign_id"], row['workflows_count'],
+           row['workflows_count'],
            filesStr
           )
          )
@@ -1190,6 +1196,131 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
   output += makePager(pageNumber, pageLength, len(rows), 
                       "/dashboard/?method=list-campaigns&page_number=%d"
                       "&page_length=%d" + queryList)
+  output += footer()
+  
+  return output
+
+def showCampaign(environ, user, cgiValues):
+
+  try:
+    campaignID = int(cgiValues['campaign_id'])
+  except:
+    return errorPage(environ, user, "campaign_id must be given")
+
+  output = header(environ, user, "justIN: Campaign %d" % campaignID)
+
+  query = ('SELECT campaigns.description,campaigns.created,principal_name,'
+           'quota_name '
+           'FROM campaigns '
+           'LEFT JOIN named_quotas '
+           'ON named_quotas.quota_id=campaigns.quota_id '
+           'LEFT JOIN users ON campaigns.user_id=users.user_id '
+           'LEFT JOIN principal_names '
+           'ON principal_names.pn_id=users.main_pn_id '
+           'WHERE campaign_id=%d' % campaignID)
+
+  campaignRow = justin.select(query, justOne = True)
+
+  output += "<h1>Campaign %d</h1>" % campaignID
+
+  output += '<p><table>'
+  output += '<tr><td>Campaign</td><td>%d</td></tr>' % campaignID
+  output += ('<tr><td>Description</td><td>%s</td></tr>' % 
+             campaignRow['description'])
+  output += ('<tr><td>Named quota</td><td>'
+             '<a href="/?method=show-quota&quota_name=%s">%s</a></td></tr>' % 
+             (campaignRow['quota_name'], campaignRow['quota_name']))
+  output += ('<tr><td>Created</td><td>%s</td></tr>' % 
+             campaignRow['created'])
+  output += ('<tr><td>Created&nbsp;by</td><td>%s</td></tr>' % 
+             campaignRow['principal_name'])
+  output += '</table></p>'
+  
+  pageLength = 100
+  query = ('SELECT workflow_id,description,principal_name AS user_name,'
+           'workflows.state,mql,started,finished,scope_name,'
+           '(SELECT COUNT(*) FROM files'
+           ' WHERE files.workflow_id=workflows.workflow_id'
+           ' AND files.stage_id=1 '
+           ' AND files.state="processed") AS files_processed,'
+           '(SELECT COUNT(*) FROM files'
+           ' WHERE files.workflow_id=workflows.workflow_id'
+           ' AND files.stage_id=1) AS files_total '
+           'FROM workflows '
+           'LEFT JOIN users ON workflows.user_id=users.user_id '
+           'LEFT JOIN principal_names '
+           'ON principal_names.pn_id=users.main_pn_id '
+           'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
+           'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
+           'WHERE campaign_id=%d '
+           'ORDER BY workflow_id DESC LIMIT %d' % 
+           (campaignID, pageLength))
+
+  justin.cur.execute(query)
+  rows = justin.cur.fetchall()
+             
+  output += '<h2>Workflows within this campaign</h2>'
+  output += '<p><table>'
+  output += ('<tr><th>Workflow</th><th>Description</th>'
+             '<th>User</th>'
+             '<th>Scope</th><th>State</th>'
+             '<th>MQL</th><th>Files Processed</th><th>Started</th>'
+             '<th>Finished</th><tr>')
+
+  filesTotalProcessed = 0
+  filesGrandTotal     = 0
+
+  for row in rows:
+    if not row["files_total"]:
+      filesStr = ' '
+    else:
+      filesTotalProcessed += row['files_processed']
+      filesGrandTotal     += row["files_total"]
+
+      filesStr = ('%d/%d (%.1f%%)' % 
+                  (row['files_processed'], row['files_total'],  
+                   100.0 * row['files_processed'] /  row['files_total']))
+
+    output += ('<tr><td><a href="/dashboard/?method=show-workflow'
+          '&workflow_id=%s">'
+          '%s</a></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
+          '<td>%s</td><td>%s</td>'
+          '<td>%s</td><td>%s</td>'
+          '</tr>' % 
+          (row["workflow_id"], row["workflow_id"],
+           html.escape(row["description"], quote=True),
+           row["user_name"],
+           row["scope_name"],
+           row["state"],
+           insertWBR(row["mql"]),
+           filesStr,
+           spaceForUnixEpoch(row['started']),
+           spaceForUnixEpoch(row['finished'])
+          )
+         )
+
+  output += "</table>"
+
+  if len(rows) > pageLength:
+    # Warn people if it's just a subset!
+    output += ('<p>This page only shows the most recent %d workflows of '
+               'this campaign</p>' % pageLength)
+
+  elif filesGrandTotal > 0: 
+    output += ('<p>%d file%s processed out of %d input file%s = %.1f%%</p>'
+               % (filesTotalProcessed, 
+                  ('s' if filesTotalProcessed != 1 else ''), 
+                  filesGrandTotal, 
+                  ('s' if filesGrandTotal != 1 else ''), 
+                  100.0 * filesTotalProcessed / filesGrandTotal))
+  
+    output += ('<p>You can download this list as '
+               '<a href="/dashboard/?method=download-campaign-workflows'
+               '&campaign_id=%d&format=csv&csvfile=">CSV</a> or '
+               '<a href="/dashboard/?method=download-campaign-workflows'
+               '&campaign_id=%d&format=json">JSON</a></p>'
+               % (campaignID, campaignID))
+
   output += footer()
   
   return output
@@ -1398,16 +1529,10 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
              '<th>MQL</th><th>Files Processed</th><th>Started</th>'
              '<th>Finished</th><tr>')
 
-  filesTotalProcessed = 0
-  filesGrandTotal     = 0
-
   for row in rows[:pageLength]:
     if not row["files_total"]:
       filesStr = ' '
     else:
-      filesTotalProcessed += row['files_processed']
-      filesGrandTotal     += row["files_total"]
-
       filesStr = ('%d/%d (%.1f%%)' % 
                   (row['files_processed'], row['files_total'],  
                    100.0 * row['files_processed'] /  row['files_total']))
@@ -1419,7 +1544,9 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
           '</tr>' % 
           (row["workflow_id"], row["workflow_id"],
            html.escape(row["description"], quote=True),
-           row["campaign_id"] if row["campaign_id"] else '',
+           ('<a href="/dashboard/?method=show-campaign&campaign_id=%d">%d</a>'
+              % (row["campaign_id"], row["campaign_id"])) 
+             if row["campaign_id"] else '',
            row["user_name"],
            row["scope_name"], row["quota_name"],
            row["state"],
@@ -1431,15 +1558,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
          )
 
   output += "</table>"
-
-  if pageNumber == 0 and len(rows) <= pageLength and filesGrandTotal > 0: 
-    output += ('<p>%d file%s processed out of %d input file%s = %.1f%%</p>'
-               % (filesTotalProcessed, 
-                  ('s' if filesTotalProcessed != 1 else ''), 
-                  filesGrandTotal, 
-                  ('s' if filesGrandTotal != 1 else ''), 
-                  100.0 * filesTotalProcessed / filesGrandTotal))
-  
+   
   output += makePager(pageNumber, pageLength, len(rows), 
                       "/dashboard/?method=list-workflows&page_number=%d"
                       "&page_length=%d" + queryList)
@@ -1532,8 +1651,13 @@ def showWorkflow(environ, user, cgiValues):
     return ('/dashboard/?method=show-archived-workflow&workflow_id=%d'
             % workflowID)
   
-  output = header(environ, user, "justIN: Workflow %d" % workflowID)
-  state  = workflowRow['state']
+  output     = header(environ, user, "justIN: Workflow %d" % workflowID)
+  state      = workflowRow['state']
+  campaignID = int(workflowRow['campaign_id'])
+
+  campaignDescription = workflowRow['campaign_description']
+  if campaignDescription is None:
+    campaignDescription = ''
 
   output += "<h1>Workflow %d</h1>" % workflowID
 
@@ -1609,7 +1733,7 @@ def showWorkflow(environ, user, cgiValues):
 
     currentCampaignFound = False
     for row in rows:
-      if row['campaign_id'] == workflowRow['campaign_id']:
+      if row['campaign_id'] == campaignID:
         currentCampaignFound = True
 
       myCampaigns.append((str(row['campaign_id']), 
@@ -1617,29 +1741,35 @@ def showWorkflow(environ, user, cgiValues):
                           (row['campaign_id'], 
                            html.escape(row["description"][:20], quote=True))))
 
-    if not currentCampaignFound:
+    if not currentCampaignFound and campaignID > 0:
       # Add the current value if not found in the limited list we made
-      myCampaigns.append((str(workflowRow['campaign_id']), 
+      myCampaigns.append((str(campaignID), 
                    '%d %s' % 
-                   (workflowRow['campaign_id'], 
-                    html.escape(workflowRow["campaign_description"][:20],
+                   (str(campaignID), 
+                    html.escape(campaignDescription[:20],
                                 quote=True)) ))
 
     output += ('<tr><td>Campaign</td><td>%s</td></tr>' % 
                selectHTML(cgiValues, user, 
                     key = str(workflowID),
-                    name = 'workflow_campaign',
-                    value = str(workflowRow['campaign_id']),
+                    name = 'workflow_campaign',                   
+                    value = str(campaignID) if campaignID else '',
+    valueURL = ('/dashboard/?method=show-campaign&campaign_id=%d' % campaignID) 
+                if campaignID else None,
                     options = myCampaigns,
                     nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                             % workflowID))
-  else:
-    output += ('<tr><td>Campaign</td><td>%d</td></tr>' % 
-                 workflowRow['campaign_id'])
 
-  if workflowRow['campaign_description']:
-      output += ('<tr><td>Campaign description</td><td>%s</td></tr>' %
-                 html.escape(workflowRow['campaign_description'], quote=True))
+  elif campaignID:
+    output += ('<tr><td>Campaign</td><td>'
+               '<a href="/dashboard/?method=show-workflow&campaign_id=%d">'
+               '%d</a></td></tr>' % 
+               (campaignID, campaignID))
+  else:
+    output += '<tr><td>Campaign</td><td> </td></tr>'
+
+  output += ('<tr><td>Campaign description</td><td>%s</td></tr>' %
+                 html.escape(campaignDescription, quote=True))
 
   output += ('<tr><td>State</td><td>%s</td></tr>' % state)
   if workflowRow['state_message']:
@@ -5129,6 +5259,11 @@ def downloadCsvJson(environ, user, cgiValues, method):
     stageID = None
 
   try:
+    campaignID = int(cgiValues["campaign_id"])
+  except:
+    campaignID = None
+
+  try:
     jobsubID = cgiValues["jobsub_id"]
 
     if not justin.stringIsJobsubID(jobsubID):
@@ -5345,6 +5480,38 @@ def downloadCsvJson(environ, user, cgiValues, method):
                   'site_name', 'entry_name', 'file_did', 'rse_name', 
                   'jobscript_exit']
  
+  elif method == 'download-campaign-workflows':
+    # CSV or JSON file with stats of workflows within a campaign
+
+    if not campaignID:
+      return errorPage(environ, user, "campaign_id must be given")
+
+    query = ('SELECT workflow_id,description,principal_name AS user_name,'
+             'workflows.state,mql,'
+             'CAST(started AS CHAR) AS start_time,'
+             'CAST(finished AS CHAR) AS finish_time,'
+             'scope_name,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE files.workflow_id=workflows.workflow_id'
+             ' AND files.stage_id=1 '
+             ' AND files.state="processed") AS files_processed,'
+             '(SELECT COUNT(*) FROM files'
+             ' WHERE files.workflow_id=workflows.workflow_id'
+             ' AND files.stage_id=1) AS files_total '
+             'FROM workflows '
+             'LEFT JOIN users ON workflows.user_id=users.user_id '
+             'LEFT JOIN principal_names '
+             'ON principal_names.pn_id=users.main_pn_id '
+             'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
+             'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
+             'WHERE campaign_id=%d '
+             'ORDER BY workflow_id DESC LIMIT %d' % 
+             (campaignID, csvJsonMaxRows))
+
+    fieldsList = ['workflow_id','description','user_name','state','mql',
+                  'start_time','finish_time','scope_name',
+                  'files_processed','files_total']
+ 
   else:  
     return errorPage(environ, user, "Download method not recognised!")
 
@@ -5362,7 +5529,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
         if row[field] is None:
            outputFields.append('')
         elif type(row[field]) is str:
-          outputFields.append('"' + row[field] + '"')
+          outputFields.append('"' + row[field].replace('"','""') + '"')
         else:
           outputFields.append(str(row[field]))
 
@@ -6226,6 +6393,9 @@ def application(environ, startResponse):
 
   elif method == "list-campaigns":
     output = listCampaigns(environ, user, cgiValues, pageNumber, pageLength)
+
+  elif method == "show-campaign":
+    output = showCampaign(environ, user, cgiValues)
 
   elif method == "list-workflows":
     output = listWorkflows(environ, user, cgiValues, pageNumber, pageLength)

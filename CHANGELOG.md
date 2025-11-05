@@ -14,6 +14,7 @@
   from scope definition
 - Automatically create a new campaign for each workflow unless the
   --campaign-id option is used to add it to an existing campaign
+- Campaigns list and files processed totals added to Dashboard
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages

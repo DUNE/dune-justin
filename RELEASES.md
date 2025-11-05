@@ -42,3 +42,13 @@ scopes could be set to group_dune.prod.mcsim .
 Each user and named quota has a processing enabled switch, set to enabled or
 disabled. Admins can change this by going to the user's or named quota's
 own page.
+
+Each new workflow is now associated with a numeric campaign, with numbers
+assigned in order by justIN. Each workflow can be assigned to a different
+campaign by editing its settings on the page dedicated to that workflow. A
+new list of all campaigns is available via the main page of the Dashboard.
+The justin command and man page have been updated to include a
+create-campaign subcommand which can be used to create a new campaign. When
+creating workflows from the command line, the option --campaign-id can be
+used to assign it to a particular existing campaign. If no campaign is 
+specified, a new one is created specifically for that group. 
