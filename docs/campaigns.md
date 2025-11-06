@@ -21,8 +21,10 @@ For example:
       --quota usertests --campaign-id-file $HOME/mycampaigns.txt
 
 You could then use that campaign ID with the option
-`--campaign-id \`tail -1 $HOME/mycampaigns.txt\`` when you create workflows
-to be assigned to it.
+
+    --campaign-id `tail -1 $HOME/mycampaigns.txt`
+
+when you create workflows to be assigned to it.
 
 Each campaign has a dedicated page on the Dashboard which you can either
 find from the [list of campaigns](/dashboard/?method=list-campaigns) or
