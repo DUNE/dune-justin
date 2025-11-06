@@ -1,7 +1,7 @@
 ## justIN campaigns
 
 Campaigns allow you to group your workflows together to make it easier to
-monitor and managed them. By default, each workflow is created as a member 
+monitor and manage them. By default, each workflow is created as a member 
 of a new campaign containing only itself. You can see a workflow's 
 campaign ID number by going to the page dedicated to that workflow.
 
@@ -12,13 +12,17 @@ or `justin simple-workflow` commands.
 You can also create a new campaign from scratch with the 
 `justin create-campaign` command. You can use the options `--description` 
 to add a short description, `--quota` to specify the named quota of the
-campaign, and `--campaign-id-file` to write the resulting campaign ID to
+campaign, and `--campaign-id-file` to add the resulting campaign ID to
 a file (as well as to your screen still.) 
 
 For example:
 
     justin create-campaign --description 'my test campaign' \
       --quota usertests --campaign-id-file $HOME/mycampaigns.txt
+
+You could then use that campaign ID with the option
+`--campaign-id \`tail -1 $HOME/mycampaigns.txt\`` when you create workflows
+to be assigned to it.
 
 Each campaign has a dedicated page on the Dashboard which you can either
 find from the [list of campaigns](/dashboard/?method=list-campaigns) or
