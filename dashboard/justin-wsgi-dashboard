@@ -361,12 +361,15 @@ def inputHTML(cgiValues, user, key = None, name = None, value = None,
              'formaction="/dashboard/">'
              '</form>'
              % (nextURI, user['justin_code'], 
-                str(key), name, str(value), size) 
+                str(key), name, 
+                html.escape(str(value), quote=True),
+                size) 
          )
 
   # This does the version with the value as text and then the Edit button
   return ( '%s <a href="%s&input_key=%s&input_name=%s" class="button">'
-           'Edit</a>' % (str(value), nextURI, str(key), name)
+           'Edit</a>' % (html.escape(str(value), quote=True), 
+                         nextURI, str(key), name)
          )
 
 def selectHTML(cgiValues, user, key = None, name = None, value = None,
@@ -1225,10 +1228,22 @@ def showCampaign(environ, user, cgiValues):
 
   output += '<p><table>'
   output += '<tr><td>Campaign</td><td>%d</td></tr>' % campaignID
-  output += ('<tr><td>Description</td><td>%s</td></tr>' % 
-             campaignRow['description'])
+
+  if (user and (user['user_name'] in justin.justinAdmins or
+                  campaignRow['quota_name'] in user['quota_names']) ):
+    output += ('<tr><td>Description</td><td>%s</td></tr>' 
+               % inputHTML(cgiValues, user, key = str(campaignID), 
+                   name    = 'campaign_description',
+                   value   = campaignRow['description'], 
+                   size    = 20, 
+                   nextURI = '/dashboard/?method=show-campaign&campaign_id=%d'
+                             % campaignID))
+  else:
+    output += ('<tr><td>Description</td><td>%s</td></tr>' 
+               % html.escape(campaignRow['description'], quote=True))
+
   output += ('<tr><td>Named quota</td><td>'
-             '<a href="/?method=show-quota&quota_name=%s">%s</a></td></tr>' % 
+             '<a href="/dashboard/?method=show-quota&quota_name=%s">%s</a></td></tr>' % 
              (campaignRow['quota_name'], campaignRow['quota_name']))
   output += ('<tr><td>Created</td><td>%s</td></tr>' % 
              campaignRow['created'])
@@ -1712,8 +1727,19 @@ def showWorkflow(environ, user, cgiValues):
   output += '<table>'
 
   output += '<tr><td>Workflow</td><td>%d</td></tr>' % workflowID
-  output += ('<tr><td>Workflow description</td><td>%s</td></tr>' 
-             % html.escape(workflowRow['workflow_description'], quote=True))
+
+  if (user and (user['user_name'] in justin.justinAdmins or
+                  workflowRow['quota_name'] in user['quota_names']) ):
+    output += ('<tr><td>Workflow description</td><td>%s</td></tr>' 
+               % inputHTML(cgiValues, user, key = str(workflowID), 
+                   name    = 'workflow_description',
+                   value   = workflowRow['workflow_description'], 
+                   size    = 20, 
+                   nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
+                             % workflowID))
+  else:
+    output += ('<tr><td>Workflow description</td><td>%s</td></tr>' 
+               % html.escape(workflowRow['workflow_description'], quote=True))
 
   if (user and (user['user_name'] in justin.justinAdmins or
                   workflowRow['quota_name'] in user['quota_names']) ):
@@ -6215,6 +6241,79 @@ def handlerWorkflowCampaign(cgiValues, user):
   else:
     return ('302 Moved', '')
 
+def handlerWorkflowDescription(cgiValues, user):
+
+  try:
+    workflowID = int(cgiValues['action_key'])
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if user['user_name'] in justin.justinAdmins:
+    # OK
+    pass
+  else:
+    try:
+      workflowRow = justin.select(
+           "SELECT quota_name FROM workflows "
+           "LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id "
+           "LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id "
+           "WHERE workflow_id=%d " % workflowID,
+           justOne = True)
+    except:
+      return('500 Internal Server Error', 'Failed to get workflow information')
+
+    if workflowRow['quota_name'] not in users['quota_names']:
+      return ('403 Forbidden', 'You do not have access to that quota')
+
+  try:
+    justin.insertUpdate('UPDATE workflows SET description="%s" '
+                        'WHERE workflow_id="%d"' 
+       % (cgiValues['action_value'].replace('\\','\\\\').replace('"','\\"'),
+          workflowID))
+    justin.conn.commit()
+  except Exception as e:
+    print('Failed to update database: %s' % str(e))
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
+def handlerCampaignDescription(cgiValues, user):
+
+  try:
+    campaignID = int(cgiValues['action_key'])
+  except:
+    return ('400 Bad Request', 'Cannot parse values sent')
+
+  if user['user_name'] in justin.justinAdmins:
+    # OK
+    pass
+  else:
+    try:
+      campaignRow = justin.select(
+           "SELECT quota_name FROM campaigns "
+           "LEFT JOIN named_quotas ON named_quotas.quota_id=campaigns.quota_id "
+           "WHERE campaign_id=%d " % campaignID,
+           justOne = True)
+    except:
+      return('500 Internal Server Error', 'Failed to get campaign information')
+
+    if camapaignRow['quota_name'] not in users['quota_names']:
+      return ('403 Forbidden', 'You do not have access to that quota')
+
+  try:
+    justin.insertUpdate('UPDATE campaigns SET description="%s" '
+                        'WHERE campaign_id="%d"' 
+       % (cgiValues['action_value'].replace('\\','\\\\').replace('"','\\"'),
+          campaignID))
+    justin.conn.commit()
+  except Exception as e:
+    print('Failed to update database: %s' % str(e))
+    return ('500 Internal Server Error', 'Failed to update database')
+    
+  else:
+    return ('302 Moved', '')
+
 # Get POST data and then a big switch to direct it to the right handler
 def postHandlers(startResponse, environ, user):
 
@@ -6238,7 +6337,9 @@ def postHandlers(startResponse, environ, user):
     'quota_wlcg_group'           : handlerQuotaWLCGGroup,
     'quota_condor_group'         : handlerQuotaCondorGroup,
     'scope_condor_group'         : handlerScopeCondorGroup,
-    'workflow_campaign'          : handlerWorkflowCampaign
+    'workflow_campaign'          : handlerWorkflowCampaign,
+    'workflow_description'       : handlerWorkflowDescription,
+    'campaign_description'       : handlerCampaignDescription
                }
 
   if user is None:
