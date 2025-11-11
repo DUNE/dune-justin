@@ -1788,7 +1788,7 @@ def showWorkflow(environ, user, cgiValues):
 
   elif campaignID:
     output += ('<tr><td>Campaign</td><td>'
-               '<a href="/dashboard/?method=show-workflow&campaign_id=%d">'
+               '<a href="/dashboard/?method=show-campaign&campaign_id=%d">'
                '%d</a></td></tr>' % 
                (campaignID, campaignID))
   else:
