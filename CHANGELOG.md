@@ -15,6 +15,8 @@
 - Automatically create a new campaign for each workflow unless the
   --campaign-id option is used to add it to an existing campaign
 - Campaigns list and files processed totals added to Dashboard
+- Explicitly reject requests to start jobs or provide files to jobs of 
+  workflows that are paused or otherwise not running
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages

@@ -297,6 +297,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'jobs.jobscript_secret,'
              'stages.max_distance,'
              'workflows.mql,'
+             'workflows.state,'
              'jobs.workflow_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
@@ -353,6 +354,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
   return { "error_message"          : None,
            "workflow_id"            : job['workflow_id'],
            "stage_id"               : job['stage_id'],
+           "workflow_state"         : job['state'],
            "site_id"                : job['site_id'],
            "site_name"              : job['site_name'],
            "site_a_i_a"             : job['site_a_i_a'],
@@ -758,6 +760,13 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     return httpError(startResponse,
                      '503 Service Unavailable',
                      'New processing suspended while Rucio is overloaded')
+
+  if jobDict['workflow_state'] != 'running':
+    updateTerminalJobState(justinJobID = jobDict['justin_job_id'],
+                           jobState    = 'notused')
+    return httpError(startResponse,
+                     '503 Service Unavailable',
+                     'Workflow not running (%s)' % jobDict['workflow_state'])
 
   if (jobDict['workflow_id'] != jsonDict['workflow_id']) or \
      (jobDict['stage_id'] != jsonDict['stage_id']):
@@ -1331,6 +1340,12 @@ def getFileMethod(startResponse, jsonDict):
                      '403 Forbidden', 
                      'Job in wrong state to find file (%s)' % 
                      jobDict['job_state'])
+
+  if jobDict['workflow_state'] != 'running':
+    return httpError(startResponse,
+                     '404 Not Found', 
+                     'Workflow not in running state (%s)' % 
+                     jobDict['workflow_state'])
 
   if jobDict['allocated_files'] >= justin.maxFilesPerJob:
     return httpError(startResponse,
