@@ -720,7 +720,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     else:
       gpuInfo = ''
 
-     justin.insertUpdate('UPDATE jobs SET '
+    justin.insertUpdate('UPDATE jobs SET '
                            'site_id=(SELECT site_id FROM sites '
                            'WHERE site_name="%s"),'
                            'entry_id=(SELECT entry_id FROM entries '
