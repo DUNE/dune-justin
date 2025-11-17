@@ -824,7 +824,7 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
     query = ("UPDATE workflows SET "
              "state='submitted',state_message='',submitted=NOW(),user_id=%d "
              "WHERE workflow_id=%d AND state='draft'" 
-             % (workflowID, user['user_id']))
+             % (user['user_id'], workflowID))
 
   elif jsonDict['command'] == 'restart-workflow':
     if workflowState != 'paused':
@@ -886,14 +886,15 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                      'LEFT JOIN named_quotas '
                      'ON scopes.quota_id=named_quotas.quota_id '
                      'LEFT JOIN wlcg_groups '
-                     'ON wlcg_group.wlcg_group_id=named_quotas.wlcg_group_id '
+                     'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
                      'WHERE workflow_id=%d' % workflowID, 
                      justOne = True)
       workflowUserID = int(workflowRow['user_id'])
       scopeID       = int(workflowRow['scope_id'])
       scopeName     = workflowRow['scope_name']
       wlcgGroupName = workflowRow['wlcg_group_name']
-    except:
+    except Exception as e:
+      print(str(e),file=sys.stderr)
       return ('400 Bad Request', 'Valid workflow ID must be given')
 
     if workflowUserID != user['user_id'] and \
