@@ -316,7 +316,7 @@ EOS scratch space at CERN in the future.
 To follow this section of the tutorial you do not strictly need to be logged
 in to a dunegpvm machine at Fermilab, as you can access files on scratch 
 remotely using GFAL tools. However, it is easier to check from a dunegpvm
-machine as you can look in /pfns/dune/scratch/users/$USER where $USER is your
+machine as you can look in /pnfs/dune/scratch/users/$USER where $USER is your
 Fermilab username using Unix commands. 
 
 We can adapt the DC4 example from the previous section to use scratch for
