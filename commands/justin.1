@@ -62,7 +62,8 @@ Displays information about the current user identity and session.
 .br
 Create a new, empty workflow in the database, optionally with the given
 short, human-readable description and either a MetaCat Query Language 
-expression or the count of the number of Monte Carlo instances to run. 
+expression or the count of the number of Monte Carlo instances to run. The
+query is available within jobscripts as $JUSTIN_MQL.
 
 .B --scope SCOPE
 specifies the Rucio scope used for any output files to be registered with 
@@ -411,7 +412,8 @@ scripts, all prefixed with JUSTIN_, including $JUSTIN_WORKFLOW_ID,
 $JUSTIN_STAGE_ID and
 $JUSTIN_SECRET which allows the jobscript to authenticate to justIN's
 allocator service. $JUSTIN_PATH is used to reference files and scripts 
-provided by justIN. 
+provided by justIN. $JUSTIN_MQL contains the MetaCat query used to find the
+input files for the first stage.
 
 To get the details of an input file to work on, the command 
 $JUSTIN_PATH/justin-get-file is executed by the jobscript.
