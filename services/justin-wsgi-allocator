@@ -779,14 +779,14 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
     updateTerminalJobState(justinJobID = jobDict['justin_job_id'],
                            jobState    = 'notused')
     return httpError(startResponse,
-                     '503 Service Unavailable',
+                     '403 Forbidden',
                      'Processing disabled for this user')
 
   if not jobDict['quota_processing_enabled']:
     updateTerminalJobState(justinJobID = jobDict['justin_job_id'],
                            jobState    = 'notused')
     return httpError(startResponse,
-                     '503 Service Unavailable',
+                     '403 Forbidden',
                      'Processing disabled for this named quota')
 
   if (jobDict['workflow_id'] != jsonDict['workflow_id']) or \

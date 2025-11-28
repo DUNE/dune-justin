@@ -86,7 +86,7 @@ RUN pip3 install pygal==3.0.0
 
 # We want recent version with Chris Haen's X.509 proxy updates
 # Needs python3-devel gcc swig openssl-devel RPMs
-RUN pip3 install M2Crypto==0.39.0
+RUN pip3 install M2Crypto==0.46.2
 
 # Copy justIN scripts and configs into place
 COPY database/justin-check-db         /usr/sbin/
