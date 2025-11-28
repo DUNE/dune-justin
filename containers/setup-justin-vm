@@ -49,7 +49,7 @@ systemctl start mariadb
 
 mysql < dune-justin/database/justindb-create-tables.sql 
 
-cp -f dune-justin/containers/justin-docker-wrapper /usr/sbin
+cp -f dune-justin/containers/justin-podman-wrapper /usr/sbin
 cp -f dune-justin/containers/*.service /usr/lib/systemd/system/
 systemctl daemon-reload
 systemctl enable justin-finder
