@@ -1632,10 +1632,15 @@ def recordResultsMethod(startResponse, jsonDict):
              'jobs.site_id, jobs.entry_id, users.access_token, '
              'jobs.has_inner_apptainer, jobs.job_state, workflows.state, '
              'scope_name, jobs.requested_gpu, scopes.quota_id, '
-             'quota_name, named_quotas.processing_enabled '
+             'principal_name, '
+             'users.processing_enabled AS user_processing_enabled, '
+             'quota_name, '
+             'named_quotas.processing_enabled AS quota_processing_enabled '
              'FROM jobs '
-             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN users ON users.user_id=workflows.user_id '
+             'LEFT JOIN principal_names '
+             'ON users.main_pn_id=principal_names.pn_id '
+             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
              'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
              'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
@@ -1666,11 +1671,17 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Cannot record results as workflow now in %s state' 
                      % row['state'])
     
-  if not row['processing_enabled']:
+  if not row['user_processing_enabled']:
     return httpError(startResponse,
-                  '410 Gone', 
-                  'Cannot record results as processing now not enabled for %s'
-                  % row['quota_name'])
+            '410 Gone', 
+            'Cannot record results as processing now not enabled for user  %s'
+            % row['principal_name'])
+
+  if not row['quota_processing_enabled']:
+    return httpError(startResponse,
+            '410 Gone', 
+            'Cannot record results as processing now not enabled for quota %s'
+            % row['quota_name'])
 
   if jobState != 'started' and jobState != 'processing':
     return httpError(startResponse, 
