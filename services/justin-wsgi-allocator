@@ -1637,10 +1637,10 @@ def recordResultsMethod(startResponse, jsonDict):
              'quota_name, '
              'named_quotas.processing_enabled AS quota_processing_enabled '
              'FROM jobs '
+             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN users ON users.user_id=workflows.user_id '
              'LEFT JOIN principal_names '
              'ON users.main_pn_id=principal_names.pn_id '
-             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
              'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
              'WHERE jobs.jobsub_id="' + jsonDict['jobsub_id'] + '"')
