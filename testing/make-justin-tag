@@ -1,0 +1,28 @@
+#!/bin/sh
+
+if [ ! -f modules/justin_version.py ] ; then
+  echo 'Must run make-justin-tag from the top level directory of the dune-justin repo!'
+  exit 1
+fi
+
+source modules/justin_version.py
+if [ "$justinVersion" = "" ] ; then
+  echo '$justinVersion is not set!'
+fi
+
+if [ `uname` = "Darwin" ] ; then
+  inplace='-I ~'
+else
+  inplace='-i'
+fi
+
+sed $inplace \
+    "s/^versionNumber = .*/versionNumber = \'$justinVersion\'/" \
+    commands/justin
+
+sed $inplace \
+    "s/^export JUSTIN_VERSION=.*/export JUSTIN_VERSION=$justinVersion/" \
+    testing/make-justin-ups
+
+git commit -am "$justinVersion"
+git tag -a "$justinVersion" -m "$justinVersion"
