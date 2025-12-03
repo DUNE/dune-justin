@@ -18,6 +18,7 @@
 - Explicitly reject requests to start jobs or provide files to jobs of 
   workflows that are paused or otherwise not running or the user or named
   quota has processing disabled
+- Update to M2Crypto 0.46.2 and change calls to M2Crypto functions
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages
