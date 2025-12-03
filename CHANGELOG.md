@@ -19,6 +19,7 @@
   workflows that are paused or otherwise not running or the user or named
   quota has processing disabled
 - Update to M2Crypto 0.46.2 and change calls to M2Crypto functions
+- Force time in wrapper jobs to be UTC
 
 ## 01.05.00
 - Allow file matching from jobs at NERSC to offsite storages

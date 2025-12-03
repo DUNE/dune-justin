@@ -517,7 +517,8 @@ def createDatasets(datasets):
   return (outcome.returncode, outcome.stdout)
   
 ########################################################################
-os.environ['TZ'] = 'UTC0'
+os.environ['TZ'] = 'UTC'
+time.tzset()
 logLine('====Start of justin-wrapper-job====')
 
 for i in sorted(os.environ):
