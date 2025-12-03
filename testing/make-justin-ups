@@ -39,7 +39,7 @@
 # testing/make-justin-ups --default
 #
 
-export JUSTIN_VERSION=01.06.rc3
+export JUSTIN_VERSION=01.06.rc4
 
 export MJU_GIT_DIR=`mktemp -d /tmp/mju_git_XXXXXX`
 ( cd $MJU_GIT_DIR
