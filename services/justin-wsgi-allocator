@@ -1673,13 +1673,13 @@ def recordResultsMethod(startResponse, jsonDict):
     
   if not row['user_processing_enabled']:
     return httpError(startResponse,
-            '410 Gone', 
+            '403 Forbidden', 
             'Cannot record results as processing now not enabled for user  %s'
             % row['principal_name'])
 
   if not row['quota_processing_enabled']:
     return httpError(startResponse,
-            '410 Gone', 
+            '403 Forbidden', 
             'Cannot record results as processing now not enabled for quota %s'
             % row['quota_name'])
 
