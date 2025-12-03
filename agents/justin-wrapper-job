@@ -924,7 +924,7 @@ if resultsResponseDict['status'] == 410:
   sys.exit(0)
 
 if resultsResponseDict['status'] != 200:
-  logLine('record_results returns:' % resultsResponseDict['response'])
+  logLine('record_results returns: ' + str(resultsResponseDict['response']))
   jobAborted(312, 'record_results', '')
 
 logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))

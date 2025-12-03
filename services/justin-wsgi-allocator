@@ -1658,10 +1658,10 @@ def recordResultsMethod(startResponse, jsonDict):
     jobState          = row['job_state']
     responseDict['user_access_token'] = row['access_token']
     quotaID           = row['quota_id']
-  except:
+  except Exception as e: 
     return httpError(startResponse,
                      '500 Internal Server Error',
-                     'Failed finding job')
+                     'Failed finding job: ' + str(e))
 
   # This is mainly to catch outputs from workflows what have been aborted
   # by the user
