@@ -1,5 +1,8 @@
 # Changelog
 
+## 01.06.01
+- Fix to remove invalid quota_names members of user{}
+
 ## 01.06.00
 - Return HTTP 409 error to wrapper job if duplicate output file
 - Add named_quotas
