@@ -26,6 +26,7 @@
 # of each new year in UTC :-) 
 
 echo 'MetaCat whoami:'
+metacat auth login -m x509 dunepro
 metacat auth whoami
 echo
 echo 'Rucio whoami:'

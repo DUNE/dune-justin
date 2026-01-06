@@ -1230,7 +1230,7 @@ def showCampaign(environ, user, cgiValues):
   output += '<tr><td>Campaign</td><td>%d</td></tr>' % campaignID
 
   if (user and (user['user_name'] in justin.justinAdmins or
-                  campaignRow['quota_name'] in user['quota_names']) ):
+                  campaignRow['quota_name'] in user['named_quotas']) ):
     output += ('<tr><td>Description</td><td>%s</td></tr>' 
                % inputHTML(cgiValues, user, key = str(campaignID), 
                    name    = 'campaign_description',
@@ -1729,7 +1729,7 @@ def showWorkflow(environ, user, cgiValues):
   output += '<tr><td>Workflow</td><td>%d</td></tr>' % workflowID
 
   if (user and (user['user_name'] in justin.justinAdmins or
-                  workflowRow['quota_name'] in user['quota_names']) ):
+                  workflowRow['quota_name'] in user['named_quotas']) ):
     output += ('<tr><td>Workflow description</td><td>%s</td></tr>' 
                % inputHTML(cgiValues, user, key = str(workflowID), 
                    name    = 'workflow_description',
@@ -1742,7 +1742,7 @@ def showWorkflow(environ, user, cgiValues):
                % html.escape(workflowRow['workflow_description'], quote=True))
 
   if (user and (user['user_name'] in justin.justinAdmins or
-                  workflowRow['quota_name'] in user['quota_names']) ):
+                  workflowRow['quota_name'] in user['named_quotas']) ):
 
     myCampaigns = []
 
@@ -3630,7 +3630,7 @@ def listScopes(environ, user, cgiValues):
 
       if (user 
           and (user['user_name'] in justin.justinAdmins or
-               scopes[j]['quota_name'] in user['quota_names']) 
+               scopes[j]['quota_name'] in user['named_quotas']) 
           and scopes[j]['quota_condor_group_name'] != 'group_dune'):
         myCondorGroups = []
 
@@ -6262,7 +6262,7 @@ def handlerWorkflowDescription(cgiValues, user):
     except:
       return('500 Internal Server Error', 'Failed to get workflow information')
 
-    if workflowRow['quota_name'] not in users['quota_names']:
+    if workflowRow['quota_name'] not in users['named_quotas']:
       return ('403 Forbidden', 'You do not have access to that quota')
 
   try:
@@ -6298,7 +6298,7 @@ def handlerCampaignDescription(cgiValues, user):
     except:
       return('500 Internal Server Error', 'Failed to get campaign information')
 
-    if camapaignRow['quota_name'] not in users['quota_names']:
+    if camapaignRow['quota_name'] not in users['named_quotas']:
       return ('403 Forbidden', 'You do not have access to that quota')
 
   try:
