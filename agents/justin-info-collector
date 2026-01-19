@@ -1352,6 +1352,8 @@ def updateNamedQuotas():
      { 'user_id'       : justinQuotaRow['user_id'],
        'wlcg_group_id' : justinQuotaRow['wlcg_group_id'] }
 
+#  logLine('quota names: ' + str(justinQuotaNames))
+
   # TO BE REMOVED ONCE ALL USERS HAVE PERSONAL NAMED QUOTAS
   # Make sure the usertests quota is there
   if 'usertests' not in justinQuotaNames:
@@ -1379,6 +1381,8 @@ def updateNamedQuotas():
                             justinPrincipalNameRow['principal_name'])
     justinUnderscoreNames[nameUnderscores] = justinPrincipalNameRow['user_id']
 
+#  logLine('underscore names: ' + str(justinUnderscoreNames))
+
   # Look for new user names in Rucio itself
   try:
     accountClient = rucio.client.accountclient.AccountClient()
@@ -1395,6 +1399,7 @@ def updateNamedQuotas():
   for rucioUser in rucioUsers:
     if rucioUser['account'] not in justinQuotaNames:
       # We do not know this one - need to add it
+      logLine('New Rucio user %s' % rucioUser['account'])
 
       # Check if justIN can access this account
       try:
@@ -1434,6 +1439,7 @@ def updateNamedQuotas():
     
     elif rucioUser['account'] in justinUnderscoreNames:
       # We know the Rucio account and there is a corresponding justIN user
+      logLine('Check %s for updates' % rucioUser['account'])
 
       # Recheck if justIN can access this account to set for_justin
       try:
@@ -1463,10 +1469,10 @@ def updateNamedQuotas():
         # We just continue if this one fails
         continue
 
-    elif justinQuotaNames[rucioUser['account']]['wlcg_group_id']:
-      # We know the Rucio account and the wlcg_group_id is set (they have
-      # to be set manually at the moment)
-
+#    elif justinQuotaNames[rucioUser['account']]['wlcg_group_id']:
+#      # We know the Rucio account and the wlcg_group_id is set (they have
+#      # to be set manually at the moment)
+    else:
       # Recheck if justIN can access this account to set for_justin
       try:
         userIdentities = accountClient.list_identities(rucioUser['account'])
