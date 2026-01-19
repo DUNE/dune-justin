@@ -1352,8 +1352,6 @@ def updateNamedQuotas():
      { 'user_id'       : justinQuotaRow['user_id'],
        'wlcg_group_id' : justinQuotaRow['wlcg_group_id'] }
 
-#  logLine('quota names: ' + str(justinQuotaNames))
-
   # TO BE REMOVED ONCE ALL USERS HAVE PERSONAL NAMED QUOTAS
   # Make sure the usertests quota is there
   if 'usertests' not in justinQuotaNames:
@@ -1380,8 +1378,6 @@ def updateNamedQuotas():
     nameUnderscores = re.sub('[^0-9a-zA-Z]+', '_',
                             justinPrincipalNameRow['principal_name'])
     justinUnderscoreNames[nameUnderscores] = justinPrincipalNameRow['user_id']
-
-#  logLine('underscore names: ' + str(justinUnderscoreNames))
 
   # Look for new user names in Rucio itself
   try:
