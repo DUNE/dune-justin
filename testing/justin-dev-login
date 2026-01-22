@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+import secrets
+
+import justin
+
+justinSession = secrets.token_urlsafe(64)
+justinSecret  = secrets.token_urlsafe(64)
+justinCode    = secrets.token_urlsafe(64)
+justinAuthID  = secrets.token_urlsafe(64)
+
+justin.insertUpdate('INSERT INTO sessions SET '
+                        'session_type="dev",'
+                        'created_time=NOW(),'
+                        'expires_time=DATE_ADD(NOW(),INTERVAL 24 HOUR),'
+                        'linked_session_id=%d,'
+                        'justin_session="%s",'
+                        'justin_secret="%s",'
+                        'justin_code="%s",'
+                        'user_agent="justin-dev-login",'
+                        'saved_uri="/dashboard/",'
+                        'ip="0.0.0.0"'
+                        % (justinAuthID,
+                           justinSession, justinSecret, justinCode))
+justin.conn.commit()
+
+print('Visit this URL to enable the session in your browser \n'
+      '  https://justin-dev.dune.hep.ac.uk/authorize/%s' % justinAuthID)
+
+
+
