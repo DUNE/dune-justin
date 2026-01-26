@@ -1,8 +1,16 @@
 #!/bin/sh
-# Build container image for justIN agents and services on AlmaLinux 9
+# Clone justIN from GitHub, and run build-justin-container 
+#
+# Run from anywhere like this:
+#
+# clone-build-justin-container
+# clone-build-justin-container TAG
+# clone-build-justin-container BRANCH
+#
+# You could put it in /root/bin 
+#
 #
 # Copyright 2013-26
-# Raja Nandakumar for UKRI Science and Technology Facilities Council
 # Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,18 +26,14 @@
 # limitations under the License.
 #
 
-if [ ! -f modules/justin_version.py ] ; then
-  echo 'You must run this script from the dune-justin directory!'
-  exit 1
+cd /tmp
+rm -f /var/run/justin/overrides/*
+rm -Rf /tmp/dune-justin/
+git clone https://github.com/DUNE/dune-justin.git
+
+if [ "$1" != "" ] ; then
+  git checkout "$1"
 fi
 
-source modules/justin_version.py
-
-podman build --build-arg DUNEJUSTIN_ID=`id -u dunejustin` \
-             --platform linux/amd64 --tag justin:$justinVersion \
-             --file containers/Dockerfile .
-
-if [ "$1" = "--restart" ] ; then
- systemctl restart justin-httpd justin-finder justin-info-collector \
-   justin-job-factory justin-job-logs
-fi
+cd dune-justin
+containers/build-justin-container --restart
