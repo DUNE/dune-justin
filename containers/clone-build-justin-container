@@ -1,5 +1,5 @@
 #!/bin/sh
-# Clone justIN from GitHub, and run build-justin-container 
+# Clone justIN from GitHub, run build-justin-container, and restart services/agents
 #
 # Run from anywhere like this:
 #
