@@ -27,8 +27,8 @@ useradd --uid 1026 --user-group dunejustin
 chown dunejustin.dunejustin /etc/justin-secrets/justin-jobs-*.pem
 
 yum -y update 
-dnf config-manager \
-  --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+#dnf config-manager \
+#  --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
 yum -y install ca_policy_igtf-classic git joe mariadb-server \
                podman
 
@@ -56,6 +56,10 @@ systemctl enable justin-finder
 systemctl enable justin-info-collector
 systemctl enable justin-httpd
 systemctl enable justin-job-factory
+systemctl enable justin-job-logs
+
+mkdir -p /root/bin/
+cp -f dune-justin/containers/clone-build-justin-container /root/bin/
 )
 
 mkdir -p /var/log/justin /var/log/httpd 
