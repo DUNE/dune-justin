@@ -43,7 +43,7 @@ import markdown
 import metacat.webapi
 
 import justin
-from components.filterForm import FilterForm
+from justin.components.filterForm import FilterForm, Label
 
 timeNow = None 
   
@@ -3463,6 +3463,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
 
   justin.cur.execute(query)
   jobRows = justin.cur.fetchall()
+  testLabel = Label("<h1>TESTING if you see this, it mean the module path is working</h1>")
   jobFilterForm = FilterForm.create_from_dict(
     data = {
       "Users": ['user1', 'user2', 'user3'],
@@ -3474,6 +3475,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   )
   output += "<h1>Filter Here</h1>"
   output += jobFilterForm.render()
+  output += testLabel.render()
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table class="center">'
