@@ -43,6 +43,7 @@ import markdown
 import metacat.webapi
 
 import justin
+from components.filterForm import FilterForm
 
 timeNow = None 
   
@@ -3462,11 +3463,20 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
 
   justin.cur.execute(query)
   jobRows = justin.cur.fetchall()
-
+  jobFilterForm = FilterForm.create_from_dict(
+    data = {
+      "Users": ['user1', 'user2', 'user3'],
+      "Workflow ID": ['1', '2', '3'], 
+    },
+    action = '/dashboard/',
+    cgi_method='list-jobs',
+    request_method='GET',
+  )
+  output += "<h1>Filter Here</h1>"
+  output += jobFilterForm.render()
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table class="center">'
-  
   output += ('<tr>'
         '<th>Jobsub ID</th>'
         '<th>Job state</th>'
