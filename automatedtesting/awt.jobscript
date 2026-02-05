@@ -19,7 +19,7 @@ export RUCIO_ACCOUNT=dunepro
 setup justin
 unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR
 which metacat
-metacat --version
+metacat version
 which rucio
 rucio --version
 python3 -c 'import gfal2 ; print("gfal version",gfal2.get_version())'
