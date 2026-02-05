@@ -3479,7 +3479,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   jobRows = justin.cur.fetchall()
   
   
-  full_query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
+  full_query = ("SELECT DISTINCT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
            "sites.site_name,entries.entry_name,"
            "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
            "jobs.finished_time,jobs.jobsub_state,jobs.jobscript_exit,"
@@ -3498,25 +3498,38 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
 
   justin.cur.execute(full_query)
   fullRows = justin.cur.fetchall()
-  
 
-  jobFilterForm = FilterForm.create_from_dict(
-    data = {
-      # "Users": sorted(list(set(row['user_name'] for row in fullRows))),
-      "Workflow ID": sorted(str(i) for i in list(set(row['workflow_id'] for row in fullRows))),
-      "Stage ID"   : sorted(str(i) for i in list(set(row['stage_id']    for row in fullRows))),
-      "Job State"  : sorted(str(i) for i in list(set(row['job_state']   for row in fullRows))),
-      "Site Name"  : sorted(str(i) for i in list(set(row['site_name']   for row in fullRows))), # sth weird, there is None in `site_name`
-      "Entry Name" : sorted(str(i) for i in list(set(row['entry_name']  for row in fullRows))),
-      # "Jobsub ID"  : sorted(list(set(row['jobsub_id']   for row in fullRows))),
-      # "Submitted Time": sorted(list(set(row['submitted_time'] for row in fullRows))),
-      # "Started Time": sorted(list(set(row['allocation_time'] for row in fullRows))),
-      # "Jobscript Exit": sorted(list(set(row['jobscript_exit'] for row in fullRows))),
-      # "Finished Time": sorted(list(set(row['finished_time'] for row in fullRows))),
-    },
-    cgi_method='list-jobs',
-  )
-  
+  # Collect all unique values in a single pass through fullRows
+  unique_values = {
+    "Workflow ID": set(),
+    "Stage ID": set(),
+    "Job State": set(),
+    "Site Name": set(),
+    "Entry Name": set(),
+    }
+
+  for row in fullRows:
+    if row['workflow_id']:
+        unique_values["Workflow ID"].add(row['workflow_id'])
+    if row['stage_id']:
+        unique_values["Stage ID"].add(row['stage_id'])
+    if row['job_state']:
+        unique_values["Job State"].add(row['job_state'])
+    if row['site_name']:
+        unique_values["Site Name"].add(row['site_name']) # there is None in site_name, so convert to string to avoid error when adding to set
+    if row['entry_name']:
+        unique_values["Entry Name"].add(row['entry_name'])
+
+    # Convert and sort
+  data = {
+      "Workflow ID":  sorted(unique_values["Workflow ID"]),
+      "Stage ID":     sorted(unique_values["Stage ID"]),
+      "Job State":    sorted(unique_values["Job State"]),
+      "Site Name":    sorted(unique_values["Site Name"]),
+      "Entry Name":   sorted(unique_values["Entry Name"]),
+    }
+
+  jobFilterForm = FilterForm.create_from_dict(data=data, cgi_method='list-jobs')
   output += '<hr>'
   output += "<h1>Debug</h1>"
   output += f"<h3>{cgiValues}</h3>"
