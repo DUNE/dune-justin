@@ -3362,23 +3362,32 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   titleSuffixes = []
 
   try:
-    workflowID    = int(cgiValues["workflow_id"])
-    urlTemplate += ('&workflow_id=%d' % workflowID)
-    titleSuffixes.append('Workflow %d' % workflowID) 
-    filters.append('jobs.workflow_id=%d' % workflowID)
+    if cgiValues["workflow_id"] == 'ANY':
+      workflowID = None
+    else:
+      workflowID    = int(cgiValues["workflow_id"])
+      urlTemplate += ('&workflow_id=%d' % workflowID)
+      titleSuffixes.append('Workflow %d' % workflowID) 
+      filters.append('jobs.workflow_id=%d' % workflowID)
   except:
     pass
   
   try:
-    stageID      = int(cgiValues["stage_id"])
-    urlTemplate += '&stage_id=' + str(stageID)
-    titleSuffixes.append('Stage %d' % stageID) 
-    filters.append('jobs.stage_id=%d' % stageID)
+    if cgiValues["stage_id"] == 'ANY':
+      stageID = None
+    else:
+      stageID      = int(cgiValues["stage_id"])
+      urlTemplate += '&stage_id=' + str(stageID)
+      titleSuffixes.append('Stage %d' % stageID) 
+      filters.append('jobs.stage_id=%d' % stageID)
   except:
     pass
 
   try:
-    allocationState = str(cgiValues["job_state"])
+    if cgiValues["job_state"] == 'ANY':
+      allocationState = None
+    else:
+      allocationState = str(cgiValues["job_state"])
   except:
     pass
   else:
@@ -3388,7 +3397,10 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       titleSuffixes.append('Allocation State %s' % allocationState)
 
   try:
-    siteName = cgiValues["site_name"]
+    if cgiValues["site_name"] == 'ANY':
+      siteName = None
+    else:
+      siteName = cgiValues["site_name"]
   except:
     pass
   else:
@@ -3398,7 +3410,10 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       titleSuffixes.append('Site %s' % siteName)
 
   try:
-    entryName = cgiValues["entry_name"]
+    if cgiValues["entry_name"] == 'ANY':
+      entryName = None
+    else:
+      entryName = cgiValues["entry_name"]
   except:
     pass
   else:
@@ -3422,7 +3437,6 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   output = header(environ, user, "justIN: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
-  
   if not filter:   
     try:
       query = ('SELECT '
@@ -3463,19 +3477,52 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
 
   justin.cur.execute(query)
   jobRows = justin.cur.fetchall()
-  testLabel = Label("<h1>TESTING if you see this, it mean the module path is working</h1>")
+  
+  
+  full_query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
+           "sites.site_name,entries.entry_name,"
+           "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
+           "jobs.finished_time,jobs.jobsub_state,jobs.jobscript_exit,"
+           "principal_names.principal_name AS user_name "
+           "FROM jobs "
+           "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
+           "LEFT JOIN users ON workflows.user_id=users.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
+           "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
+           "%s "
+           "ORDER BY jobs.justin_job_id DESC" % 
+           (filter)
+          )
+
+  justin.cur.execute(full_query)
+  fullRows = justin.cur.fetchall()
+  
+
   jobFilterForm = FilterForm.create_from_dict(
     data = {
-      "Users": ['user1', 'user2', 'user3'],
-      "Workflow ID": ['1', '2', '3'], 
+      # "Users": sorted(list(set(row['user_name'] for row in fullRows))),
+      "Workflow ID": sorted(str(i) for i in list(set(row['workflow_id'] for row in fullRows))),
+      "Stage ID"   : sorted(str(i) for i in list(set(row['stage_id']    for row in fullRows))),
+      "Job State"  : sorted(str(i) for i in list(set(row['job_state']   for row in fullRows))),
+      "Site Name"  : sorted(str(i) for i in list(set(row['site_name']   for row in fullRows))), # sth weird, there is None in `site_name`
+      "Entry Name" : sorted(str(i) for i in list(set(row['entry_name']  for row in fullRows))),
+      # "Jobsub ID"  : sorted(list(set(row['jobsub_id']   for row in fullRows))),
+      # "Submitted Time": sorted(list(set(row['submitted_time'] for row in fullRows))),
+      # "Started Time": sorted(list(set(row['allocation_time'] for row in fullRows))),
+      # "Jobscript Exit": sorted(list(set(row['jobscript_exit'] for row in fullRows))),
+      # "Finished Time": sorted(list(set(row['finished_time'] for row in fullRows))),
     },
-    action = '/dashboard/',
     cgi_method='list-jobs',
-    request_method='GET',
   )
-  output += "<h1>Filter Here</h1>"
+  
+  output += '<hr>'
+  output += "<h1>Debug</h1>"
+  output += f"<h3>{cgiValues}</h3>"
+  output += '<hr>'
+
   output += jobFilterForm.render()
-  output += testLabel.render()
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table class="center">'
