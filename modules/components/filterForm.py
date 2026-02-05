@@ -104,7 +104,7 @@ class FilterForm:
                 self._update_filter_dict(select)
                 return
         raise ValueError(f"Select with name '{col_name}' not found in the form.")
-
+    
     def render_submit_button(self):
         return "<input type='submit' value='Filter' style='background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer'>"
         
@@ -115,8 +115,7 @@ class FilterForm:
             select_html = select.render()
             form_html += Label(f"{select.name}: {select_html}").render()
         
-        submit_button_html = "<input type='submit' value='Filter' style='background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer'>"
-        form_html += submit_button_html
+        form_html += self.render_submit_button()
         
         form_html += "</form>"
         return form_html
