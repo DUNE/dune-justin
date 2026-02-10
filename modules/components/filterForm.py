@@ -45,7 +45,7 @@ class Select:
     def select_option(self, opt_val: str) -> Union[Option, None]:
         self.reset()
         for option in self.options:
-            if option.value == opt_val:
+            if str(option.value) == str(opt_val):
                 option.is_selected = True
                 return option
     
@@ -96,6 +96,8 @@ class FilterForm:
         self._filter_dict[select.attr_name] = select.current_selected_option.value
 
     def set_filter(self, col_name: str, filter_val: str) -> None:
+        if filter_val is None: 
+            return
         for select in self.selects:
             if select.attr_name == col_name:
                 selected_option = select.select_option(opt_val=filter_val)

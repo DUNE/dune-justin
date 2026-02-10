@@ -33,6 +33,7 @@ import textwrap
 import urllib
 import urllib.parse
 import urllib.request
+from datetime import datetime as dt
 
 # install with pip3 install pygal
 import pygal
@@ -3358,9 +3359,37 @@ def showJob(environ, user, cgiValues):
 def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       
   urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
-  filters       = []
+  filter_str_items       = []
   titleSuffixes = []
 
+  try:
+    if cgiValues["user_name"] == 'ANY':
+        username = None
+    else:
+      username    = str(cgiValues["user_name"])
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username) 
+      filter_str_items.append('principal_names.principal_name=\'%s\'' % username)
+  except:
+    if user:
+      username    = user['user_name']
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username) 
+      filter_str_items.append('principal_names.principal_name=\'%s\'' % username)
+    else:
+      pass
+  
+  try:
+    if cgiValues["submitted_time"] == 'ANY':
+      submit_time = None
+    else:
+      submit_time    = str(cgiValues["submitted_time"])
+      urlTemplate += ('&submitted_time=%s' % submit_time)
+      titleSuffixes.append('Submitted Time %s' % submit_time) 
+      filter_str_items.append('jobs.submitted_time >= \'%s\' AND jobs.submitted_time <  DATE_ADD(\'%s\', INTERVAL 1 DAY)' % (submit_time, submit_time))
+  except:
+    pass
+  
   try:
     if cgiValues["workflow_id"] == 'ANY':
       workflowID = None
@@ -3368,7 +3397,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       workflowID    = int(cgiValues["workflow_id"])
       urlTemplate += ('&workflow_id=%d' % workflowID)
       titleSuffixes.append('Workflow %d' % workflowID) 
-      filters.append('jobs.workflow_id=%d' % workflowID)
+      filter_str_items.append('jobs.workflow_id=%d' % workflowID)
   except:
     pass
   
@@ -3379,7 +3408,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       stageID      = int(cgiValues["stage_id"])
       urlTemplate += '&stage_id=' + str(stageID)
       titleSuffixes.append('Stage %d' % stageID) 
-      filters.append('jobs.stage_id=%d' % stageID)
+      filter_str_items.append('jobs.stage_id=%d' % stageID)
   except:
     pass
 
@@ -3392,7 +3421,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     pass
   else:
     if allocationState in justin.jobStatesAll:
-      filters.append('jobs.job_state="%s"' % allocationState)
+      filter_str_items.append('jobs.job_state="%s"' % allocationState)
       urlTemplate += '&job_state=' + allocationState
       titleSuffixes.append('Allocation State %s' % allocationState)
 
@@ -3405,7 +3434,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     pass
   else:
     if siteName and justin.stringIsSite(siteName):
-      filters.append('sites.site_name="%s"' % siteName)
+      filter_str_items.append('sites.site_name="%s"' % siteName)
       urlTemplate += '&site_name=' + siteName
       titleSuffixes.append('Site %s' % siteName)
 
@@ -3418,26 +3447,25 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     pass
   else:
     if entryName and justin.stringIsSite(entryName):
-      filters.append('entries.entry_name="%s"' % entryName)
+      filter_str_items.append('entries.entry_name="%s"' % entryName)
       urlTemplate += '&entry_name=' + entryName
       titleSuffixes.append('Entry %s' % entryName)
-
-  filter = ' AND '.join(filters)
-
-  if filter:
-    filter = 'WHERE ' + filter
-  else:
-    filter = ''
+  
+  sql_where_clause = ''
+  # sql_where_clause = 'WHERE jobs.submitted_time >= CURDATE() - INTERVAL 1 DAY AND jobs.submitted_time <  CURDATE() + INTERVAL 1 DAY' # boost performance, default show today and yesterday's jobs
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
+  
     
+  titleSuffix = ''
   if titleSuffixes:
     titleSuffix = ' for ' + ', '.join(titleSuffixes)
-  else:
-    titleSuffix = ''
-    
+  
+
   output = header(environ, user, "justIN: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
-  if not filter:   
+  if not sql_where_clause:   
     try:
       query = ('SELECT '
                ' (SELECT COUNT(*) FROM jobs '
@@ -3472,12 +3500,11 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "%s "
            "ORDER BY jobs.justin_job_id DESC LIMIT %d,%d" %
-           (filter, pageNumber * pageLength, pageLength + 1)
+           (sql_where_clause, pageNumber * pageLength, pageLength + 1)
           )
 
   justin.cur.execute(query)
   jobRows = justin.cur.fetchall()
-  
   
   full_query = ("SELECT DISTINCT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
            "sites.site_name,entries.entry_name,"
@@ -3493,7 +3520,7 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "%s "
            "ORDER BY jobs.justin_job_id DESC" % 
-           (filter)
+           (sql_where_clause)
           )
 
   justin.cur.execute(full_query)
@@ -3506,36 +3533,63 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
     "Job State": set(),
     "Site Name": set(),
     "Entry Name": set(),
+    "Submitted Time": set(),
+    "User Name": set()
     }
 
   for row in fullRows:
-    if row['workflow_id']:
+    if row.get('user_name'):
+      unique_values["User Name"].add(row['user_name'])
+    if row.get('workflow_id'):
         unique_values["Workflow ID"].add(row['workflow_id'])
-    if row['stage_id']:
+    if row.get('stage_id'):
         unique_values["Stage ID"].add(row['stage_id'])
-    if row['job_state']:
+    if row.get('job_state'):
         unique_values["Job State"].add(row['job_state'])
-    if row['site_name']:
+    if row.get('site_name'):
         unique_values["Site Name"].add(row['site_name']) # there is None in site_name, so convert to string to avoid error when adding to set
-    if row['entry_name']:
+    if row.get('entry_name'):
         unique_values["Entry Name"].add(row['entry_name'])
+    if row.get('submitted_time'):
+        sub_time_YYYYMMdd = row['submitted_time'].strftime('%Y-%m-%d')
+        unique_values["Submitted Time"].add(sub_time_YYYYMMdd)
+  
+  # Convert and sort
+  user_name_list = sorted(unique_values["User Name"])
+  if user: # logged in user first in the list
+    logged_user_name = user.get('user_name')
+    if logged_user_name in user_name_list:
+        user_name_list.remove(logged_user_name)
+        user_name_list = [logged_user_name] + user_name_list
 
-    # Convert and sort
+  submitted_time_list = sorted(unique_values["Submitted Time"],  key=lambda s: dt.strptime(s, '%Y-%m-%d'), reverse=True)
+  
   data = {
+      "User Name":  user_name_list,
       "Workflow ID":  sorted(unique_values["Workflow ID"]),
       "Stage ID":     sorted(unique_values["Stage ID"]),
       "Job State":    sorted(unique_values["Job State"]),
       "Site Name":    sorted(unique_values["Site Name"]),
       "Entry Name":   sorted(unique_values["Entry Name"]),
+      "Submitted Time": submitted_time_list
     }
 
   jobFilterForm = FilterForm.create_from_dict(data=data, cgi_method='list-jobs')
-  output += '<hr>'
-  output += "<h1>Debug</h1>"
-  output += f"<h3>{cgiValues}</h3>"
-  output += '<hr>'
+  jobFilterForm.set_filter('user_name', cgiValues.get("user_name"))
+  jobFilterForm.set_filter('workflow_id', cgiValues.get("workflow_id"))
+  jobFilterForm.set_filter('stage_id', cgiValues.get("stage_id"))
+  jobFilterForm.set_filter('job_state', cgiValues.get("job_state"))
+  jobFilterForm.set_filter('site_name', cgiValues.get("site_name"))
+  jobFilterForm.set_filter('entry_name', cgiValues.get("entry_name"))
+  jobFilterForm.set_filter('submitted_time', cgiValues.get("submitted_time"))
 
+  # output += "<hr>"
+  # output += "<h1>DEBUG</h1>"
+  # output += "<h2>%s</h2>" % sql_where_clause if sql_where_clause else "No where clause"
+  # output += f"<h2>{cgiValues}</h2>"
+  # output += "<hr>"
   output += jobFilterForm.render()
+  
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table class="center">'
