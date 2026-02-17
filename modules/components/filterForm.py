@@ -23,14 +23,11 @@ class Option:
         return cls(label=cls.default_value, value=cls.default_value, is_selected=True)
         
 class Select:
-    def __init__(self, label_name: str, options: list[Option]):
+    def __init__(self, label_name: str, options: list[Option], attr_name: str = None):
         self.name = label_name
+        self.attr_name = attr_name if attr_name is not None else label_name.lower().replace(" ", "_")
         self.options = options
         self.reset()
-    
-    @property
-    def attr_name(self):
-        return self.name.lower().replace(" ", "_")
     
     @property
     def current_selected_option(self) -> Union[Option, None]:
@@ -109,11 +106,34 @@ class FilterForm:
     
     def render_submit_button(self):
         return "<input type='submit' value='Filter' style='background: #E1703D; border-radius: 5px; padding: 5px; color: white; font-weight: bold; font-size: 1em; border: 0; cursor: pointer'>"
-        
-    def render(self) -> str:
+
+    def rename_column(self, old_attr_name: str, new_attr_name: str, new_label_name: str) -> None:
+        for select in self.selects:
+            if select.attr_name == old_attr_name:
+                select.name = new_label_name
+                select._attr_name = new_attr_name
+                return
+        raise ValueError(f"Select with attribute name '{old_attr_name}' not found.")
+    
+    @property
+    def column_order(self) -> list[str]:
+        return [select.attr_name for select in self.selects]
+
+    def render(self, col_order: list[str] = None) -> str:
         form_html = f"<form action='{self.action}' method='{self.request_method}'>"
         form_html += f"<input type='hidden' name='method' value='{self.cgi_method}'>"
-        for select in self.selects:
+        
+        selects = self.selects
+        
+        if col_order:
+            selects = []
+            for col_name in col_order:
+                for select in self.selects:
+                    if select.attr_name == col_name:
+                        selects.append(select)
+                        break
+        
+        for select in selects:
             select_html = select.render()
             form_html += Label(f"{select.name}: {select_html}").render()
         

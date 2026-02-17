@@ -3676,18 +3676,102 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
 
 def listScopes(environ, user, cgiValues, pageNumber, pageLength):
   urlTemplate   = '/dashboard/?method=list-scopes&page_number=%d&page_length=%d'
-  
-  output = header(environ, user, "justIN: Scopes")
 
-  output += ("<h1>Scopes</h1>\n")
+  filter_str_items = []
+  titleSuffixes = []
 
+  # --- Base constraints (always on) ---
+  filter_str_items.append('scopes.quota_id<>0')
+  filter_str_items.append('named_quotas.for_justin')
+
+  # --- Optional filters from CGI ---
+  # scope_name
+  try:
+    if cgiValues.get("scope_name") and cgiValues["scope_name"] != "ANY":
+      scope_name = str(cgiValues["scope_name"])
+      urlTemplate += ('&scope_name=%s' % scope_name)
+      titleSuffixes.append('Scope %s' % scope_name)
+      filter_str_items.append("scopes.scope_name='%s'" % scope_name.replace("'", "''"))
+  except:
+    pass
+
+  # quota_name
+  try:
+    if cgiValues.get("quota_name") and cgiValues["quota_name"] != "ANY":
+      quota_name = str(cgiValues["quota_name"])
+      urlTemplate += ('&quota_name=%s' % quota_name)
+      titleSuffixes.append('Quota %s' % quota_name)
+      filter_str_items.append("named_quotas.quota_name='%s'" % quota_name.replace("'", "''"))
+  except:
+    pass
+
+  # processing_enabled (your scopes dict uses "True"/"False")
+  try:
+    if cgiValues.get("processing_enabled") and cgiValues["processing_enabled"] != "ANY":
+      pe = str(cgiValues["processing_enabled"])
+      urlTemplate += ('&processing_enabled=%s' % pe)
+      titleSuffixes.append('Processing enabled %s' % pe)
+      if pe.lower() in ("true", "1", "yes", "y"):
+        filter_str_items.append("named_quotas.processing_enabled=1")
+      elif pe.lower() in ("false", "0", "no", "n"):
+        filter_str_items.append("named_quotas.processing_enabled=0")
+  except:
+    pass
+
+  # owner (can be wlcg_group_name OR principal_name)
+  try:
+    if cgiValues.get("owner") and cgiValues["owner"] != "ANY":
+      owner = str(cgiValues["owner"])
+      urlTemplate += ('&owner=%s' % owner)
+      titleSuffixes.append('Owner %s' % owner)
+      owner_sql = owner.replace("'", "''")
+      filter_str_items.append(
+        "(wlcg_groups.wlcg_group_name='%s' OR principal_names.principal_name='%s')" %
+        (owner_sql, owner_sql)
+      )
+  except:
+    pass
+
+  # scope_condor_group_name (alias scope_condor_groups)
+  try:
+    if cgiValues.get("scope_condor_group_name") and cgiValues["scope_condor_group_name"] != "ANY":
+      scg = str(cgiValues["scope_condor_group_name"])
+      urlTemplate += ('&scope_condor_group_name=%s' % scg)
+      titleSuffixes.append('Scope condor group %s' % scg)
+      filter_str_items.append(
+        "scope_condor_groups.condor_group_name='%s'" % scg.replace("'", "''")
+      )
+  except:
+    pass
+
+  # max_files_per_workflow (numeric)
+  try:
+    if cgiValues.get("max_files_per_workflow") and cgiValues["max_files_per_workflow"] != "ANY":
+      m = int(cgiValues["max_files_per_workflow"])
+      urlTemplate += ('&max_files_per_workflow=%d' % m)
+      titleSuffixes.append('Max files %d' % m)
+      filter_str_items.append("named_quotas.max_files_per_workflow=%d" % m)
+  except:
+    pass
+
+  sql_where_clause = ''
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
+
+  titleSuffix = ''
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
+
+  output = header(environ, user, "justIN: Scopes" + titleSuffix)
+  output += ("<h1>Scopes%s</h1>\n" % titleSuffix)
   output += ("<p>Scopes available for justIN workflows</p>\n")
-  
-  query = ('SELECT scope_name,wlcg_group_name,'
-           'scope_condor_groups.condor_group_name AS scope_condor_group_name,'
-           'quota_condor_groups.condor_group_name AS quota_condor_group_name,'
-           'max_files_per_workflow,named_quotas.processing_enabled,'
-           'quota_name,principal_name '
+
+  query = (
+        'SELECT scope_name,wlcg_group_name,'
+        'scope_condor_groups.condor_group_name AS scope_condor_group_name,'
+        'quota_condor_groups.condor_group_name AS quota_condor_group_name,'
+        'max_files_per_workflow,named_quotas.processing_enabled,'
+        'quota_name,principal_name '
         'FROM scopes '
         'LEFT JOIN condor_groups AS scope_condor_groups '
         'ON scope_condor_groups.condor_group_id=scopes.condor_group_id '
@@ -3701,10 +3785,11 @@ def listScopes(environ, user, cgiValues, pageNumber, pageLength):
         'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
-        'WHERE scopes.quota_id<>0 AND named_quotas.for_justin '
+        '%s '
         'ORDER BY quota_name,scope_name '
-        'LIMIT %d,%d' % (pageNumber * pageLength, pageLength + 1)
-        )
+        'LIMIT %d,%d' % (sql_where_clause, pageNumber * pageLength, pageLength + 1)
+  )
+
   scopeRows = justin.select(query)
 
   scopes = []
@@ -3731,7 +3816,36 @@ def listScopes(environ, user, cgiValues, pageNumber, pageLength):
   
   output += makePager(pageNumber, pageLength, len(scopeRows), urlTemplate)
   
+  filter_data = {}
+  for scope in scopes:
+    for key in scope:
+      if key not in filter_data:
+        filter_data[key] = set()
+      val = scope[key]
+      val = val.strip() if isinstance(val, str) else val
+      if val != '':
+        filter_data[key].add(val)
   
+  shown_columns = ['scope_name', 'scope_condor_group_name', 'quota_name', 'processing_enabled', 'owner','max_files_per_workflow']
+  filter_data = {key: sorted(list(values)) for key, values in filter_data.items() if key in shown_columns}
+  
+  scopeFilterForm = FilterForm.create_from_dict(data=filter_data, cgi_method='list-scopes')
+
+  scopeFilterForm.rename_column(old_attr_name='scope_name', new_attr_name='scope_name', new_label_name='Scope name')
+  scopeFilterForm.rename_column(old_attr_name='scope_condor_group_name', new_attr_name='scope_condor_group_name', new_label_name='HTCondor Group')
+  scopeFilterForm.rename_column(old_attr_name='quota_name', new_attr_name='quota_name', new_label_name='Quota name')
+  scopeFilterForm.rename_column(old_attr_name='processing_enabled', new_attr_name='processing_enabled', new_label_name='Processing enabled?')
+  scopeFilterForm.rename_column(old_attr_name='owner', new_attr_name='owner', new_label_name='Owner')
+  scopeFilterForm.rename_column(old_attr_name='max_files_per_workflow', new_attr_name='max_files_per_workflow', new_label_name='Max input files')
+
+  scopeFilterForm.set_filter('scope_name', cgiValues.get("scope_name"))
+  scopeFilterForm.set_filter('quota_name', cgiValues.get("quota_name"))
+  scopeFilterForm.set_filter('processing_enabled', cgiValues.get("processing_enabled"))
+  scopeFilterForm.set_filter('owner', cgiValues.get("owner"))
+  scopeFilterForm.set_filter('scope_condor_group_name', cgiValues.get("scope_condor_group_name"))
+  scopeFilterForm.set_filter('max_files_per_workflow', cgiValues.get("max_files_per_workflow"))
+  
+  output += scopeFilterForm.render(col_order=shown_columns)
   output += ('<table class="center">')
   
   output += ('<tr>'
