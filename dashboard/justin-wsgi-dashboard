@@ -3926,8 +3926,9 @@ def listScopes(environ, user, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def listQuotas(environ, user, cgiValues):
-      
+def listQuotas(environ, user, cgiValues, pageNumber, pageLength):
+
+  urlTemplate = '/dashboard/?method=list-quotas&page_number=%d&page_length=%d'
   output = header(environ, user, "justIN: Named quotas")
 
   output += ("<h1>Named quotas</h1>\n")
@@ -3947,10 +3948,13 @@ def listQuotas(environ, user, cgiValues):
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
         'WHERE named_quotas.for_justin '
-        'ORDER BY quota_name')
+        'ORDER BY quota_name '
+        'LIMIT %d,%d' % (pageNumber * pageLength, pageLength + 1)
+  )
 
   quotaRows = justin.select(query)
 
+  output += makePager(pageNumber, pageLength, len(quotaRows), urlTemplate)
   output += ('<table class="center">')
   
   output += ('<tr>'
@@ -3960,7 +3964,7 @@ def listQuotas(environ, user, cgiValues):
              '<th>HTCondor Group</th>'
              '<th>Max input files</th></tr>')
   
-  for quotaRow in quotaRows:  
+  for quotaRow in quotaRows[:pageLength]:
     if quotaRow['wlcg_group_name']:
       owner = quotaRow['wlcg_group_name']
     elif quotaRow['principal_name']:
@@ -3982,7 +3986,7 @@ def listQuotas(environ, user, cgiValues):
                   quotaRow['max_files_per_workflow'] ))
 
   output += ("</table>\n")
- 
+  output += makePager(pageNumber, pageLength, len(quotaRows), urlTemplate)
   output += footer()
   return output
 
@@ -6775,7 +6779,7 @@ def application(environ, startResponse):
     output = listScopes(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-quotas":
-    output = listQuotas(environ, user, cgiValues)
+    output = listQuotas(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-quota":
     output = showQuota(environ, user, cgiValues)
