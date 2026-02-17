@@ -3929,12 +3929,88 @@ def listScopes(environ, user, cgiValues, pageNumber, pageLength):
 def listQuotas(environ, user, cgiValues, pageNumber, pageLength):
 
   urlTemplate = '/dashboard/?method=list-quotas&page_number=%d&page_length=%d'
-  output = header(environ, user, "justIN: Named quotas")
 
-  output += ("<h1>Named quotas</h1>\n")
+  filter_str_items = []
+  titleSuffixes = []
 
+  # Base constraint (always on)
+  filter_str_items.append('named_quotas.for_justin')
+
+  # --- Optional filters from CGI ---
+
+  # quota_name
+  try:
+    if cgiValues.get("quota_name") and cgiValues["quota_name"] != "ANY":
+      quota_name = str(cgiValues["quota_name"])
+      urlTemplate += ('&quota_name=%s' % quota_name)
+      titleSuffixes.append('Quota %s' % quota_name)
+      filter_str_items.append("named_quotas.quota_name='%s'" % quota_name.replace("'", "''"))
+  except:
+    pass
+
+  # processing_enabled (accept True/False/Enabled/Disabled/1/0)
+  try:
+    if cgiValues.get("processing_enabled") and cgiValues["processing_enabled"] != "ANY":
+      pe = str(cgiValues["processing_enabled"]).strip()
+      urlTemplate += ('&processing_enabled=%s' % pe)
+      titleSuffixes.append('Processing %s' % pe)
+
+      pe_l = pe.lower()
+      if pe_l in ("true", "1", "yes", "y", "enabled"):
+        filter_str_items.append("named_quotas.processing_enabled=1")
+      elif pe_l in ("false", "0", "no", "n", "disabled"):
+        filter_str_items.append("named_quotas.processing_enabled=0")
+  except:
+    pass
+
+  # owner (wlcg_group_name OR principal_name)
+  try:
+    if cgiValues.get("owner") and cgiValues["owner"] != "ANY":
+      owner = str(cgiValues["owner"])
+      urlTemplate += ('&owner=%s' % owner)
+      titleSuffixes.append('Owner %s' % owner)
+      owner_sql = owner.replace("'", "''")
+      filter_str_items.append(
+        "(wlcg_groups.wlcg_group_name='%s' OR principal_names.principal_name='%s')" %
+        (owner_sql, owner_sql)
+      )
+  except:
+    pass
+
+  # condor_group_name (quota-level HTCondor group)
+  try:
+    if cgiValues.get("condor_group_name") and cgiValues["condor_group_name"] != "ANY":
+      cg = str(cgiValues["condor_group_name"])
+      urlTemplate += ('&condor_group_name=%s' % cg)
+      titleSuffixes.append('HTCondor Group %s' % cg)
+      filter_str_items.append("condor_groups.condor_group_name='%s'" % cg.replace("'", "''"))
+  except:
+    pass
+
+  # max_files_per_workflow (numeric)
+  try:
+    if cgiValues.get("max_files_per_workflow") and cgiValues["max_files_per_workflow"] != "ANY":
+      m = int(cgiValues["max_files_per_workflow"])
+      urlTemplate += ('&max_files_per_workflow=%d' % m)
+      titleSuffixes.append('Max files %d' % m)
+      filter_str_items.append("named_quotas.max_files_per_workflow=%d" % m)
+  except:
+    pass
+
+  # WHERE clause
+  sql_where_clause = ''
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
+
+  # Title suffix
+  titleSuffix = ''
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
+
+  output = header(environ, user, "justIN: Named quotas" + titleSuffix)
+  output += ("<h1>Named quotas%s</h1>\n" % titleSuffix)
   output += ("<p>Named quotas available for justIN workflows</p>\n")
-  
+
   query = ('SELECT wlcg_group_name,condor_group_name,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
            'quota_name,principal_name '
@@ -3947,13 +4023,79 @@ def listQuotas(environ, user, cgiValues, pageNumber, pageLength):
         'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
-        'WHERE named_quotas.for_justin '
+        '%s '
         'ORDER BY quota_name '
-        'LIMIT %d,%d' % (pageNumber * pageLength, pageLength + 1)
+        'LIMIT %d,%d' % (sql_where_clause, pageNumber * pageLength, pageLength + 1)
   )
 
   quotaRows = justin.select(query)
 
+  full_query = (
+        'SELECT wlcg_group_name,condor_group_name,'
+        'max_files_per_workflow,named_quotas.processing_enabled,'
+        'quota_name,principal_name '
+        'FROM named_quotas '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
+        'LEFT JOIN condor_groups '
+        'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
+        '%s '
+        'ORDER BY quota_name' % (sql_where_clause)
+  )
+  fullQuotaRows = justin.select(full_query)
+
+  filter_data = {
+    'quota_name': set(),
+    'processing_enabled': set(),
+    'owner': set(),
+    'condor_group_name': set(),
+    'max_files_per_workflow': set(),
+  }
+
+  for r in fullQuotaRows:
+    if r.get('quota_name'):
+      filter_data['quota_name'].add(r['quota_name'])
+
+    # make it match the table wording
+    if r.get('processing_enabled') is not None:
+      filter_data['processing_enabled'].add('Enabled' if r['processing_enabled'] else 'Disabled')
+
+    if r.get('wlcg_group_name'):
+      filter_data['owner'].add(r['wlcg_group_name'])
+    if r.get('principal_name'):
+      filter_data['owner'].add(r['principal_name'])
+
+    if r.get('condor_group_name'):
+      filter_data['condor_group_name'].add(r['condor_group_name'])
+
+    if r.get('max_files_per_workflow') is not None:
+      filter_data['max_files_per_workflow'].add(str(r['max_files_per_workflow']))
+
+  # finalise data: sort + keep only wanted columns
+  shown_columns = ['quota_name', 'processing_enabled', 'owner', 'condor_group_name', 'max_files_per_workflow']
+  filter_data = {k: sorted(list(v)) for k, v in filter_data.items()}
+
+  quotaFilterForm = FilterForm.create_from_dict(data=filter_data, cgi_method='list-quotas')
+
+  quotaFilterForm.rename_column('quota_name', 'quota_name', 'Quota')
+  quotaFilterForm.rename_column('processing_enabled', 'processing_enabled', 'Processing enabled?')
+  quotaFilterForm.rename_column('owner', 'owner', 'Owner')
+  quotaFilterForm.rename_column('condor_group_name', 'condor_group_name', 'HTCondor Group')
+  quotaFilterForm.rename_column('max_files_per_workflow', 'max_files_per_workflow', 'Max input files')
+
+  quotaFilterForm.set_filter('quota_name', cgiValues.get('quota_name'))
+  quotaFilterForm.set_filter('processing_enabled', cgiValues.get('processing_enabled'))
+  quotaFilterForm.set_filter('owner', cgiValues.get('owner'))
+  quotaFilterForm.set_filter('condor_group_name', cgiValues.get('condor_group_name'))
+  quotaFilterForm.set_filter('max_files_per_workflow', cgiValues.get('max_files_per_workflow'))
+
+  output += quotaFilterForm.render(col_order=shown_columns)
+
+  # pager + table
   output += makePager(pageNumber, pageLength, len(quotaRows), urlTemplate)
   output += ('<table class="center">')
   
