@@ -3674,8 +3674,9 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def listScopes(environ, user, cgiValues):
-      
+def listScopes(environ, user, cgiValues, pageNumber, pageLength):
+  urlTemplate   = '/dashboard/?method=list-scopes&page_number=%d&page_length=%d'
+  
   output = header(environ, user, "justIN: Scopes")
 
   output += ("<h1>Scopes</h1>\n")
@@ -3701,7 +3702,9 @@ def listScopes(environ, user, cgiValues):
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
         'WHERE scopes.quota_id<>0 AND named_quotas.for_justin '
-        'ORDER BY quota_name,scope_name')
+        'ORDER BY quota_name,scope_name '
+        'LIMIT %d,%d' % (pageNumber * pageLength, pageLength + 1)
+        )
   scopeRows = justin.select(query)
 
   scopes = []
@@ -3725,7 +3728,10 @@ def listScopes(environ, user, cgiValues):
                        if scopeRow['quota_condor_group_name'] else ' ',
                     'max_files_per_workflow' : 
                        str(scopeRow['max_files_per_workflow']) })
-
+  
+  output += makePager(pageNumber, pageLength, len(scopeRows), urlTemplate)
+  
+  
   output += ('<table class="center">')
   
   output += ('<tr>'
@@ -3802,7 +3808,7 @@ def listScopes(environ, user, cgiValues):
     endofQuota   = startOfQuota
 
   output += "</table>\n"
-
+  output += makePager(pageNumber, pageLength, len(scopeRows), urlTemplate)
   output += footer()
   return output
 
@@ -6652,7 +6658,7 @@ def application(environ, startResponse):
     output = listJobs(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-scopes":
-    output = listScopes(environ, user, cgiValues)
+    output = listScopes(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-quotas":
     output = listQuotas(environ, user, cgiValues)
