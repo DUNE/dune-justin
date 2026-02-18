@@ -1026,111 +1026,148 @@ to visit.</p>
 
 def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
 
-  whereList = []
-  queryList = ''
-
+  urlTemplate = '/dashboard/?method=list-campaigns&page_number=%d&page_length=%d'
+  filter_str_items = []
+  titleSuffixes = []
+  
   try:
-    userName = cgiValues["user_name"]
-
-    if userName != '--ANY--' and not justin.stringIsUsername(userName):
-      raise
-  except:
-    userName = ''
-
-  if userName:
-    # If the user name was given explicitly, then we pass it on
-    # Otherwise it is left out for subsequent next page etc clicks
-    queryList += '&user_name=%s' % userName
-  else:
-    # But userName must be set to something, even just --ANY--
-    if user:
-      # User is logged in, so we use their name instead of implicit --ANY--
-      userName = user['user_name']
+    if cgiValues["user_name"] == 'ANY':
+      username = None
     else:
-      # Always fall back to any user
-      userName = '--ANY--'
-
-  if userName != '--ANY--':
-    # For any user, we just skip this condition 
-    whereList.append('principal_name="%s"' % userName)
+      username = str(cgiValues["user_name"])
+      # validate if you want (optional but safer)
+      if not justin.stringIsUsername(username):
+        raise Exception("Invalid user_name")
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username)
+      filter_str_items.append('principal_name="%s"' % username.replace('"', '\\"'))
+  except:
+    if user:
+      username = user['user_name']
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username)
+      filter_str_items.append('principal_name="%s"' % username.replace('"', '\\"'))
+    else:
+      pass
 
   try:
-    quotaName = cgiValues["quota_name"]
-
-    if not justin.stringIsScope(quotaName):
-      raise
+    if cgiValues["quota_name"] == 'ANY':
+      quotaName = None
+    else:
+      quotaName = str(cgiValues["quota_name"])
+      if not justin.stringIsScope(quotaName):
+        raise Exception("Invalid quota_name")
+      urlTemplate += ('&quota_name=%s' % quotaName)
+      titleSuffixes.append('Quota %s' % quotaName)
+      filter_str_items.append('quota_name="%s"' % quotaName.replace('"', '\\"'))
   except:
-    quotaName = ''
-  else:
-    if quotaName:
-      whereList.append('quota_name="%s"' % quotaName)
-      queryList += '&quota_name=%s' % quotaName
+    pass
 
-  if whereList:
-    whereString = ' WHERE ' + ' AND '.join(whereList)
-  else:
-    whereString = ''
+  try:
+    if cgiValues["from_date"] == 'ANY':
+      from_date = None
+    else:
+      from_date = str(cgiValues["from_date"])
+      dt.strptime(from_date, '%Y-%m-%d')  # validate
+      urlTemplate += ('&from_date=%s' % from_date)
+      titleSuffixes.append('From %s' % from_date)
+      filter_str_items.append('campaigns.created >= "%s"' % from_date)
+  except:
+    pass
 
-  # These lists are used for the pull down menus in the filter HTML
-  userRows = justin.select('SELECT principal_name FROM users '
-                           'LEFT JOIN principal_names '
-                           'ON users.main_pn_id=principal_names.pn_id '
-                           'ORDER BY principal_name')
-  quotaRows = justin.select('SELECT quota_name FROM named_quotas '
-                            'WHERE for_justin ORDER BY quota_name')
+  try:
+    if cgiValues["to_date"] == 'ANY':
+      to_date = None
+    else:
+      to_date = str(cgiValues["to_date"])
+      dt.strptime(to_date, '%Y-%m-%d')  # validate
+      if from_date and dt.strptime(to_date, '%Y-%m-%d') < dt.strptime(from_date, '%Y-%m-%d'):
+        to_date = from_date
+        cgiValues["to_date"] = from_date
+      urlTemplate += ('&to_date=%s' % to_date)
+      titleSuffixes.append('To %s' % to_date)
+      filter_str_items.append('campaigns.created < DATE_ADD("%s", INTERVAL 1 DAY)' % to_date)
+  except:
+    pass
 
-  output = header(environ, user, "justIN: Campaigns")
+  sql_where_clause = ''
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
 
-  output += "<h1>Campaigns</h1>"
+  titleSuffix = ''
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
 
-  output += ('<p><form method="get" formaction="/dashboard/">'
-    '<input type="hidden" name="method" value="list-campaigns">'
-    '<label>Created&nbsp;by:<select name="user_name">'
-    '<option value="--ANY--"%s>ANY</option>'
-    % (' selected' if userName == '--ANY--' else ''))
+  output = header(environ, user, "justIN: Campaigns" + titleSuffix)
+  output += "<h1>Campaigns%s</h1>" % titleSuffix
 
+  # full_query for dropdown values
+  full_query = (
+    'SELECT campaign_id,campaigns.description,'
+    'principal_name AS user_name,'
+    'campaigns.created,quota_name,'
+    '(SELECT COUNT(*) FROM files'
+    ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+    ' WHERE workflows.campaign_id=campaigns.campaign_id'
+    ' AND files.stage_id=1 '
+    ' AND files.state="processed") AS files_processed,'
+    '(SELECT COUNT(*) FROM files'
+    ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+    ' WHERE workflows.campaign_id=campaigns.campaign_id'
+    ' AND files.stage_id=1) AS files_total,'
+    '(SELECT COUNT(*) FROM workflows'
+    ' WHERE workflows.campaign_id=campaigns.campaign_id)'
+    ' AS workflows_count '
+    'FROM campaigns '
+    'LEFT JOIN users ON campaigns.user_id=users.user_id '
+    'LEFT JOIN principal_names '
+    'ON principal_names.pn_id=users.main_pn_id '
+    'LEFT JOIN named_quotas ON named_quotas.quota_id=campaigns.quota_id '
+    '%s '
+    'ORDER BY campaigns.campaign_id DESC' % (sql_where_clause)
+  )
+
+  justin.cur.execute(full_query)
+  fullRows = justin.cur.fetchall()
+
+  unique_values = {
+    "User Name": set(),
+    "Quota Name": set(),
+    "Created Day": set(),
+  }
+
+  for row in fullRows:
+    if row.get('user_name'):
+      unique_values["User Name"].add(row['user_name'])
+    if row.get('quota_name'):
+      unique_values["Quota Name"].add(row['quota_name'])
+    if row.get('created'):
+      unique_values["Created Day"].add(row['created'].strftime('%Y-%m-%d'))
+
+  # sort + logged-in user first
+  user_name_list = sorted(unique_values["User Name"])
   if user:
-    # If logged in, offer their own name first
-    output += ('<option value="%s"%s>%s</option>' 
-               % (user['user_name'],
-                  ' selected' 
-                  if user['user_name'] == userName
-                  else '',
-                  user['user_name']))
+    logged_user_name = user.get('user_name')
+    if logged_user_name in user_name_list:
+      user_name_list.remove(logged_user_name)
+      user_name_list = [logged_user_name] + user_name_list
 
-  output += '<option value="" disabled>---</option>'
+  created_list = sorted(unique_values["Created Day"], key=lambda s: dt.strptime(s, '%Y-%m-%d'), reverse=True)
 
-  for userRow in userRows:
-    # List the other user names, selecting them if selected BUT not if
-    # its the logged in user since that is at the top of the list already
-    output += ('<option value="%s"%s>%s</option>' 
-               % (userRow['principal_name'],
-                  ' selected' 
-                  if userRow['principal_name'] == userName and 
-                  (not user or user['user_name'] != userRow['principal_name'])
-                  else '',
-                  userRow['principal_name']))
+  data = {
+    "User Name": user_name_list,
+    "Quota Name": sorted(unique_values["Quota Name"]),
+    "From Date": created_list,
+    "To Date": created_list,
+  }
 
-  output += ('</select></label> '
-    '<label>Quota:<select name="quota_name">'
-    '<option value=""%s>ANY</option>'
-    % ('' if quotaName else ' selected'))
-  
-  for quotaRow in quotaRows:
-    output += ('<option value="%s"%s>%s</option>' 
-               % (quotaRow['quota_name'],
-                  ' selected' 
-                  if quotaRow['quota_name'] == quotaName
-                  else '',
-                  quotaRow['quota_name']))
+  campaignFilterForm = FilterForm.create_from_dict(data=data, cgi_method='list-campaigns')
+  campaignFilterForm.set_filter('user_name', cgiValues.get("user_name"))
+  campaignFilterForm.set_filter('quota_name', cgiValues.get("quota_name"))
+  campaignFilterForm.set_filter('from_date', cgiValues.get("from_date"))
+  campaignFilterForm.set_filter('to_date',   cgiValues.get("to_date"))
 
-  output += '</select></label> '
-
-  output += ('<input type="submit" value="Filter" '
-    'style="background: #E1703D; border-radius: 5px; padding: 5px; '
-    'color: white; font-weight: bold; font-size: 1em; border: 0; '
-    'cursor: pointer"></form></p>\n')
-  
+  output += campaignFilterForm.render()
   query = ('SELECT campaign_id,campaigns.description,'
            'principal_name AS user_name,'
            'campaigns.created,quota_name,'
@@ -1153,16 +1190,13 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
            'LEFT JOIN named_quotas ON named_quotas.quota_id=campaigns.quota_id '
            '%s '
            'ORDER BY campaigns.campaign_id DESC LIMIT %d,%d' %
-           (whereString, pageNumber * pageLength, pageLength + 1))
+           (sql_where_clause, pageNumber * pageLength, pageLength + 1))
 
 ##  print(query, file=sys.stderr)
   justin.cur.execute(query)
   rows = justin.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(rows), 
-                      "/dashboard/?method=list-campaigns&page_number=%d"
-                      "&page_length=%d" + queryList) 
-             
+  output += makePager(pageNumber, pageLength, len(rows), urlTemplate)
   output += '<p><table>'
   output += ('<tr><th>Campaign</th>'
              '<th>Description</th>'
@@ -1200,7 +1234,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
   
   output += makePager(pageNumber, pageLength, len(rows), 
                       "/dashboard/?method=list-campaigns&page_number=%d"
-                      "&page_length=%d" + queryList)
+                      "&page_length=%d" + urlTemplate)
   output += footer()
   
   return output
