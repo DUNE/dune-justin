@@ -1763,14 +1763,14 @@ def showWorkflow(environ, user, cgiValues):
         currentCampaignFound = True
 
       myCampaigns.append((str(row['campaign_id']), 
-                          '%d %s' % 
-                          (row['campaign_id'], 
+                          '%s %s' % 
+                          (str(row['campaign_id']), 
                            html.escape(row["description"][:20], quote=True))))
 
     if not currentCampaignFound and campaignID > 0:
       # Add the current value if not found in the limited list we made
       myCampaigns.append((str(campaignID), 
-                   '%d %s' % 
+                   '%s %s' % 
                    (str(campaignID), 
                     html.escape(campaignDescription[:20],
                                 quote=True)) ))
