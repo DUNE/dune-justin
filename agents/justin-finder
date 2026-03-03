@@ -1460,7 +1460,7 @@ def manageCaches():
         'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
         'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
         'WHERE job_state IN ("started","processing","outputting") '
-        'AND scopes.quota_id=named_quotas.quota_id')
+        'AND scopes.quota_id=named_quotas.quota_id)')
   except Exception as e:
     justin.logLine('Update named_quotas running_jobs fails: ' + str(e))
 
