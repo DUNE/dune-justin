@@ -29,7 +29,7 @@ podman build --build-arg DUNEJUSTIN_ID=`id -u dunejustin` \
              --platform linux/amd64 --tag justin:$justinVersion \
              --file containers/Dockerfile .
 
-#docker build --platform linux/amd64 --tag justin:$justinVersion \
-#             --file containers/Dockerfile .
-
-#docker save --output /tmp/justin.tar justin:$justinVersion
+if [ "$1" = "--restart" ] ; then
+ systemctl restart justin-httpd justin-finder justin-info-collector \
+   justin-job-factory justin-job-logs
+fi
