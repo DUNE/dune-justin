@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobscript_real_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_cpu_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
+  `logs_tries_left` tinyint(1) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
   INDEX `site_id_job_state` (`site_id`,`job_state`,
@@ -97,14 +98,14 @@ CREATE TABLE IF NOT EXISTS `jobs` (
     `submitted_time`),
   INDEX `workflow_stage_allocation` (`workflow_id`,`stage_id`,`job_state`),
   INDEX `allocated_files` (`allocated_files`,`job_state`),
-  INDEX `heartbeat_time` (`job_state`,`heartbeat_time`)
+  INDEX `heartbeat_time` (`job_state`,`heartbeat_time`),
+  INDEX `state_finished_tries` (`job_state`,`finished_time`,`logs_tries_left`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
   `wrapper_log` longtext NOT NULL DEFAULT '',
-  `wrapper_tries_left` tinyint(1) unsigned NOT NULL DEFAULT 10,
   `saved_time` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY (`justin_job_id`),
   INDEX `saved_time` (`saved_time`,`justin_job_id`)

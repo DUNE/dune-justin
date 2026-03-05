@@ -3098,7 +3098,7 @@ def showJob(environ, user, cgiValues):
            "jobs.jobscript_exit,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes,"
-           "wrapper_tries_left,"
+           "logs_tries_left,"
            "LENGTH(wrapper_log) AS wrapper_log_len "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
@@ -3330,8 +3330,8 @@ def showJob(environ, user, cgiValues):
   if (((jobRow['wrapper_log_len'] is None) or
        (jobRow['wrapper_log_len'] == 0)) 
       and
-      ((jobRow['wrapper_tries_left'] is None) or
-       (jobRow['wrapper_tries_left'] == 0))
+      ((jobRow['logs_tries_left'] is None) or
+       (jobRow['logs_tries_left'] == 0))
      ):
     output += '(HTCondor job logs unavailable)</td></tr>'
      
