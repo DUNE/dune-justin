@@ -295,7 +295,7 @@ queue %d
   for i in range(0, numberToSubmit):
     try:
       justinJobID = justin.insertUpdate('INSERT INTO jobs '
-                      'SET logs_tries_left=10,
+                      'SET logs_tries_left=10,'
                       'factory_name="%s",'
                       'workflow_id=%d,'
                       'stage_id=%d,'
