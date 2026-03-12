@@ -916,16 +916,17 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
   except:
     processors = 1
 
-  # The boolean --gpu option is deprecated
   try:
-    gpus = 1 if jsonDict['gpu'] else 0
+    gpus = int(jsonDict['gpus'])
   except:
     gpus = 0
 
+  # The boolean --gpu option is deprecated
   try:
-    gpus = int(jsonDict['gpu'])
+    if jsonDict['gpu'] and gpus == 0:
+      gpus = 1
   except:
-    gpus = 0
+    pass
 
   try:
     gpusMinBytes = int(jsonDict['gpus_min_mib']) * 1024 * 1024
@@ -946,6 +947,11 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     gpusMaxCapability = float(jsonDict['gpu_max_capability'])
   except:
     gpusMaxCapability = 0.0
+
+  # Always request a GPU if any GPU option given
+  if ((gpusMinBytes or gpusMinRuntime 
+       or gpusMinCapability or gpusMaxCapability) and gpus == 0):
+    gpus = 1
 
   try:
     wallSeconds = int(jsonDict['wall_seconds'])
