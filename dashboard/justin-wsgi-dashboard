@@ -2110,7 +2110,7 @@ def showStage(environ, user, cgiValues):
   query = ("SELECT "
            "stages.stage_priority,"
            "stages.processors,"
-           "stages.needs_gpu,"
+           "stages.gpus,"
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
@@ -2155,8 +2155,8 @@ def showStage(environ, user, cgiValues):
   output += ('<tr><td>Processors</td>'
         '<td>%s</td></tr>' % stageRow["processors"])
 
-  if stageRow["needs_gpu"]:
-    output += ('<tr><td>GPU required</td><td>Yes</td></tr>')
+  if stageRow["gpus"]:
+    output += ('<tr><td>GPU required</td><td>%d</td></tr>' % stageRow["gpus"])
 
   output += ('<tr><td>Wall seconds</td>'
         '<td>%s</td></tr>' % stageRow["wall_seconds"])

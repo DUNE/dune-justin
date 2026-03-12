@@ -2,7 +2,7 @@
 #
 # justin - justIN command line utility
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -153,9 +153,30 @@ parser.add_argument("--processors",
                     type = int,
                     help = "Number of processors required")
 
+# Depecated
 parser.add_argument("--gpu",
                     action = "store_true",
                     help = "Require a GPU")
+
+parser.add_argument("--gpus",
+                    type = int,
+                    help = "Number of GPUs")
+
+parser.add_argument("--gpus-min-mib",
+                    type = int,
+                    help = "Minimum GPU MiB")
+
+parser.add_argument("--gpus-min-capability",
+                    type = float,
+                    help = "Minimum GPU capability")
+
+parser.add_argument("--gpus-max-capability",
+                    type = float,
+                    help = "Maximum GPU capability")
+
+parser.add_argument("--gpus-min-runtime",
+                    type = float,
+                    help = "Minimum GPU runtime")
 
 parser.add_argument("--wall-seconds",
                     type = int,

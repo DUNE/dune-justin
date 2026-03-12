@@ -359,7 +359,7 @@ def workflowJobs():
   try:
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
-     'wlcg_group_name,stages.processors,stages.needs_gpu,'
+     'wlcg_group_name,stages.processors,stages.gpus,'
      'stages.wall_seconds,stages.rss_bytes,scopes.quota_id,'
      'principal_names.principal_name,condor_group_name,jobscript_image '
      'FROM workflows '
@@ -454,7 +454,7 @@ def workflowJobs():
             stageRow['stage_id'],            
             stageRow['workflow_id'],
             stageRow['stage_id'],            
-            '' if stageRow['needs_gpu'] else 'NOT',
+            '' if stageRow['gpus'] else 'NOT',
             '' if (stageRow['wlcg_group_name'] == '/dune/production') 
             else 'AND entries.always_inner_apptainer'))
 
@@ -526,7 +526,7 @@ def workflowJobs():
                    requestedProcessors  = stageRow['processors'],
                    requestedRssBytes    = stageRow['rss_bytes'],
                    requestedWallSeconds = stageRow['wall_seconds'],
-                   requestedGPU         = int(stageRow['needs_gpu']))
+                   requestedGPU         = int(stageRow['gpus']))
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
