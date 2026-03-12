@@ -1048,8 +1048,8 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                            gpus, 
                            gpusMinBytes,
                            gpusMinRuntime,
-                           gpusMinCapabilty,
-                           gpusMaxCapabilty,
+                           gpusMinCapability,
+                           gpusMaxCapability,
                            wallSeconds, 
                            rssBytes, maxDistance))
           
