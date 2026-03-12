@@ -1522,7 +1522,7 @@ def processOutputFiles(outputFiles, patternsDict,
                          )
 
 def saveAwtResults(justinJobID, siteID, entryID, 
-                   jobscriptLog, hasInnerApptainer, requestedGPU):
+                   jobscriptLog, hasInnerApptainer, requestedGPUs):
 
 # REMOVE prints FOR PRODUCTION
 #  print('Start saveAwtResults', file=sys.stderr)
@@ -1573,7 +1573,7 @@ def saveAwtResults(justinJobID, siteID, entryID,
               file=sys.stderr)
 
   try:
-    if requestedGPU:
+    if requestedGPUs:
       gpuStr = ', last_awt_gpu_time=NOW(), last_awt_gpu_job_id=%d' \
                % justinJobID
     else:
@@ -1631,7 +1631,7 @@ def recordResultsMethod(startResponse, jsonDict):
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'jobs.site_id, jobs.entry_id, users.access_token, '
              'jobs.has_inner_apptainer, jobs.job_state, workflows.state, '
-             'scope_name, jobs.requested_gpu, scopes.quota_id, '
+             'scope_name, jobs.requested_gpus, scopes.quota_id, '
              'principal_name, '
              'users.processing_enabled AS user_processing_enabled, '
              'quota_name, '
@@ -1654,7 +1654,7 @@ def recordResultsMethod(startResponse, jsonDict):
     siteID            = int(row['site_id'])
     entryID           = int(row['entry_id'])
     hasInnerApptainer = row['has_inner_apptainer']
-    requestedGPU      = row['requested_gpu']
+    requestedGPUs     = row['requested_gpus']
     jobState          = row['job_state']
     responseDict['user_access_token'] = row['access_token']
     quotaID           = row['quota_id']
@@ -1707,7 +1707,7 @@ def recordResultsMethod(startResponse, jsonDict):
                    entryID,
                    jsonDict['jobscript_log'],
                    hasInnerApptainer,
-                   requestedGPU)
+                   requestedGPUs)
 
   # Create an ordered output RSE list specific to this stage, used for logs
   # and any output files going to RSEs
