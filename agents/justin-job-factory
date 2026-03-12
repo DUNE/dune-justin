@@ -550,7 +550,11 @@ def workflowJobs():
                    requestedProcessors  = stageRow['processors'],
                    requestedRssBytes    = stageRow['rss_bytes'],
                    requestedWallSeconds = stageRow['wall_seconds'],
-                   requestedGPUs        = int(stageRow['gpus']))
+         requestedGPUs              = int(stageRow['gpus']),
+         requestedGPUsMinBytes      = int(stageRow['gpus_min_bytes'] / 1048576),
+         requestedGPUsMinRuntime    = stageRow[gpus_min_runtime],
+         requestedGPUsMinCapability = stageRow[gpus_min_capability],
+         requestedGPUsMaxCapability = stageRow[gpus_max_capability])
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
@@ -595,7 +599,11 @@ def awtJobsToSites():
                  requestedProcessors  = 1,
                  requestedRssBytes    = 1024 * 1024 * 1024,
                  requestedWallSeconds = 3600,
-                 requestedGPUs        = requestedGPUs)
+                 requestedGPUs              = requestedGPUs,
+                 requestedGPUsMinBytes      = 0,
+                 requestedGPUsMinRuntime    = 0.0,
+                 requestedGPUsMinCapability = 0.0,
+                 requestedGPUsMaxCapability = 0.0)
 
     
 def oneCycle():
