@@ -88,13 +88,17 @@ def submitJobs(numberToSubmit,
                requestedProcessors,
                requestedRssBytes,
                requestedWallSeconds,
-               requestedGPUs):
+               requestedGPUs,
+               requestedGPUsMinBytes,
+               requestedGPUsMinRuntime,
+               requestedGPUsMinCapability,
+               requestedGPUsMaxCapability):
 
   # If targetting one site, then firstSiteID should be non-zero
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d' %
+  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d %d %.1f %.1f %.1f' %
           (numberToSubmit,
                userName,
                needsInnerApptainer,
@@ -109,7 +113,11 @@ def submitJobs(numberToSubmit,
                requestedProcessors,
                requestedRssBytes,
                requestedWallSeconds,
-               requestedGPUs))
+               requestedGPUs,
+               requestedGPUsMinBytes,
+               requestedGPUsMinRuntime,
+               requestedGPUsMinCapability,
+               requestedGPUsMaxCapability))
   try:
     wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
   except Exception as e:
@@ -190,7 +198,23 @@ def submitJobs(numberToSubmit,
                       justin.instance, workflowID, stageID, desiredEntryNames))
 
   if requestedGPUs:
-   submitFile += '+RequestGPUs = 1\n'
+    submitFile += 'request_gpus = %d\n' % requestedGPUs
+   
+    if requestedGPUsMinBytes:
+      submitFile += 'gpus_minimum_memory = %d\n' \
+                            % int(requestedGPUsMinBytes / 1048576)
+
+    if requestedGPUsMinRuntime:
+      submitFile += 'gpus_minimum_runtime = %f\n' \
+                            % requestedGPUsMinRuntime
+
+    if requestedGPUsMinCapability:
+      submitFile += 'gpus_minimum_capability = %f\n' \
+                            % requestedGPUsMinCapability
+
+    if requestedGPUsMaxCapability:
+      submitFile += 'gpus_maximum_capability = %f\n' \
+                            % requestedGPUsMaxCapability
 
   submitFile += """
 +Desired_Sites          = "%s"
