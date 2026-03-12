@@ -384,6 +384,7 @@ def workflowJobs():
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
      'wlcg_group_name,stages.processors,stages.gpus,'
+     'gpus_min_bytes,gpus_min_runtime,gpus_min_capability,gpus_max_capability,'
      'stages.wall_seconds,stages.rss_bytes,scopes.quota_id,'
      'principal_names.principal_name,condor_group_name,jobscript_image '
      'FROM workflows '
