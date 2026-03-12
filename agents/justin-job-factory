@@ -553,9 +553,9 @@ def workflowJobs():
                    requestedWallSeconds = stageRow['wall_seconds'],
          requestedGPUs              = int(stageRow['gpus']),
          requestedGPUsMinBytes      = int(stageRow['gpus_min_bytes'] / 1048576),
-         requestedGPUsMinRuntime    = stageRow[gpus_min_runtime],
-         requestedGPUsMinCapability = stageRow[gpus_min_capability],
-         requestedGPUsMaxCapability = stageRow[gpus_max_capability])
+         requestedGPUsMinRuntime    = stageRow['gpus_min_runtime'],
+         requestedGPUsMinCapability = stageRow['gpus_min_capability'],
+         requestedGPUsMaxCapability = stageRow['gpus_max_capability'])
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
