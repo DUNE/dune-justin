@@ -3615,7 +3615,8 @@ def listScopes(environ, user, cgiValues):
 
   allCondorGroups = sorted(condorGroupsDict().keys())
 
-  while True:
+  if len(scopes) > 0:
+   while True:
 
     if endOfQuota < len(scopes)-1 and \
       scopes[endOfQuota+1]['quota_name'] == scopes[startOfQuota]['quota_name']:
