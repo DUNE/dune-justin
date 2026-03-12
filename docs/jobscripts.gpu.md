@@ -1,7 +1,7 @@
 # Support for GPU jobscripts
 
 If your application requires an NVIDIA GPU, then you can request one by
-giving the option `--gpu` to the `justin create-stage` or 
+giving the option `--gpus 1` to the `justin create-stage` or 
 `justin simple-workflow` commands as described in the 
 [justin man page](justin_command.man_page.md).
 

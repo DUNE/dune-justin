@@ -61,7 +61,8 @@ This man page is distributed along with the
     	      Create a new, empty workflow in the database, optionally with
     	      the given short, human-readable description and either a MetaCat
     	      Query Language expression or the count of the number of Monte
-    	      Carlo instances to run.
+    	      Carlo instances to run. The query is available within jobscripts
+    	      as $JUSTIN_MQL.
     
     	      --scope SCOPE specifies the Rucio scope used for any output
     	      files to be registered with Rucio and uploaded to Rucio-managed
@@ -123,7 +124,9 @@ This man page is distributed along with the
     
            create-stage --workflow-id ID --stage-id ID  --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
-    	      [--rss-mib N] [--processors N] [--gpu] [--max-distance DIST]
+    	      [--rss-mib N] [--processors N] [--gpus N] [--gpus-min-mib N]
+    	      [--gpus-min-runtime N.N] [--gpus-min-capability N.N]
+    	      [--gpus-max-capability N.N] [--max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]]
     	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
     	      NAME] [--output-rse-expression EXPRESSION] [--lifetime-days
@@ -155,9 +158,20 @@ This man page is distributed along with the
     	      $JUSTIN_RSS_MIB.	If the script can make use of multiple
     	      processors then --processors can be used to give the number
     	      needed, with a default of 1 if not given. The value used is
-    	      available to jobscripts as $JUSTIN_PROCESSORS.  If given then
-    	      --gpu will require that jobs for this stage have access to a
-    	      GPU.
+    	      available to jobscripts as $JUSTIN_PROCESSORS.
+    
+    	      GPUs can be requested with the --gpus option, which will require
+    	      that jobs for this stage have access to this many GPUs.
+    	      Additionally, [--gpus-min-mib N] can be used to set the minimum
+    	      memory in MiB a GPU must have to run this stage's jobs.
+    	      Similarly, [--gpus-min-runtime] adds a requirement on the
+    	      major.minor version of the CUDA runtime provided by the worker
+    	      node. The options [--gpus-min-capability] and
+    	      [--gpus-max-capability] do this for the major.minor versions of
+    	      the GPU hardware capability number.  If --gpus is not given but
+    	      any of the other GPU options are given, then 1 GPU is requested.
+    	      These options map directly to HTCondor's Submit File commands
+    	      for GPUs.
     
     	      By default, input files will only be allocated to a script which
     	      are on storages at the same site (distance=0). This can be
@@ -238,7 +252,9 @@ This man page is distributed along with the
     	      [--scope SCOPE] [--refind-end-date YYYYMMDD]
     	      [--refind-interval-hours HOURS] --jobscript
     	      FILENAME|--jobscript-git ORG/PATH:TAG [--wall-seconds N]
-    	      [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
+    	      [--rss-mib N] [--processors N] --max-distance DIST] [--gpus N]
+    	      [--gpus-min-mib N] [--gpus-min-runtime N.N]
+    	      [--gpus-min-capability N.N] [--gpus-max-capability N.N]
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
     	      [--output-rse-expression EXPRESSION] [--lifetime-days DAYS]
     	      [--env NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME]
@@ -365,7 +381,8 @@ This man page is distributed along with the
            with JUSTIN_, including $JUSTIN_WORKFLOW_ID, $JUSTIN_STAGE_ID and
            $JUSTIN_SECRET which allows the jobscript to authenticate to justIN's
            allocator service. $JUSTIN_PATH is used to reference files and scripts
-           provided by justIN.
+           provided by justIN. $JUSTIN_MQL contains the MetaCat query used to find
+           the input files for the first stage.
     
            To get the details of an input file to work on, the command
            $JUSTIN_PATH/justin-get-file is executed by the jobscript.  This

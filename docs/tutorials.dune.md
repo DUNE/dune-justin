@@ -263,14 +263,14 @@ replica to download. It puts it in subdirectory named after the scope
 ## Jobs using GPUs ##
 
 It's very easy to access NVIDIA GPUs on the grid using justIN: just add the
-`--gpu` option to the `justin simple-workflow` command and the jobs for your
+`--gpus 1` option to the `justin simple-workflow` command and the jobs for your
 workflow will be directed to machines with GPUs and one GPU will be
 requested for each job.
 
 In more detail, the full command to submit a "Hello GPU" workflow looks like
 this:
 
-    justin simple-workflow --monte-carlo 10 --gpu \
+    justin simple-workflow --monte-carlo 10 --gpus 1 \
       --jobscript-git DUNE/dune-justin/testing/hello-gpu.jobscript:01.04.rc0
 
 You could add more options to save output files as we did already, but for now
