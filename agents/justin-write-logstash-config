@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+import justin
+import sys
+import time
+import os
+from jinja2 import Environment, FileSystemLoader
+
+def logLine(text):
+  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stdout.flush()
+
+justin.readConf()
+
+if justin.opensearchURL and justin.opensearchIndex and justin.opensearchUsername and justin.opensearchPassword:
+
+  # Set up Jinja Template Dir
+  environment = Environment(loader=FileSystemLoader("/etc/logstash/justin/templates/"))
+
+  # TODO: This should probably go in a try block
+  # Get the template
+  template = environment.get_template( "01-justin-mysql-events.template" )
+  content = template.render(
+    justin_instance            = justin.instance,
+    justin_db_host             = justin.mysqlHostname,
+    justin_db_user             = justin.mysqlUsername,
+    justin_db_password         = justin.mysqlPassword,
+    justin_opensearch_url      = justin.opensearchURL,
+    justin_opensearch_index    = justin.opensearchIndex,
+    justin_opensearch_user     = justin.opensearchUsername,
+    justin_opensearch_password = justin.opensearchPassword,
+  )
+
+  print ( content )
+else:
+  logLine("OpenSearch configuration is not complete. Please check your config file. Exiting.")
+  sys.exit(1)
