@@ -6,8 +6,8 @@ import os
 from jinja2 import Environment, FileSystemLoader
 
 def logLine(text):
-  sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
-  sys.stdout.flush()
+  sys.stderr.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid()) + ']: ' + text + '\n')
+  sys.stderr.flush()
 
 justin.readConf()
 
