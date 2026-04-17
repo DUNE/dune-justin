@@ -6461,12 +6461,6 @@ def application(environ, startResponse):
     output = docsPage(startResponse, environ, user)
     return [output.encode('UTF-8')]
 
-  if not user or '/dune' not in user['wlcg_groups']:
-    startResponse('302 Moved', [('Location', environ['REQUEST_URI'] + '&login'),
-                                ('Content-length', '0')
-                               ])
-    return ''
-
   cgiValues  = { }
   
   try:
@@ -6491,9 +6485,19 @@ def application(environ, startResponse):
   except:
     pageLength = 30
 
+  if ((not user or '/dune' not in user['wlcg_groups']) and 
+      method and not method.startswith('download-')):
+    startResponse('302 Moved', [('Location', environ['REQUEST_URI'] + '&login'),
+                                ('Content-length', '0')
+                               ])
+    return ''
+
   if method is None:
     output = mainPage(environ, user)
   
+  elif method.startswith("download-"):
+    output = downloadCsvJson(environ, user, cgiValues, method)
+
   elif method == "authorized":
     output = authorizedPage(environ, user)
 
@@ -6562,9 +6566,6 @@ def application(environ, startResponse):
 
   elif method == "list-events":
     output = listEvents(environ, user, cgiValues, pageNumber, pageLength)
-
-  elif method.startswith("download-"):
-    output = downloadCsvJson(environ, user, cgiValues, method)
 
   elif method == "awt-results":
     output = awtResults(environ, user, cgiValues)
