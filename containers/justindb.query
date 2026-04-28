@@ -1,0 +1,12 @@
+SELECT event_id,event_type_name,events.workflow_id,description,mql,principal_name,events.stage_id,
+           file_did,jobsub_id,site_name,rse_name,event_time
+           FROM events
+           LEFT JOIN files ON events.file_id=files.file_id
+           LEFT JOIN jobs ON events.justin_job_id=jobs.justin_job_id
+           LEFT JOIN sites ON events.site_id=sites.site_id
+           LEFT JOIN storages ON events.rse_id=storages.rse_id
+           LEFT JOIN event_types on events.event_type_id=event_types.event_type_id
+           LEFT JOIN workflows on events.workflow_id=workflows.workflow_id
+           LEFT JOIN users ON workflows.user_id=users.user_id
+           LEFT JOIN principal_names on users.main_pn_id=principal_names.pn_id
+           WHERE event_time > :sql_last_value

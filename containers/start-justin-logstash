@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+mkdir -p /var/run/justin/logstash
+chown logstash:logstash /var/run/justin/logstash
+
+/usr/sbin/justin-write-logstash-config > /etc/logstash/conf.d/01-justin-mysql-events.conf
+if [ $? -ne 0 ]; then
+  echo "Failed to write LogStash configuration. Exiting."
+  exit 1
+fi
+# Start LogStash
+
+sudo -u logstash /usr/share/logstash/bin/logstash "--path.settings" "/etc/logstash"
+sleep 3000
