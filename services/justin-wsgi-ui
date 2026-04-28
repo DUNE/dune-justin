@@ -1,7 +1,7 @@
 #
 # justin-wsgi-ui - justIN commands and info API service
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -917,9 +917,41 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
     processors = 1
 
   try:
-    needsGPU = jsonDict['gpu']
+    gpus = int(jsonDict['gpus'])
   except:
-    needsGPU = False
+    gpus = 0
+
+  # The boolean --gpu option is deprecated
+  try:
+    if jsonDict['gpu'] and gpus == 0:
+      gpus = 1
+  except:
+    pass
+
+  try:
+    gpusMinBytes = int(jsonDict['gpus_min_mib']) * 1024 * 1024
+  except:
+    gpusMinBytes = 0
+
+  try:
+    gpusMinRuntime = float(jsonDict['gpu_min_runtime'])
+  except:
+    gpusMinRuntime = 0.0
+
+  try:
+    gpusMinCapability = float(jsonDict['gpu_min_capability'])
+  except:
+    gpusMinCapability = 0.0
+
+  try:
+    gpusMaxCapability = float(jsonDict['gpu_max_capability'])
+  except:
+    gpusMaxCapability = 0.0
+
+  # Always request a GPU if any GPU option given
+  if ((gpusMinBytes or gpusMinRuntime 
+       or gpusMinCapability or gpusMaxCapability) and gpus == 0):
+    gpus = 1
 
   try:
     wallSeconds = int(jsonDict['wall_seconds'])
@@ -1007,14 +1039,24 @@ def createStage(jsonDict, user, simple = False, scopeName = None):
                         'jobscript_git="%s",'
                         'jobscript_image="%s",'
                         'processors=%d,'
-                        'needs_gpu=%s,'
+                        'gpus=%d,'
+                        'gpus_min_bytes=%d,'
+                        'gpus_min_runtime=%f,'
+                        'gpus_min_capability=%f,'
+                        'gpus_max_capability=%f,'
                         'wall_seconds=%d,'
                         'rss_bytes=%d,'
                         'max_distance=%f' 
                         % (workflowID, stageID, 
                            jobscriptGit,
                            jobscriptImage,
-                           processors, needsGPU, wallSeconds, 
+                           processors, 
+                           gpus, 
+                           gpusMinBytes,
+                           gpusMinRuntime,
+                           gpusMinCapability,
+                           gpusMaxCapability,
+                           wallSeconds, 
                            rssBytes, maxDistance))
           
     justin.insertUpdate('INSERT INTO stages_jobscripts SET '

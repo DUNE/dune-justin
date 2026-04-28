@@ -1796,14 +1796,14 @@ def showWorkflow(environ, user, cgiValues):
         currentCampaignFound = True
 
       myCampaigns.append((str(row['campaign_id']), 
-                          '%d %s' % 
-                          (row['campaign_id'], 
+                          '%s %s' % 
+                          (str(row['campaign_id']), 
                            html.escape(row["description"][:20], quote=True))))
 
     if not currentCampaignFound and campaignID > 0:
       # Add the current value if not found in the limited list we made
       myCampaigns.append((str(campaignID), 
-                   '%d %s' % 
+                   '%s %s' % 
                    (str(campaignID), 
                     html.escape(campaignDescription[:20],
                                 quote=True)) ))
@@ -2143,7 +2143,11 @@ def showStage(environ, user, cgiValues):
   query = ("SELECT "
            "stages.stage_priority,"
            "stages.processors,"
-           "stages.needs_gpu,"
+           "stages.gpus,"
+           "stages.gpus_min_bytes,"
+           "stages.gpus_min_runtime,"
+           "stages.gpus_min_capability,"
+           "stages.gpus_max_capability,"
            "stages.wall_seconds,"
            "stages.rss_bytes,"
            "stages.max_distance,"
@@ -2188,8 +2192,22 @@ def showStage(environ, user, cgiValues):
   output += ('<tr><td>Processors</td>'
         '<td>%s</td></tr>' % stageRow["processors"])
 
-  if stageRow["needs_gpu"]:
-    output += ('<tr><td>GPU required</td><td>Yes</td></tr>')
+  if stageRow['gpus']:
+    output += ('<tr><td>GPUs</td><td>GPUs=%d' % stageRow['gpus'])
+
+    if stageRow['gpus_min_bytes']:
+      output += ' MinimumMiB=%d' % (int(stageRow['gpus_min_bytes']) / 1048576) 
+
+    if stageRow['gpus_min_runtime']:
+      output += ' MinimumRuntime=%.1f' % stageRow['gpus_min_runtime']
+
+    if stageRow['gpus_min_capability']:
+      output += ' MinimumCapability=%.1f' % stageRow['gpus_min_capability']
+
+    if stageRow['gpus_max_capability']:
+      output += ' MaximumCapability=%.1f' % stageRow['gpus_max_capability']
+
+    output += '</td></tr>'
 
   output += ('<tr><td>Wall seconds</td>'
         '<td>%s</td></tr>' % stageRow["wall_seconds"])
@@ -3125,13 +3143,13 @@ def showJob(environ, user, cgiValues):
            "jobs.heartbeat_time,jobs.outputting_time,"
            "jobs.site_job_id,"
            "jobs.requested_processors,"
-           "jobs.requested_gpu,"
+           "jobs.requested_gpus,"
            "jobs.requested_rss_bytes,"
            "jobs.requested_wall_seconds,jobscript_log,jobs.has_inner_apptainer,"
            "jobs.jobscript_exit,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes,"
-           "wrapper_tries_left,"
+           "logs_tries_left,"
            "LENGTH(wrapper_log) AS wrapper_log_len "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
@@ -3192,8 +3210,8 @@ def showJob(environ, user, cgiValues):
              'Processors</td><td>%d</td></tr>'
              % jobRow["requested_processors"])
 
-  output += ('<tr><td>GPU</td><td>%s</td></tr>' 
-                % ('Yes' if jobRow['requested_gpu'] else 'No'))
+  output += ('<tr><td>GPUs</td><td>%d</td></tr>' 
+                % jobRow['requested_gpus'])
 
   output += ('<tr><td>RSS bytes</td><td>%d (%d MiB)</td></tr>'
              % (jobRow["requested_rss_bytes"],
@@ -3363,8 +3381,8 @@ def showJob(environ, user, cgiValues):
   if (((jobRow['wrapper_log_len'] is None) or
        (jobRow['wrapper_log_len'] == 0)) 
       and
-      ((jobRow['wrapper_tries_left'] is None) or
-       (jobRow['wrapper_tries_left'] == 0))
+      ((jobRow['logs_tries_left'] is None) or
+       (jobRow['logs_tries_left'] == 0))
      ):
     output += '(HTCondor job logs unavailable)</td></tr>'
      
@@ -3875,7 +3893,8 @@ def listScopes(environ, user, cgiValues, pageNumber, pageLength):
 
   allCondorGroups = sorted(condorGroupsDict().keys())
 
-  while True:
+  if len(scopes) > 0:
+   while True:
 
     if endOfQuota < len(scopes)-1 and \
       scopes[endOfQuota+1]['quota_name'] == scopes[startOfQuota]['quota_name']:
@@ -6944,6 +6963,12 @@ def application(environ, startResponse):
   if environ['REQUEST_URI'].startswith('/docs'):
     output = docsPage(startResponse, environ, user)
     return [output.encode('UTF-8')]
+
+  if not user or '/dune' not in user['wlcg_groups']:
+    startResponse('302 Moved', [('Location', environ['REQUEST_URI'] + '&login'),
+                                ('Content-length', '0')
+                               ])
+    return ''
 
   cgiValues  = { }
   

@@ -88,13 +88,17 @@ def submitJobs(numberToSubmit,
                requestedProcessors,
                requestedRssBytes,
                requestedWallSeconds,
-               requestedGPU):
+               requestedGPUs,
+               requestedGPUsMinBytes,
+               requestedGPUsMinRuntime,
+               requestedGPUsMinCapability,
+               requestedGPUsMaxCapability):
 
   # If targetting one site, then firstSiteID should be non-zero
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d' %
+  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d %d %.1f %.1f %.1f' %
           (numberToSubmit,
                userName,
                needsInnerApptainer,
@@ -109,7 +113,11 @@ def submitJobs(numberToSubmit,
                requestedProcessors,
                requestedRssBytes,
                requestedWallSeconds,
-               requestedGPU))
+               requestedGPUs,
+               requestedGPUsMinBytes,
+               requestedGPUsMinRuntime,
+               requestedGPUsMinCapability,
+               requestedGPUsMaxCapability))
   try:
     wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
   except Exception as e:
@@ -189,8 +197,24 @@ def submitJobs(numberToSubmit,
                    % (justin.instance.upper(), 
                       justin.instance, workflowID, stageID, desiredEntryNames))
 
-  if requestedGPU:
-   submitFile += '+RequestGPUs = 1\n'
+  if requestedGPUs:
+    submitFile += 'request_gpus = %d\n' % requestedGPUs
+   
+    if requestedGPUsMinBytes:
+      submitFile += 'gpus_minimum_memory = %d\n' \
+                            % int(requestedGPUsMinBytes / 1048576)
+
+    if requestedGPUsMinRuntime:
+      submitFile += 'gpus_minimum_runtime = %f\n' \
+                            % requestedGPUsMinRuntime
+
+    if requestedGPUsMinCapability:
+      submitFile += 'gpus_minimum_capability = %f\n' \
+                            % requestedGPUsMinCapability
+
+    if requestedGPUsMaxCapability:
+      submitFile += 'gpus_maximum_capability = %f\n' \
+                            % requestedGPUsMaxCapability
 
   submitFile += """
 +Desired_Sites          = "%s"
@@ -295,12 +319,13 @@ queue %d
   for i in range(0, numberToSubmit):
     try:
       justinJobID = justin.insertUpdate('INSERT INTO jobs '
-                      'SET factory_name="%s",'
+                      'SET logs_tries_left=10,'
+                      'factory_name="%s",'
                       'workflow_id=%d,'
                       'stage_id=%d,'
                       'site_id=%d,'
                       'requested_processors=%d,'
-                      'requested_gpu=%d,'
+                      'requested_gpus=%d,'
                       'requested_rss_bytes=%d,'
                       'requested_wall_seconds=%d,'
                       'submitted_time=NOW(),'
@@ -312,7 +337,7 @@ queue %d
                          stageID,
                          firstSiteID,
                          requestedProcessors,
-                         requestedGPU,
+                         requestedGPUs,
                          requestedRssBytes,
                          requestedWallSeconds,
                          justinJobSecret,
@@ -358,7 +383,8 @@ def workflowJobs():
   try:
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
-     'wlcg_group_name,stages.processors,stages.needs_gpu,'
+     'wlcg_group_name,stages.processors,stages.gpus,'
+     'gpus_min_bytes,gpus_min_runtime,gpus_min_capability,gpus_max_capability,'
      'stages.wall_seconds,stages.rss_bytes,scopes.quota_id,'
      'principal_names.principal_name,condor_group_name,jobscript_image '
      'FROM workflows '
@@ -453,7 +479,7 @@ def workflowJobs():
             stageRow['stage_id'],            
             stageRow['workflow_id'],
             stageRow['stage_id'],            
-            '' if stageRow['needs_gpu'] else 'NOT',
+            '' if stageRow['gpus'] else 'NOT',
             '' if (stageRow['wlcg_group_name'] == '/dune/production') 
             else 'AND entries.always_inner_apptainer'))
 
@@ -525,7 +551,11 @@ def workflowJobs():
                    requestedProcessors  = stageRow['processors'],
                    requestedRssBytes    = stageRow['rss_bytes'],
                    requestedWallSeconds = stageRow['wall_seconds'],
-                   requestedGPU         = int(stageRow['needs_gpu']))
+         requestedGPUs              = int(stageRow['gpus']),
+         requestedGPUsMinBytes      = stageRow['gpus_min_bytes'],
+         requestedGPUsMinRuntime    = stageRow['gpus_min_runtime'],
+         requestedGPUsMinCapability = stageRow['gpus_min_capability'],
+         requestedGPUsMaxCapability = stageRow['gpus_max_capability'])
 
 def awtJobsToSites():
   # Go through the sites submitting AWT jobs
@@ -553,7 +583,7 @@ def awtJobsToSites():
       requestedGPUsList.append(1)
 
     # Submit one or two jobs per site        
-    for requestedGPU in requestedGPUsList:
+    for requestedGPUs in requestedGPUsList:
       submitJobs(numberToSubmit       = 1,
                  userName             = 'dunepro',
                  needsInnerApptainer  = False,
@@ -570,7 +600,11 @@ def awtJobsToSites():
                  requestedProcessors  = 1,
                  requestedRssBytes    = 1024 * 1024 * 1024,
                  requestedWallSeconds = 3600,
-                 requestedGPU         = requestedGPU)
+                 requestedGPUs              = requestedGPUs,
+                 requestedGPUsMinBytes      = 0,
+                 requestedGPUsMinRuntime    = 0.0,
+                 requestedGPUsMinCapability = 0.0,
+                 requestedGPUsMaxCapability = 0.0)
 
     
 def oneCycle():

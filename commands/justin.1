@@ -132,7 +132,9 @@ process.
 .HP
 .B "create-stage --workflow-id ID --stage-id ID 
 .B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
-.B [--wall-seconds N] [--rss-mib N] [--processors N] [--gpu]
+.B [--wall-seconds N] [--rss-mib N] [--processors N] 
+.B [--gpus N] [--gpus-min-mib N] [--gpus-min-runtime N.N]
+.B [--gpus-min-capability N.N] [--gpus-max-capability N.N]
 .B [--max-distance DIST] [--output-pattern PATTERN[:DESTINATION]]
 .B [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
@@ -172,9 +174,26 @@ If the script can make use of multiple processors then
 .B --processors
 can be used to give the number needed, with a default of 1 if not given. The
 value used is available to jobscripts as $JUSTIN_PROCESSORS.
-If given then
-.B --gpu
-will require that jobs for this stage have access to a GPU.
+
+GPUs can be requested with the 
+.B --gpus 
+option, which will require that jobs for this stage have access to this many
+GPUs. Additionally,
+.B [--gpus-min-mib N]
+can be used to set the minimum memory in MiB a GPU must have to run this 
+stage's jobs. Similarly,
+.B [--gpus-min-runtime]
+adds a requirement on the major.minor version of the CUDA runtime provided
+by the worker node. The options
+.B [--gpus-min-capability] 
+and
+.B [--gpus-max-capability]
+do this for the major.minor versions of the GPU hardware capability number. 
+If 
+.B --gpus
+is not given but any of the other GPU options are given, then 1 GPU is 
+requested. These options map directly to HTCondor's Submit File
+commands for GPUs.
 
 By default, input files will only be allocated to a script which are on 
 storages at the same site (distance=0). This can be changed by setting
@@ -260,7 +279,9 @@ then ":latest" is appended to the name given.
 .B [--refind-interval-hours HOURS] 
 .B --jobscript FILENAME|--jobscript-git ORG/PATH:TAG
 .B [--wall-seconds N]
-.B [--rss-mib N] [--processors N] [--gpu] --max-distance DIST]
+.B [--rss-mib N] [--processors N] --max-distance DIST]
+.B [--gpus N] [--gpus-min-mib N] [--gpus-min-runtime N.N]
+.B [--gpus-min-capability N.N] [--gpus-max-capability N.N]
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
 .B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
