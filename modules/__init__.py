@@ -78,6 +78,11 @@ metacatAuthServerURL    = None
 metacatServerInputsURL  = None
 metacatServerOutputsURL = None
 
+opensearchURL      = None
+opensearchIndex    = None
+opensearchUsername = None
+opensearchPassword = None
+
 awtWorkflowID = None
 
 bannerMessage = None
@@ -191,7 +196,8 @@ def readConf():
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
          wrapperJobImage, overloadRucioMilliseconds, \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
-         extraEntries, parallelJobLogs
+         extraEntries, parallelJobLogs, \
+         opensearchURL, opensearchIndex, opensearchUsername, opensearchPassword
 
   parser = configparser.RawConfigParser()
 
@@ -397,6 +403,27 @@ def readConf():
     rcdsServers = parser.get('fnal_agent', 'rcds_servers').strip().split()
   except:
     rcdsServers = ['rcds01.fnal.gov']
+
+  # Opensearch
+  try:
+    opensearchUsername = parser.get('opensearch', 'opensearch_username').strip()
+  except:
+    opensearchUsername = None
+
+  try:
+    opensearchPassword = parser.get('opensearch', 'opensearch_password').strip()
+  except:
+    opensearchPassword = None
+
+  try:
+    opensearchURL = parser.get('opensearch', 'opensearch_url').strip()
+  except:
+    opensearchURL = 'https://opensearch-cluster.monitoring.edi.scotgrid.ac.uk:443'
+
+  try:
+    opensearchIndex = parser.get('opensearch', 'opensearch_index').strip()
+  except:
+    opensearchIndex = 'justin_events'
 
 def logLine(text):
   sys.stdout.write(time.strftime('%b %d %H:%M:%S [') + str(os.getpid())
