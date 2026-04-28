@@ -33,6 +33,7 @@ import textwrap
 import urllib
 import urllib.parse
 import urllib.request
+from datetime import datetime as dt
 
 # install with pip3 install pygal
 import pygal
@@ -43,6 +44,9 @@ import markdown
 import metacat.webapi
 
 import justin
+
+from justin.dashboard.components.filterForm import FilterForm, Select, DateSelector
+import justin.dashboard.utils as utils
 
 timeNow = None 
   
@@ -1024,111 +1028,143 @@ to visit.</p>
 
 def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
 
-  whereList = []
-  queryList = ''
-
+  urlTemplate = '/dashboard/?method=list-campaigns&page_number=%d&page_length=%d'
+  filter_str_items = []
+  titleSuffixes = []
+  
   try:
-    userName = cgiValues["user_name"]
-
-    if userName != '--ANY--' and not justin.stringIsUsername(userName):
-      raise
-  except:
-    userName = ''
-
-  if userName:
-    # If the user name was given explicitly, then we pass it on
-    # Otherwise it is left out for subsequent next page etc clicks
-    queryList += '&user_name=%s' % userName
-  else:
-    # But userName must be set to something, even just --ANY--
-    if user:
-      # User is logged in, so we use their name instead of implicit --ANY--
-      userName = user['user_name']
+    if cgiValues["user_name"] == 'ANY':
+      username = None
     else:
-      # Always fall back to any user
-      userName = '--ANY--'
-
-  if userName != '--ANY--':
-    # For any user, we just skip this condition 
-    whereList.append('principal_name="%s"' % userName)
+      username = str(cgiValues["user_name"])
+      # validate if you want (optional but safer)
+      if not justin.stringIsUsername(username):
+        raise Exception("Invalid user_name")
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username)
+      filter_str_items.append('principal_name="%s"' % username.replace('"', '\\"'))
+  except:
+    if user:
+      username = user['user_name']
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username)
+      filter_str_items.append('principal_name="%s"' % username.replace('"', '\\"'))
+    else:
+      pass
 
   try:
-    quotaName = cgiValues["quota_name"]
-
-    if not justin.stringIsScope(quotaName):
-      raise
+    if cgiValues["quota_name"] == 'ANY':
+      quotaName = None
+    else:
+      quotaName = str(cgiValues["quota_name"])
+      if not justin.stringIsScope(quotaName):
+        raise Exception("Invalid quota_name")
+      urlTemplate += ('&quota_name=%s' % quotaName)
+      titleSuffixes.append('Quota %s' % quotaName)
+      filter_str_items.append('quota_name="%s"' % quotaName.replace('"', '\\"'))
   except:
-    quotaName = ''
-  else:
-    if quotaName:
-      whereList.append('quota_name="%s"' % quotaName)
-      queryList += '&quota_name=%s' % quotaName
+    pass
 
-  if whereList:
-    whereString = ' WHERE ' + ' AND '.join(whereList)
-  else:
-    whereString = ''
+  try:
+    if cgiValues["from_date"] == 'ANY':
+      from_date = None
+    else:
+      from_date = str(cgiValues["from_date"])
+      dt.strptime(from_date, '%Y-%m-%d')  # validate
+      urlTemplate += ('&from_date=%s' % from_date)
+      titleSuffixes.append('From %s' % from_date)
+      filter_str_items.append('campaigns.created >= "%s"' % from_date)
+  except:
+    pass
 
-  # These lists are used for the pull down menus in the filter HTML
-  userRows = justin.select('SELECT principal_name FROM users '
-                           'LEFT JOIN principal_names '
-                           'ON users.main_pn_id=principal_names.pn_id '
-                           'ORDER BY principal_name')
-  quotaRows = justin.select('SELECT quota_name FROM named_quotas '
-                            'WHERE for_justin ORDER BY quota_name')
+  try:
+    if cgiValues["to_date"] == 'ANY':
+      to_date = None
+    else:
+      to_date = str(cgiValues["to_date"])
+      dt.strptime(to_date, '%Y-%m-%d')  # validate
+      if from_date and dt.strptime(to_date, '%Y-%m-%d') < dt.strptime(from_date, '%Y-%m-%d'):
+        to_date = from_date
+        cgiValues["to_date"] = from_date
+      urlTemplate += ('&to_date=%s' % to_date)
+      titleSuffixes.append('To %s' % to_date)
+      filter_str_items.append('campaigns.created < DATE_ADD("%s", INTERVAL 1 DAY)' % to_date)
+  except:
+    pass
 
-  output = header(environ, user, "justIN: Campaigns")
+  sql_where_clause = ''
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
 
-  output += "<h1>Campaigns</h1>"
+  titleSuffix = ''
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
 
-  output += ('<p><form method="get" formaction="/dashboard/">'
-    '<input type="hidden" name="method" value="list-campaigns">'
-    '<label>Created&nbsp;by:<select name="user_name">'
-    '<option value="--ANY--"%s>ANY</option>'
-    % (' selected' if userName == '--ANY--' else ''))
+  output = header(environ, user, "justIN: Campaigns" + titleSuffix)
+  output += "<h1>Campaigns%s</h1>" % titleSuffix
 
+  # full_query for dropdown values
+  full_query = (
+    'SELECT campaign_id,campaigns.description,'
+    'principal_name AS user_name,'
+    'campaigns.created,quota_name,'
+    '(SELECT COUNT(*) FROM files'
+    ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+    ' WHERE workflows.campaign_id=campaigns.campaign_id'
+    ' AND files.stage_id=1 '
+    ' AND files.state="processed") AS files_processed,'
+    '(SELECT COUNT(*) FROM files'
+    ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+    ' WHERE workflows.campaign_id=campaigns.campaign_id'
+    ' AND files.stage_id=1) AS files_total,'
+    '(SELECT COUNT(*) FROM workflows'
+    ' WHERE workflows.campaign_id=campaigns.campaign_id)'
+    ' AS workflows_count '
+    'FROM campaigns '
+    'LEFT JOIN users ON campaigns.user_id=users.user_id '
+    'LEFT JOIN principal_names '
+    'ON principal_names.pn_id=users.main_pn_id '
+    'LEFT JOIN named_quotas ON named_quotas.quota_id=campaigns.quota_id '
+    '%s '
+    'ORDER BY campaigns.campaign_id DESC' % (sql_where_clause)
+  )
+
+  justin.cur.execute(full_query)
+  fullRows = justin.cur.fetchall()
+
+  unique_values = {
+    "User Name": set(),
+    "Quota Name": set(),
+    "Created Day": set(),
+  }
+
+  for row in fullRows:
+    if row.get('user_name'):
+      unique_values["User Name"].add(row['user_name'])
+    if row.get('quota_name'):
+      unique_values["Quota Name"].add(row['quota_name'])
+    if row.get('created'):
+      unique_values["Created Day"].add(row['created'].strftime('%Y-%m-%d'))
+
+  # sort + logged-in user first
+  user_name_list = sorted(unique_values["User Name"])
   if user:
-    # If logged in, offer their own name first
-    output += ('<option value="%s"%s>%s</option>' 
-               % (user['user_name'],
-                  ' selected' 
-                  if user['user_name'] == userName
-                  else '',
-                  user['user_name']))
+    logged_user_name = user.get('user_name')
+    if logged_user_name in user_name_list:
+      user_name_list.remove(logged_user_name)
+      user_name_list = [logged_user_name] + user_name_list
 
-  output += '<option value="" disabled>---</option>'
+  fields = [
+    Select(options=user_name_list, label_name="User Name", name="user_name"),
+    Select(options=sorted(unique_values["Quota Name"]), label_name="Quota Name", name="quota_name"),
+    DateSelector(name="from_date", label_name="From Date"),
+    DateSelector(name="to_date", label_name="To Date"),
+  ]
 
-  for userRow in userRows:
-    # List the other user names, selecting them if selected BUT not if
-    # its the logged in user since that is at the top of the list already
-    output += ('<option value="%s"%s>%s</option>' 
-               % (userRow['principal_name'],
-                  ' selected' 
-                  if userRow['principal_name'] == userName and 
-                  (not user or user['user_name'] != userRow['principal_name'])
-                  else '',
-                  userRow['principal_name']))
+  campaignFilterForm = FilterForm(fields=fields, cgi_method='list-campaigns')
+  campaignFilterForm.update(cgiValues)
 
-  output += ('</select></label> '
-    '<label>Quota:<select name="quota_name">'
-    '<option value=""%s>ANY</option>'
-    % ('' if quotaName else ' selected'))
-  
-  for quotaRow in quotaRows:
-    output += ('<option value="%s"%s>%s</option>' 
-               % (quotaRow['quota_name'],
-                  ' selected' 
-                  if quotaRow['quota_name'] == quotaName
-                  else '',
-                  quotaRow['quota_name']))
-
-  output += '</select></label> '
-
-  output += ('<input type="submit" value="Filter" '
-    'style="background: #E1703D; border-radius: 5px; padding: 5px; '
-    'color: white; font-weight: bold; font-size: 1em; border: 0; '
-    'cursor: pointer"></form></p>\n')
-  
+  output += campaignFilterForm.render()
   query = ('SELECT campaign_id,campaigns.description,'
            'principal_name AS user_name,'
            'campaigns.created,quota_name,'
@@ -1151,16 +1187,13 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
            'LEFT JOIN named_quotas ON named_quotas.quota_id=campaigns.quota_id '
            '%s '
            'ORDER BY campaigns.campaign_id DESC LIMIT %d,%d' %
-           (whereString, pageNumber * pageLength, pageLength + 1))
+           (sql_where_clause, pageNumber * pageLength, pageLength + 1))
 
 ##  print(query, file=sys.stderr)
   justin.cur.execute(query)
   rows = justin.cur.fetchall()
 
-  output += makePager(pageNumber, pageLength, len(rows), 
-                      "/dashboard/?method=list-campaigns&page_number=%d"
-                      "&page_length=%d" + queryList) 
-             
+  output += makePager(pageNumber, pageLength, len(rows), urlTemplate)
   output += '<p><table>'
   output += ('<tr><th>Campaign</th>'
              '<th>Description</th>'
@@ -1198,7 +1231,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
   
   output += makePager(pageNumber, pageLength, len(rows), 
                       "/dashboard/?method=list-campaigns&page_number=%d"
-                      "&page_length=%d" + queryList)
+                      "&page_length=%d" + urlTemplate)
   output += footer()
   
   return output
@@ -3357,72 +3390,113 @@ def showJob(environ, user, cgiValues):
 def listJobs(environ, user, cgiValues, pageNumber, pageLength):
       
   urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
-  filters       = []
+  filter_str_items       = []
   titleSuffixes = []
 
   try:
-    workflowID    = int(cgiValues["workflow_id"])
-    urlTemplate += ('&workflow_id=%d' % workflowID)
-    titleSuffixes.append('Workflow %d' % workflowID) 
-    filters.append('jobs.workflow_id=%d' % workflowID)
+    if cgiValues["user_name"] == 'ANY':
+        username = None
+    else:
+      username    = str(cgiValues["user_name"])
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username) 
+      filter_str_items.append('principal_names.principal_name=\'%s\'' % username)
+  except:
+    if user:
+      username    = user['user_name']
+      urlTemplate += ('&user_name=%s' % username)
+      titleSuffixes.append('User Name %s' % username) 
+      filter_str_items.append('principal_names.principal_name=\'%s\'' % username)
+    else:
+      pass
+  
+  try:
+    if cgiValues["submitted_time"] == 'ANY':
+      submit_time = None
+    else:
+      submit_time    = str(cgiValues["submitted_time"])
+      urlTemplate += ('&submitted_time=%s' % submit_time)
+      titleSuffixes.append('Submitted Time %s' % submit_time) 
+      filter_str_items.append('jobs.submitted_time >= \'%s\' AND jobs.submitted_time <  DATE_ADD(\'%s\', INTERVAL 1 DAY)' % (submit_time, submit_time))
   except:
     pass
   
   try:
-    stageID      = int(cgiValues["stage_id"])
-    urlTemplate += '&stage_id=' + str(stageID)
-    titleSuffixes.append('Stage %d' % stageID) 
-    filters.append('jobs.stage_id=%d' % stageID)
+    if cgiValues["workflow_id"] == 'ANY':
+      workflowID = None
+    else:
+      workflowID    = int(cgiValues["workflow_id"])
+      urlTemplate += ('&workflow_id=%d' % workflowID)
+      titleSuffixes.append('Workflow %d' % workflowID) 
+      filter_str_items.append('jobs.workflow_id=%d' % workflowID)
+  except:
+    pass
+  
+  try:
+    if cgiValues["stage_id"] == 'ANY':
+      stageID = None
+    else:
+      stageID      = int(cgiValues["stage_id"])
+      urlTemplate += '&stage_id=' + str(stageID)
+      titleSuffixes.append('Stage %d' % stageID) 
+      filter_str_items.append('jobs.stage_id=%d' % stageID)
   except:
     pass
 
   try:
-    allocationState = str(cgiValues["job_state"])
+    if cgiValues["job_state"] == 'ANY':
+      allocationState = None
+    else:
+      allocationState = str(cgiValues["job_state"])
   except:
     pass
   else:
     if allocationState in justin.jobStatesAll:
-      filters.append('jobs.job_state="%s"' % allocationState)
+      filter_str_items.append('jobs.job_state="%s"' % allocationState)
       urlTemplate += '&job_state=' + allocationState
       titleSuffixes.append('Allocation State %s' % allocationState)
 
   try:
-    siteName = cgiValues["site_name"]
+    if cgiValues["site_name"] == 'ANY':
+      siteName = None
+    else:
+      siteName = cgiValues["site_name"]
   except:
     pass
   else:
     if siteName and justin.stringIsSite(siteName):
-      filters.append('sites.site_name="%s"' % siteName)
+      filter_str_items.append('sites.site_name="%s"' % siteName)
       urlTemplate += '&site_name=' + siteName
       titleSuffixes.append('Site %s' % siteName)
 
   try:
-    entryName = cgiValues["entry_name"]
+    if cgiValues["entry_name"] == 'ANY':
+      entryName = None
+    else:
+      entryName = cgiValues["entry_name"]
   except:
     pass
   else:
     if entryName and justin.stringIsSite(entryName):
-      filters.append('entries.entry_name="%s"' % entryName)
+      filter_str_items.append('entries.entry_name="%s"' % entryName)
       urlTemplate += '&entry_name=' + entryName
       titleSuffixes.append('Entry %s' % entryName)
-
-  filter = ' AND '.join(filters)
-
-  if filter:
-    filter = 'WHERE ' + filter
-  else:
-    filter = ''
+  
+  sql_where_clause = ''
+  # sql_where_clause = 'WHERE jobs.submitted_time >= CURDATE() - INTERVAL 1 DAY AND jobs.submitted_time <  CURDATE() + INTERVAL 1 DAY' # boost performance, default show today and yesterday's jobs
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
+  
     
+  titleSuffix = ''
   if titleSuffixes:
     titleSuffix = ' for ' + ', '.join(titleSuffixes)
-  else:
-    titleSuffix = ''
-    
+  
+
   output = header(environ, user, "justIN: Jobs" + titleSuffix)
 
   output += "<h1>Jobs%s</h1>" % titleSuffix
-  
-  if not filter:   
+  if not sql_where_clause:   
     try:
       query = ('SELECT '
                ' (SELECT COUNT(*) FROM jobs '
@@ -3457,16 +3531,88 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
            "%s "
            "ORDER BY jobs.justin_job_id DESC LIMIT %d,%d" %
-           (filter, pageNumber * pageLength, pageLength + 1)
+           (sql_where_clause, pageNumber * pageLength, pageLength + 1)
           )
 
   justin.cur.execute(query)
   jobRows = justin.cur.fetchall()
+  
+  full_query = ("SELECT DISTINCT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
+           "sites.site_name,entries.entry_name,"
+           "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
+           "jobs.finished_time,jobs.jobsub_state,jobs.jobscript_exit,"
+           "principal_names.principal_name AS user_name "
+           "FROM jobs "
+           "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
+           "LEFT JOIN users ON workflows.user_id=users.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
+           "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
+           "%s "
+           "ORDER BY jobs.justin_job_id DESC" % 
+           (sql_where_clause)
+          )
 
+  justin.cur.execute(full_query)
+  fullRows = justin.cur.fetchall()
+  
+  unique_values = {
+    "Workflow ID": set(),
+    "Stage ID": set(),
+    "Job State": set(),
+    "Site Name": set(),
+    "Entry Name": set(),
+    "Submitted Time": set(),
+    "User Name": set()
+    }
+
+  for row in fullRows:
+    if row.get('user_name'):
+      unique_values["User Name"].add(row['user_name'])
+    if row.get('workflow_id'):
+        unique_values["Workflow ID"].add(row['workflow_id'])
+    if row.get('stage_id'):
+        unique_values["Stage ID"].add(row['stage_id'])
+    if row.get('job_state'):
+        unique_values["Job State"].add(row['job_state'])
+    if row.get('site_name'):
+        unique_values["Site Name"].add(row['site_name'])
+    if row.get('entry_name'):
+        unique_values["Entry Name"].add(row['entry_name'])
+    if row.get('submitted_time'):
+        sub_time_YYYYMMdd = row['submitted_time'].strftime('%Y-%m-%d')
+        unique_values["Submitted Time"].add(sub_time_YYYYMMdd)
+  
+  # Convert and sort
+  user_name_list = sorted(unique_values["User Name"])
+  
+  if user: # logged in user first in the list
+    logged_user_name = user.get('user_name')
+    if logged_user_name in user_name_list:
+        user_name_list.remove(logged_user_name)
+        user_name_list = [logged_user_name] + user_name_list
+
+  submitted_time_list = sorted(unique_values["Submitted Time"],  key=lambda s: dt.strptime(s, '%Y-%m-%d'), reverse=True)
+  
+  fields = [
+    Select(label_name = "User Name", name = "user_name", options = user_name_list),
+    Select(label_name = "Workflow ID", name = "workflow_id", options = sorted(unique_values["Workflow ID"])),
+    Select(label_name = "Stage ID", name = "stage_id", options = sorted(unique_values["Stage ID"])),
+    Select(label_name = "Job State", name = "job_state", options = sorted(unique_values["Job State"])),
+    Select(label_name = "Site Name", name = "site_name", options = sorted(unique_values["Site Name"])),
+    Select(label_name = "Entry Name", name = "entry_name", options = sorted(unique_values["Entry Name"])),
+    Select(label_name = "Submitted Time", name = "submitted_time", options = submitted_time_list)
+  ] 
+  
+  jobFilterForm = FilterForm(fields=fields, cgi_method='list-jobs')
+  jobFilterForm.update(cgiValues)
+  
+  output += jobFilterForm.render()
+  
   output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
 
   output += '<p><table class="center">'
-  
   output += ('<tr>'
         '<th>Jobsub ID</th>'
         '<th>Job state</th>'
@@ -3548,19 +3694,104 @@ def listJobs(environ, user, cgiValues, pageNumber, pageLength):
   output += footer()
   return output
 
-def listScopes(environ, user, cgiValues):
-      
-  output = header(environ, user, "justIN: Scopes")
+def listScopes(environ, user, cgiValues, pageNumber, pageLength):
+  urlTemplate   = '/dashboard/?method=list-scopes&page_number=%d&page_length=%d'
 
-  output += ("<h1>Scopes</h1>\n")
+  filter_str_items = []
+  titleSuffixes = []
 
+  # --- Base constraints (always on) ---
+  filter_str_items.append('scopes.quota_id<>0')
+  filter_str_items.append('named_quotas.for_justin')
+
+  # --- Optional filters from CGI ---
+  # scope_name
+  try:
+    if cgiValues.get("scope_name") and cgiValues["scope_name"] != "ANY":
+      scope_name = str(cgiValues["scope_name"])
+      urlTemplate += ('&scope_name=%s' % scope_name)
+      titleSuffixes.append('Scope %s' % scope_name)
+      filter_str_items.append("scopes.scope_name='%s'" % scope_name.replace("'", "''"))
+  except:
+    pass
+
+  # quota_name
+  try:
+    if cgiValues.get("quota_name") and cgiValues["quota_name"] != "ANY":
+      quota_name = str(cgiValues["quota_name"])
+      urlTemplate += ('&quota_name=%s' % quota_name)
+      titleSuffixes.append('Quota %s' % quota_name)
+      filter_str_items.append("named_quotas.quota_name='%s'" % quota_name.replace("'", "''"))
+  except:
+    pass
+
+  # processing_enabled (your scopes dict uses "True"/"False")
+  try:
+    if cgiValues.get("processing_enabled") and cgiValues["processing_enabled"] != "ANY":
+      pe = str(cgiValues["processing_enabled"])
+      urlTemplate += ('&processing_enabled=%s' % pe)
+      titleSuffixes.append('Processing enabled %s' % pe)
+      if pe.lower() in ("true", "1", "yes", "y"):
+        filter_str_items.append("named_quotas.processing_enabled=1")
+      elif pe.lower() in ("false", "0", "no", "n"):
+        filter_str_items.append("named_quotas.processing_enabled=0")
+  except:
+    pass
+
+  # owner (can be wlcg_group_name OR principal_name)
+  try:
+    if cgiValues.get("owner") and cgiValues["owner"] != "ANY":
+      owner = str(cgiValues["owner"])
+      urlTemplate += ('&owner=%s' % owner)
+      titleSuffixes.append('Owner %s' % owner)
+      owner_sql = owner.replace("'", "''")
+      filter_str_items.append(
+        "(wlcg_groups.wlcg_group_name='%s' OR principal_names.principal_name='%s')" %
+        (owner_sql, owner_sql)
+      )
+  except:
+    pass
+
+  # scope_condor_group_name (alias scope_condor_groups)
+  try:
+    if cgiValues.get("scope_condor_group_name") and cgiValues["scope_condor_group_name"] != "ANY":
+      scg = str(cgiValues["scope_condor_group_name"])
+      urlTemplate += ('&scope_condor_group_name=%s' % scg)
+      titleSuffixes.append('Scope condor group %s' % scg)
+      filter_str_items.append(
+        "scope_condor_groups.condor_group_name='%s'" % scg.replace("'", "''")
+      )
+  except:
+    pass
+
+  # max_files_per_workflow (numeric)
+  try:
+    if cgiValues.get("max_files_per_workflow") and cgiValues["max_files_per_workflow"] != "ANY":
+      m = int(cgiValues["max_files_per_workflow"])
+      urlTemplate += ('&max_files_per_workflow=%d' % m)
+      titleSuffixes.append('Max files %d' % m)
+      filter_str_items.append("named_quotas.max_files_per_workflow=%d" % m)
+  except:
+    pass
+
+  sql_where_clause = ''
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
+
+  titleSuffix = ''
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
+
+  output = header(environ, user, "justIN: Scopes" + titleSuffix)
+  output += ("<h1>Scopes%s</h1>\n" % titleSuffix)
   output += ("<p>Scopes available for justIN workflows</p>\n")
-  
-  query = ('SELECT scope_name,wlcg_group_name,'
-           'scope_condor_groups.condor_group_name AS scope_condor_group_name,'
-           'quota_condor_groups.condor_group_name AS quota_condor_group_name,'
-           'max_files_per_workflow,named_quotas.processing_enabled,'
-           'quota_name,principal_name '
+
+  query = (
+        'SELECT scope_name,wlcg_group_name,'
+        'scope_condor_groups.condor_group_name AS scope_condor_group_name,'
+        'quota_condor_groups.condor_group_name AS quota_condor_group_name,'
+        'max_files_per_workflow,named_quotas.processing_enabled,'
+        'quota_name,principal_name '
         'FROM scopes '
         'LEFT JOIN condor_groups AS scope_condor_groups '
         'ON scope_condor_groups.condor_group_id=scopes.condor_group_id '
@@ -3574,8 +3805,11 @@ def listScopes(environ, user, cgiValues):
         'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN wlcg_groups '
         'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
-        'WHERE scopes.quota_id<>0 AND named_quotas.for_justin '
-        'ORDER BY quota_name,scope_name')
+        '%s '
+        'ORDER BY quota_name,scope_name '
+        'LIMIT %d,%d' % (sql_where_clause, pageNumber * pageLength, pageLength + 1)
+  )
+
   scopeRows = justin.select(query)
 
   scopes = []
@@ -3599,7 +3833,33 @@ def listScopes(environ, user, cgiValues):
                        if scopeRow['quota_condor_group_name'] else ' ',
                     'max_files_per_workflow' : 
                        str(scopeRow['max_files_per_workflow']) })
+  
+  output += makePager(pageNumber, pageLength, len(scopeRows), urlTemplate)
+  
+  fields_values_dict: dict[str, set | list] = {}
+  show_fields_name = ['scope_name', 'scope_condor_group_name', 'quota_name', 'processing_enabled', 'owner', 'max_files_per_workflow']
+  for fn in show_fields_name:
+    for scope in scopes:
+      if fn not in fields_values_dict:
+        fields_values_dict[fn] = set()
+      val = scope[fn]
+      if val:
+        val = val.strip() if isinstance(val, str) else val
+        fields_values_dict[fn].add(val)
+    fields_values_dict[fn] = sorted(fields_values_dict[fn])
 
+  fields = [
+      Select(label_name = "Scope name", name = "scope_name", options = fields_values_dict['scope_name']),
+      Select(label_name = "HTCondor Group", name = "scope_condor_group_name", options = fields_values_dict['scope_condor_group_name']),
+      Select(label_name = "Quota name", name = "quota_name", options = fields_values_dict['quota_name']),
+      Select(label_name = "Processing enabled?", name = "processing_enabled", options = fields_values_dict['processing_enabled']),
+      Select(label_name = "Owner", name = "owner", options = fields_values_dict['owner']),
+      Select(label_name = "Max input files", name = "max_files_per_workflow", options = fields_values_dict['max_files_per_workflow']),
+  ]
+  
+  scopeFilterForm = FilterForm(fields=fields, cgi_method='list-scopes')
+  scopeFilterForm.update(cgiValues)
+  output += scopeFilterForm.render()
   output += ('<table class="center">')
   
   output += ('<tr>'
@@ -3676,18 +3936,95 @@ def listScopes(environ, user, cgiValues):
     endofQuota   = startOfQuota
 
   output += "</table>\n"
-
+  output += makePager(pageNumber, pageLength, len(scopeRows), urlTemplate)
   output += footer()
   return output
 
-def listQuotas(environ, user, cgiValues):
-      
-  output = header(environ, user, "justIN: Named quotas")
+def listQuotas(environ, user, cgiValues, pageNumber, pageLength):
 
-  output += ("<h1>Named quotas</h1>\n")
+  urlTemplate = '/dashboard/?method=list-quotas&page_number=%d&page_length=%d'
 
+  filter_str_items = []
+  titleSuffixes = []
+
+  # Base constraint (always on)
+  filter_str_items.append('named_quotas.for_justin')
+
+  # --- Optional filters from CGI ---
+
+  # quota_name
+  try:
+    if cgiValues.get("quota_name") and cgiValues["quota_name"] != "ANY":
+      quota_name = str(cgiValues["quota_name"])
+      urlTemplate += ('&quota_name=%s' % quota_name)
+      titleSuffixes.append('Quota %s' % quota_name)
+      filter_str_items.append("named_quotas.quota_name='%s'" % quota_name.replace("'", "''"))
+  except:
+    pass
+
+  # processing_enabled (accept True/False/Enabled/Disabled/1/0)
+  try:
+    if cgiValues.get("processing_enabled") and cgiValues["processing_enabled"] != "ANY":
+      pe = str(cgiValues["processing_enabled"]).strip()
+      urlTemplate += ('&processing_enabled=%s' % pe)
+      titleSuffixes.append('Processing %s' % pe)
+
+      pe_l = pe.lower()
+      if pe_l in ("true", "1", "yes", "y", "enabled"):
+        filter_str_items.append("named_quotas.processing_enabled=1")
+      elif pe_l in ("false", "0", "no", "n", "disabled"):
+        filter_str_items.append("named_quotas.processing_enabled=0")
+  except:
+    pass
+
+  # owner (wlcg_group_name OR principal_name)
+  try:
+    if cgiValues.get("owner") and cgiValues["owner"] != "ANY":
+      owner = str(cgiValues["owner"])
+      urlTemplate += ('&owner=%s' % owner)
+      titleSuffixes.append('Owner %s' % owner)
+      owner_sql = owner.replace("'", "''")
+      filter_str_items.append(
+        "(wlcg_groups.wlcg_group_name='%s' OR principal_names.principal_name='%s')" %
+        (owner_sql, owner_sql)
+      )
+  except:
+    pass
+
+  # condor_group_name (quota-level HTCondor group)
+  try:
+    if cgiValues.get("condor_group_name") and cgiValues["condor_group_name"] != "ANY":
+      cg = str(cgiValues["condor_group_name"])
+      urlTemplate += ('&condor_group_name=%s' % cg)
+      titleSuffixes.append('HTCondor Group %s' % cg)
+      filter_str_items.append("condor_groups.condor_group_name='%s'" % cg.replace("'", "''"))
+  except:
+    pass
+
+  # max_files_per_workflow (numeric)
+  try:
+    if cgiValues.get("max_files_per_workflow") and cgiValues["max_files_per_workflow"] != "ANY":
+      m = int(cgiValues["max_files_per_workflow"])
+      urlTemplate += ('&max_files_per_workflow=%d' % m)
+      titleSuffixes.append('Max files %d' % m)
+      filter_str_items.append("named_quotas.max_files_per_workflow=%d" % m)
+  except:
+    pass
+
+  # WHERE clause
+  sql_where_clause = ''
+  if len(filter_str_items):
+    sql_where_clause = 'WHERE ' + ' AND '.join(filter_str_items)
+
+  # Title suffix
+  titleSuffix = ''
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
+
+  output = header(environ, user, "justIN: Named quotas" + titleSuffix)
+  output += ("<h1>Named quotas%s</h1>\n" % titleSuffix)
   output += ("<p>Named quotas available for justIN workflows</p>\n")
-  
+
   query = ('SELECT wlcg_group_name,condor_group_name,'
            'max_files_per_workflow,named_quotas.processing_enabled,'
            'quota_name,principal_name '
@@ -3700,11 +4037,78 @@ def listQuotas(environ, user, cgiValues):
         'ON principal_names.pn_id=users.main_pn_id '
         'LEFT JOIN condor_groups '
         'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
-        'WHERE named_quotas.for_justin '
-        'ORDER BY quota_name')
+        '%s '
+        'ORDER BY quota_name '
+        'LIMIT %d,%d' % (sql_where_clause, pageNumber * pageLength, pageLength + 1)
+  )
 
   quotaRows = justin.select(query)
 
+  full_query = (
+        'SELECT wlcg_group_name,condor_group_name,'
+        'max_files_per_workflow,named_quotas.processing_enabled,'
+        'quota_name,principal_name '
+        'FROM named_quotas '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
+        'LEFT JOIN condor_groups '
+        'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
+        '%s '
+        'ORDER BY quota_name' % (sql_where_clause)
+  )
+  fullQuotaRows = justin.select(full_query)
+
+  filter_data = {
+    'quota_name': set(),
+    'processing_enabled': set(),
+    'owner': set(),
+    'condor_group_name': set(),
+    'max_files_per_workflow': set(),
+  }
+
+  for r in fullQuotaRows:
+    if r.get('quota_name'):
+      filter_data['quota_name'].add(r['quota_name'])
+
+    # make it match the table wording
+    if r.get('processing_enabled') is not None:
+      filter_data['processing_enabled'].add('Enabled' if r['processing_enabled'] else 'Disabled')
+
+    if r.get('wlcg_group_name'):
+      filter_data['owner'].add(r['wlcg_group_name'])
+    if r.get('principal_name'):
+      filter_data['owner'].add(r['principal_name'])
+
+    if r.get('condor_group_name'):
+      filter_data['condor_group_name'].add(r['condor_group_name'])
+
+    if r.get('max_files_per_workflow') is not None:
+      filter_data['max_files_per_workflow'].add(str(r['max_files_per_workflow']))
+
+  # finalise data: sort + keep only wanted columns
+  
+  filter_data = {k: sorted(list(v)) for k, v in filter_data.items()}
+  
+  fields = [
+      Select(label_name = "Quota", name = "quota_name", options = filter_data['quota_name']),
+      Select(label_name = "Processing enabled?", name = "processing_enabled", options = filter_data['processing_enabled']),
+      Select(label_name = "Owner", name = "owner", options = filter_data['owner']),
+      Select(label_name = "HTCondor Group", name = "condor_group_name", options = filter_data['condor_group_name']),
+      Select(label_name = "Max input files", name = "max_files_per_workflow", options = filter_data['max_files_per_workflow']),
+  ]
+
+
+
+  quotaFilterForm = FilterForm(fields=fields, cgi_method='list-quotas')
+  quotaFilterForm.update(cgiValues)
+  output += quotaFilterForm.render()
+
+  # pager + table
+  output += makePager(pageNumber, pageLength, len(quotaRows), urlTemplate)
   output += ('<table class="center">')
   
   output += ('<tr>'
@@ -3714,7 +4118,7 @@ def listQuotas(environ, user, cgiValues):
              '<th>HTCondor Group</th>'
              '<th>Max input files</th></tr>')
   
-  for quotaRow in quotaRows:  
+  for quotaRow in quotaRows[:pageLength]:
     if quotaRow['wlcg_group_name']:
       owner = quotaRow['wlcg_group_name']
     elif quotaRow['principal_name']:
@@ -3736,7 +4140,7 @@ def listQuotas(environ, user, cgiValues):
                   quotaRow['max_files_per_workflow'] ))
 
   output += ("</table>\n")
- 
+  output += makePager(pageNumber, pageLength, len(quotaRows), urlTemplate)
   output += footer()
   return output
 
@@ -3968,25 +4372,45 @@ def showQuota(environ, user, cgiValues):
   return output
 
 def listSites(environ, user, cgiValues):
-      
+
+  field_values = utils.parse_cgi_value(cgiValues, ['country_code'])
+  country_code = field_values.get('country_code')
+  filter_item_str = ['sites.site_id > 0']
+  
+  if country_code and country_code != "ANY":
+    filter_item_str.append("site_name LIKE '%s%%'" % country_code)
+
+  sql_where_clause = " AND ".join(filter_item_str)
+
+  query = (
+    "SELECT DATE(last_osg_seen_time) AS osg_date,"
+    "last_get_jobscript_time,"
+    "site_name,sites.enabled,"
+    "wlcg_site_name,always_inner_apptainer "
+    "FROM sites "
+    f"WHERE {sql_where_clause} "
+    "ORDER BY site_name"
+  )
+
+  
   output = header(environ, user, "justIN: Sites")
-
-  output += ("<h1>Sites</h1>")
-
+  output += "<h1>Sites</h1>"
   output += ('<p>Or list <a href="/dashboard/?method=list-entries">all '
              'entries</a>.</p>')
-  
-  query = ("SELECT DATE(last_osg_seen_time) AS osg_date,"
-           "last_get_jobscript_time,"
-           "site_name,sites.enabled,"
-           "wlcg_site_name,always_inner_apptainer "
-           "FROM sites "
-           "WHERE sites.site_id > 0 ORDER BY site_name")
   justin.cur.execute(query)
   siteRows = justin.cur.fetchall()
 
+  country_codes = sorted(justin.rseCountriesRegions.keys())
+  country_codes = sorted(set(row['site_name'].split('_')[0] for row in siteRows))
+
+  fields = [
+    Select(label_name="Country Code", name="country_code", options=country_codes),
+  ]
+
+  filterForm = FilterForm(fields=fields, cgi_method='list-sites')
+  filterForm.update(cgiValues)
+  output += filterForm.render()
   output += ('<table class="center">')
-  
   output += ('<tr>'
         '<th>Site name</th>'
         '<th>Enabled?</th>'
@@ -4036,14 +4460,73 @@ def listSites(environ, user, cgiValues):
   return output
 
 def listEntries(environ, user, cgiValues):
-      
+
   output = header(environ, user, "justIN: Entries")
 
   output += ("<h1>Entries</h1>")
-  
   output += ('<p>Or list <a href="/dashboard/?method=list-sites">all '
              'sites</a>.</p>')
-  
+
+  # -----------------------
+  # Build WHERE clause from cgiValues (filtered query only)
+  # -----------------------
+  filter_str_items = []
+
+  # site_name
+  try:
+    if cgiValues.get("site_name") and cgiValues["site_name"] != "ANY":
+      siteName = str(cgiValues["site_name"])
+      if justin.stringIsSite(siteName):
+        filter_str_items.append('sites.site_name="%s"' % siteName)
+  except Exception:
+    pass
+
+  # osg_date filter
+  try:
+    if cgiValues.get("osg_date") and cgiValues["osg_date"] != "ANY":
+      osg_date = str(cgiValues["osg_date"])
+      dt.strptime(osg_date, "%Y-%m-%d")
+      filter_str_items.append("DATE(entries.last_osg_seen_time)='%s'" % osg_date)
+  except Exception:
+    pass
+
+  sql_where_clause = 'WHERE sites.site_id > 0'
+  if filter_str_items:
+    sql_where_clause += ' AND ' + ' AND '.join(filter_str_items)
+
+  # -----------------------
+  # Full query for filter options (NO filters)
+  # -----------------------
+  options_query = ("SELECT DATE(entries.last_osg_seen_time) AS osg_date,"
+           "entries.last_get_jobscript_time,"
+           "site_name,sites.enabled,entry_name,"
+           "gatekeeper,entry_has_gpus,"
+           "entries.always_inner_apptainer,"
+           "entries.max_processors,entries.max_rss_bytes,"
+           "entries.max_wall_seconds "
+           "FROM entries "
+           "LEFT JOIN sites ON sites.site_id=entries.site_id "
+           "%s "
+           "ORDER BY site_name,entry_name") % (sql_where_clause)
+
+  fullEntryRows = justin.select(options_query)
+  unique_values = utils.extract_rows_unique_value(fullEntryRows)
+
+  assert 'site_name' in unique_values and 'osg_date' in unique_values, \
+    "Expected keys 'site_name' and 'osg_date' in unique values"
+
+  fields = [
+    Select(label_name="Site name", name="site_name", options=unique_values['site_name']),
+    # IMPORTANT: name must match cgiValues key used above
+    Select(label_name="Last Seen in OSG", name="osg_date", options=unique_values['osg_date'])
+  ]
+
+  entryFilterForm = FilterForm(fields=fields, cgi_method='list-entries')
+  entryFilterForm.update(cgiValues)
+
+  # -----------------------
+  # Filtered query for table
+  # -----------------------
   query = ("SELECT DATE(entries.last_osg_seen_time) AS osg_date,"
            "entries.last_get_jobscript_time,"
            "site_name,sites.enabled,entry_name,"
@@ -4053,17 +4536,18 @@ def listEntries(environ, user, cgiValues):
            "entries.max_wall_seconds "
            "FROM entries "
            "LEFT JOIN sites ON sites.site_id=entries.site_id "
-           "WHERE sites.site_id > 0 ORDER BY site_name,entry_name")
-  
+           "%s "
+           "ORDER BY site_name,entry_name") % (sql_where_clause)
+
   entryRows = justin.select(query)
 
+  output += entryFilterForm.render()
   output += ('<table class="center">')
-  
   output += ('<tr>'
         '<th>Site name</th>'
         '<th>Entry name</th>'
         '<th>Gatekeeper</th>'
-        '<th>RSS(MiB) / processors</th>'        
+        '<th>RSS(MiB) / processors</th>'
         '<th>Wall seconds limit?</th>'
         '<th>GPUs</th>'
         '<th>Last job</th>'
@@ -4072,7 +4556,7 @@ def listEntries(environ, user, cgiValues):
         '</tr>')
 
   lastSiteName = ''
-  for entryRow in entryRows:  
+  for entryRow in entryRows:
     if str(entryRow['last_get_jobscript_time']) == justin.unixEpoch:
       lastGetStageStr = '&nbsp;'
     else:
@@ -4088,8 +4572,8 @@ def listEntries(environ, user, cgiValues):
               % ('bold' if entryRow['enabled'] else 'normal',
                  entryRow['site_name'], entryRow['site_name'],
                 )
-                )    
-  
+                )
+
     output += ('<td><a href="/dashboard/?method=show-entry&entry_name=%s">'
                '%s</a></td>'
                '<td>%s</td>'
@@ -4105,17 +4589,17 @@ def listEntries(environ, user, cgiValues):
              insertWBR(entryRow['gatekeeper']),
              int(entryRow["max_rss_bytes"] / 1048576),
                entryRow['max_processors'],
-               int(entryRow["max_rss_bytes"] / 
+               int(entryRow["max_rss_bytes"] /
                    (1048576 * entryRow['max_processors'])),
              entryRow['max_wall_seconds'],
                int(entryRow["max_wall_seconds"] / 3600),
              'TRUE' if entryRow['entry_has_gpus'] else 'False',
              lastGetStageStr,
              entryRow['osg_date'],
-             '' if (entryRow['always_inner_apptainer'] == 1) 
+             '' if (entryRow['always_inner_apptainer'] == 1)
                 else bool(entryRow['always_inner_apptainer'])
             )
-         )    
+         )
 
   output += ("</table>")
   output += footer()
@@ -6526,10 +7010,10 @@ def application(environ, startResponse):
     output = listJobs(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-scopes":
-    output = listScopes(environ, user, cgiValues)
+    output = listScopes(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "list-quotas":
-    output = listQuotas(environ, user, cgiValues)
+    output = listQuotas(environ, user, cgiValues, pageNumber, pageLength)
 
   elif method == "show-quota":
     output = showQuota(environ, user, cgiValues)
