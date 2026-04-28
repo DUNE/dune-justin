@@ -37,7 +37,7 @@ umask 0077
 export JUSTIN_WORKDIR=`mktemp -d /tmp/justin-test-jobscript.XXXXXX`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
-ARGS=$(getopt -o 'j:m:e:' --long 'jobscript:,mql:,monte-carlo:,env:' -- "$@") || exit
+ARGS=$(getopt -o 'j:m:e:i:' --long 'jobscript:,mql:,monte-carlo:,env:,image:' -- "$@") || exit
 eval "set -- $ARGS"
 
 while true; do
@@ -48,6 +48,8 @@ while true; do
    MQL=$2; shift 2;;
   (--monte-carlo)
    MONTECARLO="true"; shift 2;;
+  (--image)
+   IMAGE=$2; shift 2;;
   (--env)
    echo "export $2" >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh; shift 2;;
   (--) shift; break;;
@@ -73,6 +75,33 @@ echo
 
 cp "$JOBSCRIPT" $JUSTIN_WORKDIR/home/justin-jobscript.sh
 chmod +x $JUSTIN_WORKDIR/home/justin-jobscript.sh
+
+if [ "$IMAGE" != "" ] ; then
+  echo "User requested image: $IMAGE"
+  if [[ "$IMAGE" == "/"* ]]; then
+    echo "Note: User provided absolute path."
+  elif [[ "$IMAGE" == *"/"* ]]; then
+    echo "Note: User provided relative path."
+  else
+    echo "User provided image name only: will prepend /cvmfs/singularity.opensciencegrid.org/fermilab/ to image name"
+    if [[ "$IMAGE"  != *":"* ]]; then
+      echo "Will also append ':latest' to image name"
+      IMAGE="$IMAGE:latest"
+    fi
+    IMAGE="/cvmfs/singularity.opensciencegrid.org/fermilab/$IMAGE"
+  fi
+  echo "Checking the image exists"
+  stat $IMAGE > /dev/null 2>&1
+  if [ $? != 0 ]; then
+    echo "Could not find image: $IMAGE"
+    exit 5
+  fi
+  echo "Found image: $IMAGE"
+else
+  echo "Using default image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
+  IMAGE="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
+fi
+
 
 if [ "$MONTECARLO" != "" ] ; then
   replica='monte-carlo-000001-000001 000001 MONTECARLO'
@@ -136,7 +165,7 @@ echo "====Start of jobscript execution===="
   --workdir $JUSTIN_WORKDIR \
   --home $JUSTIN_WORKDIR/home:/home \
   --bind /cvmfs \
-  /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest
+  $IMAGE
 echo "====End of jobscript execution===="
 
 ls -lR "$JUSTIN_WORKDIR/home/workspace"
