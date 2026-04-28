@@ -47,6 +47,7 @@ RUN yum install -y mariadb python3-PyMySQL python3-pyyaml
 RUN yum install -y make which nano procps-ng python3-pip
 RUN yum install -y python3-devel gcc swig openssl-devel
 RUN yum install -y gfal2-all python3-gfal2
+RUN yum install -y mariadb-java-client.noarch python3-jinja2
 
 RUN yum install -y httpd mod_ssl certbot
 # Force prefork rather than a threaded mpm module
@@ -64,6 +65,11 @@ RUN yum install -y munge
 # Install an updatable snapshot of the current CA files
 COPY containers/trustanchors.repo /etc/yum.repos.d/
 RUN yum install -y ca_policy_igtf-classic
+
+# Install the logstash repo and logstash
+COPY containers/logstash.repo /etc/yum.repos.d/logstash.repo
+RUN yum install -y sudo logstash
+RUN /usr/share/logstash/bin/logstash-plugin install logstash-output-opensearch
 
 # We only install crond for the automatic update of VOMS proxies
 # Unless we have another use for it, it can go away when they do
@@ -89,14 +95,15 @@ RUN pip3 install pygal==3.0.0
 RUN pip3 install M2Crypto==0.46.2
 
 # Copy justIN scripts and configs into place
-COPY database/justin-check-db         /usr/sbin/
-COPY agents/justin-info-collector     /usr/sbin/
-COPY agents/justin-finder             /usr/sbin/
-COPY agents/justin-job-logs           /usr/sbin/
-COPY agents/justin-fnal-agent         /usr/sbin/
-#COPY agents/justin-finder-tape        /usr/sbin/
-COPY agents/justin-finder-bringonline /usr/sbin/
-COPY agents/justin-job-factory        /usr/sbin/
+COPY database/justin-check-db            /usr/sbin/
+COPY agents/justin-info-collector        /usr/sbin/
+COPY agents/justin-finder                /usr/sbin/
+COPY agents/justin-job-logs              /usr/sbin/
+COPY agents/justin-fnal-agent            /usr/sbin/
+#COPY agents/justin-finder-tape          /usr/sbin/
+COPY agents/justin-finder-bringonline    /usr/sbin/
+COPY agents/justin-job-factory           /usr/sbin/
+COPY agents/justin-write-logstash-config /usr/sbin/
 
 RUN  mkdir -p             /opt/rucio/etc/
 COPY containers/rucio.cfg /opt/rucio/etc/rucio.cfg
@@ -141,4 +148,11 @@ COPY containers/start-justin-finder-bringonline /usr/sbin/
 COPY containers/start-justin-job-factory    /usr/sbin/
 COPY containers/start-justin-info-collector /usr/sbin/
 COPY containers/start-justin-shell          /usr/sbin/
+COPY containers/start-justin-logstash       /usr/sbin/
+
+
+# For Logstash
+RUN mkdir -p /etc/logstash/justin/templates
+COPY containers/01-justin-mysql-events.template  /etc/logstash/justin/templates
+COPY containers/justindb.query                   /var/lib/justin/logstash/justindb.query
 

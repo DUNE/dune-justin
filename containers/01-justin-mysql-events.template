@@ -1,0 +1,34 @@
+input {
+  jdbc {
+    jdbc_driver_library => "/usr/lib/java/mariadb-java-client.jar"
+    jdbc_driver_class => "org.mariadb.jdbc.Driver"
+    jdbc_connection_string => "jdbc:mariadb://{{ justin_db_host }}:3306/justindb?sessionVariables=sql_mode=ANSI_QUOTES"
+    jdbc_user => "{{ justin_db_user }}"
+    jdbc_password => "{{ justin_db_password }}"
+    jdbc_paging_enabled => true
+    tracking_column => "event_time"
+    use_column_value => true
+    tracking_column_type => "timestamp"
+    schedule => "*/5 * * * * *"
+    statement_filepath => "/var/lib/justin/logstash/justindb.query"
+    sql_log_level => "debug"
+    last_run_metadata_path => "/var/run/justin/logstash/logstash_jdbc_last_run"
+  }
+}
+filter {
+  mutate {
+    copy => { "event_id" => "[@metadata][_id]"}
+    copy => { "event_time" => "@timestamp" }
+    remove_field => ["event_id", "@version", "event_time"]
+    add_field => { "instance" => "{{ justin_instance }}" }
+  }
+}
+output {
+   opensearch {
+        hosts => ["{{ justin_opensearch_url }}"]
+        action => "index"
+        index => "{{ justin_opensearch_index }}"
+        user => "{{ justin_opensearch_user }}"
+        password => "{{ justin_opensearch_password }}"
+   }
+}
