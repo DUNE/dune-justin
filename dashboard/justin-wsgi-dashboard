@@ -916,6 +916,94 @@ your user name.
 
   return output
 
+def debugLoginPage(startResponse, environ):
+  # Allow debug logins without CILogon/SSO if debugUsername is defined
+
+  # Always create a new session
+  justinSession = secrets.token_urlsafe(64)
+  justinSecret  = secrets.token_urlsafe(64)
+  justinCode    = secrets.token_urlsafe(64)
+  userAgent     = environ.get('HTTP_USER_AGENT', '')
+  ip            = environ.get('REMOTE_ADDR', '')
+
+  savedURI = environ['REQUEST_URI'][:-6] # remove '&login'
+  if not savedURI:
+    savedURI = '/dashboard/'
+
+  try:
+    row = justin.select('SELECT user_id '
+                        'FROM principal_names '
+                        'WHERE principal_name="%s"' % justin.debugUsername, 
+                        justOne = True)
+    userID = int(row['user_id'])
+  except:
+    output = errorPage(environ, '', 
+                       'Failed to find user %s' % justin.debugUsername)
+    startResponseOK(startResponse, output)
+    return output
+
+  namedQuotas      = []
+  wlcgGroupsQuotes = [ '"/dune"' ]
+# wlcgGroups comes from the token from CILogon. Hardcode for now
+#  for i in wlcgGroups:
+#    wlcgGroupsQuotes.append('"' + i + '"')
+
+  try:
+    rows = justin.select('SELECT DISTINCT quota_name '
+                    'FROM named_quotas '
+                    'LEFT JOIN wlcg_groups '
+                    'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+                    'WHERE wlcg_groups.wlcg_group_name IN (%s) '
+                    'OR named_quotas.user_id=%d' %
+                    (','.join(wlcgGroupsQuotes), userID))
+ 
+    for row in rows:
+      if row['quota_name']:
+        namedQuotas.append(row['quota_name'])
+
+  except Exception as e:
+    print('Failed to get named quotas: ' + str(e), file=sys.stderr)
+    output = errorPage(environ, 'Failed to get named quotas')
+    startResponseOK(startResponse, output)
+    return output
+
+  try:
+    justin.insertUpdate('INSERT INTO sessions SET '
+                        'session_type="web",'
+                        'created_time=NOW(),'
+                        'expires_time=DATE_ADD(NOW(),INTERVAL 24 HOUR),'
+                        'justin_session="%s",'
+                        'justin_secret="%s",'
+                        'justin_code="%s",'
+                        'user_agent="%s",'
+                        'saved_uri="%s",'
+                        'ip="%s",'
+                        'user_id=%d,'
+                        'wlcg_groups="%s",'
+                        'named_quotas="%s" '
+                        % (justinSession, justinSecret, justinCode,
+                           userAgent.replace('\\','\\\\').replace('"','\\"'),
+                           savedURI,
+                           ip,
+                           userID,
+                           ' '.join(wlcgGroups),
+                           ' '.join(namedQuotas)))
+    justin.conn.commit()
+  except:
+    output = errorPage(environ, '', "Session creation fails")
+    startResponseOK(startResponse, output)
+    return output
+
+  startResponse('302 Moved', 
+     [('Location',       savedURI),
+      ('Content-length', '0'),
+      ('Set-Cookie',     'justin_session=%s; Max-Age=86400; Path=/; '
+                         'Secure ; HttpOnly' % justinSession),
+      ('Set-Cookie',     'justin_secret=%s; Max-Age=86400; Path=/; '
+                         'Secure ; HttpOnly' % justinSecret)
+     ])
+  return ''
+
 def getSessionCookies(environ):
 
   justinSession = None
@@ -6946,7 +7034,10 @@ def application(environ, startResponse):
 
   if environ['REQUEST_URI'].endswith('&login'):
     # loginPage does startResponse() itself so it can create session cookies
-    output = loginPage(startResponse, environ)
+    if justin.debugUsername:
+      output = debugLoginPage(startResponse, environ)
+    else:
+      output = loginPage(startResponse, environ)
     return [output.encode('UTF-8')]
 
   user = getUser(environ)
