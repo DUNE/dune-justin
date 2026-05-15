@@ -2,6 +2,7 @@
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options
+- Add debug_username
 - Dashboard improvements from Chris Lam
 - logstash exporting of events from Chris Brew / Jyoti Biswal
 

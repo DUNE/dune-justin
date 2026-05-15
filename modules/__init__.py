@@ -1,5 +1,5 @@
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,6 +73,7 @@ htcondorSchedds     = None
 htcondorCollectors  = None
 keepWrapperFiles    = None
 extraEntries        = None
+debugUsername       = None
 
 metacatAuthServerURL    = None
 metacatServerInputsURL  = None
@@ -196,7 +197,7 @@ def readConf():
          jobscriptImagePrefix, jobscriptImageSuffix, jobscriptImageVersion, \
          wrapperJobImage, overloadRucioMilliseconds, \
          awtWorkflowID, bannerMessage, rcdsServers, keepWrapperFiles, \
-         extraEntries, parallelJobLogs, \
+         extraEntries, parallelJobLogs, debugUsername, \
          opensearchURL, opensearchIndex, opensearchUsername, opensearchPassword
 
   parser = configparser.RawConfigParser()
@@ -245,6 +246,11 @@ def readConf():
     mysqlDbName = 'justindb'
  
   # Options for the [users] section
+
+  try:
+    debugUsername = parser.get('users','debug_username').strip()
+  except:
+    debugUsername = None
 
   try:
     cilogonClientID = parser.get('users','cilogon_client_id').strip()
