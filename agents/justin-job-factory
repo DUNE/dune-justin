@@ -627,8 +627,7 @@ def oneCycle():
 
   pingRucioMilliseconds = justin.pingRucioMilliseconds()
   justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
-  if pingRucioMilliseconds < justin.overloadRucioMilliseconds \
-     and not justin.debugUsername:
+  if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
     logLine("Start workflowJobs()")
     workflowJobs()
   else:
