@@ -3,6 +3,8 @@
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options
 - Add debug_username
+- Dashboard improvements from Chris Lam
+- logstash exporting of events from Chris Brew / Jyoti Biswal
 
 ## 01.06.00
 - Return HTTP 409 error to wrapper job if duplicate output file

@@ -1,7 +1,8 @@
 # Dockerfile for justIN agents on AlmaLinux 9
 #
-# Copyright 2013-25
-# Raja Nandakumar for UKRI Science and Technology Facilities Council
+# Copyright 2013-26
+# Chris Brew, Jyoti Biswal and Raja Nandakumar for UKRI 
+#  Science and Technology Facilities Council
 # Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
