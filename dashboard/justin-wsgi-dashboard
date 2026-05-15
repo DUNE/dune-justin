@@ -943,10 +943,12 @@ def debugLoginPage(startResponse, environ):
     return output
 
   namedQuotas      = []
-  wlcgGroupsQuotes = [ '"/dune"' ]
+  wlcgGroupsQuotes = [] 
 # wlcgGroups comes from the token from CILogon. Hardcode for now
-#  for i in wlcgGroups:
-#    wlcgGroupsQuotes.append('"' + i + '"')
+  wlcgGroups = ['/dune']
+
+  for i in wlcgGroups:
+    wlcgGroupsQuotes.append('"' + i + '"')
 
   try:
     rows = justin.select('SELECT DISTINCT quota_name '
@@ -989,8 +991,8 @@ def debugLoginPage(startResponse, environ):
                            ' '.join(wlcgGroups),
                            ' '.join(namedQuotas)))
     justin.conn.commit()
-  except:
-    output = errorPage(environ, '', "Session creation fails")
+  except Exception as e:
+    output = errorPage(environ, '', 'Debug session creation fails: ' + str(e))
     startResponseOK(startResponse, output)
     return output
 
