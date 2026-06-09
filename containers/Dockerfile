@@ -113,7 +113,7 @@ RUN /bin/echo "client_x509_proxy = /tmp/x509up_u${DUNEJUSTIN_ID}" >>/opt/rucio/e
 RUN mkdir -p /var/lib/justin
 COPY agents/justin-wrapper-job.py /var/lib/justin/
 COPY agents/justin-wrapper-job.sh /var/lib/justin/
-COPY agents/justin-get-file       /var/lib/justin/
+COPY jobutils/justin-get-file     /var/lib/justin/
 
 RUN mkdir /usr/lib/python3.9/site-packages/justin
 COPY modules/       /usr/lib/python3.9/site-packages/justin/
