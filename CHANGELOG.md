@@ -1,5 +1,8 @@
 # Changelog
 
+## 02.00.00
+- 
+
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options
 - Add debug_username
