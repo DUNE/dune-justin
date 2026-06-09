@@ -2,7 +2,7 @@
 #
 # justin-job-factory - justIN Job Factory
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,10 @@
 import os
 import pwd
 import sys
+import gzip
 import stat
 import time
+import base64
 import random
 import socket
 import secrets
@@ -119,9 +121,9 @@ def submitJobs(numberToSubmit,
                requestedGPUsMinCapability,
                requestedGPUsMaxCapability))
   try:
-    wrapperText = open('/var/lib/justin/justin-wrapper-job','r').read()
+    pyWrapperText = open('/var/lib/justin/justin-wrapper-job.py','r').read()
   except Exception as e:
-    logLine('Failed loading justin-wrapper-job: ' + str(e))
+    logLine('Failed loading justin-wrapper-job.py: ' + str(e))
     return
 
   justinJobSecret = secrets.token_urlsafe(64)
@@ -136,20 +138,43 @@ def submitJobs(numberToSubmit,
    ('###justin_metacat_server_outputs_url###', justin.metacatServerOutputsURL)
                 ):
     logLine('Replace %s with %s' % (p, str(s)))
-    wrapperText = wrapperText.replace(p,s)
+    pyWrapperText = pyWrapperText.replace(p,s)
+  
+  try:
+    justinGetFile = open('/var/lib/justin/justin-get-file','r').read()
+  except Exception as e:
+    logLine('Failed loading justin-get-file: ' + str(e))
+    return
+
+  try:
+    shWrapperText = open('/var/lib/justin/justin-wrapper-job.sh','r').read()
+  except Exception as e:
+    logLine('Failed loading justin-wrapper-job.sh: ' + str(e))
+    return
+
+  shWrapperText += 'base64 --decode <<EOF | zcat >justin-wrapper-job.py\n'
+  shWrapperText += base64.b64encode(gzip.compress(pyWrapperText))
+  shWrapperText += '\nEOF\nchmod +x justin-wrapper-job.py\n'
+
+  shWrapperText += 'base64 --decode <<EOF | zcat >justin-get-file\n'
+  shWrapperText += base64.b64encode(gzip.compress(justinGetFile))
+  shWrapperText += '\nEOF\nchmod +x justin-get-file\n'
+
+  shWrapperText += './justin-wrapper-job.py\n'
+  shWrapperText += "date --utc +'%b %d %H:%M:%S Finish justin-wrapper-job.sh'\n"
 
   try:    
-    wrapperFile = tempfile.NamedTemporaryFile(mode='w+',
-                                              prefix = 'justin-wrapper-job-',
-                                              dir = '/tmp', 
-                                              delete = False)
+    shWrapperFile = tempfile.NamedTemporaryFile(mode='w+',
+                                         prefix = 'justin-wrapper-job-sh-',
+                                         dir = '/tmp', 
+                                         delete = False)
 
-    wrapperFile.write(wrapperText)
+    shWrapperFile.write(shWrapperText)
   except Exception as e:
-    logLine('Failed writing %s: %s'  % (wrapperFile.name, str(e)))
+    logLine('Failed writing %s: %s'  % (shWrapperFile.name, str(e)))
     return
   finally:
-    wrapperFile.close()
+    syWrapperFile.close()
 
   if not justin.htcondorSchedds:
     logLine('schedds missing from [htcondor] section of config')

@@ -12,9 +12,9 @@ Within justIN, a wrapper job is in one of several allocation
 states given here:
 
 - **submitted** - the job has been submitted by the 
-  [justIN Job Factory](agents.job_factory.md) but not yet allocated a workflow/stage
-- **started** - the job has succesfully been allocated a stage within a 
-  workflow to work on by the [allocator service](services.allocator.md) and 
+  [justIN Job Factory](agents.job_factory.md) but not yet started
+- **started** - the job has succesfully been given its paramters by 
+  the [allocator service](services.allocator.md) and 
   the supplied jobscript should be running
 - **processing** - the jobscript has successfully been allocated at 
   least one input file to process by the allocator service.
