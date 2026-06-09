@@ -5,6 +5,7 @@
 - Add debug_username
 - Dashboard improvements from Chris Lam
 - logstash exporting of events from Chris Brew / Jyoti Biswal
+- All unauthenticated access to CSV and JSON
 
 ## 01.06.00
 - Return HTTP 409 error to wrapper job if duplicate output file
