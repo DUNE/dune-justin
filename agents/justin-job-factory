@@ -160,11 +160,11 @@ def submitJobs(numberToSubmit,
     return
 
   shWrapperText += 'base64 --decode <<EOF | zcat >justin-wrapper-job.py\n'
-  shWrapperText += (base64.b64encode(gzip.compress(pyWrapperText))).decode()
+  shWrapperText += (base64.b64encode(gzip.compress(pyWrapperText.encode()))).decode()
   shWrapperText += '\nEOF\nchmod +x justin-wrapper-job.py\n'
 
   shWrapperText += 'base64 --decode <<EOF | zcat >justin-get-file\n'
-  shWrapperText += (base64.b64encode(gzip.compress(justinGetFile))).decode()
+  shWrapperText += (base64.b64encode(gzip.compress(justinGetFile.encode()))).decode()
   shWrapperText += '\nEOF\nchmod +x justin-get-file\n'
 
   shWrapperText += './justin-wrapper-job.py\n'
@@ -181,7 +181,7 @@ def submitJobs(numberToSubmit,
     logLine('Failed writing %s: %s'  % (shWrapperFile.name, str(e)))
     return
   finally:
-    syWrapperFile.close()
+    shWrapperFile.close()
 
   if not justin.htcondorSchedds:
     logLine('schedds missing from [htcondor] section of config')
@@ -291,7 +291,7 @@ queue %d
        logsURL,
        logsUUID,
        scheddHostname,
-       wrapperFile.name,
+       shWrapperFile.name,
        accountingGroup,
        userName.split('@')[0],
        int(requestedRssBytes / 1024), 
@@ -333,7 +333,7 @@ queue %d
     return
   finally:
     if not justin.keepWrapperFiles:
-      os.remove(wrapperFile.name)
+      os.remove(shWrapperFile.name)
     
   logLine('%s' % str(outcome.stdout))
 

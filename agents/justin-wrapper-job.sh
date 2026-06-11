@@ -1,4 +1,4 @@
-#!/bin.bash
+#!/bin/bash
 #
 # justin-wrapper-job.sh - HTCondor job submitted by justin-job-factory agent
 #
