@@ -2,7 +2,7 @@
 #
 # justin-wrapper-job - HTCondor job submitted by justin-job-factory agent
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import subprocess
 siteName        = 'XX_UNKNOWN'
 jobsubJobID     = None
 justinJobSecret = '###justin_job_secret###'
+logsURL         = '###justin_logs_url###'
 jobscriptImage  = '###justin_jobscript_image###'
 workflowID      = ###justin_workflow_id###
 stageID         = ###justin_stage_id###

@@ -23,11 +23,13 @@ import sys
 import gzip
 import stat
 import time
+import uuid
 import base64
 import random
 import socket
 import secrets
 import pathlib
+import datetime
 import tempfile
 import subprocess
 import rucio.client
@@ -127,9 +129,14 @@ def submitJobs(numberToSubmit,
     return
 
   justinJobSecret = secrets.token_urlsafe(64)
+  t = datetime.datetime.now(datetime.timezone.utc)
+  logsUUID = str(uuid.uuid4())
+  logsURL  = ("https://fndcadoor.fnal.gov:2880/dune/persistent/jobsub/jobs/%d_%02d_%02d/%s" 
+    % (t.year, t.month, t.day, logsUUID))
 
   for (p, s) in (
    ('###justin_job_secret###',                 justinJobSecret),
+   ('###justin_logs_url###',                   logsURL),
    ('###justin_instance###',                   justin.instance),
    ('###justin_workflow_id###',                str(workflowID)),
    ('###justin_stage_id###',                   str(stageID)),
@@ -153,11 +160,11 @@ def submitJobs(numberToSubmit,
     return
 
   shWrapperText += 'base64 --decode <<EOF | zcat >justin-wrapper-job.py\n'
-  shWrapperText += base64.b64encode(gzip.compress(pyWrapperText))
+  shWrapperText += (base64.b64encode(gzip.compress(pyWrapperText))).decode()
   shWrapperText += '\nEOF\nchmod +x justin-wrapper-job.py\n'
 
   shWrapperText += 'base64 --decode <<EOF | zcat >justin-get-file\n'
-  shWrapperText += base64.b64encode(gzip.compress(justinGetFile))
+  shWrapperText += (base64.b64encode(gzip.compress(justinGetFile))).decode()
   shWrapperText += '\nEOF\nchmod +x justin-get-file\n'
 
   shWrapperText += './justin-wrapper-job.py\n'
@@ -247,6 +254,10 @@ def submitJobs(numberToSubmit,
 +Jobsub_Group           = "dune"
 +Job_Expected_Max_Lifetime = %d
 +Orig_AuthTokenGroups   = "/dune"
++Jobsub_Group="dune"
++JobsubJobId="$(Cluster).$(Process)@%s"
++JobsubOutputURL="%s"
++JobsubUUID="%s"
 universe                = vanilla
 environment = "JUSTIN_JOBSUB_ID=$(Cluster).$(Process)@%s"
 periodic_remove         = (JobStatus == 1) && ((time() - QDate) > 86400)
@@ -276,6 +287,9 @@ queue %d
 """ % (desiredSiteNames, 
        justin.wrapperJobImage,
        requestedWallSeconds,
+       scheddHostname,
+       logsURL,
+       logsUUID,
        scheddHostname,
        wrapperFile.name,
        accountingGroup,
