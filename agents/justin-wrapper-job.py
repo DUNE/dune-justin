@@ -969,12 +969,12 @@ if True:
  else:
   logLine('ifdh mkdir_p %s returns %d' % (logsURL, ret))
 
- try:
-  ret = os.system('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
-         % (justinWorkdir, tgzName, logsURL, tgzName))
- except Exception as e:
-  logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
-  ret = 1
+# try:
+#  ret = os.system('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
+#         % (justinWorkdir, tgzName, logsURL, tgzName))
+# except Exception as e:
+#  logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
+#  ret = 1
   # DO WE WANT RETRIES HERE???
 
  if ret:
@@ -987,8 +987,6 @@ if jobscriptOutcome.returncode != 0:
   jobAborted(324, 'jobscript_error', '')
 
 # Now try to upload the output files we recorded as created by the job
-
-
 confirmResultsDict = { 'method'       : 'confirm_results',
                        'output_files' : {}  }
 
