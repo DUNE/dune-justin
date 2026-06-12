@@ -112,7 +112,7 @@ def sendJsonURL(url, sendDict, timeout = 60):
 def jobAborted(abortCode, abortedMethod, rseName):
 
   jobAbortedDict = { "method"         : "job_aborted",
-                     "abort_code"     : abortCode,
+                     "abort_code"     : abortCode, # Used for justIN event
                      "aborted_method" : abortedMethod,
                      "rse_name"       : rseName
                    }
@@ -520,7 +520,7 @@ def createDatasets(datasets):
 ########################################################################
 os.environ['TZ'] = 'UTC'
 time.tzset()
-logLine('====Start of justin-wrapper-job====')
+logLine('====Start of justin-wrapper-job.py====')
 
 for i in sorted(os.environ):
   print('%s=%s' % (i, os.environ[i]))
@@ -954,58 +954,25 @@ except Exception as e:
 if ret:
   jobAborted(313, 'create_logs_tgz', '')
 
-# First try to register logs with MetaCat
-logLine('Register justin-logs:%s with MetaCat' % tgzName)
+# Copy to Fermilab dCache logs store with ifdh
 try:
-  open('tmp.json','w').write('{"namespace":"justin-logs","name":"' 
-                             + tgzName + '","size":0}')
-except:
-  logLine('Failed to create tmp.json for justin-logs:%s' % tgzName)
-  jobAborted(314, 'metacat_logs_creation', '')
+  ret = os.system('ifdh mkdir %s' % logsURL)
+except Exception as e:
+  logLine('ifdh mkdir %s returns %s' % (logsURL, str(e)))
+else:
+  logLine('ifdh mkdir %s returns %d' % (logsURL, ret))
 
-# The registration with MetaCat itself  
-(ret, out) = \
-  executeMetaCatCommand('file declare --json -f tmp.json "dune:all"')
-if ret:
-  logLine('Failed to register justin-logs:%s in MetaCat' % tgzName)
-  jobAborted(315, 'metacat_logs_registration', '')
-
-# Check it really was registered with MetaCat
-(ret, out) = \
-  executeMetaCatCommand('file show --json --metadata justin-logs:%s' 
-                        % tgzName)
-if ret:
-  logLine('Had failed to register justin-logs:%s in MetaCat' % tgzName)
-  jobAborted(315, 'metacat_logs_registration', '')
-
-for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
-  logLine('Upload justin-logs:%s to %s/%s' % (tgzName, rse, scheme))
-
-  ret = executeJustinRucioUpload('--rse %s '
-                                 '--protocol %s '
-                                 '--scope justin-logs '
-                                 '--dataset logstgz-%d-%s '
-                                 '--timeout 1200 '
-                                 '%s' 
-                                 % (rse, 
-                                    scheme, 
-                                    1000000 * int(time.time() / 1000000),
-                                    rse,
-                                    tgzName))
-  if ret in [96, 97, 98]:
-    logLine('Silent Rucio failure uploading justin-logs:%s to %s' 
-                % (tgzName, rse))
-    jobAborted(328, 'rucio_silent_failure', '')
-
-  elif ret == 0:
-    logLine('Uploaded justin-logs:%s to %s' % (tgzName, rse))
-    break
-  else:
-    logLine('Failed to upload justin-logs:%s to %s' % (tgzName, rse))
+try:
+  ret = os.system('ifdh cp %s %s/%s' % (tgzName, logsURL, tgzName))
+except Exception as e:
+  logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
+  ret = 1
+  # DO WE WANT RETRIES HERE???
 
 if ret:
-  logLine('Failed to upload justin-logs:%s' % tgzName)
-  jobAborted(316, 'rucio_upload_logs_tgz', '')
+  jobAborted(316, 'upload_logs_tgz', '')
+else:
+  logLine('%s uploaded to %s' % (tgzName, logsURL))
 
 # No other uploads if the jobscript returned an error 
 if jobscriptOutcome.returncode != 0:

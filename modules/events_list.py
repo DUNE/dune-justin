@@ -124,7 +124,7 @@ eventsList = [
 ('JOB_ABORT_METACAT_LOGS_REGISTRATION',
  315,
  'Job aborted when registering logs.tgz'),
-('JOB_ABORT_RUCIO_UPLOAD_LOGS',
+('JOB_ABORT_UPLOAD_LOGS',
  316,
  'Job aborted when uploading logs.tgz'),
 ('JOB_ABORT_WEBDAV_UPLOAD',

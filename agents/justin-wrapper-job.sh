@@ -17,4 +17,9 @@
 # limitations under the License.
 #
 
-date --utc +'%b %d %H:%M:%S Start justin-wrapper-job.sh'
+date --utc +'%b %d %H:%M:%S ====Start justin-wrapper-job.sh===='
+
+# Set up Spack and dune environment to get ifdh and Rucio
+. /cvmfs/dune.opensciencegrid.org/spack/setup-env.sh
+spack env activate dune-prototype
+

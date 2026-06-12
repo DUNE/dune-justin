@@ -2,7 +2,7 @@
 #
 # justin-check-db - check things about justindb
 #
-# Copyright 2013-24, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,10 +66,14 @@ except Exception as e:
 for eventTypeID in justin.eventTypes:
   query = ('INSERT INTO event_types SET '
            'event_type_name="%s",event_text="%s",event_type_id=%d '
-           'ON DUPLICATE KEY UPDATE event_type_id=event_type_id'
+           'ON DUPLICATE KEY UPDATE event_type_name="%s",event_text="%s"'
            % (justin.eventTypes[eventTypeID][0],
               justin.eventTypes[eventTypeID][1],
-              eventTypeID))
+              eventTypeID,
+              justin.eventTypes[eventTypeID][0],
+              justin.eventTypes[eventTypeID][1]
+             )
+          )
 
   print(query)
   try:
