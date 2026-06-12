@@ -954,24 +954,25 @@ except Exception as e:
 if ret:
   jobAborted(313, 'create_logs_tgz', '')
 
-# Copy to Fermilab dCache logs store with ifdh
-try:
+if False:
+ # Copy to Fermilab dCache logs store with ifdh
+ try:
   ret = os.system('ifdh mkdir %s' % logsURL)
-except Exception as e:
+ except Exception as e:
   logLine('ifdh mkdir %s returns %s' % (logsURL, str(e)))
-else:
+ else:
   logLine('ifdh mkdir %s returns %d' % (logsURL, ret))
 
-try:
+ try:
   ret = os.system('ifdh cp %s %s/%s' % (tgzName, logsURL, tgzName))
-except Exception as e:
+ except Exception as e:
   logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
   ret = 1
   # DO WE WANT RETRIES HERE???
 
-if ret:
+ if ret:
   jobAborted(316, 'upload_logs_tgz', '')
-else:
+ else:
   logLine('%s uploaded to %s' % (tgzName, logsURL))
 
 # No other uploads if the jobscript returned an error 
