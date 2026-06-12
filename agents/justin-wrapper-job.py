@@ -930,6 +930,10 @@ if resultsResponseDict['status'] != 200:
 
 logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
 
+# Write out the token for uploading to user's scratch
+with open('user-upload-token', 'w') as f:
+  f.write(resultsResponseDict['user_access_token'])
+
 # Create a logs.tgz file and upload with rucio
 # At the very least jobscript.log and ClassAds logs will be there
 try:
@@ -954,17 +958,20 @@ except Exception as e:
 if ret:
   jobAborted(313, 'create_logs_tgz', '')
 
-if False:
+# REMOVEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE!!!!!
+if True:
  # Copy to Fermilab dCache logs store with ifdh
  try:
-  ret = os.system('ifdh mkdir %s' % logsURL)
+  ret = os.system('ifdh mkdir_p --bearer_token_file %s/user_access_token %s' 
+         % (justinWorkdir, logsURL))
  except Exception as e:
-  logLine('ifdh mkdir %s returns %s' % (logsURL, str(e)))
+  logLine('ifdh mkdir_p %s returns %s' % (logsURL, str(e)))
  else:
-  logLine('ifdh mkdir %s returns %d' % (logsURL, ret))
+  logLine('ifdh mkdir_p %s returns %d' % (logsURL, ret))
 
  try:
-  ret = os.system('ifdh cp %s %s/%s' % (tgzName, logsURL, tgzName))
+  ret = os.system('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
+         % (justinWorkdir, tgzName, logsURL, tgzName))
  except Exception as e:
   logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
   ret = 1
@@ -981,10 +988,6 @@ if jobscriptOutcome.returncode != 0:
 
 # Now try to upload the output files we recorded as created by the job
 
-# TO DO: DROP THIS FILE WRITE?
-# Write out the token for uploading to user's scratch
-#with open('user-upload-token', 'w') as f:
-#  f.write(resultsResponseDict['user_access_token'])
 
 confirmResultsDict = { 'method'       : 'confirm_results',
                        'output_files' : {}  }
