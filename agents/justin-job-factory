@@ -199,13 +199,13 @@ def submitJobs(numberToSubmit,
     # DesiredOS is a bit of a hack. We should have a proper way to specify 
     # the target OSs for the wrapper jobs
     # The Requirements are also very either/or of NERSC vs elsewhere
-    submitFile += ('+DesiredOS = "SL7"\n'
+    submitFile += ('+DesiredOS = "EL9"\n'
                    'Requirements = ('
                    '(isUndefined(target.GLIDEIN_Site) == FALSE) && '
                    '(stringListIMember(target.GLIDEIN_Site,my.Desired_Sites))'
                    ')\n')
   else:
-    submitFile += ('+DesiredOS = "SL7"\n'
+    submitFile += ('+DesiredOS = "EL9"\n'
                    'Requirements = ('
   '(target.HAS_Singularity==true) && '
   '(target.HAS_CVMFS_dune_opensciencegrid_org==true) && '

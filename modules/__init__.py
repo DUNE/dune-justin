@@ -311,7 +311,7 @@ def readConf():
                                  'wrapper_job_image').strip()
   except:
     wrapperJobImage = \
-      '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest'
+      '/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest'
 
   # Default apptainer image in cvmfs is 'prefix/suffix:latest'
   try:
