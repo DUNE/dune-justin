@@ -974,6 +974,7 @@ if True:
 #         % (justinWorkdir, tgzName, logsURL, tgzName))
  logLine('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
          % (justinWorkdir, tgzName, logsURL, tgzName))
+ ret = 0
 # except Exception as e:
 #  logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
 #  ret = 1
