@@ -962,7 +962,7 @@ if ret:
 if True:
  # Copy to Fermilab dCache logs store with ifdh
  try:
-  ret = os.system('ifdh mkdir_p --bearer_token_file %s/user_access_token %s' 
+  ret = os.system('BEARER_TOKEN_FILE="%s/user_access_token" ifdh mkdir_p %s' 
          % (justinWorkdir, logsURL))
  except Exception as e:
   logLine('ifdh mkdir_p %s returns %s' % (logsURL, str(e)))
@@ -972,7 +972,7 @@ if True:
 # try:
 #  ret = os.system('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
 #         % (justinWorkdir, tgzName, logsURL, tgzName))
- logLine('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
+ logLine('BEARER_TOKEN_FILE="%s/user_access_token" ifdh cp %s %s/%s' 
          % (justinWorkdir, tgzName, logsURL, tgzName))
  ret = 0
 # except Exception as e:
