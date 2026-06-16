@@ -2,7 +2,7 @@
 #
 # justin-info-collector - justIN info collector agent
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -872,9 +872,17 @@ def updateStorages():
 
     bestLanWriteScheme   = 'root'
     bestLanWritePriority = None
+    bestLanWriteHostname = None
+    bestLanWritePort     = None
+    bestLanWriteImpl     = None
+    bestLanWritePrefix   = None
 
     bestWanWriteScheme   = 'root'
     bestWanWritePriority = None
+    bestWanWriteHostname = None
+    bestWanWritePort     = None
+    bestWanWriteImpl     = None
+    bestWanWritePrefix   = None
 
     try:
       protocols = rseClient.get_protocols(rse['rse'])
@@ -903,7 +911,10 @@ def updateStorages():
             (priority == bestLanWritePriority and scheme < bestLanWriteScheme)):
           bestLanWriteScheme   = scheme
           bestLanWritePriority = priority
-        
+          bestLanWriteHostname = protocolDict['hostname']
+          bestLanWritePort     = protocolDict['port']
+          bestLanWriteImpl     = protocolDict['impl']
+          bestLanWritePrefix   = protocolDict['prefix']
       try: 
         priority = protocolDict['domains']['wan']['write']
       except:
@@ -915,6 +926,10 @@ def updateStorages():
             (priority == bestWanWritePriority and scheme < bestWanWriteScheme)):
           bestWanWriteScheme   = scheme
           bestWanWritePriority = priority
+          bestWanWriteHostname = protocolDict['hostname']
+          bestWanWritePort     = protocolDict['port']
+          bestWanWriteImpl     = protocolDict['impl']
+          bestWanWritePrefix   = protocolDict['prefix']
 
     rseCountry = ''
     rseRegion  = ''
@@ -967,8 +982,16 @@ def updateStorages():
                'region="%s",'
                'country="%s",'
                'site_id=%d,'
-               'lan_write_scheme="%s",wan_write_scheme="%s",'
-               'needs_pin=%s '
+               'lan_write_scheme="%s",'
+               'lan_write_hostname="%s",'
+               'lan_write_port=%d,'
+               'lan_write_impl="%s",'
+               'lan_write_prefix="%s",'
+               'wan_write_scheme="%s",'
+               'wan_write_hostname="%s",'
+               'wan_write_port=%d,'
+               'wan_write_impl="%s",'
+               'wan_write_prefix="%s"'
                'WHERE rse_name="%s"'
                % (occupancy,
                   availabilityWrite,
@@ -977,8 +1000,16 @@ def updateStorages():
                   rseRegion,
                   rseCountry,
                   rseSiteID,
-                  bestLanWriteScheme, bestWanWriteScheme,
-                  'TRUE' if 'FNAL_DCACHE' in rse['rse'] else 'FALSE',
+                  bestLanWriteScheme, 
+                  bestLanWriteHostname, 
+                  int(bestLanWritePort),
+                  bestLanWriteImpl, 
+                  bestLanWritePrefix, 
+                  bestWanWriteScheme,
+                  bestWanWriteHostname, 
+                  int(bestWanWritePort),
+                  bestWanWriteImpl, 
+                  bestWanWritePrefix, 
                   rse['rse']
                  )
               )

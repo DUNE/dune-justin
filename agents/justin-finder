@@ -413,13 +413,12 @@ def findReplicas():
   # Cache rse_id of every known RSE into a local dictionary
   # unless it is decommissioned
   storagesDict = {}
-  allStorages = justin.select('SELECT rse_name,rse_id,needs_pin '
+  allStorages = justin.select('SELECT rse_name,rse_id '
                               'FROM storages WHERE NOT decommissioned')
   
   for storageRow in allStorages:
     storagesDict[storageRow['rse_name']] = { 
-                     'rse_id'    : storageRow['rse_id'],
-                     'needs_pin' : bool(storageRow['needs_pin']) }
+                     'rse_id'    : storageRow['rse_id'] }
 
 #  # Receives a list of unique (workflowID,stageID) combinations
 #  workflowsStages = set()
@@ -524,10 +523,10 @@ def findReplicas():
         if wanPFN == lanPFN:
           lanPFN = ''       
   
-        if storagesDict[rse]['needs_pin']:
-          accessibleUntil = ',accessible_until="%s" ' % justin.unixEpoch
-        else:
-          accessibleUntil = ''
+#        if storagesDict[rse]['needs_pin']:
+#          accessibleUntil = ',accessible_until="%s" ' % justin.unixEpoch
+#        else:
+        accessibleUntil = ''
         
         if workflowID == justin.awtWorkflowID:
           try:

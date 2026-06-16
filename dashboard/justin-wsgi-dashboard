@@ -5301,7 +5301,10 @@ def showStorage(environ, user, cgiValues):
   query = ('SELECT occupancy,rse_id,decommissioned,'
            'rucio_write,justin_write,(rucio_write AND justin_write) AS has_write,'
            'rucio_read,justin_read,(rucio_read AND justin_read) AS has_read,'
-           'lan_write_scheme,wan_write_scheme,'
+           'lan_write_scheme,lan_write_hostname,lan_write_port,'
+           'lan_write_impl,lan_write_prefix,'
+           'wan_write_scheme,wan_write_hostname,wan_write_port,'
+           'wan_write_impl,wan_write_prefix,'
            'storages.country,storages.region,site_name '
            'FROM storages '
            'LEFT JOIN sites ON sites.site_id=storages.site_id '
@@ -5363,8 +5366,19 @@ def showStorage(environ, user, cgiValues):
            bool(storageRow['justin_write']),
            writeButtonHTML))
 
-  output += ('<tr><td>Write schemes</td><td>LAN %s, WAN %s</td></tr>' 
-        % (storageRow['lan_write_scheme'], storageRow['wan_write_scheme']))
+  output += ('<tr><td>Write LAN PFNs</td><td>%s://%s:%d%s<br>(%s)</td></tr>' 
+             % (storageRow['lan_write_scheme'], 
+                storageRow['lan_write_hostname'], 
+                storageRow['lan_write_port'], 
+                storageRow['lan_write_prefix'], 
+                storageRow['lan_write_impl']))
+
+  output += ('<tr><td>Write WAN PFNs</td><td>%s://%s:%d%s<br>(%s)</td></tr>' 
+             % (storageRow['wan_write_scheme'], 
+                storageRow['wan_write_hostname'], 
+                storageRow['wan_write_port'], 
+                storageRow['wan_write_prefix'], 
+                storageRow['wan_write_impl']))
 
   output += ('<tr><td colspan=2>'
              '<a href="/dashboard/?method=list-events&rse_name=%s'

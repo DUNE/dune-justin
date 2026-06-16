@@ -450,9 +450,16 @@ CREATE TABLE IF NOT EXISTS `storages` (
   `rucio_read` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_write` tinyint(1) NOT NULL DEFAULT TRUE,
   `justin_read` tinyint(1) NOT NULL DEFAULT TRUE,
-  `needs_pin` tinyint(1) NOT NULL DEFAULT FALSE,
   `lan_write_scheme` varchar(255) NOT NULL DEFAULT 'root',
+  `lan_write_hostname` varchar(255) NOT NULL DEFAULT '',
+  `lan_write_port` smallint(5) unsigned NOT NULL DEFAULT 443,
+  `lan_write_impl` varchar(255) NOT NULL DEFAULT '',
+  `lan_write_prefix` varchar(255) NOT NULL DEFAULT '',
   `wan_write_scheme` varchar(255) NOT NULL DEFAULT 'root',
+  `wan_write_hostname` varchar(255) NOT NULL DEFAULT '',
+  `wan_write_port` smallint(5) unsigned NOT NULL DEFAULT 443,
+  `wan_write_impl` varchar(255) NOT NULL DEFAULT '',
+  `wan_write_prefix` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`rse_id`),
   UNIQUE KEY `rse_name` (`rse_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
