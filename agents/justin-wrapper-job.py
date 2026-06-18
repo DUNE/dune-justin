@@ -34,6 +34,9 @@ import urllib.request
 import random
 import subprocess
 
+import logging
+import rucio.client.uploadclient
+
 # Globals used again and again
 siteName        = 'XX_UNKNOWN'
 jobsubJobID     = None
@@ -429,8 +432,8 @@ def calculateAdler32(fileName):
     
   return ("%08x" % checksum)
 
-def updateMetadataTmp(fileName, 
-                      getJobscriptDict, jobscriptDict, recordResultsDict):
+def getMetadata(fileName, fileSize, fileAdler32, 
+                getJobscriptDict, jobscriptDict, recordResultsDict):
   try:
     metadata = json.load(open('home/workspace/' + fileName + '.json', 'r'))
   except FileNotFoundError:
@@ -440,8 +443,12 @@ def updateMetadataTmp(fileName,
             (fileName, str(e)))
     raise
 
-  metadata['namespace'] = jobscriptDict['scope']
-  metadata['name']      = fileName
+  metadata['namespace']            = jobscriptDict['scope']
+  metadata['name']                 = fileName
+  metadata['size']                 = fileSize
+  metadata['checksums']            = {}
+  metadata['checksums']['adler32'] = fileAdler32
+
   metadata['metadata']['dune.workflow'] = {}
 
   metadata['metadata']['dune.workflow']['site_name'] \
@@ -475,17 +482,12 @@ def updateMetadataTmp(fileName,
   metadata['metadata']['dune.workflow']['job_id'] \
    = jobsubJobID
 
-  # This gets updated to confirmed if the confirm step after MetaCat/Rucio
-  # is successful for ALL output files in this job
-  metadata['metadata']['dune.output_status'] = 'recorded'
-
   # Force lowercase in top level metadata keys names
   for keyName in metadata['metadata']:
     if keyName != keyName.lower():
       metadata['metadata'][keyName.lower()] = metadata['metadata'].pop(keyName)
 
-  with open('tmp.json', 'w') as f:
-    f.write(json.dumps(metadata, indent = 4, sort_keys = True))
+  return metadata
 
 def createDatasets(datasets):
 
@@ -889,12 +891,26 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
   for match in matches:
     matchingFile = match.split('/')[-1]
     try:
-      fileSize = os.path.getsize(match)
+      fileSize    = os.path.getsize(match)
+      fileAdler32 = calculateAdler32(match)
     except:
-      logLine('Got exception from os.path.getsize: ' + str(e))
+      logLine('Got exception from file size or checksum: ' + str(e))
       continue
       
-    outputFiles.append((matchingFile, fileSize, patternID, pattern))
+    if a rucio file:  
+      try:
+        fileMetadata = getMetadata(match, fileSize, fileAdler32,
+                                   getJobscriptDict, jobscriptDict,
+                                   recordResultsDict)
+      except Exception as e:
+        logLine('getMetadata() fails ' + str(e))
+        jobAborted(318, 'create_metadata', '')
+    else:
+      fileMetadata = {}
+
+# CHANGE ALLOCATOR TO MATCH THIS ORDERING, META, SIZE/ADLER in META
+    outputFiles.append((matchingFile, fileMetadata, 
+                        patternID, pattern))
     recordResultsDict['output_files'].append((matchingFile, patternID))
     logLine('Output file to be uploaded: ' + matchingFile)
 
@@ -934,7 +950,7 @@ logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
 with open('user-upload-token', 'w') as f:
   f.write(resultsResponseDict['user_access_token'])
 
-# Create a logs.tgz file and upload with rucio
+# Create a logs.tgz file and upload with ifdh
 # At the very least jobscript.log and ClassAds logs will be there
 try:
   shutil.copyfile(os.environ['_CONDOR_JOB_AD'],
@@ -993,28 +1009,21 @@ if jobscriptOutcome.returncode != 0:
 confirmResultsDict = { 'method'       : 'confirm_results',
                        'output_files' : {}  }
 
-rucioUploadedDIDs = []
+logging.basicConfig(level = logging.DEBUG)
+timeout = 1200
+rucioClient  = rucio.client.Client(timeout = timeout, 
+                                   account = jobscriptDict['quota_name'])
+uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
 # Go through the list of output files
 for (fileName, fileSize, intPatternID, pattern) in outputFiles:
+
+  confirmResultsDict[fileName]               = {}
+  confirmResultsDict[fileName]['pattern_id'] = intPatternID,
+  confirmResultsDict[fileName]['size_bytes'] = fileSize
+  confirmResultsDict[fileName]['attempts']   = []
+  
   strPatternID = str(intPatternID)
-
-  # Metadata to be declared for all datasets from this pattern
-  datasetMetadata = { "dune.workflow" : 
-            { "workflow_id"     : workflowID,
-              "stage_id"        : stageID,
-              "pattern_id"      : intPatternID,
-              "file_pattern"    : pattern,
-              "user"            : jobscriptDict['principal_name'],
-              "processors"      : jobscriptDict['requested_processors'],
-              "rss_bytes"       : jobscriptDict['requested_rss_bytes'],
-              "wall_seconds"    : jobscriptDict['requested_wall_seconds'],
-              "jobscript_image" : jobscriptDict['jobscript_image']
-            }
-                    }
-
-  if stageID == 1:
-    datasetMetadata['dune.workflow']['mql'] = jobscriptDict['mql']
 
   # Find the destination for this pattern in the resultsResponseDict
   destination = resultsResponseDict['patterns'][strPatternID]['destination']
@@ -1031,204 +1040,76 @@ for (fileName, fileSize, intPatternID, pattern) in outputFiles:
     except:
       jobAborted(317, 'webdav_upload', '')
 
-    confirmResultsDict['output_files'][fileName] = {
-                         'pattern_id' : intPatternID,
-                         'seconds'    : uploadEndTime - uploadStartTime,
-                         'size_bytes' : fileSize }
-                                             
-  elif resultsResponseDict['output_rses']:
-    # Uploading file to Rucio managed storage        
+    confirmResultsDict['output_files'][fileName].append( {
+                         'pfn'        : destination + '/' + fileName,
+                         'seconds'    : uploadEndTime - uploadStartTime } )
 
-    # Create tmp.json metadata file for this output file
-    try:
-      updateMetadataTmp(fileName,
-                        getJobscriptDict, jobscriptDict, recordResultsDict)
+  elif resultsResponseDict['output_rses'][:3]:
+    # Uploading file to Rucio managed storage, trying first 3 RSEs
+    
+    # Try to upload with rucio
+    for rseDict in resultsResponseDict['output_rses']:
 
-      fileAdler32 = calculateAdler32('home/workspace/' + fileName)
-    except Exception as e:
-      logLine('updateMetadataTmp() fails ' + str(e))
-      jobAborted(318, 'create_metadata', '')
-
-    # First try to register with MetaCat
-    (ret, out) = executeMetaCatCommand('file declare --json -f tmp.json '
-                                       '-s %d -c "adler32:%s" '
-                                       '"%s:%s"' 
-                                       % (fileSize, fileAdler32,
-                                          'dune', 'all'
-                                      ))
-
-    if ret:
-      logLine('Failed to register %s:%s in MetaCat' % (jobscriptDict['scope'], 
-                                                       fileName))
-      jobAborted(319, 'metacat_registration', '')
-
-    # If that succeeds, then try to register/upload with rucio
-    destinationNumber = \
-         resultsResponseDict['patterns'][strPatternID]['destination_number']
-
-    createdDatasetDIDs = []
-
-    for (rse,scheme) in resultsResponseDict['output_rses'][:3]:
-      datasets = []
-
-      datasetName = '###justin_instance###-w%ds%dp%d-%s' \
-                    % (workflowID, stageID, intPatternID, rse)
-      if ('%s:%s' % (jobscriptDict['scope'], datasetName)) not in \
-            resultsResponseDict['existing_dataset_dids']:
-        datasets.append({ 'metadata'         : datasetMetadata,
-                          'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : datasetName,
-                          'rse_expression'   : rse,
-                          'lifetime_seconds' : 
-         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']})
-
-
-      if ('%s:%s' % (jobscriptDict['scope'], destination+destinationNumber)) \
-         not in resultsResponseDict['existing_dataset_dids']:           
-        if resultsResponseDict['patterns'][strPatternID]['rse_expression']:
-          datasets.append({ 'metadata'         : datasetMetadata,
-                            'dataset_scope'    : jobscriptDict['scope'],
-                            'dataset_name'     : destination+destinationNumber,
-                            'rse_expression'   : 
-         resultsResponseDict['patterns'][strPatternID]['rse_expression'],
-                          'lifetime_seconds' : 
-         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
-                        })      
-        else:      
-          datasets.append({ 'metadata'         : datasetMetadata,
-                            'dataset_scope'    : jobscriptDict['scope'],
-                            'dataset_name'     : destination+destinationNumber,
-                            'lifetime_seconds' : 
-         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
-                        })
-
-      if ('%s:%s' % (jobscriptDict['scope'], destination)) \
-          not in resultsResponseDict['existing_dataset_dids']:
-        datasets.append({ 'metadata'         : datasetMetadata,
-                          'dataset_scope'    : jobscriptDict['scope'],
-                          'dataset_name'     : destination,
-                          'lifetime_seconds' : 
-         resultsResponseDict['patterns'][strPatternID]['lifetime_seconds']
-                      })
-
-      # Try to create the per-RSE and destination datasets
-      try:
-        logLine('Creating datasets: ' + str(datasets))
-        createDatasets(datasets)
-      except Exception as e:
-        logLine('createDatasets fails "%s" - try next RSE ' % str(e))
-        continue
-
-      # Save created datasets for sending back to allocator
-      for dataset in datasets:
-        createdDatasetDIDs.append(dataset['dataset_scope'] + ':' +
-                               dataset['dataset_name'])
-
-      logLine('Try %s:%s to %s/%s' 
-              % (jobscriptDict['scope'], fileName, rse, scheme))
+      logLine('Try Rucio upload of %s:%s to %s' 
+              % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
  
+      pfn = ''
       uploadStartTime = time.time()
-      ret = executeJustinRucioUpload('--rse %s '
-                                     '--protocol %s '
-                                     '--scope %s '
-                                     '--dataset ###justin_instance###-w%ds%dp%d-%s '
-                                     '--dataset %s '
-                                     '--dataset %s '
-                                     '--timeout 1200 '
-                                     'home/workspace/%s' %
-                                     (rse,
-                                      scheme,
-                                      jobscriptDict['scope'],
-                                      workflowID, stageID, intPatternID, rse,
-                                      destination + destinationNumber,
-                                      destination,
-                                      fileName),
-                                     jobscriptDict['quota_name'])
+
+      try:
+        ret = uploadClient.upload(
+                 {
+# ADD CHOICE OF SCHEME
+                   'path' : 'home/workspace/' + fileName,
+                   'rse'  : rseDict['rse_name'],
+                   'did_scope' : jobscriptDict['scope'],
+                   'no_register' : True
+                 },
+                 ignore_availability = True,
+                 summary_file_path   = 'rucio_tmp.json')
+
+      except Exception as e:
+        logLine('Rucio upload fails with: ' + str(e))
+        ret = 1
+      else:
+        if ret:
+          logLine('Rucio upload fails with code %d' % ret)
+        else: 
+          try:
+            with open('rucio_tmp.json') as f:
+              summaryDict = json.load(f)
+              
+            pfn = summaryDict['pfn']
+          except:
+            pass
+            
       uploadEndTime = time.time()
       
+      # Add to list of uploaded files for confirm results
+      confirmResultsDict['output_files'][fileName]['attempts'].append( {
+           'rse_name'   : rseDict['rse_name'],
+           'pfn'        : pfn,
+           'ret_code'   : ret,
+           'seconds'    : uploadEndTime - uploadStartTime } )
+
       if ret in [96, 97, 98]:
         logLine('Silent Rucio failure uploading %s:%s to %s' 
-                % (jobscriptDict['scope'], fileName, rse))
+                % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
         jobAborted(328, 'rucio_silent_failure', '')
              
       elif ret == 0:
         logLine('Uploaded %s:%s to %s in %.3fs' %
-                (jobscriptDict['scope'], fileName, rse, 
+                (jobscriptDict['scope'], fileName, rseDict['rse_name'], 
                  uploadEndTime - uploadStartTime))
         break
       else:
         logLine('Failed to upload %s:%s to %s' 
-                % (jobscriptDict['scope'], fileName, rse))
+                % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
 
     if ret:
       logLine('Failed to upload %s:%s' % (jobscriptDict['scope'], fileName))
       jobAborted(320, 'rucio_upload', '')
-
-    # Add the file to the per-RSE dataset
-    (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
-                                       '"%s:###justin_instance###-w%ds%dp%d-%s"' 
-                                % ( jobscriptDict['scope'], fileName,
-                                    jobscriptDict['scope'], 
-                                    workflowID, stageID, intPatternID, rse
-                                  )
-                                      )
-
-    if ret:
-      logLine('Failed to add %s:%s to %s:###justin_instance###-w%ds%dp%d-%s' 
-          % (jobscriptDict['scope'], fileName, 
-             jobscriptDict['scope'], workflowID, stageID, intPatternID, rse))
-      jobAborted(319, 'metacat_registration', '')
-
-    # Add the file to the numbered dataset
-    (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
-                                       '"%s:%s"' 
-                                       % ( jobscriptDict['scope'], fileName,
-                                           jobscriptDict['scope'], 
-                                           destination + destinationNumber
-                                            )
-                                      )
-
-    if ret:
-      logLine('Failed to add %s:%s to %s' 
-              % (jobscriptDict['scope'], fileName, 
-                 destination + destinationNumber))
-      jobAborted(319, 'metacat_registration', '')
-
-    # Add the file to the destination dataset
-    (ret, out) = executeMetaCatCommand('dataset add-files --files "%s:%s" '
-                                       '"%s:%s"' 
-                                       % ( jobscriptDict['scope'], fileName,
-                                           jobscriptDict['scope'], destination
-                                         )
-                                      )
-
-    if ret:
-      logLine('Failed to add %s:%s to %s' 
-              % (jobscriptDict['scope'], fileName, destination))
-      jobAborted(319, 'metacat_registration', '')
-
-    # Update MetaCat output_status for this file to uploaded
-    try:
-      (ret, out) = executeMetaCatCommand("file update --metadata "
-         "'{\"dune.output_status\":\"uploaded\"}' '%s:%s'" 
-         % (jobscriptDict['scope'], fileName))
-    except Exception as e:
-      logLine('Failed to set %s:%s to output_status=uploaded' 
-              % (jobscriptDict['scope'], fileName))
-      jobAborted(321, 'set_uploaded', '')
-
-    rucioUploadedDIDs.append(jobscriptDict['scope'] + ':' + fileName)
-
-    confirmResultsDict['created_dataset_dids'] = createdDatasetDIDs
-
-    # Add to list of uploaded files for confirm results
-    confirmResultsDict['output_files'][fileName] = {
-           'pattern_id' : intPatternID,
-           'rse_name'   : rse,
-           'seconds'    : uploadEndTime - uploadStartTime,
-           'size_bytes' : fileSize }
-                                             
-                                             
+                                                                                          
 # If all ok, then confirm that to the Workflow Allocator
 
 logLine('confirm results: ' + str(confirmResultsDict))
@@ -1249,26 +1130,6 @@ if confirmDict['status'] == 410:
 
 if confirmDict['status'] != 200:
   jobAborted(322, 'confirm_results', '')
-
-## Update MetaCat output_status for all files to confirmed
-## THIS SHOULD WORK with update-meta IN ONE GO BUT DOES NOT!
-##try: 
-#  (ret, out) = executeMetaCatCommand("file update-meta --metadata "
-#         "'{\"dune.output_status\":\"confirmed\"}' "
-#         "--files %s" % ','.join(rucioUploadedDIDs))
-logLine('Using metacat file update instead of update-meta to set all '
-        'output files to confirmed!')
-
-try:
-  for did in rucioUploadedDIDs:
-    (ret, out) = executeMetaCatCommand("file update --metadata "
-                                "'{\"dune.output_status\":\"confirmed\"}' "
-                                "'%s'" % did)
-except Exception as e:
-  # We do not abort here, because everything has been already been 
-  # confirmed as ok to justIN
-  logLine('Failed to set files to output_status=confirmed in MetaCat: '
-          + str(e)) 
 
 try:
   heartbeatsLog = open('heartbeats.log','r').read()

@@ -1709,11 +1709,21 @@ def recordResultsMethod(startResponse, jsonDict):
                    hasInnerApptainer,
                    requestedGPUs)
 
-  # Create an ordered output RSE list specific to this stage, used for logs
-  # and any output files going to RSEs
+  # Create an ordered output RSE list specific to this stage, used for
+  # any output files going to RSEs
   try:
     # 10000000000 bytes = 10 GB is buffer space to allow for other jobs
-    query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance '
+    query = ('SELECT rse_name,distance,'
+             'lan_write_scheme,'
+             'lan_write_hostname,'
+             'lan_write_port,'
+             'lan_write_impl,'
+             'lan_write_prefix,'
+             'wan_write_scheme,
+             'wan_write_hostname,'
+             'wan_write_port,'
+             'wan_write_impl,'
+             'wan_write_prefix '
              'FROM stages_output_storages '
              'LEFT JOIN storages '
              'ON stages_output_storages.rse_id=storages.rse_id '
@@ -1743,15 +1753,9 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error', 
                      'Failed getting output RSEs list: ' + str(e))
 
-  responseDict['output_rses'] = []
-  for rseRow in rseRows:
-    responseDict['output_rses'].append((rseRow['rse_name'],
-                                        rseRow['lan_write_scheme'] 
-                                        if rseRow['distance'] == 0 
-                                        else rseRow['wan_write_scheme']))
-
   if 'jobscript_exit' in jsonDict and jsonDict['jobscript_exit'] != 0:
     # Jobscript said it failed by exiting with non-zero value
+    # No outputting of output files (just logs to dCache logs storage)
 
     # Record job as finished due to jobscript_error
     try:
@@ -1794,6 +1798,29 @@ def recordResultsMethod(startResponse, jsonDict):
     # Return 200 OK and a partially filled in resonseDict
     return httpOK(startResponse, 
                   json.dumps(responseDict))
+
+  # Jobscript succeeded so we may have a proper outputting phase
+  # with output files
+
+  responseDict['output_rses'] = []
+  for rseRow in rseRows:
+
+    if rseRow['distance'] == 0:
+      rseDict = { 'rse_name'       : rseRow['rse_name'],
+                  'write_scheme'   : rseRow['lan_write_scheme'],
+                  'write_hostname' : rseRow['lan_write_hostname'],
+                  'write_port'     : rseRow['lan_write_port'],
+                  'write_impl'     : rseRow['lan_write_impl'],
+                  'write_prefix'   : rseRow['lan_write_prefix'] }
+    else:
+      rseDict = { 'rse_name'       : rseRow['rse_name'],
+                  'write_scheme'   : rseRow['lan_write_scheme'],
+                  'write_hostname' : rseRow['lan_write_hostname'],
+                  'write_port'     : rseRow['lan_write_port'],
+                  'write_impl'     : rseRow['lan_write_impl'],
+                  'write_prefix'   : rseRow['lan_write_prefix'] }
+
+    responseDict['output_rses'].append(rseDict)
 
   try:
     # Use the event records to find the right replicas for this job
@@ -1902,35 +1929,6 @@ def recordResultsMethod(startResponse, jsonDict):
     else:
       responseDict['patterns'][patternID]['destination'] = \
         patternRow['destination'] 
-
-      responseDict['patterns'][patternID]['destination_number'] = \
-        'n%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
-
-      responseDict['patterns'][patternID]['for_next_stage'] \
-             = patternRow['for_next_stage']
-
-      responseDict['patterns'][patternID]['lifetime_seconds'] \
-             = patternRow['lifetime_seconds']
-
-      responseDict['patterns'][patternID]['rse_expression'] \
-             = patternRow['rse_expression']
-
-  # List of datasets already created for this workflow/stage
-  try:
-    query = ("SELECT dataset_did "
-             "FROM workflows_datasets "
-             "WHERE workflow_id=%d AND stage_id=%d" 
-             % (jsonDict['workflow_id'], jsonDict['stage_id']))
-
-    datasetRows = justin.select(query)
-  except Exception as e:
-    return httpError(startResponse, 
-                     '500 Internal Server Error', 
-                     'Failed getting list of datasets: ' + str(e))
-
-  responseDict['existing_dataset_dids'] = []
-  for datasetRow in datasetRows:
-    responseDict['existing_dataset_dids'].append(datasetRow['dataset_did'])
 
   # Record output files
 
