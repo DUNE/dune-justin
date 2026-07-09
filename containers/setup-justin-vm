@@ -29,8 +29,8 @@ chown dunejustin.dunejustin /etc/justin-secrets/justin-jobs-*.pem
 yum -y update 
 #dnf config-manager \
 #  --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-yum -y install ca_policy_igtf-classic git joe mariadb-server \
-               podman
+yum -y install ca_policy_igtf-classic git mariadb-server podman
+yum -y install joe
 
 chown mysql.mysql /etc/justin-secrets/justin-db-*.pem
 
