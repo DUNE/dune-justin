@@ -179,15 +179,15 @@ GPUs can be requested with the
 .B --gpus 
 option, which will require that jobs for this stage have access to this many
 GPUs. Additionally,
-.B [--gpus-min-mib N]
+.B --gpus-min-mib N
 can be used to set the minimum memory in MiB a GPU must have to run this 
 stage's jobs. Similarly,
-.B [--gpus-min-runtime]
+.B --gpus-min-runtime
 adds a requirement on the major.minor version of the CUDA runtime provided
 by the worker node. The options
-.B [--gpus-min-capability] 
+.B --gpus-min-capability
 and
-.B [--gpus-max-capability]
+.B --gpus-max-capability
 do this for the major.minor versions of the GPU hardware capability number. 
 If 
 .B --gpus
