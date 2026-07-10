@@ -120,7 +120,7 @@ cilogonScopes       = ('openid profile org.cilogon.userinfo '
                        'wlcg.groups:/dune/ndproto '
                        'wlcg.groups:/dune/neardetsim '
                        'wlcg.groups:/dune/nuint '
-                       'wlcg.groups:/dune/protodune 
+                       'wlcg.groups:/dune/protodune '
                        'wlcg.groups:/dune/dunele '
                        'wlcg.groups:/dune/dunebsm ')
 
