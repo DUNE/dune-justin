@@ -123,11 +123,27 @@ else
    exit 4
   fi
 
-  echo "here"
-
   if [ "$CHOOSEREPLICA" != "" ] ; then
-   #Invoke TUI here
-   echo "Choosing replica"
+   # Display numbered list of replicas
+   echo "Available replicas:"
+   echo "$replicas" | nl -w1 -s') '
+
+   printf "Enter replica number: "
+   read selected
+
+   if [ "$selected" = "" ]; then
+     echo "No replica selected, exiting"
+     exit 6
+   fi
+
+   replica=$(echo "$replicas" | sed -n "${selected}p")
+
+   if [ "$replica" = "" ]; then
+     echo "Invalid selection, exiting"
+     exit 6
+   fi
+
+   echo "Chose replica: $replica"
   else
    replica=$(echo "$replicas" | head -n 1)
    echo "Chose replica: $replica"
