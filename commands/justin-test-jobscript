@@ -124,9 +124,13 @@ else
   fi
 
   if [ "$CHOOSEREPLICA" != "" ] ; then
-   # Display numbered list of replicas
+   # Display numbered list of replicas as "site pfn"
+   echo
+   echo "----------------------------------------"
    echo "Available replicas:"
-   echo "$replicas" | nl -w1 -s') '
+   echo "$replicas" | awk '{print $3, $2}' | nl -w1 -s') '
+   echo "----------------------------------------"
+   echo
 
    printf "Enter replica number: "
    read selected
@@ -143,6 +147,7 @@ else
      exit 6
    fi
 
+   echo
    echo "Chose replica: $replica"
   else
    replica=$(echo "$replicas" | head -n 1)
