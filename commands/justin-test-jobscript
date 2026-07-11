@@ -37,7 +37,7 @@ umask 0077
 export JUSTIN_WORKDIR=`mktemp -d /tmp/justin-test-jobscript.XXXXXX`
 mkdir -p $JUSTIN_WORKDIR/home/workspace
 
-ARGS=$(getopt -o 'j:m:e:i:' --long 'jobscript:,mql:,monte-carlo:,env:,image:' -- "$@") || exit
+ARGS=$(getopt -o 'j:m:e:i:c' --long 'jobscript:,mql:,monte-carlo:,env:,image:,choose-replica' -- "$@") || exit
 eval "set -- $ARGS"
 
 while true; do
@@ -50,6 +50,8 @@ while true; do
    MONTECARLO="true"; shift 2;;
   (--image)
    IMAGE=$2; shift 2;;
+  (--choose-replica)
+   CHOOSEREPLICA="true"; shift 1;;
   (--env)
    echo "export $2" >> $JUSTIN_WORKDIR/home/justin-jobscript-env.sh; shift 2;;
   (--) shift; break;;
@@ -102,20 +104,54 @@ else
   IMAGE="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest"
 fi
 
-
+#Get the replica for testing
 if [ "$MONTECARLO" != "" ] ; then
   replica='monte-carlo-000001-000001 000001 MONTECARLO'
 else
   echo "Execute justin show-replicas for $MQL"
-  replica=`justin show-replicas --mql "$MQL" | head -1`
+
+  #Get list of replicas
+  replicas=$(justin show-replicas --mql "$MQL")
+
   if [ $? != 0 ] ; then
     echo "justin show-replicas failed!"
     exit 3
   fi
  
-  if [ "$replica" = "" ] ; then
+  if [ "$replicas" = "" ] ; then
    echo "No replica found"
    exit 4
+  fi
+
+  if [ "$CHOOSEREPLICA" != "" ] ; then
+   # Display numbered list of replicas as "site pfn"
+   echo
+   echo "----------------------------------------"
+   echo "Available replicas:"
+   echo "$replicas" | awk '{print $3, $2}' | nl -w1 -s') '
+   echo "----------------------------------------"
+   echo
+
+   printf "Enter replica number: "
+   read selected
+
+   if [ "$selected" = "" ]; then
+     echo "No replica selected, exiting"
+     exit 6
+   fi
+
+   replica=$(echo "$replicas" | sed -n "${selected}p")
+
+   if [ "$replica" = "" ]; then
+     echo "Invalid selection, exiting"
+     exit 6
+   fi
+
+   echo
+   echo "Chose replica: $replica"
+  else
+   replica=$(echo "$replicas" | head -n 1)
+   echo "Chose replica: $replica"
   fi
 fi
 
