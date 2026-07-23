@@ -2763,7 +2763,7 @@ def showStage(environ, user, cgiValues):
            'LEFT JOIN storages ON storages.rse_id=events.rse_id '
            'WHERE workflow_id=%d AND stage_id=%d AND event_type_id=%d '
            'GROUP BY events.rse_id ORDER BY file_count DESC' %
-           (workflowID, stageID, justin.event_FILE_CREATED))
+           (workflowID, stageID, justin.event_FILE_UPLOADED))
 
   output += '<!-- %s SELECT CREATED -->\n' % str(time.time())
   justin.cur.execute(query)
@@ -3048,7 +3048,7 @@ def showFile(environ, user, cgiValues):
   justin.cur.execute(query)
   jobsRows = justin.cur.fetchall()
 
-  query = ('SELECT wan_pfn,lan_pfn,rse_name '
+  query = ('SELECT pfn,rse_name '
            'FROM replicas '
            'LEFT JOIN storages ON storages.rse_id=replicas.rse_id '
            'WHERE file_id=%d' % fileID)
@@ -3081,20 +3081,10 @@ def showFile(environ, user, cgiValues):
       
   output += '<tr><td>Replicas</td><td>'
   
-  for replicaRow in replicaRows:  
-  
-    if replicaRow["lan_pfn"]:
-      output += ('<small>%s (wan): %s </small><br>' % 
+  for replicaRow in replicaRows:    
+    output += ('<small>%s: %s </small><br>' % 
             (replicaRow["rse_name"], 
-             insertWBR(replicaRow["wan_pfn"])))
-      output += ('<small>%s (lan): %s </small><br>' % 
-            (replicaRow["rse_name"], 
-             insertWBR(replicaRow["lan_pfn"])))
-
-    else:
-      output += ('<small>%s: %s </small><br>' % 
-            (replicaRow["rse_name"], 
-             insertWBR(replicaRow["wan_pfn"])))
+             insertWBR(replicaRow["pfn"])))
 
   output += '</td></tr>'
 
@@ -6049,7 +6039,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              'AND events.workflow_id=%d '
              'AND events.stage_id=%d '
              'ORDER BY files.file_id LIMIT %d' %
-             (justin.event_FILE_CREATED, workflowID, stageID, csvJsonMaxRows))
+             (justin.event_FILE_UPLOADED, workflowID, stageID, csvJsonMaxRows))
 
     fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
                   'seconds','distance','job_finish_time']

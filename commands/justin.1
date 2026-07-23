@@ -138,7 +138,7 @@ process.
 .B [--max-distance DIST] [--output-pattern PATTERN[:DESTINATION]]
 .B [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
-.B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE]
+.B --lifetime-days DAYS [--env NAME=VALUE] [--classad NAME=VALUE]
 .B [--site SITENAME] [--image IMAGENAME]
 .br
 Creates a new stage for the given workflow ID with the given stage ID. Stages
@@ -284,7 +284,7 @@ then ":latest" is appended to the name given.
 .B [--gpus-min-capability N.N] [--gpus-max-capability N.N]
 .B [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME] 
 .B [--output-rse-expression EXPRESSION]
-.B [--lifetime-days DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] 
+.B --lifetime-days DAYS [--env NAME=VALUE] [--classad NAME=VALUE] 
 .B [--site SITENAME] [--image IMAGENAME] [--workflow-id-file FILENAME] 
 .B [--campaign-id ID]
 .br
@@ -310,6 +310,20 @@ The option
 .B --campaign-id-file FILENAME
 can be used to append a line with the ID of the new campaign to the
 given file.
+
+.HP
+.B NOT YET IMPLEMENTED
+.B "import-urls --file URLSLIST [--description DESC] 
+.B [--scope SCOPE] 
+.B [--dataset DATASET]
+.B [--output-rse NAME] 
+.B [--output-rse-expression EXPRESSION]
+.B --lifetime-days DAYS
+.B [--site SITENAME] 
+.br
+Submits a workflow to import a list of xroot URLs as files to be placed 
+in the given scope and dataset by jobs, with the specified lifetime for the
+files. The execution site and output RSEs can also be requested.
 
 .HP
 .B "show-stages --workflow-id ID [--stage-id ID]"

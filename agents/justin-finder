@@ -84,7 +84,7 @@ def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
 
     try:
       query = ('INSERT INTO replicas SET rse_id=%d,file_id=%d,'
-               'wan_pfn="%06d",lan_pfn=""'
+               'pfn="%06d"'
                % (justin.MonteCarloRseID, 
                   fileID,
                   i))
@@ -437,10 +437,6 @@ def findReplicas():
                                           schemes=['root'], 
                                           domain='wan')
 
-    lanRepsList = repClient.list_replicas(filesList,
-                                          schemes=['root'], 
-                                          domain='lan')
-
   except Exception as e:
     justin.logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
     return
@@ -448,7 +444,7 @@ def findReplicas():
   # Make a dictionary with DIDs as keys and lists of replicas from Rucio
   # as the values
   repsDict = {}
-  for rep in list(wanRepsList) + list(lanRepsList):
+  for rep in list(wanRepsList):
     if rep['scope']+':'+rep['name'] not in repsDict:
       repsDict[rep['scope']+':'+rep['name']] = []
       
@@ -486,7 +482,7 @@ def findReplicas():
     pfnsList = repsDict[fileRow['file_did']]    
     rses = {}
 
-    # Save the wan and lan PFNs returned for each RSE with a replica
+    # Save the wan PFN returned for each RSE with a replica
     # These go into the SAME rses dictionary so separate LAN and WAN
     # replica information is merged into one data dictionary
     for pfnDict in pfnsList:
@@ -496,10 +492,7 @@ def findReplicas():
         if pfnDict['rse'] not in rses:
             rses[pfnDict['rse']] = {}
       
-        if pfnDict['domain'] == 'lan':
-            rses[pfnDict['rse']]['lan_pfn'] = justin.fixPfn(pfnDict['pfn'])
-        else:
-            rses[pfnDict['rse']]['wan_pfn'] = justin.fixPfn(pfnDict['pfn'])
+        rses[pfnDict['rse']]['wan_pfn'] = justin.fixPfn(pfnDict['pfn'])
 
     replicasInserted = 0
     # Now go through the replicas for this file, RSE by RSE
@@ -510,22 +503,10 @@ def findReplicas():
           continue
     
         try:
-          lanPFN = rses[rse]['lan_pfn'] 
-        except:
-          lanPFN = ''
-
-        try:
           wanPFN = rses[rse]['wan_pfn'] 
         except:
           wanPFN = ''
           
-        # If PFN wan=lan then set lan PFN to ''        
-        if wanPFN == lanPFN:
-          lanPFN = ''       
-  
-#        if storagesDict[rse]['needs_pin']:
-#          accessibleUntil = ',accessible_until="%s" ' % justin.unixEpoch
-#        else:
         accessibleUntil = ''
         
         if workflowID == justin.awtWorkflowID:
@@ -535,12 +516,11 @@ def findReplicas():
             # For AWT, if the file is put back into finding then we can
             # update the replicas with change PFNs from Rucio
             query = ('UPDATE replicas SET '
-                     'wan_pfn="%s",lan_pfn="%s" '
+                     'pfn="%s" '
                      'WHERE ' 
                      'workflow_id=%d AND stage_id=%d AND '
                      'rse_id=%d AND file_id=%s'
                      % (wanPFN,
-                        lanPFN,
                         workflowID, stageID,
                         storagesDict[rse]['rse_id'],
                         fileRow['file_id']))
@@ -551,18 +531,16 @@ def findReplicas():
             pass
 
           try:
-            justin.logLine('Try to insert AWT file: %s %s' 
-                    % (wanPFN, lanPFN))
+            justin.logLine('Try to insert AWT file: %s' % wanPFN)
 
             query = ('INSERT INTO replicas SET '
                      'workflow_id=%d,stage_id=%d,'
                      'rse_id=%d,file_id=%d,'
-                     'wan_pfn="%s",lan_pfn="%s"' %
+                     'pfn="%s"' %
                      (workflowID, stageID,
                       storagesDict[rse]['rse_id'],
                       fileRow['file_id'],
-                      wanPFN,
-                      lanPFN))
+                      wanPFN))
 
             justin.select(query)
           except:
@@ -579,12 +557,11 @@ def findReplicas():
             query = ('INSERT INTO replicas SET '
                      'workflow_id=%d,stage_id=%d,'
                      'rse_id=%d,file_id=%d,'
-                     'wan_pfn="%s",lan_pfn="%s"%s' %
+                     'pfn="%s"%s' %
                      (workflowID, stageID,
                       storagesDict[rse]['rse_id'],
                       fileRow['file_id'],
                       wanPFN,
-                      lanPFN,
                       accessibleUntil))
 
             justin.select(query)

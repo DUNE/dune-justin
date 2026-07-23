@@ -566,18 +566,15 @@ def makeJobscriptDict(jsonDict, jobDict):
   if jobDict['workflow_id'] == justin.awtWorkflowID:
     try:
       query = ('SELECT rse_name,lan_write_scheme,wan_write_scheme,distance,'
-               '(SELECT wan_pfn FROM replicas WHERE workflow_id=%d AND '
-               ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
-               ' AS wan_pfn,'
-               '(SELECT lan_pfn FROM replicas WHERE workflow_id=%d AND '
-               ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
-               ' AS lan_pfn '
-               'FROM storages '
-               'LEFT JOIN sites_storages '
-               'ON sites_storages.rse_id=storages.rse_id '
-               'AND sites_storages.site_id=%d '
-               'WHERE rse_name<>"MONTECARLO" '
-               'AND NOT storages.decommissioned GROUP BY rse_name' % 
+         '(SELECT pfn FROM replicas WHERE workflow_id=%d AND '
+         ' replicas.rse_id=storages.rse_id ORDER BY replica_id DESC LIMIT 1)'
+         ' AS pfn,'
+         'FROM storages '
+         'LEFT JOIN sites_storages '
+         'ON sites_storages.rse_id=storages.rse_id '
+         'AND sites_storages.site_id=%d '
+         'WHERE rse_name<>"MONTECARLO" '
+         'AND NOT storages.decommissioned GROUP BY rse_name' % 
                (justin.awtWorkflowID,
                 justin.awtWorkflowID,
                 jobDict['site_id']) )
@@ -589,12 +586,7 @@ def makeJobscriptDict(jsonDict, jobDict):
 
     jobscriptDict['awt_rses'] = []
     for rseRow in rseRows:
-      if rseRow['lan_pfn'] and rseRow['distance'] == 0:
-        pfn = rseRow['lan_pfn']
-      elif rseRow['wan_pfn']:
-        pfn = rseRow['wan_pfn']
-      else:
-        continue
+      pfn = rseRow['pfn']
 
       jobscriptDict['awt_rses'].append((rseRow['rse_name'],
                                         rseRow['lan_write_scheme']
@@ -1198,7 +1190,7 @@ def releaseCacheLock(lockName):
 # Special treatment of file_id=0 which records if no-cacheable-files
 def findCachedFiles(siteID, workflowID, stageID, maxFiles):
   query = (
-    "SELECT file_did,sites_files_cache.file_id,lan_pfn,wan_pfn,"
+    "SELECT file_did,sites_files_cache.file_id,pfn,"
     "rse_name,sites_files_cache.rse_id,distance "
     "FROM sites_files_cache "
     "LEFT JOIN files ON files.file_id=sites_files_cache.file_id "
@@ -1322,11 +1314,7 @@ def findBestFile(jobDict):
                      entryID        = jobDict['entry_id'],
                      rseID          = replicaRows[0]['rse_id'])
 
-  # If storage is at the same site and a lan PFN is given, use it
-  if replicaRows[0]['distance'] == 0 and replicaRows[0]['lan_pfn']:
-    pfn = replicaRows[0]['lan_pfn']
-  else:
-    pfn = replicaRows[0]['wan_pfn']
+  pfn = replicaRows[0]['pfn']
 
   # The dictionary to return, with the highest priority result
   replica = { 'error_message' : None,
@@ -1492,7 +1480,7 @@ def updateFileProcessing(fileIDList,
 def processOutputFiles(outputFiles, patternsDict, 
                        scopeName, workflowID, stageID, justinJobID):
 
-  for (fileName, patternID) in outputFiles:
+  for (fileName, fileMetadata, patternID, pattern) in outputFiles:
       
     if '"' in fileName or "'" in fileName:
       continue
@@ -1504,10 +1492,11 @@ def processOutputFiles(outputFiles, patternsDict,
                           'workflow_id=%d,'
                           'creator_stage_id=%d,'
                           'creator_pattern_id=%d,'
-                          'stage_id=0' %
+                          'stage_id=0,' 
+                          'file_metadata="%s"' %
                           (patternsDict[patternID]['destination'], fileName,
                            justinJobID, 
-                           workflowID, stageID, patternID)
+                           workflowID, stageID, patternID, fileMetadata)
                          )
     else:
       justin.insertUpdate('INSERT INTO files SET state="recorded",'
@@ -1516,9 +1505,11 @@ def processOutputFiles(outputFiles, patternsDict,
                           'workflow_id=%d,'
                           'creator_stage_id=%d,'
                           'creator_pattern_id=%d,'
-                          'stage_id=%d' %
+                          'stage_id=%d,'
+                          'file_metadata="%s"' %
           (scopeName, fileName, justinJobID, workflowID, stageID, patternID,
-           stageID+1 if patternsDict[patternID]['for_next_stage'] else 0)
+           stageID+1 if patternsDict[patternID]['for_next_stage'] else 0,
+           fileMetadata)
                          )
 
 def saveAwtResults(justinJobID, siteID, entryID, 
@@ -1824,7 +1815,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
   try:
     # Use the event records to find the right replicas for this job
-    query = ('SELECT events.file_id,file_did,wan_pfn,lan_pfn '
+    query = ('SELECT events.file_id,file_did,pfn '
              'FROM events '
              'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
              'replicas.rse_id=events.rse_id) '
@@ -1844,9 +1835,7 @@ def recordResultsMethod(startResponse, jsonDict):
 
   for jobFile in jobFiles:
     if jobFile['file_did'] in jsonDict['processed_dids'] or \
-       jobFile['wan_pfn'] in jsonDict['processed_pfns'] or \
-       (jobFile['lan_pfn'] and 
-        jobFile['lan_pfn'] in jsonDict['processed_pfns']):
+       jobFile['pfn'] in jsonDict['processed_pfns']:
       processedFileIDs.append(jobFile['file_id'])
 
       justin.logEvent(eventTypeID = justin.event_FILE_PROCESSED,
@@ -1860,7 +1849,7 @@ def recordResultsMethod(startResponse, jsonDict):
     else:
       print('Set unprocessed',jsonDict['jobsub_id'],
             jobFile['file_did'],
-            jobFile['wan_pfn'], jobFile['lan_pfn'], 
+            jobFile['pfn'],
             str(jsonDict['processed_pfns']), file=sys.stderr)
       unprocessedFileIDs.append(jobFile['file_id'])
 
@@ -1902,13 +1891,17 @@ def recordResultsMethod(startResponse, jsonDict):
                      'Failed getting patterns list: ' + str(e))
 
   # First pass to count how many files per destination already, allowing for
-  # multiple patterns outputting to the same destination
+  # multiple patterns outputting to the same destination but only for non-Rucio
+  # HTTPS destinations
   destinationCounts = {}
   for patternRow in patternRows:
-   if patternRow['destination'] not in destinationCounts:
-     destinationCounts[patternRow['destination']]  = patternRow['number_files']
-   else:
-     destinationCounts[patternRow['destination']] += patternRow['number_files']
+    if patternRow['destination'].startswith('https://'):
+      if patternRow['destination'] not in destinationCounts:
+        destinationCounts[patternRow['destination']] = \
+               patternRow['number_files']
+      else:
+        destinationCounts[patternRow['destination']] += \
+               patternRow['number_files']
     
   # Create a list of the output file patterns
   responseDict['patterns'] = {}
@@ -1916,12 +1909,13 @@ def recordResultsMethod(startResponse, jsonDict):
   for patternRow in patternRows:
     patternID = int(patternRow['pattern_id'])
     responseDict['patterns'][patternID] = {}
-    if patternRow['destination'] in destinationCounts:
-      numberFiles = destinationCounts[patternRow['destination']]
-    else:
-      numberFiles = 0
 
     if patternRow['destination'].startswith('https://'):
+      if patternRow['destination'] in destinationCounts:
+        numberFiles = destinationCounts[patternRow['destination']]
+      else:
+        numberFiles = 0
+
       responseDict['patterns'][patternID]['destination'] = \
         patternRow['destination'] + \
         '/%03d' % (1 + int(numberFiles / justin.filesPerNumberedDestination))
@@ -1931,7 +1925,6 @@ def recordResultsMethod(startResponse, jsonDict):
         patternRow['destination'] 
 
   # Record output files
-
   try:
     processOutputFiles(jsonDict['output_files'], responseDict['patterns'],
                        scopeName, workflowID, stageID, justinJobID)
@@ -2076,9 +2069,9 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
     query = ('SELECT files.file_id FROM files '
              'LEFT JOIN replicas ON replicas.file_id=files.file_id '
              'WHERE files.workflow_id=%d AND files.stage_id=%d '
-             'AND (wan_pfn="%s" OR lan_pfn="%s") '
+             'AND pfn="%s" '
              'ORDER BY files.file_id LIMIT 1' 
-             % (workflowID, stageID, pfn, pfn))
+             % (workflowID, stageID, pfn))
 
     fileRow = justin.select(query, justOne=True)
     fileID = fileRow['file_id']
@@ -2172,46 +2165,77 @@ def confirmResultsMethod(startResponse, jsonDict):
     else:
       fileName = fileRow['file_did'].split(':')[1]
 
-    if fileName not in jsonDict['output_files']:
-      # Recorded but not actually uploaded!
-      # SHOULD THIS HAVE AN EVENT? SKIP SILENTLY FOR NOW
-      continue
-  
     try:
-      try:
-        rseName = jsonDict['output_files'][fileName]['rse_name']
-      except:
-        rseName = None
+      sizeBytes = jsonDict['output_files'][fileName]['size_bytes']
+      retCode   = 1
+            
+      # Loop through failed attempts and then ret=0 if succeeded
+      for attempt in jsonDict['output_files'][fileName]['attempts']:
 
-      try:
-        sizeBytes = jsonDict['output_files'][fileName]['size_bytes']
-        seconds   = jsonDict['output_files'][fileName]['seconds']
-      except:
-        sizeBytes = 0
-        seconds   = 0.0
-      
-      justin.insertUpdate('UPDATE files SET state="%s",size_bytes=%d '
-                          'WHERE file_id=%d' %
-                       ('finding' if (fileRow['stage_id'] > 0) else 'output',
-                          sizeBytes,
-                          fileRow['file_id']))
+        retCode = attempt['ret_code']
+        rseName = attempt['rse_name']
+        seconds = attempt['seconds']
 
-      justin.insertUpdate('UPDATE stages_outputs '
+        if retCode: 
+          # Failed with error
+          justin.logEvent(eventTypeID = justin.event_FILE_UPLOAD_ATTEMPT_FAILED,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      fileID      = fileRow['file_id'],
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      rseName     = rseName,
+                      seconds     = seconds,
+                      sizeBytes   = sizeBytes)
+        else:
+          # Success!!!!      
+          fileID = justin.insertUpdate('UPDATE files SET state="%s",'
+                  'size_bytes=%d '
+                  'WHERE file_id=%d' %
+                     ('unallocated' if (fileRow['stage_id'] > 0) else 'output',
+                      sizeBytes,
+                      fileRow['file_id']))
+
+          if fileRow['file_did'].startswith('https://'):
+            # We only need this for the HTTPS uploads outside Rucio
+            justin.insertUpdate('UPDATE stages_outputs '
                           'SET number_files=number_files+1 '
                           'WHERE workflow_id=%d AND stage_id=%d '
                           'AND pattern_id=%d' % 
                           (workflowID, stageID, fileRow['creator_pattern_id']))
+          else:
+            justin.insertUpdate('INSERT INTO replicas SET '
+                  'file_id=%d,'
+                  'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s"),'
+                  'pfn="%s",'
+                  'workflow_id=%d,'
+                  'stage_id=%d ' %
+                  (fileID, rseName, attempt['pfn'],
+                   workflowID, stageID))
 
-      justin.logEvent(eventTypeID = justin.event_FILE_CREATED,
-                      workflowID = workflowID,
-                      stageID = stageID,
-                      fileID = fileRow['file_id'],
+          justin.logEvent(eventTypeID = justin.event_FILE_UPLOAD,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      fileID      = fileRow['file_id'],
                       justinJobID = justinJobID,
-                      siteID = siteID,
-                      entryID = entryID,
-                      rseName = rseName,
-                      seconds = seconds
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      rseName     = rseName,
+                      seconds     = seconds,
+                      sizeBytes   = sizeBytes)
                      )
+
+      if retCode:
+        justin.logEvent(eventTypeID = justin.event_FILE_UPLOAD_FAILED,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      fileID      = fileRow['file_id'],
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      sizeBytes   = sizeBytes)
+       
 
     except Exception as e:
       return httpError(startResponse,

@@ -1,7 +1,7 @@
 # Changelog
 
 ## 02.00.00
-- 
+- Change FILE_CREATED event to FILE_UPLOADED
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

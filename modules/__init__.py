@@ -688,6 +688,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              'entry_id=%s,'
              'rse_id=%s,'
              'seconds=%.3f,'
+             'size_bytes=%d,'
              'event_time=NOW()' %
              (eventTypeID,
               campaignID,
@@ -699,7 +700,8 @@ def logEvent(eventTypeID = event_UNDEFINED,
               siteExpr,
               entryExpr,
               rseExpr,
-              seconds))
+              seconds,
+              sizeBytes))
 
     cur.execute(query)
     return None

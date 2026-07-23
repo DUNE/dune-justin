@@ -475,7 +475,7 @@ def showReplicasCmd(startResponse, jsonDict):
   try:
     rows = justin.select("SELECT replicas.workflow_id,replicas.stage_id,"
                  "files.state,"
-                 "storages.rse_name,files.file_did,replicas.wan_pfn "
+                 "storages.rse_name,files.file_did,replicas.pfn "
                  "FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
                  "LEFT JOIN files ON replicas.file_id=files.file_id "
@@ -495,7 +495,7 @@ def showReplicasCmd(startResponse, jsonDict):
                       row['state'],
                       row['file_did'],
                       row['rse_name'],
-                      row['wan_pfn']
+                      row['pfn']
                      )
                     )
    

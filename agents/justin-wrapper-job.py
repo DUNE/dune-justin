@@ -1016,11 +1016,11 @@ rucioClient  = rucio.client.Client(timeout = timeout,
 uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
 # Go through the list of output files
-for (fileName, fileSize, intPatternID, pattern) in outputFiles:
+for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
   confirmResultsDict[fileName]               = {}
   confirmResultsDict[fileName]['pattern_id'] = intPatternID,
-  confirmResultsDict[fileName]['size_bytes'] = fileSize
+  confirmResultsDict[fileName]['size_bytes'] = fileMetadata['size']
   confirmResultsDict[fileName]['attempts']   = []
   
   strPatternID = str(intPatternID)

@@ -186,6 +186,12 @@ eventsList = [
 ('FILE_PROCESSED', 
  407,
  'Input file processed by jobscript'),
+('FILE_UPLOAD_ATTEMPT_FAILED', 
+ 408,
+ 'Output file upload attempt failed'),
+('FILE_UPLOAD_FAILED', 
+ 409,
+ 'Output file upload failed after all attempts'),
 
 # AWT events 
 ('AWT_READ_OK', 
