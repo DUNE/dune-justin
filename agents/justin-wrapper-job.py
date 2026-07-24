@@ -832,7 +832,7 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
 
     outputFiles.append((matchingFile, fileMetadata, 
                         patternID, pattern))
-    recordResultsDict['output_files'].append((matchingFile, fileMetaData,
+    recordResultsDict['output_files'].append((matchingFile, fileMetadata,
                                               patternID, pattern))
     logLine('Output file to be uploaded: ' + matchingFile)
 
