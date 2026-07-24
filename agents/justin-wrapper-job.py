@@ -935,7 +935,7 @@ timeout = 1200
 rucioClient  = rucio.client.Client(timeout = timeout, 
                 auth_type = 'x509',
                 ca_cert = '/cvmfs/grid.cern.ch/etc/grid-security/certificates',
-                client_cert = 'justin-jobs-production.proxy.pem',
+                creds = { 'client_cert' : 'justin-jobs-production.proxy.pem' },
                 account = jobscriptDict['quota_name'])
 uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
