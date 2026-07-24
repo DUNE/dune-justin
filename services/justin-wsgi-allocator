@@ -32,6 +32,7 @@ import random
 import string
 import urllib
 import hashlib
+import pymysql
 
 #import M2Crypto
 
@@ -1609,7 +1610,7 @@ def recordResultsMethod(startResponse, jsonDict):
                      '400 Bad Request',
                      'Missing value output_files in JSON')
 
-  for fileName,patternID in jsonDict['output_files']:
+  for fileName,fileMetadata,patternID,pattern in jsonDict['output_files']:
     if not justin.stringNoQuotes(fileName):
       return httpError(startResponse,
                        '400 Bad Request',
@@ -1909,11 +1910,14 @@ def recordResultsMethod(startResponse, jsonDict):
       responseDict['patterns'][patternID]['destination'] = \
         patternRow['destination'] 
 
+      responseDict['patterns'][patternID]['for_next_stage'] \
+             = patternRow['for_next_stage']
+
   # Record output files
   try:
     processOutputFiles(jsonDict['output_files'], responseDict['patterns'],
                        scopeName, workflowID, stageID, justinJobID)
-  except MySQLdb.IntegrityError as e:
+  except pymysql.IntegrityError as e:
     return httpError(startResponse, 
                      '409 Duplicate output file name', 
                      'Duplicate output file name: ' + str(e))

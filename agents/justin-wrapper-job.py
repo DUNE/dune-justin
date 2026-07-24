@@ -943,10 +943,11 @@ uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 # Go through the list of output files
 for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
-  confirmResultsDict[fileName]               = {}
-  confirmResultsDict[fileName]['pattern_id'] = intPatternID,
-  confirmResultsDict[fileName]['size_bytes'] = fileMetadata['size']
-  confirmResultsDict[fileName]['attempts']   = []
+  confirmResultsDict['output_files'][fileName]               = {}
+  confirmResultsDict['output_files'][fileName]['pattern_id'] = intPatternID,
+  confirmResultsDict['output_files'][fileName]['size_bytes'] = \
+                                                 fileMetadata['size']
+  confirmResultsDict['output_files'][fileName]['attempts']   = []
   
   strPatternID = str(intPatternID)
 
@@ -965,7 +966,7 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
     except:
       jobAborted(317, 'webdav_upload', '')
 
-    confirmResultsDict['output_files'][fileName].append( {
+    confirmResultsDict['output_files'][fileName]['attempts'].append( {
                          'pfn'        : destination + '/' + fileName,
                          'seconds'    : uploadEndTime - uploadStartTime } )
 
