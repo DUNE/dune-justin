@@ -192,54 +192,6 @@ def findGPU(getJobscriptDict):
 
       gpuDeviceNumber += 1
 
-def executeMetaCatCommand(args):
-
-  for i in range(1, 4):  
-    cmd = (
-     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
-     'setup python v3_9_13 ; setup metacat ; '
-     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
-     'export METACAT_AUTH_SERVER_URL=###justin_metacat_auth_server_url### ; '
-     'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
-     'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
-     'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
-     'metacat auth login -m x509 dunepro ; '
-     'metacat %s 2>&1' % args)
-     
-    logLine('Try %d/3 of executing these commands in a subshell: %s' % (i, cmd))
-
-    outcome = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
-
-    if outcome.returncode == 0:
-      logLine('metacat returns %d - success' % outcome.returncode)
-      break
-
-    logLine('metacat returns %d - try %d failed'  
-            % (outcome.returncode, i))
-    time.sleep(1)
-
-  return (outcome.returncode, outcome.stdout)
-  
-def executeJustinRucioUpload(args, account = 'dunepro'):
-
-  cmd = (
-     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
-     'setup python v3_9_13 ; setup rucio ; setup justin ; '
-     'export RUCIO_ACCOUNT=%s ; '
-     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
-     'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
-     'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
-     'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
-     '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-     '###justin_instance###/NULL/bin/justin-rucio-upload '
-     '--tries 3 %s 2>&1' % (account, args))
-
-  ret = os.system(cmd)
-  logLine('justin-rucio-upload returns %d - %s' 
-          % (ret, 'failed' if ret else 'ok'))
-
-  return ret
-
 #
 # Start of WebDAV uploads: this code is shared between justin-webdav-upload 
 # and justin-wrapper-job to make them both self contained
@@ -488,36 +440,6 @@ def getMetadata(fileName, fileSize, fileAdler32,
       metadata['metadata'][keyName.lower()] = metadata['metadata'].pop(keyName)
 
   return metadata
-
-def createDatasets(datasets):
-
-  with open('datasets.json','w') as f:
-    json.dump(datasets, f)
-
-  for i in range(1, 4):  
-    cmd = (
-     'source /cvmfs/dune.opensciencegrid.org/products/dune/setup_dune.sh ; '
-     'setup python v3_9_13 ; setup metacat ; setup rucio ; '
-     'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
-     'export METACAT_AUTH_SERVER_URL=###justin_metacat_auth_server_url### ; '
-     'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
-     'metacat auth login -m x509 dunepro ; '
-     '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-     '###justin_instance###/NULL/jobutils/justin-job-datasets')
-     
-    logLine('Try %d/3 of executing these commands in a subshell: %s' % (i, cmd))
-
-    outcome = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
-
-    if outcome.returncode == 0:
-      logLine('metacat returns %d - success' % outcome.returncode)
-      break
-
-    logLine('metacat returns %d - try %d failed'  
-            % (outcome.returncode, i))
-    time.sleep(1)
-
-  return (outcome.returncode, outcome.stdout)
   
 ########################################################################
 os.environ['TZ'] = 'UTC'
@@ -1011,6 +933,7 @@ confirmResultsDict = { 'method'       : 'confirm_results',
 logging.basicConfig(level = logging.DEBUG)
 timeout = 1200
 rucioClient  = rucio.client.Client(timeout = timeout, 
+                                   auth_type = 'x509',
                                    account = jobscriptDict['quota_name'])
 uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
