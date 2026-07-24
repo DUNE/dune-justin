@@ -984,13 +984,13 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
       try:
         ret = uploadClient.upload(
-                 {
+                 [{
 # ADD CHOICE OF SCHEME
                    'path' : 'home/workspace/' + fileName,
                    'rse'  : rseDict['rse_name'],
                    'did_scope' : jobscriptDict['scope'],
                    'no_register' : True
-                 },
+                 }],
                  ignore_availability = True,
                  summary_file_path   = 'rucio_tmp.json')
 
