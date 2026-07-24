@@ -576,7 +576,6 @@ def makeJobscriptDict(jsonDict, jobDict):
          'WHERE rse_name<>"MONTECARLO" '
          'AND NOT storages.decommissioned GROUP BY rse_name' % 
                (justin.awtWorkflowID,
-                justin.awtWorkflowID,
                 jobDict['site_id']) )
 
       rseRows = justin.select(query)
@@ -1705,7 +1704,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     # 10000000000 bytes = 10 GB is buffer space to allow for other jobs
     query = ('SELECT rse_name,distance,'
-             'wan_write_scheme,
+             'wan_write_scheme,'
              'wan_write_hostname,'
              'wan_write_port,'
              'wan_write_impl,'
@@ -2210,7 +2209,6 @@ def confirmResultsMethod(startResponse, jsonDict):
                       rseName     = rseName,
                       seconds     = seconds,
                       sizeBytes   = sizeBytes)
-                     )
 
       if retCode:
         justin.logEvent(eventTypeID = justin.event_FILE_UPLOAD_FAILED,

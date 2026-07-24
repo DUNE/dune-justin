@@ -897,7 +897,9 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
       logLine('Got exception from file size or checksum: ' + str(e))
       continue
       
-    if a rucio file:  
+    if patternType == 'url':  
+      fileMetadata = {}
+    else:
       try:
         fileMetadata = getMetadata(match, fileSize, fileAdler32,
                                    getJobscriptDict, jobscriptDict,
@@ -905,10 +907,7 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
       except Exception as e:
         logLine('getMetadata() fails ' + str(e))
         jobAborted(318, 'create_metadata', '')
-    else:
-      fileMetadata = {}
 
-# CHANGE ALLOCATOR TO MATCH THIS ORDERING, META, SIZE/ADLER in META
     outputFiles.append((matchingFile, fileMetadata, 
                         patternID, pattern))
     recordResultsDict['output_files'].append((matchingFile, patternID))
