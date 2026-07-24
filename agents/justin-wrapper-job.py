@@ -933,8 +933,10 @@ confirmResultsDict = { 'method'       : 'confirm_results',
 logging.basicConfig(level = logging.DEBUG)
 timeout = 1200
 rucioClient  = rucio.client.Client(timeout = timeout, 
-                                   auth_type = 'x509',
-                                   account = jobscriptDict['quota_name'])
+                auth_type = 'x509',
+                ca_cert = '/cvmfs/grid.cern.ch/etc/grid-security/certificates',
+                client_cert = 'justin-jobs-production.proxy.pem',
+                account = jobscriptDict['quota_name'])
 uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
 # Go through the list of output files
