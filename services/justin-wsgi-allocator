@@ -553,9 +553,9 @@ def makeJobscriptDict(jsonDict, jobDict):
     if row['destination'].startswith('https://'):
       patternType = 'url'
     elif row['for_next_stage']:
-      patternType = 'for_next_stage'
+      patternType = 'rucio_for_next_stage'
     else:
-      patternType = ''
+      patternType = 'rucio'
 
     jobscriptDict['patterns'].append((patternType,
                                       row['file_pattern'],
