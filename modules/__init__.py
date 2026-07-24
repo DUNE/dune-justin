@@ -656,7 +656,7 @@ def logEvent(eventTypeID = event_UNDEFINED,
              rseID = 0,
              rseName = None,
              seconds = 0.0,
-             sizeByes = 0):
+             sizeBytes = 0):
 
   if siteName:
     siteExpr = ('(SELECT site_id FROM sites WHERE sites.site_name="%s")' 
