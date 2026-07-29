@@ -23,6 +23,16 @@ date --utc +'%b %d %H:%M:%S ====Start justin-wrapper-job.sh===='
 . /cvmfs/dune.opensciencegrid.org/spack/setup-env.sh
 spack env activate dune-prototype
 
+cat <<EOF > $RUCIO_HOME/dune/etc/rucio.cfg
+[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://dune-rucio.fnal.gov
+ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates
+account = justinreadonly
+auth_type = x509_proxy
+request_retries = 3
+EOF
+
 date --utc +'%b %d %H:%M:%S ----Start printenv----'
 printenv
 date --utc +'%b %d %H:%M:%S ----End printenv----'
