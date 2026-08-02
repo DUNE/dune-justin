@@ -931,13 +931,23 @@ if jobscriptOutcome.returncode != 0:
 confirmResultsDict = { 'method'       : 'confirm_results',
                        'output_files' : {}  }
 
+# It seems we must do some config in rucio.cfg and not in function parameters!
+# Overwrite the rucio.cfg created for us by Spack
+with open(os.environ('RUCIO_HOME') + '/dune/etc/rucio.cfg', 'w') as f:
+  f.write('''[client]
+rucio_host = https://dune-rucio.fnal.gov
+auth_host = https://dune-rucio.fnal.gov
+auth_type = x509_proxy
+request_retries = 3
+ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
+
+  f.write('client_x509_proxy = ' + justinWorkdir 
+                                 + '/justin-jobs-production.proxy.pem')
+  f.write('account = ' + jobscriptDict['quota_name'])
+
 logging.basicConfig(level = logging.DEBUG)
 timeout = 1200
-rucioClient  = rucio.client.Client(timeout = timeout, 
-                auth_type = 'x509',
-                ca_cert = '/cvmfs/grid.cern.ch/etc/grid-security/certificates',
-                creds = { 'client_cert' : 'justin-jobs-production.proxy.pem' },
-                account = jobscriptDict['quota_name'])
+rucioClient  = rucio.client.Client(timeout = timeout)
 uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
 # Go through the list of output files
