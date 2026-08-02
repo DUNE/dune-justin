@@ -1022,7 +1022,7 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
       except Exception as e:
         logLine('Rucio upload fails with: ' + str(e))
-        ret = 1
+        ret = 95
       else:
         if ret:
           logLine('Rucio upload fails with code %d' % ret)
@@ -1033,9 +1033,10 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
             print(summaryDict)
               
-            pfn = summaryDict['pfn']
+            pfn = summaryDict[jobscriptDict['scope'] + ':' + fileName]['pfn']
           except Exception as e:
             logLine('Get PFN from rucio_tmp.json fails: ' + str(e))
+            ret = 94
             
       uploadEndTime = time.time()
       
@@ -1061,10 +1062,8 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
     if ret:
       logLine('Failed to upload %s:%s' % (jobscriptDict['scope'], fileName))
-      jobAborted(320, 'rucio_upload', '')
                                                                                           
-# If all ok, then confirm that to the Workflow Allocator
-
+# Confirm what happened including failures
 logLine('confirm results: ' + str(confirmResultsDict))
 confirmDict = sendJsonURL(
   'https://justin-allocator-###justin_instance###.dune.hep.ac.uk'
