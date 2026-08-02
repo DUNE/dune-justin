@@ -676,10 +676,13 @@ with open('justin-jobs-production.proxy.pem', 'w') as f:
 os.chmod('justin-jobs-production.proxy.pem', 0o400)
 
 # RUCIO TEST
-logging.basicConfig(level = logging.DEBUG)
-client  = rucio.client.Client()
-uc      = rucio.client.uploadclient.UploadClient(client)
-print(1,uc)
+try:
+  logging.basicConfig(level = logging.DEBUG)
+  client  = rucio.client.Client()
+  uc      = rucio.client.uploadclient.UploadClient(client)
+  print(1,uc)
+except Exception as e:
+  logLine('Rucio test 1 fails: ' + str(e))
 # END RUCIO TEST
 
 # AWT jobs get production proxy too
@@ -955,10 +958,13 @@ ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
 logging.basicConfig(level = logging.DEBUG)
 
 # RUCIO TEST
-logging.basicConfig(level = logging.DEBUG)
-client  = rucio.client.Client()
-uc      = rucio.client.uploadclient.UploadClient(client)
-print(2,uc)
+try:
+  logging.basicConfig(level = logging.DEBUG)
+  client  = rucio.client.Client()
+  uc      = rucio.client.uploadclient.UploadClient(client)
+  print(2,uc)
+except Exception as e:
+  logLine('Rucio test 2 fails: ' + str(e))
 # END RUCIO TEST
 
 timeout = 1200
