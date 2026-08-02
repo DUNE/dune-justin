@@ -675,6 +675,13 @@ with open('justin-jobs-production.proxy.pem', 'w') as f:
 
 os.chmod('justin-jobs-production.proxy.pem', 0o400)
 
+# RUCIO TEST
+logging.basicConfig(level = logging.DEBUG)
+client  = rucio.client.Client()
+uc      = rucio.client.uploadclient.UploadClient(client)
+print(2,uc)
+# END RUCIO TEST
+
 # AWT jobs get production proxy too
 if 'awt_rses' in jobscriptDict:
 
@@ -946,6 +953,14 @@ ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
   f.write('account = ' + jobscriptDict['quota_name'] + '\n')
 
 logging.basicConfig(level = logging.DEBUG)
+
+# RUCIO TEST
+logging.basicConfig(level = logging.DEBUG)
+client  = rucio.client.Client()
+uc      = rucio.client.uploadclient.UploadClient(client)
+print(2,uc)
+# END RUCIO TEST
+
 timeout = 1200
 logLine('Setting up Rucio upload client for %s' % jobscriptDict['quota_name'])
 try:
