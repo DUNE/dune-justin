@@ -933,7 +933,7 @@ confirmResultsDict = { 'method'       : 'confirm_results',
 
 # It seems we must do some config in rucio.cfg and not in function parameters!
 # Overwrite the rucio.cfg created for us by Spack
-with open(os.environ('RUCIO_HOME') + '/dune/etc/rucio.cfg', 'w') as f:
+with open(os.environ.get('RUCIO_HOME') + '/dune/etc/rucio.cfg', 'w') as f:
   f.write('''[client]
 rucio_host = https://dune-rucio.fnal.gov
 auth_host = https://dune-rucio.fnal.gov
