@@ -947,8 +947,13 @@ ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
 
 logging.basicConfig(level = logging.DEBUG)
 timeout = 1200
-rucioClient  = rucio.client.Client(timeout = timeout, account = jobscriptDict['quota_name'])
-uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
+logLine('Setting up Rucio upload client for %s' % jobscriptDict['quota_name'])
+try:
+  rucioClient  = rucio.client.Client(timeout = timeout, account = jobscriptDict['quota_name'])
+  uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
+except Exception as e:
+  logLine('Failed setting up Rucio upload client: ' + str(e))
+  jobAborted(318, 'upload_client_setup', '')
 
 # Go through the list of output files
 for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
@@ -984,7 +989,7 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
     # Uploading file to Rucio managed storage, trying first 3 RSEs
     
     # Try to upload with rucio
-    for rseDict in resultsResponseDict['output_rses']:
+    for rseDict in resultsResponseDict['output_rses'][:3]:
 
       logLine('Try Rucio upload of %s:%s to %s' 
               % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
@@ -1031,7 +1036,6 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
       if ret in [96, 97, 98]:
         logLine('Silent Rucio failure uploading %s:%s to %s' 
                 % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
-        jobAborted(328, 'rucio_silent_failure', '')
              
       elif ret == 0:
         logLine('Uploaded %s:%s to %s in %.3fs' %
