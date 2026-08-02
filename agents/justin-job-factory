@@ -168,6 +168,8 @@ def submitJobs(numberToSubmit,
   shWrapperText += '\nEOF\nchmod +x justin-get-file\n'
 
   shWrapperText += './justin-wrapper-job.py\n'
+# REMOVE THIS vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+  shWrapperText += 'cat $RUCIO_HOME/etc/rucio.cfg\n'
   shWrapperText += "date --utc +'%b %d %H:%M:%S Finish justin-wrapper-job.sh'\n"
 
   try:    

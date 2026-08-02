@@ -942,12 +942,12 @@ request_retries = 3
 ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
 
   f.write('client_x509_proxy = ' + justinWorkdir 
-                                 + '/justin-jobs-production.proxy.pem')
-  f.write('account = ' + jobscriptDict['quota_name'])
+                                 + '/justin-jobs-production.proxy.pem\n')
+  f.write('account = ' + jobscriptDict['quota_name'] + '\n')
 
 logging.basicConfig(level = logging.DEBUG)
 timeout = 1200
-rucioClient  = rucio.client.Client(timeout = timeout)
+rucioClient  = rucio.client.Client(timeout = timeout, account = jobscriptDict['quota_name'])
 uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 
 # Go through the list of output files
