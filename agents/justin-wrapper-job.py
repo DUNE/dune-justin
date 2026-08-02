@@ -679,7 +679,7 @@ os.chmod('justin-jobs-production.proxy.pem', 0o400)
 logging.basicConfig(level = logging.DEBUG)
 client  = rucio.client.Client()
 uc      = rucio.client.uploadclient.UploadClient(client)
-print(2,uc)
+print(1,uc)
 # END RUCIO TEST
 
 # AWT jobs get production proxy too
