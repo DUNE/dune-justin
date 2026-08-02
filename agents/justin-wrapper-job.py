@@ -897,7 +897,7 @@ if ret:
   jobAborted(313, 'create_logs_tgz', '')
 
 # REMOVEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE!!!!!
-if True:
+if False:
  # Copy to Fermilab dCache logs store with ifdh
  try:
   ret = os.system('BEARER_TOKEN_FILE="%s/user_access_token" ifdh mkdir_p %s' 

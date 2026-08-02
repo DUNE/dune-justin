@@ -22,6 +22,7 @@ date --utc +'%b %d %H:%M:%S ====Start justin-wrapper-job.sh===='
 # Set up Spack and dune environment to get ifdh and Rucio
 . /cvmfs/dune.opensciencegrid.org/spack/setup-env.sh
 spack env activate dune-prototype
+rucio --version
 
 date --utc +'%b %d %H:%M:%S ----Start printenv----'
 printenv
