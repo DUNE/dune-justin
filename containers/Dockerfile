@@ -111,9 +111,10 @@ COPY containers/rucio.cfg /opt/rucio/etc/rucio.cfg
 RUN /bin/echo "client_x509_proxy = /tmp/x509up_u${DUNEJUSTIN_ID}" >>/opt/rucio/etc/rucio.cfg
 
 RUN mkdir -p /var/lib/justin
-COPY agents/justin-wrapper-job.py /var/lib/justin/
-COPY agents/justin-wrapper-job.sh /var/lib/justin/
-COPY jobutils/justin-get-file     /var/lib/justin/
+COPY agents/justin-wrapper-job.py        /var/lib/justin/
+COPY agents/justin-wrapper-job.start.sh  /var/lib/justin/
+COPY agents/justin-wrapper-job.finish.sh /var/lib/justin/
+COPY jobutils/justin-get-file            /var/lib/justin/
 
 RUN mkdir /usr/lib/python3.9/site-packages/justin
 COPY modules/       /usr/lib/python3.9/site-packages/justin/
