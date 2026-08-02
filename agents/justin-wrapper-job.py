@@ -35,7 +35,9 @@ import random
 import subprocess
 
 import logging
-import rucio.client.uploadclient
+
+# REMOVE OR REINSTATE
+# import rucio.client.uploadclient
 
 # Globals used again and again
 siteName        = 'XX_UNKNOWN'
@@ -957,12 +959,15 @@ ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
 
 logging.basicConfig(level = logging.DEBUG)
 
+# REMOVE OR KEEP?
+import rucio.client.uploadclient
+
 # RUCIO TEST
 try:
   logging.basicConfig(level = logging.DEBUG)
-  client  = rucio.client.Client()
-  uc      = rucio.client.uploadclient.UploadClient(client)
-  print(2,uc)
+  client2  = rucio.client.Client()
+  uc2      = rucio.client.uploadclient.UploadClient(client2)
+  print(2,uc2)
 except Exception as e:
   logLine('Rucio test 2 fails: ' + str(e))
 # END RUCIO TEST
