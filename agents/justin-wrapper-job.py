@@ -33,11 +33,7 @@ import urllib
 import urllib.request
 import random
 import subprocess
-
 import logging
-
-# REMOVE OR REINSTATE
-# import rucio.client.uploadclient
 
 # Globals used again and again
 siteName        = 'XX_UNKNOWN'
@@ -677,16 +673,6 @@ with open('justin-jobs-production.proxy.pem', 'w') as f:
 
 os.chmod('justin-jobs-production.proxy.pem', 0o400)
 
-# RUCIO TEST
-try:
-  logging.basicConfig(level = logging.DEBUG)
-  client  = rucio.client.Client()
-  uc      = rucio.client.uploadclient.UploadClient(client)
-  print(1,uc)
-except Exception as e:
-  logLine('Rucio test 1 fails: ' + str(e))
-# END RUCIO TEST
-
 # AWT jobs get production proxy too
 if 'awt_rses' in jobscriptDict:
 
@@ -957,10 +943,9 @@ ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
                                  + '/justin-jobs-production.proxy.pem\n')
   f.write('account = ' + jobscriptDict['quota_name'] + '\n')
 
-logging.basicConfig(level = logging.DEBUG)
-
-# REMOVE OR KEEP?
+# We only do the import here so the rucio.cfg we created above is read
 import rucio.client.uploadclient
+logging.basicConfig(level = logging.DEBUG)
 
 # RUCIO TEST
 try:
@@ -975,7 +960,7 @@ except Exception as e:
 timeout = 1200
 logLine('Setting up Rucio upload client for %s' % jobscriptDict['quota_name'])
 try:
-  rucioClient  = rucio.client.Client(timeout = timeout, account = jobscriptDict['quota_name'])
+  rucioClient  = rucio.client.Client(timeout = timeout)
   uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 except Exception as e:
   logLine('Failed setting up Rucio upload client: ' + str(e))
@@ -1045,10 +1030,12 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
           try:
             with open('rucio_tmp.json') as f:
               summaryDict = json.load(f)
+
+            print(summaryDict)
               
             pfn = summaryDict['pfn']
-          except:
-            pass
+          except Exception as e:
+            logLine('Get PFN from rucio_tmp.json fails: ' + str(e))
             
       uploadEndTime = time.time()
       
