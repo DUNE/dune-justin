@@ -2202,8 +2202,8 @@ def confirmResultsMethod(startResponse, jsonDict):
                   'stage_id=%d ' %
                   (fileID, rseName, attempt['pfn'],
                    workflowID, stageID))
-
-          justin.logEvent(eventTypeID = justin.event_FILE_UPLOAD,
+ 
+          justin.logEvent(eventTypeID = justin.event_FILE_UPLOADED,
                       workflowID  = workflowID,
                       stageID     = stageID,
                       fileID      = fileRow['file_id'],
