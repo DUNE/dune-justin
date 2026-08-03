@@ -947,20 +947,9 @@ ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates\n''')
 import rucio.client.uploadclient
 logging.basicConfig(level = logging.DEBUG)
 
-# RUCIO TEST
-try:
-  logging.basicConfig(level = logging.DEBUG)
-  client2  = rucio.client.Client()
-  uc2      = rucio.client.uploadclient.UploadClient(client2)
-  print(2,uc2)
-except Exception as e:
-  logLine('Rucio test 2 fails: ' + str(e))
-# END RUCIO TEST
-
-timeout = 1200
 logLine('Setting up Rucio upload client for %s' % jobscriptDict['quota_name'])
 try:
-  rucioClient  = rucio.client.Client(timeout = timeout)
+  rucioClient  = rucio.client.Client(timeout = 1200)
   uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 except Exception as e:
   logLine('Failed setting up Rucio upload client: ' + str(e))
@@ -996,12 +985,12 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
                          'pfn'        : destination + '/' + fileName,
                          'seconds'    : uploadEndTime - uploadStartTime } )
 
-  elif resultsResponseDict['output_rses'][:3]:
+  elif resultsResponseDict['output_rses']:
     # Uploading file to Rucio managed storage, trying first 3 RSEs
     
     # Try to upload with rucio
     for rseDict in resultsResponseDict['output_rses'][:3]:
-
+# THIS NEEDS A LOOP FOR MULTIPLE TRIES PER RSE
       logLine('Try Rucio upload of %s:%s to %s' 
               % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
  
@@ -1011,7 +1000,7 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
       try:
         ret = uploadClient.upload(
                  [{
-# ADD CHOICE OF SCHEME
+# ADD CHOICE OF SCHEME?
                    'path' : 'home/workspace/' + fileName,
                    'rse'  : rseDict['rse_name'],
                    'did_scope' : jobscriptDict['scope'],
@@ -1075,8 +1064,6 @@ logLine('confirm_results returns HTTP code %d' % confirmDict['status'])
 if confirmDict['status'] == 410:
   # Server side, nothing is confirmed. Presumably this was already sorted
   # when the job was marked as stalled or whatever.
-  # In this script, we exit now, before the outputs are marked as confirmed 
-  # in MetaCat.
   logLine('Exiting as job is already marked as gone!')
   sys.exit(0)
 
