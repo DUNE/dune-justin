@@ -151,15 +151,15 @@ CREATE TABLE IF NOT EXISTS `files` (
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
-## 'processed' SHOULD BECOME 'finished' TO AVOID CONFUSION WITH BEING 
-## PROCESSED BY THE JOBSCRIPT. processed_time ETC SHOULD CHANGE EVERYWHERE TOO
-  `state` enum('finding','unallocated','allocated',
-               'outputting','processed','notfound','failed',
-               'recorded', 'output') NOT NULL DEFAULT 'finding',
+# output STATE NEED IS NO LONGER USED
+  `state` enum('finding','unallocated','processing',
+               'outputting','finished','notfound','failed',
+               'recorded', 'output', 'finalising', 'registering') 
+               NOT NULL DEFAULT 'finding',
   `size_bytes` bigint not null default 0,
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
-  `processed_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
-  `processed_hour` mediumint(8) unsigned NOT NULL DEFAULT 0,
+  `finished_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+  `finished_hour` mediumint(8) unsigned NOT NULL DEFAULT 0,
   `processed_site_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `creator_justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `creator_stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
@@ -176,8 +176,9 @@ CREATE TABLE IF NOT EXISTS `files` (
   INDEX `workflow_stage_state_file` (`workflow_id`,`stage_id`,`state`,`file_id`),
   INDEX `workflow_stage_file_id` (`workflow_id`,`stage_id`,`file_id`),
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
-  INDEX `processed_time` (`processed_time`),
-  INDEX `workflow_stage_state_processed_site` (`workflow_id`,`stage_id`,`state`,`processed_hour`,`processed_site_id`)
+  INDEX `uploaded_time` (`uploaded_time`),
+  INDEX `workflow_stage_state_uploaded_site` (`workflow_id`,`stage_id`,`state`,
+                                           `finished_hour`,`uploaded_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `replicas` (

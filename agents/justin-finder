@@ -890,7 +890,7 @@ def findWorkflowsToFinish():
     try:
       query = ('SELECT COUNT(*) AS count FROM files '
                'WHERE workflow_id=%d AND '
-               'state <> "processed" AND '
+               'state <> "finished" AND '
                'state <> "notfound" AND '
                'state <> "failed" AND ' 
                'state <> "recorded" AND '

@@ -2123,9 +2123,8 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   try:
     justin.insertUpdate('UPDATE files '
-                        'SET state="processed",processed_time=NOW(),'
-                        'processed_hour=FLOOR(UNIX_TIMESTAMP()/3600),'
-                        'processed_site_id=%d '
+                        'SET state="finalising",'
+                        'processing_site_id=%d '
                         'WHERE state="outputting" AND justin_job_id=%d' 
                         % (siteID, justinJobID))
   except:
@@ -2182,9 +2181,9 @@ def confirmResultsMethod(startResponse, jsonDict):
           justin.insertUpdate('UPDATE files SET state="%s",'
                   'size_bytes=%d '
                   'WHERE file_id=%d' %
-                     ('unallocated' if (fileRow['stage_id'] > 0) else 'output',
-                      sizeBytes,
-                      fileRow['file_id']))
+                ('unallocated' if (fileRow['stage_id'] > 0) else 'finished',
+                 sizeBytes,
+                 fileRow['file_id']))
 
           if fileRow['file_did'].startswith('https://'):
             # We only need this for the HTTPS uploads outside Rucio

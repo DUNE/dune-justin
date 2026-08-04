@@ -1,7 +1,7 @@
 #
 # justin-wsgi-dashboard - justIN workflow system dashboard
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1202,7 +1202,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
     ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
     ' WHERE workflows.campaign_id=campaigns.campaign_id'
     ' AND files.stage_id=1 '
-    ' AND files.state="processed") AS files_processed,'
+    ' AND files.state="finished") AS files_finished,'
     '(SELECT COUNT(*) FROM files'
     ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
     ' WHERE workflows.campaign_id=campaigns.campaign_id'
@@ -1262,7 +1262,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
            ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
            ' WHERE workflows.campaign_id=campaigns.campaign_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="processed") AS files_processed,'
+           ' AND files.state="finished") AS files_finished,'
            '(SELECT COUNT(*) FROM files'
            ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
            ' WHERE workflows.campaign_id=campaigns.campaign_id'
@@ -1291,15 +1291,15 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
              '<th>Created&nbsp;by</th>'
              '<th>Created</th>'
              '<th>Workflows</th>'
-             '<th>Files Processed</th><tr>')
+             '<th>Files Finished</th><tr>')
 
   for row in rows[:pageLength]:
     if not row["files_total"]:
       filesStr = ' '
     else:
       filesStr = ('%d/%d (%.1f%%)' % 
-                  (row['files_processed'], row['files_total'],  
-                   100.0 * row['files_processed'] /  row['files_total']))
+                  (row['files_finished'], row['files_total'],  
+                   100.0 * row['files_finished'] /  row['files_total']))
 
     output += ('<tr><td><a href="/dashboard/?method=show-campaign&campaign_id=%d">'
        '%d</a></td>'
@@ -1380,7 +1380,7 @@ def showCampaign(environ, user, cgiValues):
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="processed") AS files_processed,'
+           ' AND files.state="finished") AS files_finished,'
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1) AS files_total '
@@ -1402,22 +1402,22 @@ def showCampaign(environ, user, cgiValues):
   output += ('<tr><th>Workflow</th><th>Description</th>'
              '<th>User</th>'
              '<th>Scope</th><th>State</th>'
-             '<th>MQL</th><th>Files Processed</th><th>Started</th>'
+             '<th>MQL</th><th>Files Finished</th><th>Started</th>'
              '<th>Finished</th><tr>')
 
-  filesTotalProcessed = 0
+  filesTotalFinished = 0
   filesGrandTotal     = 0
 
   for row in rows:
     if not row["files_total"]:
       filesStr = ' '
     else:
-      filesTotalProcessed += row['files_processed']
-      filesGrandTotal     += row["files_total"]
+      filesTotalFinished += row['files_finished']
+      filesGrandTotal    += row["files_total"]
 
       filesStr = ('%d/%d (%.1f%%)' % 
-                  (row['files_processed'], row['files_total'],  
-                   100.0 * row['files_processed'] /  row['files_total']))
+                  (row['files_finished'], row['files_total'],  
+                   100.0 * row['files_finished'] /  row['files_total']))
 
     output += ('<tr><td><a href="/dashboard/?method=show-workflow'
           '&workflow_id=%s">'
@@ -1445,12 +1445,12 @@ def showCampaign(environ, user, cgiValues):
                'this campaign</p>' % pageLength)
 
   elif filesGrandTotal > 0: 
-    output += ('<p>%d file%s processed out of %d input file%s = %.1f%%</p>'
-               % (filesTotalProcessed, 
-                  ('s' if filesTotalProcessed != 1 else ''), 
+    output += ('<p>%d file%s finished out of %d input file%s = %.1f%%</p>'
+               % (filesTotalFinished, 
+                  ('s' if filesTotalFinished != 1 else ''), 
                   filesGrandTotal, 
                   ('s' if filesGrandTotal != 1 else ''), 
-                  100.0 * filesTotalProcessed / filesGrandTotal))
+                  100.0 * filesTotalFinished / filesGrandTotal))
   
     output += ('<p>You can download this list as '
                '<a href="/dashboard/?method=download-campaign-workflows'
@@ -1639,7 +1639,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="processed") AS files_processed,'
+           ' AND files.state="finished") AS files_finished,'
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1) AS files_total '
@@ -1664,7 +1664,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
   output += ('<tr><th>Workflow</th><th>Description</th>'
              '<th>Campaign</th><th>User</th>'
              '<th>Scope / Quota</th><th>State</th>'
-             '<th>MQL</th><th>Files Processed</th><th>Started</th>'
+             '<th>MQL</th><th>Files Finished</th><th>Started</th>'
              '<th>Finished</th><tr>')
 
   for row in rows[:pageLength]:
@@ -1672,8 +1672,8 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
       filesStr = ' '
     else:
       filesStr = ('%d/%d (%.1f%%)' % 
-                  (row['files_processed'], row['files_total'],  
-                   100.0 * row['files_processed'] /  row['files_total']))
+                  (row['files_finished'], row['files_total'],  
+                   100.0 * row['files_finished'] /  row['files_total']))
 
     output += ('<tr><td><a href="/dashboard/?method=show-workflow'
           '&workflow_id=%s">'
@@ -1995,12 +1995,11 @@ def showWorkflow(environ, user, cgiValues):
     stateCounts.append({ 'recorded'    : 0,
                          'finding'     : 0,
                          'unallocated' : 0,
-                         'allocated'   : 0,
+                         'processing'  : 0,
                          'outputting'  : 0,
-                         'processed'   : 0,
+                         'finished'   : 0,
                          'notfound'    : 0,
-                         'failed'      : 0,
-                         'output'      : 0  })
+                         'failed'      : 0 })
   
   query = ('SELECT state,stage_id,COUNT(*) AS count '
            'FROM files '
@@ -2017,8 +2016,8 @@ def showWorkflow(environ, user, cgiValues):
   output += '<h2>File states per stage</h2>'
   output += '<table>'
   output += ("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
-             "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
-             "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
+             "<th>Unallocated</th><th>Processing</th><th>Outputting</th>"
+             "<th>Finished</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:
     output += ('<tr><td><a href="/dashboard/?method=show-stage&workflow_id=%s&stage_id=%s">'
@@ -2026,9 +2025,9 @@ def showWorkflow(environ, user, cgiValues):
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s">%s</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finding">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=allocated">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processing">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processed">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finished">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%d</a></td>'
           '</tr>' % 
@@ -2037,9 +2036,9 @@ def showWorkflow(environ, user, cgiValues):
             stageRow["workflow_id"], stageRow["stage_id"], 
             stateCounts[stageRow['stage_id']]['finding'] +
              stateCounts[stageRow['stage_id']]['unallocated'] +
-             stateCounts[stageRow['stage_id']]['allocated'] +
+             stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
-             stateCounts[stageRow['stage_id']]['processed'] +
+             stateCounts[stageRow['stage_id']]['finished'] +
              stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
             stageRow["workflow_id"], stageRow["stage_id"],
@@ -2047,11 +2046,11 @@ def showWorkflow(environ, user, cgiValues):
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['unallocated'],
             stageRow["workflow_id"], stageRow["stage_id"],
-            stateCounts[stageRow['stage_id']]['allocated'],
+            stateCounts[stageRow['stage_id']]['processing'],
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
             stageRow["workflow_id"], stageRow["stage_id"],
-            stateCounts[stageRow['stage_id']]['processed'],
+            stateCounts[stageRow['stage_id']]['finished'],
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['notfound'],
             stageRow["workflow_id"], stageRow["stage_id"], 
@@ -2504,12 +2503,11 @@ def showStage(environ, user, cgiValues):
   stateCounts = { 'recorded'    : 0,
                   'finding'     : 0,
                   'unallocated' : 0,
-                  'allocated'   : 0,
+                  'processing'  : 0,
                   'outputting'  : 0,
-                  'processed'   : 0,
+                  'finished'    : 0,
                   'notfound'    : 0,
-                  'failed'      : 0,
-                  'output'      : 0  }                  
+                  'failed'      : 0  }
   
   query = ('SELECT state,COUNT(*) AS count '
            'FROM files '
@@ -2524,30 +2522,30 @@ def showStage(environ, user, cgiValues):
   output += '<h2>File states</h2>'
   output += '<table>'
   output += ("<tr><th>Total files</th><th>Finding</th>"
-        "<th>Unallocated</th><th>Allocated</th><th>Outputting</th>"
-        "<th>Processed</th><th>Not found</th><th>Failed</th><tr>")
+        "<th>Unallocated</th><th>Processing</th><th>Outputting</th>"
+        "<th>Finished</th><th>Not found</th><th>Failed</th><tr>")
 
   output += ('<tr><td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finding">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=allocated">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processing">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processed">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finished">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%s</a></td>'
         '</tr>' % 
           ( workflowID, stageID, stateCounts['finding']
                                         + stateCounts['unallocated']
-                                        + stateCounts['allocated'] 
+                                        + stateCounts['processing'] 
                                         + stateCounts['outputting']
-                                        + stateCounts['processed']
+                                        + stateCounts['finished']
                                         + stateCounts['notfound']
                                         + stateCounts['failed'],
             workflowID, stageID, stateCounts['finding'], 
             workflowID, stageID, stateCounts['unallocated'], 
-            workflowID, stageID, stateCounts['allocated'], 
+            workflowID, stageID, stateCounts['processing'], 
             workflowID, stageID, stateCounts['outputting'],
-            workflowID, stageID, stateCounts['processed'],
+            workflowID, stageID, stateCounts['finished'],
             workflowID, stageID, stateCounts['notfound'],
             workflowID, stageID, stateCounts['failed']))
 
@@ -2653,20 +2651,20 @@ def showStage(environ, user, cgiValues):
 
   # Progress chart based on file process_time values
 
-  query = ('SELECT site_name,processed_hour,'
-           'count(*) AS processed_count '
+  query = ('SELECT site_name,finished_hour,'
+           'count(*) AS finished_count '
            'FROM files '
            'LEFT JOIN sites ON sites.site_id=files.processed_site_id '
            'WHERE workflow_id=%d AND stage_id=%d AND '
-           'state="processed" GROUP BY processed_hour,processed_site_id '
-           'ORDER BY processed_hour'
+           'state="finished" GROUP BY finished_hour,processed_site_id '
+           'ORDER BY finished_hour'
            % (workflowID, stageID))
 
   binRows = justin.select(query)
 
   if binRows:
-    firstHour   = binRows[0]['processed_hour']
-    lastHour    = binRows[-1]['processed_hour']
+    firstHour   = binRows[0]['finished_hour']
+    lastHour    = binRows[-1]['finished_hour']
     hoursPerBin = int((1 + lastHour - firstHour) / 20.0 + 0.999)
     numBins     = int((1 + lastHour - firstHour) / hoursPerBin + 0.999)
 
@@ -2681,15 +2679,15 @@ def showStage(environ, user, cgiValues):
       if binRow['site_name'] not in bins:
         bins[binRow['site_name']] = [0] * numBins
 
-      i = int((binRow['processed_hour'] - firstHour) / hoursPerBin)
-      bins[binRow['site_name']][i] += binRow['processed_count']
+      i = int((binRow['finished_hour'] - firstHour) / hoursPerBin)
+      bins[binRow['site_name']][i] += binRow['finished_count']
 
     chart = justinStackedLine(1000, 
                            firstHour * 3600,
                            hoursPerBin,
                            numBins)
   
-    chart.title = 'Files processed'
+    chart.title = 'Files finished'
     
     for siteName in bins:
       chart.add(siteName, bins[siteName], fill = True, show_dots = False)
@@ -2789,7 +2787,7 @@ def showStage(environ, user, cgiValues):
 
     output += ('</table>') 
 
-  output += ('<p>Stats of processed input files as '
+  output += ('<p>Stats of finished input files as '
                '<a href="/dashboard/?method=download-input-file-stats&'
                'workflow_id=%d&stage_id=%d&format=csv">CSV</a> or '
                '<a href="/dashboard/?method=download-input-file-stats&'
@@ -2820,9 +2818,9 @@ def showStage(environ, user, cgiValues):
   for resetRow in resetRows:
   
     if resetRow['site_name'] not in resetCounts:
-      resetCounts[resetRow['site_name']] = { 'allocated': 0, 'outputting': 0 }
+      resetCounts[resetRow['site_name']] = { 'procssing': 0, 'outputting': 0 }
 
-    resetCounts[resetRow['site_name']]['allocated'] = resetRow['site_count']
+    resetCounts[resetRow['site_name']]['processing'] = resetRow['site_count']
 
   query = ('SELECT site_name,COUNT(*) AS site_count FROM events '
            'LEFT JOIN sites ON sites.site_id=events.site_id '
@@ -2837,18 +2835,18 @@ def showStage(environ, user, cgiValues):
   for resetRow in resetRows:
   
     if resetRow['site_name'] not in resetCounts:
-      resetCounts[resetRow['site_name']] = { 'allocated': 0, 'outputting': 0 }
+      resetCounts[resetRow['site_name']] = { 'processing': 0, 'outputting': 0 }
 
     resetCounts[resetRow['site_name']]['outputting'] = resetRow['site_count']
 
   if resetCounts:
     output += ("<h2>File reset events, by site</h2>")
-    output += ('<table><tr><th>Site</th><th>Allocated</th><th>Outputting</th></tr>')
+    output += ('<table><tr><th>Site</th><th>Processing</th><th>Outputting</th></tr>')
 
     for siteName in resetCounts:
       output += ("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" %
             (siteName,
-             resetCounts[siteName]['allocated'],
+             resetCounts[siteName]['processing'],
              resetCounts[siteName]['outputting']
             ))
 
@@ -2903,8 +2901,8 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
     if not justin.stringIsEnvName(state):
       return errorPage(environ, user, "Invalid characters in state")
       
-    if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-        or state == 'outputting' or state == 'processed' \
+    if state == 'finding' or state == 'unallocated' or state == 'processing' \
+        or state == 'outputting' or state == 'finished' \
         or state == 'notfound' or state == 'failed':
       stateFilter = 'AND files.state="' + state + '"'
       stateText = ' (state = ' + state + ')'
@@ -2945,7 +2943,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
 
   output += (
 """<p><table>
-<tr><th rowspan="2">DID</th><th rowspan="2">Attempts</th><th rowspan="2">State</th><th colspan="4">Allocated</th></tr>
+<tr><th rowspan="2">DID</th><th rowspan="2">Attempts</th><th rowspan="2">State</th><th colspan="4">Processing</th></tr>
 <tr><th>Time</th><th>RSE</th><th>Site</th><th>Jobsub ID</th></tr>""")
 
   for fileRow in filesRows[:pageLength]:
@@ -2960,7 +2958,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
           )
          )
          
-      if fileRow["state"] in ['allocated', 'outputting', 'processed', 'failed']:
+      if fileRow["state"] in ['processing', 'outputting', 'finished', 'failed']:
         output += ('<td>%s</td>'
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
@@ -3020,7 +3018,7 @@ def showFile(environ, user, cgiValues):
 
   output += ("<h1>File %s</h1>" % insertWBR(fileDID))
   
-  query = ('SELECT file_id,state,processed_time,size_bytes,'
+  query = ('SELECT file_id,state,finished_time,size_bytes,'
            'allocations,max_allocations '
            'FROM files '
            'WHERE workflow_id=%d %s AND file_did="%s"' %
@@ -3075,9 +3073,9 @@ def showFile(environ, user, cgiValues):
              '<td>%s</td></tr>'
              % fileRow["state"])
       
-  output += ('<tr><td>Processed</td>'
+  output += ('<tr><td>Finished</td>'
              '<td>%s</td></tr>'
-             % spaceForUnixEpoch(fileRow["processed_time"]))
+             % spaceForUnixEpoch(fileRow["finished_time"]))
       
   output += '<tr><td>Replicas</td><td>'
   
@@ -3254,9 +3252,9 @@ def showJob(environ, user, cgiValues):
 
   inputFilesRows = justin.select(query)
 
-  query = ("SELECT file_did,files.stage_id FROM files "
-           "WHERE creator_justin_job_id=%d AND state='output' "
-           "ORDER BY file_id" % jobRow['justin_job_id'])
+  query = ('SELECT file_did,files.stage_id FROM files '
+           'WHERE creator_justin_job_id=%d '
+           'ORDER BY file_id' % jobRow['justin_job_id'])
 
   outputFilesRows = justin.select(query)
 
@@ -5965,8 +5963,8 @@ def downloadCsvJson(environ, user, cgiValues, method):
       if not justin.stringIsEnvName(state):
         return errorPage(environ, user, "Invalid characters in state")
       
-      if state == 'finding' or state == 'unallocated' or state == 'allocated' \
-          or state == 'outputting' or state == 'processed' \
+      if state == 'finding' or state == 'unallocated' or state == 'processing' \
+          or state == 'outputting' or state == 'finished' \
           or state == 'notfound' or state == 'failed':
         stateFilter = 'AND files.state="' + state + '"'
         stateText = ' (state = ' + state + ')'
@@ -5999,7 +5997,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
 
     query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
              'jobscript_real_seconds AS seconds,distance,'
-             'CAST(processed_time AS CHAR) AS job_finish_time '
+             'CAST(files.finished_time AS CHAR) AS file_finished_time '
              'FROM files '
              'LEFT JOIN jobs ON files.justin_job_id=jobs.justin_job_id '
              'LEFT JOIN events ON events.file_id=files.file_id '
@@ -6010,7 +6008,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              'AND events.rse_id=sites_storages.rse_id '
              'LEFT JOIN storages ON events.rse_id=storages.rse_id '
              'LEFT JOIN sites ON events.site_id=sites.site_id '
-             'WHERE files.state="processed" '
+             'WHERE files.state="finished" '
              'AND files.workflow_id=%d '
              'AND files.stage_id=%d '
              'ORDER BY files.file_id LIMIT %d' %
@@ -6018,7 +6016,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
               csvJsonMaxRows))
 
     fieldsList = ['file_did','jobsub_id','site_name','rse_name','size_bytes',
-                  'seconds','distance','job_finish_time']
+                  'seconds','distance','file_finished_time']
 
   elif method == 'download-output-file-stats':
     # CSV or JSON file with stats of output files for a workflow/stage
@@ -6027,7 +6025,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
       return errorPage(environ, user, "workflow_id and stage_id must be given")
 
     query = ('SELECT file_did,jobsub_id,site_name,rse_name,size_bytes,'
-             'seconds,distance,CAST(event_time AS CHAR) AS job_finish_time '
+             'seconds,distance,CAST(event_time AS CHAR) AS file_uploaded_time '
              'FROM events '
              'LEFT JOIN files ON files.file_id=events.file_id '
              'LEFT JOIN jobs ON jobs.justin_job_id=events.justin_job_id '
@@ -6118,7 +6116,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              '(SELECT COUNT(*) FROM files'
              ' WHERE files.workflow_id=workflows.workflow_id'
              ' AND files.stage_id=1 '
-             ' AND files.state="processed") AS files_processed,'
+             ' AND files.state="finished") AS files_finished,'
              '(SELECT COUNT(*) FROM files'
              ' WHERE files.workflow_id=workflows.workflow_id'
              ' AND files.stage_id=1) AS files_total '
@@ -6134,7 +6132,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
 
     fieldsList = ['workflow_id','description','user_name','state','mql',
                   'start_time','finish_time','scope_name',
-                  'files_processed','files_total']
+                  'files_finished','files_total']
  
   else:  
     return errorPage(environ, user, "Download method not recognised!")

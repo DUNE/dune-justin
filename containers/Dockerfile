@@ -100,9 +100,6 @@ COPY database/justin-check-db            /usr/sbin/
 COPY agents/justin-info-collector        /usr/sbin/
 COPY agents/justin-finder                /usr/sbin/
 COPY agents/justin-job-logs              /usr/sbin/
-COPY agents/justin-fnal-agent            /usr/sbin/
-#COPY agents/justin-finder-tape          /usr/sbin/
-COPY agents/justin-finder-bringonline    /usr/sbin/
 COPY agents/justin-job-factory           /usr/sbin/
 COPY agents/justin-write-logstash-config /usr/sbin/
 
@@ -144,9 +141,6 @@ COPY containers/justin-client.cnf       /etc/my.cnf.d/
 COPY containers/start-justin-httpd          /usr/sbin/
 COPY containers/start-justin-finder         /usr/sbin/
 COPY containers/start-justin-job-logs       /usr/sbin/
-COPY containers/start-justin-fnal-agent     /usr/sbin/
-#COPY containers/start-justin-finder-tape    /usr/sbin/
-COPY containers/start-justin-finder-bringonline /usr/sbin/
 COPY containers/start-justin-job-factory    /usr/sbin/
 COPY containers/start-justin-info-collector /usr/sbin/
 COPY containers/start-justin-shell          /usr/sbin/

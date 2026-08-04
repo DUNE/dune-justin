@@ -2,6 +2,10 @@
 
 ## 02.00.00
 - Change FILE_CREATED event to FILE_UPLOADED
+- Remove output state for output files: use finished instead
+- File state allocated -> processing; processed -> finished
+- In file CSV/JSON files, job_processed_time -> file_finished_time,
+  files_processed -> files_finished
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options
