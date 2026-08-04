@@ -221,9 +221,11 @@ def webdavRemoteExists(sslContext, token, url):
   try:
     response = urllib.request.urlopen(httpRequest, context = sslContext)
     httpCode = response.status 
+    reason   = response.msg
 
   except urllib.error.URLError as e:
     httpCode = e.code
+    reason   = e.reason
 
   except Exception as e:
     print('Unknown error checking if %s exists: %s' % (url, str(e)), 
@@ -240,6 +242,7 @@ def webdavRemoteExists(sslContext, token, url):
 
   print('Unexpected HTTP code %d when checking for %s' % (httpCode, url),
         file=sys.stderr)
+  print('Reason: ' + str(reason))
   raise RuntimeError('Unexpected HTTP code %d' % httpCode)
   
 def webdavRemoteDirCreate(sslContext, token, url):
