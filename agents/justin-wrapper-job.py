@@ -895,6 +895,7 @@ if ret:
   jobAborted(313, 'create_logs_tgz', '')
 
 try:
+  logLine('Uploading %s/%s' % (logsURL, tgzName))
   webdavPutFile(resultsResponseDict['user_access_token'], tgzName, logsURL)
 except Exception as e:
   logLine('Failed to upload logs.tgz file: ' + str(e))
