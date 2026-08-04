@@ -1997,7 +1997,8 @@ def showWorkflow(environ, user, cgiValues):
                          'unallocated' : 0,
                          'processing'  : 0,
                          'outputting'  : 0,
-                         'finished'   : 0,
+                         'finalising'  : 0,
+                         'finished'    : 0,
                          'notfound'    : 0,
                          'failed'      : 0 })
   
@@ -2017,6 +2018,7 @@ def showWorkflow(environ, user, cgiValues):
   output += '<table>'
   output += ("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
              "<th>Unallocated</th><th>Processing</th><th>Outputting</th>"
+             "<th>Finalising</th>"
              "<th>Finished</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:
@@ -2027,6 +2029,7 @@ def showWorkflow(environ, user, cgiValues):
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processing">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finalising">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finished">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%d</a></td>'
@@ -2038,6 +2041,7 @@ def showWorkflow(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['unallocated'] +
              stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
+             stateCounts[stageRow['stage_id']]['finalising'] +
              stateCounts[stageRow['stage_id']]['finished'] +
              stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
@@ -2049,6 +2053,8 @@ def showWorkflow(environ, user, cgiValues):
             stateCounts[stageRow['stage_id']]['processing'],
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
+            stageRow["workflow_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['finalising'],
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finished'],
             stageRow["workflow_id"], stageRow["stage_id"],
@@ -2065,6 +2071,7 @@ def showWorkflow(environ, user, cgiValues):
                          'started'           : 0,
                          'processing'        : 0,
                          'outputting'        : 0,
+                         'finalising'        : 0,
                          'finished'          : 0,
                          'notused'           : 0,
                          'aborted'           : 0,
@@ -2092,7 +2099,7 @@ def showWorkflow(environ, user, cgiValues):
              '<th>Submitted</th>'
              '<th>Started</th>'
              '<th>Processing</th>'
-             '<th>Outputting</th><th>Finished</th>'
+             '<th>Outputting</th><th>Finalising</th><th>Finished</th>'
              '<th>Notused</th>'
              '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
              '<th>Outputting failed</th>'
@@ -2112,6 +2119,8 @@ def showWorkflow(environ, user, cgiValues):
         '&stage_id=%d&job_state=processing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=finalising">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=finished">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
@@ -2134,6 +2143,7 @@ def showWorkflow(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['started'] +
              stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
+             stateCounts[stageRow['stage_id']]['finalising'] +
              stateCounts[stageRow['stage_id']]['finished'] +
              stateCounts[stageRow['stage_id']]['notused'] +
              stateCounts[stageRow['stage_id']]['aborted'] +
@@ -2149,6 +2159,8 @@ def showWorkflow(environ, user, cgiValues):
             stateCounts[stageRow['stage_id']]['processing'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
+           stageRow["workflow_id"], stageRow["stage_id"],
+            stateCounts[stageRow['stage_id']]['finalising'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finished'],
            stageRow["workflow_id"], stageRow["stage_id"],
@@ -2505,6 +2517,7 @@ def showStage(environ, user, cgiValues):
                   'unallocated' : 0,
                   'processing'  : 0,
                   'outputting'  : 0,
+                  'finalising'  : 0,
                   'finished'    : 0,
                   'notfound'    : 0,
                   'failed'      : 0  }
@@ -2523,6 +2536,7 @@ def showStage(environ, user, cgiValues):
   output += '<table>'
   output += ("<tr><th>Total files</th><th>Finding</th>"
         "<th>Unallocated</th><th>Processing</th><th>Outputting</th>"
+        "<th>Finalising</th>"
         "<th>Finished</th><th>Not found</th><th>Failed</th><tr>")
 
   output += ('<tr><td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s">%s</a></td>'
@@ -2530,6 +2544,7 @@ def showStage(environ, user, cgiValues):
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processing">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finalising">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finished">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%s</a></td>'
@@ -2538,6 +2553,7 @@ def showStage(environ, user, cgiValues):
                                         + stateCounts['unallocated']
                                         + stateCounts['processing'] 
                                         + stateCounts['outputting']
+                                        + stateCounts['finalising']
                                         + stateCounts['finished']
                                         + stateCounts['notfound']
                                         + stateCounts['failed'],
@@ -2545,6 +2561,7 @@ def showStage(environ, user, cgiValues):
             workflowID, stageID, stateCounts['unallocated'], 
             workflowID, stageID, stateCounts['processing'], 
             workflowID, stageID, stateCounts['outputting'],
+            workflowID, stageID, stateCounts['finalising'],
             workflowID, stageID, stateCounts['finished'],
             workflowID, stageID, stateCounts['notfound'],
             workflowID, stageID, stateCounts['failed']))
@@ -2556,6 +2573,7 @@ def showStage(environ, user, cgiValues):
                   'started'           : 0,
                   'processing'        : 0,
                   'outputting'        : 0,
+                  'finalising'        : 0,
                   'finished'          : 0,
                   'notused'           : 0,
                   'aborted'           : 0,
@@ -2580,6 +2598,7 @@ def showStage(environ, user, cgiValues):
              '<th>Started</th>'
              '<th>Processing</th>'
              '<th>Outputting</th>'
+             '<th>Finalising</th>'
              '<th>Finished</th>'
              '<th>Notused</th>'
              '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
@@ -2597,6 +2616,8 @@ def showStage(environ, user, cgiValues):
         '&stage_id=%d&job_state=processing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting">%d</a></td>'
+        '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
+        '&stage_id=%d&job_state=finalising">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=finished">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
@@ -2617,6 +2638,7 @@ def showStage(environ, user, cgiValues):
              stateCounts['started'] +
              stateCounts['processing'] +
              stateCounts['outputting'] +
+             stateCounts['finalising'] +
              stateCounts['finished'] +
              stateCounts['notused'] +
              stateCounts['aborted'] +
@@ -2632,6 +2654,8 @@ def showStage(environ, user, cgiValues):
             stateCounts['processing'],
            workflowID, stageID,
             stateCounts['outputting'],
+           workflowID, stageID,
+            stateCounts['finalising'],
            workflowID, stageID,
             stateCounts['finished'],
            workflowID, stageID,
@@ -2958,7 +2982,8 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
           )
          )
          
-      if fileRow["state"] in ['processing', 'outputting', 'finished', 'failed']:
+      if fileRow["state"] in ['processing', 'outputting', 'finalising', 
+                              'finished', 'failed']:
         output += ('<td>%s</td>'
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
             '<td><a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
@@ -3018,12 +3043,13 @@ def showFile(environ, user, cgiValues):
 
   output += ("<h1>File %s</h1>" % insertWBR(fileDID))
   
-  query = ('SELECT file_id,state,finished_time,size_bytes,'
-           'allocations,max_allocations '
+  query = ('SELECT file_id,state,files.finished_time,size_bytes,'
+           'allocations,max_allocations,jobsub_id '
            'FROM files '
-           'WHERE workflow_id=%d %s AND file_did="%s"' %
+           'LEFT JOIN jobs ON jobs.justin_job_id=creator_justin_job_id '
+           'WHERE files.workflow_id=%d %s AND file_did="%s"' %
            (workflowID, 
-            ('AND stage_id=%d' % stageID) if stageID else '',
+            ('AND files.stage_id=%d' % stageID) if stageID else '',
             fileDID))
 
   fileRow = justin.select(query, justOne = True)
@@ -3077,6 +3103,12 @@ def showFile(environ, user, cgiValues):
              '<td>%s</td></tr>'
              % spaceForUnixEpoch(fileRow["finished_time"]))
       
+  if fileRow['jobsub_id']:
+    output += ('<tr><td>Created by</td>'
+               '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">'
+               '%s</a></td></tr>'
+               % (fileRow["jobsub_id"], fileRow['jobsub_id']))
+      
   output += '<tr><td>Replicas</td><td>'
   
   for replicaRow in replicaRows:    
@@ -3089,7 +3121,7 @@ def showFile(environ, user, cgiValues):
   output += ('<tr><td>Allocations</td><td>%d / %d</td></tr>' 
              % (fileRow['allocations'], fileRow['max_allocations']))
 
-  output += '<tr><td>Jobs</td><td>' 
+  output += '<tr><td>Processed by</td><td>' 
   
   for jobRow in jobsRows:
   

@@ -191,8 +191,7 @@ def findGPU(getJobscriptDict):
       gpuDeviceNumber += 1
 
 #
-# Start of WebDAV uploads: this code is shared between justin-webdav-upload 
-# and justin-wrapper-job to make them both self contained
+# Start of WebDAV uploads
 #
 
 def webdavCheckRemoteDirectories(sslContext, token, destinationDir):
@@ -883,6 +882,7 @@ except:
   pass
 
 tgzName = jobsubJobID.replace('@','-') + '.logs.tgz'
+
 try:
   ret = os.system('cd home/workspace ; '
                   'tar zcf ../../%s --transform="s,^,%s/," *.log' 
@@ -890,10 +890,15 @@ try:
 except Exception as e:
   logLine('tar zcf %s *.log fails %s' % (tgzName, str(e)))
   ret = 1
-  
+
 if ret:
   jobAborted(313, 'create_logs_tgz', '')
 
+try:
+  webdavPutFile(resultsResponseDict['user_access_token'], tgzName, logsURL)
+except Exception as e:
+  logLine('Failed to upload logs.tgz file: ' + str(e))
+  
 # REMOVEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE!!!!!
 if False:
  # Copy to Fermilab dCache logs store with ifdh

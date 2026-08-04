@@ -1284,7 +1284,7 @@ def findBestFile(jobDict):
              'file_did'     : None  }
 
   try: 
-    query = ("UPDATE files SET state='allocated',"
+    query = ("UPDATE files SET state='processing',"
              "allocations=allocations+1,"
              "justin_job_id=" + str(jobDict['justin_job_id']) + " "
              "WHERE state='unallocated' AND "
@@ -1464,14 +1464,14 @@ def updateFileProcessing(fileIDList,
                'AND justin_job_id=' + str(justinJobID) + ' '
                'AND workflow_id=' + str(workflowID) + ' '
                'AND stage_id=' + str(stageID) + ' '
-               'AND state="allocated"')
+               'AND state="processing"')
     else:
       query = ('UPDATE files SET state="outputting" '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
                'AND workflow_id=' + str(workflowID) + ' '
                'AND stage_id=' + str(stageID) + ' '
-               'AND state="allocated"')
+               'AND state="processing"')
 
     justin.insertUpdate(query)
     
@@ -1774,7 +1774,7 @@ def recordResultsMethod(startResponse, jsonDict):
                           'state=IF(allocations < max_allocations,' 
                           '"unallocated","failed") '
                           'WHERE justin_job_id=%d AND '
-                          '(state="allocated" OR state="outputting")' 
+                          '(state="processing" OR state="outputting")' 
                           % justinJobID)
     except Exception as e:
       return httpError(startResponse,
@@ -1944,7 +1944,8 @@ def recordResultsMethod(startResponse, jsonDict):
                         'jobscript_real_seconds=%d,'
                         'jobscript_cpu_seconds=%d,'
                         'jobscript_max_rss_bytes=%d '
-                        'WHERE jobsub_id="%s"'
+                        'WHERE jobsub_id="%s" AND '
+                        '(job_state="started" OR job_state="processing")'
                         % (jobscriptRealSeconds,
                            jobscriptCpuSeconds,
                            jobscriptMaxRssBytes,
@@ -2075,7 +2076,7 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
              'AND justin_job_id=%d '
              'AND workflow_id=%d '
              'AND stage_id=%d '
-             'AND state="allocated"'
+             'AND state="processing"'
              % (fileID, justinJobID, workflowID, stageID))
 
     justin.insertUpdate(query)
@@ -2124,7 +2125,7 @@ def confirmResultsMethod(startResponse, jsonDict):
   try:
     justin.insertUpdate('UPDATE files '
                         'SET state="finalising",'
-                        'processing_site_id=%d '
+                        'processed_site_id=%d '
                         'WHERE state="outputting" AND justin_job_id=%d' 
                         % (siteID, justinJobID))
   except:
