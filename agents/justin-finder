@@ -39,14 +39,17 @@ import pymysql
 pymysql.install_as_MySQLdb()
 MySQLdb=pymysql
 
-# Installed by pip3 install of Rucio
+# Installed by pip3 install of Rucio and MetaCat
 import rucio.client
+import metacat.webapi
 
 import justin
 
 maxFileFindsPerCycle = 500
 sleepSeconds         = 60
 updateCondorJobs     = 3600 
+
+clientMetaCat        = None
 
 class justinError(Exception):
   pass
@@ -151,27 +154,18 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
 def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
   # Find files matching the mql query from MetaCat
 
+  if not clientMetaCat:
+    justin.logLine('Cannot find files in MetaCat: no MetaCat connection')
+    return False
+
   for i in range(3,0,-1):
     try:
-      response = urllib.request.urlopen(
-                    "%s/data/query?with_meta=no&with_provenance=no" 
-                     % justin.metacatServerInputsURL, data = mql.encode())
-
-      if response.status != 200:
-        justin.logLine("Reading files list from MetaCat fails with HTTP code "
-                + str(response.status))
-        return False
-
-      fileLines = response.readlines()
-    except Exception as e:    
+      responseIter = clientMetaCat.query(mql, 
+                                         with_metadata   = False, 
+                                         with_provenance = False)
+      responseList = list(responseIter)
+    except Exception as e:
       justin.logLine("Reading files list from MetaCat fails with: " + str(e))
-
-# str(e) is 'HTTP Error 400: Bad Request' if the MQL is badly formed. We could
-# abort the workflow if we detect that, but we need to be sure its not 
-# something going wrong inside MetaCat sometimes. Also the format of the
-# string could change. Maybe ask that MetaCat commit to a specific code or
-# message as part of the API. We could just pause the workflow if this goes 
-# on too long.
       
       if i > 1:
         # Try again as Metacat has transitory errors on large queries
@@ -182,7 +176,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
         # Give up
         return False
 
-  if len(fileLines) > maxFilesPerWorkflow:
+  if len(responseList) > maxFilesPerWorkflow:
     justin.logLine('Too many files found - workflow failed')
 
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
@@ -195,17 +189,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
 
     return False
 
-  for fileLine in fileLines:
-    # Remove any weirdness
-    if fileLine[0] < 32:
-      fileLine = fileLine[1:]
-
-    try:
-      fileDict = json.loads(fileLine)
-    except:
-      justin.logLine("Parsing line from MetaCat fails with: " + str(e))
-      return False
-        
+  for fileDict in responseList:
     try:
       namespace = fileDict['namespace']
       name      = fileDict['name']
@@ -638,151 +622,6 @@ def findReplicas():
     
   # All ok, so commit it all to the DB
   justin.conn.commit()
-
-def executeMetaCatCommand(args):
-
-  for i in range(1, 4):  
-    ret = os.system(
-     'export X509_USER_PROXY=%s ; '
-     'export METACAT_AUTH_SERVER_URL=%s ; '
-     'export METACAT_SERVER_URL=%s ; '
-     '/usr/local/bin/metacat auth login -m x509 dunepro ; '
-     '/usr/local/bin/metacat %s' % 
-     (justin.jobsProductionProxyFile, 
-      justin.metacatAuthServerURL, justin.metacatServerOutputsURL, 
-      args))
-     
-    if ret == 0:
-      break
-
-    time.sleep(1) 
-
-  return ret
-
-# MOVING TO justin-fnal-agent
-def getRcdsCvmfsPath(rcdsServer, hashString):
-
-  httpRequest = urllib.request.Request('https://%s//pubapi/exists?cid=dune/%s'
-                                       % (rcdsServer, hashString),
-                                       data = hashString,
-                                       headers = { 'User-Agent':
-                                                   'justin-finder' },
-                                       method = 'GET')
-
-  sslContext = ssl.SSLContext()
-  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
-  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
-
-  try:
-    response = urllib.request.urlopen(httpRequest, context = sslContext)
-    responseString = response.read().decode('utf-8')
-  except:
-    return None
-
-  if responseString.startswith('PRESENT:'):
-    return responseString[8:]
-    
-  return None
-
-# MOVING TO justin-fnal-agent
-def uploadRcdsTarfile(rcdsServer, hashString, tarFileContents):
-
-  httpRequest = urllib.request.Request('https://%s//pubapi/publish?cid=dune/%s'
-                                       % (rcdsServer, hashString),
-                                       data = tarFileContents,
-                                       headers = { 'User-Agent': 
-                                                   'justin-finder' },
-                                       method = 'POST')
-
-  sslContext = ssl.SSLContext()
-  sslContext.load_cert_chain('/tmp/x509up_u%d' % os.getuid())
-  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
-
-  try:
-    response = urllib.request.urlopen(httpRequest, context = sslContext)
-  except Exception as e:
-    justin.logLine('RCDS upload fails: ' + str(e))
-    return False
-
-  try:
-    responseString = response.read().decode('utf-8')
-  except Exception as e:
-    justin.logLine('Failed getting RCDS upload response string: ' + str(e))
-    return False
-
-  justin.logLine('RCDS upload response: ' + responseString)
-
-  if response.status != 200:
-    justin.logLine('RCDS upload fails with HTTP code %d' % response.status)
-    return False
-  
-  if responseString[:2] != 'OK':
-    justin.logLine('RCDS upload does not respond with OK')
-    return False
-    
-  return True
-
-# MOVING TO justin-fnal-agent
-def checkGitRepo(workflowID = None, stageID = None, 
-                 rcdsServer = 'rcds01.fnal.gov', rcdsHash = None,
-                 gitRepo = None, gitCommit = None):
-  # Check, and if necessary, upload Git repo to RCDS
-
-  (nameRepo, tag) = gitRepo.split(':',1)
-  (name, repo)    = nameRepo.split('/',1)
-
-  if rcdsHash:
-    # check if RCDS still recognises the hash we stored previously
-    rcdsPath = getRcdsCvmfsPath(rcdsServer, rcdsHash)
-    if rcdsPath:
-      return { 'rcds_path'  : rcdsPath, 
-               'rcds_hash'  : rcdsHash  }
-    
-  # We need to upload the tar file to RCDS, so first create it using 
-  # the Git commit not the tag!
-  try:
-    tmpDir = tempfile.TemporaryDirectory()
-    waitStatus = os.system('export HOME=/home/dunejustin && cd %s && '
-                      '/usr/bin/git clone https://github.com/%s/%s.git && '
-                      'cd %s && '
-                      '/usr/bin/git checkout %s && '
-                      'rm -Rf .git .github && '
-                      '/usr/bin/tar cvf ../tmp.tar --sort=name --mtime=@0 .'
-                      % (tmpDir.name, name, repo, repo, gitCommit)
-                          )
-
-    ret = os.waitstatus_to_exitcode(waitStatus)
-    
-    if ret:
-      raise RuntimeError('git clone / tar returns error %d' % ret)
-  except Exception as e:
-    justin.logLine('Failed to do git clone / tar creation: ' + str(e))
-    return None
-
-  try:
-# SHOULD CHECK THIS IS NOT ABSURDLY LARGE BEFORE WE SLURP IT INTO MEMORY!!!
-    tarFileContents = open(tmpDir.name + '/tmp.tar', 'rb').read()
-    rcdsHash        = hashlib.sha1(tarFileContents).hexdigest()
-  except Exception as e:
-    justin.logLine('Failed to read and hash tar file tmp.tar: ' + str(e))
-    return None
-
-  if not uploadRcdsTarfile(rcdsServer, rcdsHash, tarFileContents):
-    justin.logLine('Failed to upload tar file to RCDS for w%ds%d' 
-            % (workflowID, stageID))
-    return None
-    
-  for i in range(0,12):
-    time.sleep(5)
-    
-    rcdsPath = getRcdsCvmfsPath(rcdsServer, rcdsHash)
-
-    if rcdsPath:
-      return { 'rcds_path'  : rcdsPath, 
-               'rcds_hash'  : rcdsHash }
-
-  # Failed to get path despite waiting and after many tries
-  return None
 
 def findSubmittedWorkflows():
   # Find workflows waiting in the submitted state and set them to running
@@ -1605,6 +1444,16 @@ def findStalledCondorJobs():
 
 def oneCycle():
 
+  try:
+    clientMetaCat = \
+      metacat.webapi.MetaCatClient(server_url = justin.metacatServerInputsURL, 
+                               auth_server_url = justin.metacatAuthServerURL)
+    clientMetaCat.login_x509('dunepro', justin.jobsProductionProxyFile)    
+
+  except Exception as e:
+     justin.logLine('Failed to contact MetaCat: ' + str(e))
+     clientMetaCat = None
+     
   findTokensToRefresh()
   findSubmittedWorkflows()
 
