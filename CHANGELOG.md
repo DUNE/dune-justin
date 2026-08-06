@@ -6,6 +6,8 @@
 - File state allocated -> processing; processed -> finished
 - In file CSV/JSON files, job_processed_time -> file_finished_time,
   files_processed -> files_finished
+- Temporarily limit token request to only ask about /dune and
+  /dune/production WLCG group membership due to FNAL dCache issue
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

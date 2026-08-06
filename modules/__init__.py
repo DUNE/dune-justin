@@ -113,8 +113,30 @@ htcondorSUSPENDED           = 7
 
 cilogonScopes       = ('openid profile org.cilogon.userinfo '
                        'wlcg.capabilityset:/duneana wlcg.groups:/dune '
-                       'wlcg.groups:/dune/production '
-                       'wlcg.groups:/dune/lowenergy')
+                       'wlcg.groups:/dune/production')
+
+# Reinstate these when we have a workaround for FNAL dCache failing whenever
+# a user is in more than one subgroup (yes, really)
+#
+#cilogonScopes       = ('openid profile org.cilogon.userinfo '
+#                       'wlcg.capabilityset:/duneana '
+#                       'wlcg.groups:/dune '
+#                       'wlcg.groups:/dune/production '
+#                       'wlcg.groups:/dune/lowenergy '
+#                       'wlcg.groups:/dune/atmexot '
+#                       'wlcg.groups:/dune/beam '
+#                       'wlcg.groups:/dune/beyondsm '
+#                       'wlcg.groups:/dune/calibration '
+#                       'wlcg.groups:/dune/daq '
+#                       'wlcg.groups:/dune/fardetsim '
+#                       'wlcg.groups:/dune/longbaseline '
+#                       'wlcg.groups:/dune/ndproto '
+#                       'wlcg.groups:/dune/neardetsim '
+#                       'wlcg.groups:/dune/nuint '
+#                       'wlcg.groups:/dune/protodune '
+#                       'wlcg.groups:/dune/dunele '
+#                       'wlcg.groups:/dune/dunebsm ')
+
 
 # Note that this assumes we are using UTC since we assume elsewhere this
 # will convert from this MySQL date to 0 in Unix seconds
