@@ -102,7 +102,7 @@ def showWorkflowsCmd(startResponse, jsonDict):
   outputString = ''
   for row in rows:
     outputString += ("%5d %-9s %s %s %s\n" % 
-                     (row['workflow_id'], row['state'],
+                     (row['workflow_id'], row['workflow_state'],
                       row['created'], row['description'], row['mql']))
 
   return httpOK(startResponse, outputString)
@@ -390,7 +390,7 @@ def showFilesCmd(startResponse, jsonDict):
     outputString += ("%d %d %s %s\n" % 
                      (row['workflow_id'],
                       row['stage_id'],
-                      row['state'],
+                      row['file_state'],
                       row['file_did'],
                      )
                     )
@@ -474,7 +474,7 @@ def showReplicasCmd(startResponse, jsonDict):
 
   try:
     rows = justin.select("SELECT replicas.workflow_id,replicas.stage_id,"
-                 "files.state,"
+                 "files.file_state,"
                  "storages.rse_name,files.file_did,replicas.pfn "
                  "FROM replicas "
                  "LEFT JOIN storages ON replicas.rse_id=storages.rse_id "
@@ -492,7 +492,7 @@ def showReplicasCmd(startResponse, jsonDict):
     outputString += ("%5d %2d %-11s %s %s %s\n" %
                      (row['workflow_id'],
                       row['stage_id'],
-                      row['state'],
+                      row['file_state'],
                       row['file_did'],
                       row['rse_name'],
                       row['pfn']
@@ -645,7 +645,7 @@ def createWorkflow(jsonDict, user, simple = False):
 
   try:
     workflowID = justin.insertUpdate('INSERT INTO workflows SET created=NOW(),'
-          'state="%s",'
+          'workflow_state="%s",'
           'state_message="Created by %s",'
           '%s'
           'description="%s",'
@@ -792,7 +792,7 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                      'Workflow ID must be given')
 
   try:
-    row = justin.select('SELECT workflows.user_id,workflows.state,'
+    row = justin.select('SELECT workflows.user_id,workflows.workflow_state,'
                     'wlcg_group_name FROM workflows '
                     'LEFT JOIN scopes '
                     'ON scopes.scope_id=workflows.scope_id '
@@ -804,7 +804,7 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                     justOne = True)
 
     workflowUserID = int(row['user_id'])
-    workflowState  = row['state']
+    workflowState  = row['workflow_state']
     wlcgGroupName = row['wlcg_group_name']
   except Exception as e:
     return httpError(startResponse,
@@ -826,8 +826,9 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
 
     # Submitting updates user_id to the person who actually submitted it
     query = ("UPDATE workflows SET "
-             "state='submitted',state_message='',submitted=NOW(),user_id=%d "
-             "WHERE workflow_id=%d AND state='draft'" 
+             "workflow_state='submitted',state_message='',submitted=NOW(),"
+             "user_id=%d "
+             "WHERE workflow_id=%d AND workflow_state='draft'" 
              % (user['user_id'], workflowID))
 
   elif jsonDict['command'] == 'restart-workflow':
@@ -836,9 +837,9 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                        '403 Forbidden',
                        'You cannot restart a workflow that is not paused')
 
-    query = ("UPDATE workflows SET state='running',"
+    query = ("UPDATE workflows SET workflow_state='running',"
              "state_message='Restarted by %s' "
-             "WHERE workflow_id=%d AND state='paused'"
+             "WHERE workflow_id=%d AND workflow_state='paused'"
              % (user['user_name'], workflowID))
 
   elif jsonDict['command'] == 'pause-workflow':
@@ -847,10 +848,10 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                        '403 Forbidden',
                        'You cannot pause a workflow that is not running')
 
-    query = ("UPDATE workflows SET state='paused',"
+    query = ("UPDATE workflows SET workflow_state='paused',"
              "state_message='Paused by %s' "
              "WHERE workflow_id=%d "
-             "AND state='running'" % (user['user_name'], workflowID))
+             "AND workflow_state='running'" % (user['user_name'], workflowID))
 
   elif jsonDict['command'] == 'finish-workflow':
     if workflowState not in ('running','submitted','draft'):
@@ -858,10 +859,11 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                        '403 Forbidden',
                        'You cannot finish a workflow that is not running')
 
-    query = ("UPDATE workflows SET state='finished',finished=NOW(),"
+    query = ("UPDATE workflows SET workflow_state='finished',finished=NOW(),"
              "state_message='Finished by %s' "
              "WHERE workflow_id=%d "
-             "AND (state='running' OR state='submitted' OR state='draft')" 
+             "AND (workflow_state='running' OR workflow_state='submitted' "
+             "OR workflow_state='draft')" 
              % (user['user_name'], workflowID))
 
   try:
@@ -1477,9 +1479,9 @@ def failFilesCmd(startResponse, jsonDict, user):
     stageStr = ''
 
   try:
-    justin.insertUpdate('UPDATE files SET state="failed" '
+    justin.insertUpdate('UPDATE files SET file_state="failed" '
           'WHERE workflow_id=%d %s '
-          'AND state IN ("finding", "unallocated", "allocated", "outputting")'
+          'AND file_state IN ("finding", "unallocated", "allocated", "outputting")'
           % (workflowID, stageStr))
 
   except Exception as e:
@@ -1869,7 +1871,7 @@ def listGitReposToDo(startResponse):
                     'FROM stages_git_repos '
                     'LEFT JOIN workflows '
                     'ON workflows.workflow_id=stages_git_repos.workflow_id '
-                    'WHERE workflows.state="submitted" AND rcds_path="" '
+                    'WHERE workflows.workflow_state="submitted" AND rcds_path="" '
                     'ORDER BY workflow_id,stage_id')
   except Exception as e:
     output = 'SELECT failed: ' + str(e)

@@ -461,10 +461,10 @@ def mainPage(environ, user):
            'job_state="processing" OR job_state="outputting") '
            'AS running_jobs,('
            'SELECT COUNT(*) FROM workflows '
-           'WHERE state="running" AND workflow_id<>%d) AS running_workflows,('
+           'WHERE workflow_state="running" AND workflow_id<>%d) AS running_workflows,('
            'SELECT COUNT(*) FROM files '
            'LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
-           'WHERE files.state="unallocated" AND workflows.state="running" '
+           'WHERE files.file_state="unallocated" AND workflows.workflow_state="running" '
            'AND workflows.workflow_id<>%d) AS unallocated_files,'
            '(SELECT key_value FROM keys_names_values '
            ' WHERE key_name="ping_rucio_milliseconds") '
@@ -1202,7 +1202,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
     ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
     ' WHERE workflows.campaign_id=campaigns.campaign_id'
     ' AND files.stage_id=1 '
-    ' AND files.state="finished") AS files_finished,'
+    ' AND files.file_state="finished") AS files_finished,'
     '(SELECT COUNT(*) FROM files'
     ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
     ' WHERE workflows.campaign_id=campaigns.campaign_id'
@@ -1262,7 +1262,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
            ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
            ' WHERE workflows.campaign_id=campaigns.campaign_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="finished") AS files_finished,'
+           ' AND files.file_state="finished") AS files_finished,'
            '(SELECT COUNT(*) FROM files'
            ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
            ' WHERE workflows.campaign_id=campaigns.campaign_id'
@@ -1376,11 +1376,11 @@ def showCampaign(environ, user, cgiValues):
   
   pageLength = 100
   query = ('SELECT workflow_id,description,principal_name AS user_name,'
-           'workflows.state,mql,started,finished,scope_name,'
+           'workflows.workflow_state,mql,started,finished,scope_name,'
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="finished") AS files_finished,'
+           ' AND files.file_state="finished") AS files_finished,'
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1) AS files_total '
@@ -1429,7 +1429,7 @@ def showCampaign(environ, user, cgiValues):
            html.escape(row["description"], quote=True),
            row["user_name"],
            row["scope_name"],
-           row["state"],
+           row["workflow_state"],
            insertWBR(row["mql"]),
            filesStr,
            spaceForUnixEpoch(row['started']),
@@ -1634,12 +1634,12 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
     'cursor: pointer"></form></p>\n')
   
   query = ('SELECT workflow_id,description,principal_name AS user_name,'
-           'workflows.state,mql,created,submitted,started,finished,scope_name,'
+           'workflows.workflow_state,mql,created,submitted,started,finished,scope_name,'
            'campaign_id,quota_name,'
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="finished") AS files_finished,'
+           ' AND files.file_state="finished") AS files_finished,'
            '(SELECT COUNT(*) FROM files'
            ' WHERE files.workflow_id=workflows.workflow_id'
            ' AND files.stage_id=1) AS files_total '
@@ -1687,7 +1687,7 @@ def listWorkflows(environ, user, cgiValues, pageNumber, pageLength):
              if row["campaign_id"] else '',
            row["user_name"],
            row["scope_name"], row["quota_name"],
-           row["state"],
+           row["workflow_state"],
            insertWBR(row["mql"]),
            filesStr,
            spaceForUnixEpoch(row['started']),
@@ -1754,7 +1754,7 @@ def showWorkflow(environ, user, cgiValues):
     return errorPage(environ, user, "workflow_id must be given")
   
   query = ("SELECT workflows.description AS workflow_description,"
-           "workflows.state,"
+           "workflows.workflow_state,"
            "workflows.state_message,principal_name AS user_name,"
            "workflows.user_id,wlcg_groups.wlcg_group_name,"
            "workflows.created,workflows.submitted,workflows.started,"
@@ -1790,7 +1790,7 @@ def showWorkflow(environ, user, cgiValues):
             % workflowID)
   
   output     = header(environ, user, "justIN: Workflow %d" % workflowID)
-  state      = workflowRow['state']
+  state      = workflowRow['workflow_state']
   campaignID = int(workflowRow['campaign_id'])
 
   campaignDescription = workflowRow['campaign_description']
@@ -1807,7 +1807,7 @@ def showWorkflow(environ, user, cgiValues):
     # Buttons you need to be an admin or in the group still for
     if user['user_name'] in justin.justinAdmins or \
        workflowRow['wlcg_group_name'] in user['wlcg_groups']:
-      if workflowRow['state'] == 'draft':
+      if workflowRow['workflow_state'] == 'draft':
         buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
@@ -1815,7 +1815,7 @@ def showWorkflow(environ, user, cgiValues):
               key     = workflowID,
               name    = 'workflow_submit') + ' '
 
-      if workflowRow['state'] == 'paused':
+      if workflowRow['workflow_state'] == 'paused':
         buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
@@ -1828,7 +1828,7 @@ def showWorkflow(environ, user, cgiValues):
        workflowRow['wlcg_group_name'] in user['wlcg_groups'] or \
        user['user_id'] == workflowRow['user_id']:
 
-      if workflowRow['state'] == 'running':
+      if workflowRow['workflow_state'] == 'running':
         buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
@@ -1836,7 +1836,7 @@ def showWorkflow(environ, user, cgiValues):
               key     = workflowID,
               name    = 'workflow_pause') + ' '
 
-      if workflowRow['state'] in ['running','submitted','draft']:
+      if workflowRow['workflow_state'] in ['running','submitted','draft']:
         buttonsHTML += buttonHTML(user = user,
               nextURI = '/dashboard/?method=show-workflow&workflow_id=%d'
                                     % workflowID,
@@ -1997,20 +1997,20 @@ def showWorkflow(environ, user, cgiValues):
                          'unallocated' : 0,
                          'processing'  : 0,
                          'outputting'  : 0,
-                         'finalising'  : 0,
+                         'finishing'  : 0,
                          'finished'    : 0,
                          'notfound'    : 0,
                          'failed'      : 0 })
   
-  query = ('SELECT state,stage_id,COUNT(*) AS count '
+  query = ('SELECT file_state,stage_id,COUNT(*) AS count '
            'FROM files '
            'WHERE workflow_id=%d '
-           'GROUP BY state,stage_id' % workflowID)
+           'GROUP BY file_state,stage_id' % workflowID)
              
   stateRows = justin.select(query)
   
   for stateRow in stateRows:
-    stateCounts[stateRow['stage_id']][stateRow['state']] = stateRow['count']
+    stateCounts[stateRow['stage_id']][stateRow['file_state']] = stateRow['count']
 
   # Output a table with the files for each stage
 
@@ -2018,7 +2018,7 @@ def showWorkflow(environ, user, cgiValues):
   output += '<table>'
   output += ("<tr><th>Stage ID</th><th>Files</th><th>Finding</th>"
              "<th>Unallocated</th><th>Processing</th><th>Outputting</th>"
-             "<th>Finalising</th>"
+             "<th>Finishing</th>"
              "<th>Finished</th><th>Not found</th><th>Failed</th><tr>")
 
   for stageRow in stageRows:
@@ -2029,7 +2029,7 @@ def showWorkflow(environ, user, cgiValues):
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processing">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%d</a></td>'
-          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finalising">%d</a></td>'
+          '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finishing">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finished">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%d</a></td>'
           '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%d</a></td>'
@@ -2041,7 +2041,7 @@ def showWorkflow(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['unallocated'] +
              stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
-             stateCounts[stageRow['stage_id']]['finalising'] +
+             stateCounts[stageRow['stage_id']]['finishing'] +
              stateCounts[stageRow['stage_id']]['finished'] +
              stateCounts[stageRow['stage_id']]['notfound'] +
             stateCounts[stageRow['stage_id']]['failed'],
@@ -2054,7 +2054,7 @@ def showWorkflow(environ, user, cgiValues):
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
             stageRow["workflow_id"], stageRow["stage_id"],
-            stateCounts[stageRow['stage_id']]['finalising'],
+            stateCounts[stageRow['stage_id']]['finishing'],
             stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finished'],
             stageRow["workflow_id"], stageRow["stage_id"],
@@ -2071,7 +2071,7 @@ def showWorkflow(environ, user, cgiValues):
                          'started'           : 0,
                          'processing'        : 0,
                          'outputting'        : 0,
-                         'finalising'        : 0,
+                         'finishing'        : 0,
                          'finished'          : 0,
                          'notused'           : 0,
                          'aborted'           : 0,
@@ -2099,7 +2099,7 @@ def showWorkflow(environ, user, cgiValues):
              '<th>Submitted</th>'
              '<th>Started</th>'
              '<th>Processing</th>'
-             '<th>Outputting</th><th>Finalising</th><th>Finished</th>'
+             '<th>Outputting</th><th>Finishing</th><th>Finished</th>'
              '<th>Notused</th>'
              '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
              '<th>Outputting failed</th>'
@@ -2120,7 +2120,7 @@ def showWorkflow(environ, user, cgiValues):
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
-        '&stage_id=%d&job_state=finalising">%d</a></td>'
+        '&stage_id=%d&job_state=finishing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=finished">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
@@ -2143,7 +2143,7 @@ def showWorkflow(environ, user, cgiValues):
              stateCounts[stageRow['stage_id']]['started'] +
              stateCounts[stageRow['stage_id']]['processing'] +
              stateCounts[stageRow['stage_id']]['outputting'] +
-             stateCounts[stageRow['stage_id']]['finalising'] +
+             stateCounts[stageRow['stage_id']]['finishing'] +
              stateCounts[stageRow['stage_id']]['finished'] +
              stateCounts[stageRow['stage_id']]['notused'] +
              stateCounts[stageRow['stage_id']]['aborted'] +
@@ -2160,7 +2160,7 @@ def showWorkflow(environ, user, cgiValues):
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['outputting'],
            stageRow["workflow_id"], stageRow["stage_id"],
-            stateCounts[stageRow['stage_id']]['finalising'],
+            stateCounts[stageRow['stage_id']]['finishing'],
            stageRow["workflow_id"], stageRow["stage_id"],
             stateCounts[stageRow['stage_id']]['finished'],
            stageRow["workflow_id"], stageRow["stage_id"],
@@ -2517,26 +2517,26 @@ def showStage(environ, user, cgiValues):
                   'unallocated' : 0,
                   'processing'  : 0,
                   'outputting'  : 0,
-                  'finalising'  : 0,
+                  'finishing'  : 0,
                   'finished'    : 0,
                   'notfound'    : 0,
                   'failed'      : 0  }
   
-  query = ('SELECT state,COUNT(*) AS count '
+  query = ('SELECT file_state,COUNT(*) AS count '
            'FROM files '
            'WHERE workflow_id=%d AND stage_id=%d '
-           'GROUP BY state' % (workflowID, stageID))
+           'GROUP BY file_state' % (workflowID, stageID))
   
   stateRows = justin.select(query)
   
   for stateRow in stateRows:
-    stateCounts[stateRow['state']] = stateRow['count']    
+    stateCounts[stateRow['file_state']] = stateRow['count']    
   
   output += '<h2>File states</h2>'
   output += '<table>'
   output += ("<tr><th>Total files</th><th>Finding</th>"
         "<th>Unallocated</th><th>Processing</th><th>Outputting</th>"
-        "<th>Finalising</th>"
+        "<th>Finishing</th>"
         "<th>Finished</th><th>Not found</th><th>Failed</th><tr>")
 
   output += ('<tr><td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s">%s</a></td>'
@@ -2544,7 +2544,7 @@ def showStage(environ, user, cgiValues):
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=unallocated">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=processing">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=outputting">%s</a></td>'
-        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finalising">%s</a></td>'
+        '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finishing">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=finished">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=notfound">%s</a></td>'
         '<td><a href="/dashboard/?method=list-files&workflow_id=%s&stage_id=%s&state=failed">%s</a></td>'
@@ -2553,7 +2553,7 @@ def showStage(environ, user, cgiValues):
                                         + stateCounts['unallocated']
                                         + stateCounts['processing'] 
                                         + stateCounts['outputting']
-                                        + stateCounts['finalising']
+                                        + stateCounts['finishing']
                                         + stateCounts['finished']
                                         + stateCounts['notfound']
                                         + stateCounts['failed'],
@@ -2561,7 +2561,7 @@ def showStage(environ, user, cgiValues):
             workflowID, stageID, stateCounts['unallocated'], 
             workflowID, stageID, stateCounts['processing'], 
             workflowID, stageID, stateCounts['outputting'],
-            workflowID, stageID, stateCounts['finalising'],
+            workflowID, stageID, stateCounts['finishing'],
             workflowID, stageID, stateCounts['finished'],
             workflowID, stageID, stateCounts['notfound'],
             workflowID, stageID, stateCounts['failed']))
@@ -2573,7 +2573,7 @@ def showStage(environ, user, cgiValues):
                   'started'           : 0,
                   'processing'        : 0,
                   'outputting'        : 0,
-                  'finalising'        : 0,
+                  'finishing'        : 0,
                   'finished'          : 0,
                   'notused'           : 0,
                   'aborted'           : 0,
@@ -2598,7 +2598,7 @@ def showStage(environ, user, cgiValues):
              '<th>Started</th>'
              '<th>Processing</th>'
              '<th>Outputting</th>'
-             '<th>Finalising</th>'
+             '<th>Finishing</th>'
              '<th>Finished</th>'
              '<th>Notused</th>'
              '<th>Aborted</th><th>Stalled</th><th>Jobscript error</th>'
@@ -2617,7 +2617,7 @@ def showStage(environ, user, cgiValues):
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=outputting">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
-        '&stage_id=%d&job_state=finalising">%d</a></td>'
+        '&stage_id=%d&job_state=finishing">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
         '&stage_id=%d&job_state=finished">%d</a></td>'
         '<td><a href="/dashboard/?method=list-jobs&workflow_id=%d'
@@ -2638,7 +2638,7 @@ def showStage(environ, user, cgiValues):
              stateCounts['started'] +
              stateCounts['processing'] +
              stateCounts['outputting'] +
-             stateCounts['finalising'] +
+             stateCounts['finishing'] +
              stateCounts['finished'] +
              stateCounts['notused'] +
              stateCounts['aborted'] +
@@ -2655,7 +2655,7 @@ def showStage(environ, user, cgiValues):
            workflowID, stageID,
             stateCounts['outputting'],
            workflowID, stageID,
-            stateCounts['finalising'],
+            stateCounts['finishing'],
            workflowID, stageID,
             stateCounts['finished'],
            workflowID, stageID,
@@ -2680,7 +2680,7 @@ def showStage(environ, user, cgiValues):
            'FROM files '
            'LEFT JOIN sites ON sites.site_id=files.processed_site_id '
            'WHERE workflow_id=%d AND stage_id=%d AND '
-           'state="finished" GROUP BY finished_hour,processed_site_id '
+           'file_state="finished" GROUP BY finished_hour,processed_site_id '
            'ORDER BY finished_hour'
            % (workflowID, stageID))
 
@@ -2928,10 +2928,10 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
     if state == 'finding' or state == 'unallocated' or state == 'processing' \
         or state == 'outputting' or state == 'finished' \
         or state == 'notfound' or state == 'failed':
-      stateFilter = 'AND files.state="' + state + '"'
+      stateFilter = 'AND files.file_state="' + state + '"'
       stateText = ' (state = ' + state + ')'
 
-  query = ("SELECT files.file_did,files.state,"
+  query = ("SELECT files.file_did,files.file_state,"
            "CAST(event_time AS char) AS last_allocation_time,"
            "storages.rse_name,jobs.jobsub_id,"
            "sites.site_name,allocations,max_allocations,"
@@ -2978,11 +2978,11 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
            urllib.parse.quote(fileRow["file_did"], safe=''),
            insertWBR(fileRow["file_did"]),
            fileRow["allocations"], fileRow["max_allocations"], 
-           fileRow["state"]
+           fileRow["file_state"]
           )
          )
          
-      if fileRow["state"] in ['processing', 'outputting', 'finalising', 
+      if fileRow["file_state"] in ['processing', 'outputting', 'finishing', 
                               'finished', 'failed']:
         output += ('<td>%s</td>'
             '<td><a href="/dashboard/?method=show-storage&rse_name=%s">%s</a></td>'
@@ -3043,7 +3043,7 @@ def showFile(environ, user, cgiValues):
 
   output += ("<h1>File %s</h1>" % insertWBR(fileDID))
   
-  query = ('SELECT file_id,state,files.finished_time,size_bytes,'
+  query = ('SELECT file_id,file_state,files.finished_time,size_bytes,'
            'allocations,max_allocations,jobsub_id '
            'FROM files '
            'LEFT JOIN jobs ON jobs.justin_job_id=creator_justin_job_id '
@@ -3097,7 +3097,7 @@ def showFile(environ, user, cgiValues):
       
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
-             % fileRow["state"])
+             % fileRow["file_state"])
       
   output += ('<tr><td>Finished</td>'
              '<td>%s</td></tr>'
@@ -3236,6 +3236,9 @@ def outputWrapperLog(startResponse, environ, user):
 def showJob(environ, user, cgiValues):
   try:
     jobsubID = cgiValues["jobsub_id"]
+
+    if not justin.stringIsJobsubID(jobsubID):
+      raise
   except:
     return errorPage(environ, user, "jobsub_id must be given")
       
@@ -3420,7 +3423,7 @@ def showJob(environ, user, cgiValues):
   output += '</td></tr>'
 
   if jobRow["job_state"] in ['outputting', 'outputting_failed', 
-                             'jobscript_error', 'finished']:
+                             'jobscript_error', 'finishing', 'finished']:
     output += ('<tr><td rowspan="4">Jobscript</td>'
                '<td>Exit code</td>'
                '<td>%d</td></tr>'
@@ -3454,7 +3457,7 @@ def showJob(environ, user, cgiValues):
              % spaceForUnixEpoch(jobRow["outputting_time"]))
 
   output += '<tr><td>Output files</td><td colspan="2">'
-  
+
   for outputFileRow in outputFilesRows:
     try:
       if outputFileRow["file_did"].startswith('https://'):
@@ -3479,11 +3482,13 @@ def showJob(environ, user, cgiValues):
              '<td colspan="2">%s</td></tr>'
              % spaceForUnixEpoch(jobRow["finished_time"]))
 
-# REPLACE THIS WITH LANDSCAPE LINK ONCE WORKING
-#  if jobRow["job_state"] in ['finished', 'jobscript_error']:
-#    output += ('<tr><td>Saved logs</td>'
-#               '<td colspan="2">justin-logs:%s.logs.tgz</td></tr>' 
-#               % jobsubID.replace('@','-'))
+  if jobRow["job_state"] in ['finishing', 'finished', 'jobscript_error',
+                             'aborted', 'failed', 'outputting_error']:
+    output += ('<tr><td>Saved logs</td>'
+               '<td colspan="2">'
+               '<a href="https://landscape.fnal.gov/lens/view/job/%s/">'
+               'https://landscape.fnal.gov/lens/view/job/%s/</a></td></tr>' 
+               % (jobsubID, jobsubID))
 
   output += ('<tr><td colspan=3>'
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
@@ -5998,10 +6003,10 @@ def downloadCsvJson(environ, user, cgiValues, method):
       if state == 'finding' or state == 'unallocated' or state == 'processing' \
           or state == 'outputting' or state == 'finished' \
           or state == 'notfound' or state == 'failed':
-        stateFilter = 'AND files.state="' + state + '"'
+        stateFilter = 'AND files.file_state="' + state + '"'
         stateText = ' (state = ' + state + ')'
 
-    query = ("SELECT files.file_did,files.state,"
+    query = ("SELECT files.file_did,files.file_state,"
              "CAST(event_time AS CHAR) AS last_allocation_time,"
              "storages.rse_name,jobs.jobsub_id,"
              "sites.site_name,allocations,max_allocations,"
@@ -6018,7 +6023,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              (justin.event_FILE_ALLOCATED, workflowID, stageID, stateFilter,
               csvJsonMaxRows))
  
-    fieldsList = ['file_did','allocations','state','last_allocation_time',
+    fieldsList = ['file_did','allocations','file_state','last_allocation_time',
                   'rse_name','site_name','jobsub_id','last_jobscript_exit']
 
   elif method == 'download-input-file-stats':
@@ -6040,7 +6045,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              'AND events.rse_id=sites_storages.rse_id '
              'LEFT JOIN storages ON events.rse_id=storages.rse_id '
              'LEFT JOIN sites ON events.site_id=sites.site_id '
-             'WHERE files.state="finished" '
+             'WHERE files.file_state="finished" '
              'AND files.workflow_id=%d '
              'AND files.stage_id=%d '
              'ORDER BY files.file_id LIMIT %d' %
@@ -6141,14 +6146,14 @@ def downloadCsvJson(environ, user, cgiValues, method):
       return errorPage(environ, user, "campaign_id must be given")
 
     query = ('SELECT workflow_id,description,principal_name AS user_name,'
-             'workflows.state,mql,'
+             'workflows.workflow_state,mql,'
              'CAST(started AS CHAR) AS start_time,'
              'CAST(finished AS CHAR) AS finish_time,'
              'scope_name,'
              '(SELECT COUNT(*) FROM files'
              ' WHERE files.workflow_id=workflows.workflow_id'
              ' AND files.stage_id=1 '
-             ' AND files.state="finished") AS files_finished,'
+             ' AND files.file_state="finished") AS files_finished,'
              '(SELECT COUNT(*) FROM files'
              ' WHERE files.workflow_id=workflows.workflow_id'
              ' AND files.stage_id=1) AS files_total '
@@ -6162,7 +6167,7 @@ def downloadCsvJson(environ, user, cgiValues, method):
              'ORDER BY workflow_id DESC LIMIT %d' % 
              (campaignID, csvJsonMaxRows))
 
-    fieldsList = ['workflow_id','description','user_name','state','mql',
+    fieldsList = ['workflow_id','description','user_name','workflow_state','mql',
                   'start_time','finish_time','scope_name',
                   'files_finished','files_total']
  
@@ -6592,7 +6597,7 @@ def setWorkflowStateHandler(cgiValues, user):
   try:
     workflowID = int(cgiValues['action_key'])
 
-    workflowRow = justin.select('SELECT workflows.state,workflows.archived,'
+    workflowRow = justin.select('SELECT workflows.workflow_state,workflows.archived,'
                     'workflows.user_id,wlcg_groups.wlcg_group_name '
                     'FROM workflows '
                     'LEFT JOIN scopes '
@@ -6626,25 +6631,25 @@ def setWorkflowStateHandler(cgiValues, user):
     return ('403 Forbidden', 'You do not have permission to do that!')
 
   if cgiValues['action_name'] == 'workflow_submit':
-    if workflowRow['state'] == 'draft':
+    if workflowRow['workflow_state'] == 'draft':
       newState = 'submitted'
     else:
       return ('403 Forbidden', 'Only workflows in Draft can be submitted')
 
   elif cgiValues['action_name'] == 'workflow_restart':
-    if workflowRow['state'] == 'paused':
+    if workflowRow['workflow_state'] == 'paused':
       newState = 'running'
     else:
       return ('403 Forbidden', 'Only workflows in Pause can be restarted')
 
   elif cgiValues['action_name'] == 'workflow_pause':
-    if workflowRow['state'] == 'running':
+    if workflowRow['workflow_state'] == 'running':
       newState = 'paused'
     else:
       return ('403 Forbidden', 'Only workflows in Running can be paused')
 
   elif cgiValues['action_name'] == 'workflow_finish':
-    if workflowRow['state'] in ['running','submitted','draft']:
+    if workflowRow['workflow_state'] in ['running','submitted','draft']:
       newState = 'finished'
     else:
       return ('403 Forbidden', 
@@ -6654,7 +6659,7 @@ def setWorkflowStateHandler(cgiValues, user):
 
   
   try:
-    justin.insertUpdate('UPDATE workflows SET state="%s",'
+    justin.insertUpdate('UPDATE workflows SET workflow_state="%s",'
                         'state_message="Set to %s by %s" '
                         'WHERE workflow_id=%d' 
                         % (newState, newState, user['user_name'], workflowID))

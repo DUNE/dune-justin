@@ -22,7 +22,7 @@ following states:
 - **processing** - the file has been allocated to a job for processing
 - **outputting** - the job to which the file has been allocated is itself in the
   outputting state, and the job is uploading the output files
-- **finalising** - the Registration Agent is registering the output files
+- **finishing** - the Registration Agent is registering the output files
   from the job that processed the input file with MetaCat and Rucio 
 - **finished** - the input file has been processed and all the output files
   from the job have been uploaded and registered

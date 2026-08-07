@@ -63,7 +63,7 @@ def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
                     workflowID = workflowID)
 
-    justin.insertUpdate('UPDATE workflows SET state="finished",'
+    justin.insertUpdate('UPDATE workflows SET workflow_state="finished",'
               'state_message="Failed due to more than %d counter files" '
               'WHERE workflow_id=%d' 
               % (maxFilesPerWorkflow, workflowID))
@@ -72,7 +72,7 @@ def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
   
   for i in range(1, count + 1):
     try:
-      query = ('INSERT INTO files SET state="unallocated",'
+      query = ('INSERT INTO files SET file_state="unallocated",'
                'workflow_id=%d,file_did="monte-carlo-%06d-%06d"' 
                % (workflowID, workflowID, i)
               )
@@ -122,7 +122,7 @@ def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
                     workflowID = workflowID)
 
-    justin.insertUpdate('UPDATE workflows SET state="finished",'
+    justin.insertUpdate('UPDATE workflows SET workflow_state="finished",'
               'state_message="Failed due to more than %d input files" '
               'WHERE workflow_id=%d' 
               % (maxFilesPerWorkflow, workflowID))
@@ -182,7 +182,7 @@ def findFilesMetaCat(workflowID, mql, maxFilesPerWorkflow):
     justin.logEvent(eventTypeID = justin.event_WORKFLOW_FAILED_TOO_MANY_FILES,
                     workflowID = workflowID)
 
-    justin.insertUpdate('UPDATE workflows SET state="finished",'
+    justin.insertUpdate('UPDATE workflows SET workflow_state="finished",'
               'state_message="Failed due to more than %d input files" '
               'WHERE workflow_id=%d' 
               % (maxFilesPerWorkflow, workflowID))
@@ -237,7 +237,7 @@ def findFiles():
            'FROM workflows '
            'LEFT JOIN scopes ON workflows.scope_id=scopes.scope_id '
            'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
-           'WHERE state="running" AND '
+           'WHERE workflow_state="running" AND '
            'refind_next_time <= NOW() AND '
            'refind_next_time > "%s" '
            'ORDER BY workflows.workflow_id' % justin.unixEpoch)
@@ -322,7 +322,7 @@ def findFiles():
     try:
       justin.insertUpdate('UPDATE workflows SET '
                           'refind_next_time=FROM_UNIXTIME(%d) '
-                          'WHERE workflow_id=%d AND state="running"' 
+                          'WHERE workflow_id=%d AND workflow_state="running"' 
                           % (refindNextTime, workflow['workflow_id']))
     except Exception as e:
       justin.logLine("Update workflow %d refind_next_time fails with: %s" 
@@ -342,7 +342,7 @@ def findReplicas():
     'LEFT JOIN stages ON workflows.workflow_id=stages.workflow_id '
     'LEFT JOIN files ON workflows.workflow_id=files.workflow_id AND '
     'stages.stage_id=files.stage_id '
-    'WHERE workflows.state="running" AND files.state="finding" '
+    'WHERE workflows.workflow_state="running" AND files.file_state="finding" '
     'GROUP BY workflows.workflow_id,stages.stage_id '
     'ORDER BY stage_priority DESC,RAND() LIMIT 1')
 
@@ -372,8 +372,8 @@ def findReplicas():
            'LEFT JOIN workflows ON workflows.workflow_id=files.workflow_id '
            'WHERE files.workflow_id=%d '
            'AND files.stage_id=%d '
-           'AND files.state="finding" '
-           'AND workflows.state="running" '
+           'AND files.file_state="finding" '
+           'AND workflows.workflow_state="running" '
            'AND file_did LIKE "%%:%%" '
            'ORDER BY file_id LIMIT %d'
            % (workflowID, stageID, maxFileFindsPerCycle))
@@ -447,7 +447,7 @@ def findReplicas():
                  fileRow['stage_id'],
                  fileRow['file_did']))
 
-      query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
+      query = ('UPDATE files SET file_state="notfound" WHERE file_id=%d' %
                fileRow['file_id'])    
       try:
         justin.cur.execute(query)
@@ -567,7 +567,7 @@ def findReplicas():
       # If we got this far, then we found all the replicas for this 
       # file so we update its state to unallocated (not finding any more)
       try:
-        query = ('UPDATE files SET state="unallocated" WHERE file_id=%d' %
+        query = ('UPDATE files SET file_state="unallocated" WHERE file_id=%d' %
                  fileRow['file_id'])
 
         justin.cur.execute(query)
@@ -582,7 +582,7 @@ def findReplicas():
         return
     else:
       try:
-        query = ('UPDATE files SET state="notfound" WHERE file_id=%d' %
+        query = ('UPDATE files SET file_state="notfound" WHERE file_id=%d' %
                  fileRow['file_id'])
 
         justin.cur.execute(query)
@@ -606,14 +606,16 @@ def findSubmittedWorkflows():
 
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
-                    'scopes.condor_group_id,principal_name '
+                    'scopes.condor_group_id,quota_name,principal_name,mql '
                     'FROM workflows '
                     'LEFT JOIN scopes '
                     'ON workflows.scope_id=scopes.scope_id '
+                    'LEFT JOIN named_quotas '
+                    'ON scopes.quota_id=named_quotas.quota_id '
                     'LEFT JOIN users ON users.user_id=workflows.user_id '
                     'LEFT JOIN principal_names '
                     'ON principal_names.pn_id=users.main_pn_id '
-                    'WHERE workflows.state="submitted" AND '
+                    'WHERE workflows.workflow_state="submitted" AND '
                     '(SELECT COUNT(*) FROM stages_git_repos '
                     'WHERE stages_git_repos.workflow_id=workflows.workflow_id '
                     'AND stages_git_repos.rcds_path="")=0 '
@@ -636,6 +638,14 @@ def findSubmittedWorkflows():
       justin.logLine('Processed submitted workflow %d' % workflow['workflow_id'])
       justin.conn.commit()
 
+def createDataset(datasetScope, datasetName, metadata):
+  # Create a pair of MetaCat and Rucio datasets
+
+  justin.logLine('Creating MetaCat dataset %:%s' % (datasetScope, datasetName))
+  justin.logLine('Creating Rucio dataset %:%s' % (datasetScope, datasetName))
+  
+#  { 'dune.workflow' : metadata }
+
 def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
 
@@ -647,61 +657,100 @@ def processSubmittedWorkflow(workflow):
   except:
     condorGroupID = 0
 
+  # Create container datasets needed by the stages/patterns of this workflow
+  # The top level dataset is INST-wX where INST is the instance and X is the
+  # workflow ID.
+  # The children of that dataset are the container datasets for the requested
+  # patterns of all the stages of the form [DESTINATION-]INST-wXsYpZ where 
+  # DESTINATION is an optional string given by the user, INST is the instance,
+  # and X, Y, and Z are the workflow, stage, and pattern IDs respectively. 
+  # (The children of the per-pattern datasets are true datasets and contain
+  #  up to 1000 output files. These are created on-demand by the Registration
+  #  Agent with names like [DESTINATION-]INST-wXsYpZ-N )
+
+  # Re-authenticate to MetaCat with the account of the scope's named quota  
+  # (Caller will catch exceptions)
+  clientMetaCat.login_x509(workflow['quota_name', 
+                           justin.jobsProductionProxyFile)
+    
+  workflowMetadata = { "workflow_id"     : workflow['workflow_id'],
+                       "stage_id"        : workflow['stage_id'],
+                       "user"            : workflow['principal_name'],
+                       "quota"           : workflow['quota_name'] 
+                     }
+    
+  # Overall container dataset for the whole workflow
+  createDataset(workflow['scope_name'], 
+                '%s-w%d' % (justin.instance, workflow['workflow_id']),
+                workflowMetadata)
+
+  # Per-pattern container datasets (excluding https:// destinations)
+  patterns = justin.select('SELECT pattern_id,file_pattern,destination,'
+                'stages_outputs.stage_id,processors,gpus,'
+                'gpus_min_bytes,gpus_min_runtime,gpus_min_capability,'
+                'gpus_max_capability,jobscript_git,jobscript_images,'
+                'wall_seconds,rss_bytes '
+                'FROM stages_outputs '
+                'LEFT JOIN stages '
+                'ON stages_outputs.workflow_id=stages.workflow_id '
+                'AND stages_outputs.stage_id=stages.stage_id '
+                'WHERE stages_outputs.workflow_id=%d '
+                'AND NOT destination LIKE "https://%" '
+                'ORDER BY stages_outputs.stage_id,stages_outputs.pattern_id'
+                % workflow['workflow_id'])
+
+  for pattern in patterns:
+    patternMetadata = workflowMetadata.copy()
+    
+    for i in ['pattern_id','file_pattern','processors','rss_bytes',
+              'wall_seconds','jobscript_image','destination']:
+      patternMetadata[i] = pattern[i]
+
+    if workflow['stage_id'] == 1:
+      patternMetadata['mql'] = workflow['mql']
+
+    if pattern['gpus'] > 0:
+      for i in ['gpus', 'gpus_min_bytes', 'gpus_min_runtime',
+                'gpus_min_capability', 'gpus_max_capability']:
+        if pattern[i]:
+          patternMetadata[i] = pattern[i]
+
+    if pattern['jobscript_git']:
+      patternMetadata['jobscript_git'] = pattern['jobscript_git']
+      
+    if pattern['destination']:
+      datasetName = '%s-%s-w%ds%dp%d' % (pattern['destination'],
+                                         justin.instance, 
+                                         workflow['workflow_id'],
+                                         pattern['stage_id'],
+                                         pattern['pattern_id'])
+    else:
+      datasetName = '%s-w%ds%dp%d' % (justin.instance, 
+                                      workflow['workflow_id'],
+                                      pattern['stage_id'],
+                                      pattern['pattern_id'])
+
+    createDataset(workflow['scope_name'], datasetName, patternMetadata)
+
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
   # even if not refinding repeatedly
   if justin.debugUsername:
     query = ('UPDATE workflows SET '
              'started=NOW(),'
-             'state="paused",'
+             'workflow_state="paused",'
              'state_message="Moved to paused state due to debug_username",'
              'refind_next_time=NOW() '
              'WHERE workflow_id=%d' % workflowID)
   else:
     query = ('UPDATE workflows SET '
              'started=NOW(),'
-             'state="running",'
+             'workflow_state="running",'
              'state_message="Moved to running state by justIN",'
              'refind_next_time=NOW() '
              'WHERE workflow_id=%d' % workflowID)
 
   justin.insertUpdate(query)
-
-# MOVING TO justin-fnal-agent
-def createWorkflowGitRepos(workflowID):
-  # Create all the git repos for this workflow
-
-  try:
-    query = ('SELECT stages_git_repos.stage_id,'
-             'git_repo,git_commit FROM workflows '
-             'LEFT JOIN stages_git_repos '
-             'ON stages_git_repos.workflow_id=workflows.workflow_id '
-             'WHERE workflows.state="submitted" AND git_repo IS NOT NULL '
-             'AND workflows.workflow_id=%d' % workflowID)
-
-    gitRepoRows = justin.select(query) 
-  except Exception as e:
-    justin.logLine('Exception finding git_repos: %s' % str(e))
-    return
-
-  for gitRepoRow in gitRepoRows:
-    retDict = checkGitRepo(workflowID = workflowID,
-                           stageID    = gitRepoRow['stage_id'],
-                           gitRepo    = gitRepoRow['git_repo'],
-                           gitCommit  = gitRepoRow['git_commit'])
-    
-    if not retDict:
-      justin.logLine('Failed to check git repo / RCDS - exit for now')
-      return
-    
-    justin.insertUpdate('UPDATE stages_git_repos SET '
-                        'rcds_hash="%s",rcds_path="%s" '
-                        'WHERE workflow_id=%d AND stage_id=%d '
-                        'AND git_repo="%s"' %
-                            (retDict['rcds_hash'],
-                             retDict['rcds_path'],
-                             workflowID, gitRepoRow['stage_id'], 
-                             gitRepoRow['git_repo']))
 
 def findWorkflowsToFinish():
   # Find workflows with all files in terminal states and set to finishing
@@ -712,7 +761,7 @@ def findWorkflowsToFinish():
     # workflows have to be still in the running state and to have
     # finished their finding or refinding 
     query = ('SELECT workflow_id FROM workflows '
-             'WHERE state="running" AND refind_next_time="%s" '
+             'WHERE workflow_state="running" AND refind_next_time="%s" '
              'ORDER BY workflow_id' % justin.unixEpoch)
 
     findingWorkflows = justin.select(query)
@@ -729,11 +778,11 @@ def findWorkflowsToFinish():
     try:
       query = ('SELECT COUNT(*) AS count FROM files '
                'WHERE workflow_id=%d AND '
-               'state <> "finished" AND '
-               'state <> "notfound" AND '
-               'state <> "failed" AND ' 
-               'state <> "recorded" AND '
-               'state <> "output"' %
+               'file_state <> "finished" AND '
+               'file_state <> "notfound" AND '
+               'file_state <> "failed" AND ' 
+               'file_state <> "recorded" AND '
+               'file_state <> "output"' %
                int(workflow['workflow_id']))
              
       justin.cur.execute(query)
@@ -750,7 +799,7 @@ def findWorkflowsToFinish():
       continue
     
     try:
-      query = ('UPDATE workflows SET state="finishing",'
+      query = ('UPDATE workflows SET workflow_state="finishing",'
          'state_message="Finishing as all input files are in terminal states" '
                'WHERE workflow_id=%d' % int(workflow['workflow_id']))
     
@@ -792,7 +841,7 @@ def finishWorkflows():
     # workflows have to be still in the finishing state 
     query = ('SELECT scope_name,workflow_id FROM workflows '
              'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
-             'WHERE workflows.state="finishing" '
+             'WHERE workflows.workflow_state="finishing" '
              'ORDER BY workflow_id')
 
     finishingWorkflows = justin.select(query)
@@ -856,9 +905,9 @@ def finishWorkflows():
     # If all ok, we can mark the workflow as finished        
     if not anyOpenDatasets:
       try:
-        query = ('UPDATE workflows SET state="finished",finished=NOW(),'
+        query = ('UPDATE workflows SET workflow_state="finished",finished=NOW(),'
                  'state_message="Set to finished" '
-                 'WHERE workflow_id=%d and state="finishing"' 
+                 'WHERE workflow_id=%d and workflow_state="finishing"' 
                  % int(workflowRow['workflow_id']))
     
         justin.cur.execute(query)
@@ -880,7 +929,7 @@ def findProblemWorkflows():
   try:
     query = ('SELECT jobs.workflow_id,job_state,count(*) AS count FROM jobs '
              'LEFT JOIN workflows ON jobs.workflow_id=workflows.workflow_id '
-             'WHERE jobs.workflow_id<>1 AND workflows.state="running" '
+             'WHERE jobs.workflow_id<>1 AND workflows.workflow_state="running" '
              'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 1 HOUR) '
              'GROUP BY job_state,jobs.workflow_id')
 
@@ -954,7 +1003,7 @@ def findProblemWorkflows():
     
     if pauseEvent:
       try:
-        query = ('UPDATE workflows SET state="paused",state_message="%s" '
+        query = ('UPDATE workflows SET workflow_state="paused",state_message="%s" '
                  'WHERE workflow_id=%d' % (pauseMessage,workflowID))
     
         justin.insertUpdate(query)
@@ -981,9 +1030,9 @@ def resetFilesForJob(justinJobID,
     # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
     #  CHECKS FOR FILE IN THE outputting STATE)
     try:
-      query = ('SELECT file_id,allocations,max_allocations,file_did,state '
+      query = ('SELECT file_id,allocations,max_allocations,file_did,file_state '
                'FROM files '
-               'WHERE (state="allocated" OR state="outputting") '
+               'WHERE (file_state="processing" OR state="outputting") '
                'AND justin_job_id=%d '
                'ORDER BY file_id' % justinJobID)
 
@@ -1008,7 +1057,7 @@ def resetFilesForJob(justinJobID,
           # This safeguard should not be needed for maxAllocations files.
           # Alternatively, we could have done a SELECT ... FOR UPDATE
           # to use a lock.
-          query = ('UPDATE files SET state="failed" '
+          query = ('UPDATE files SET file_state="failed" '
                    'WHERE file_id=%d AND justin_job_id=%d' 
                    % (fileRow['file_id'], justinJobID))
 
@@ -1037,7 +1086,7 @@ def resetFilesForJob(justinJobID,
           # list of bad jobs and then resetting their files.
           # Alternatively, we could have done a SELECT ... FOR UPDATE
           # to use a lock but this would slow down the allocation process.
-          query = ('UPDATE files SET state="unallocated" '
+          query = ('UPDATE files SET file_state="unallocated" '
                    'WHERE file_id=%d AND justin_job_id=%d' 
                    % (fileRow['file_id'], justinJobID))
 
@@ -1053,7 +1102,7 @@ def resetFilesForJob(justinJobID,
         if affectedRows:
           justin.logEvent(eventTypeID = 
                           justin.event_FILE_OUTPUTTING_RESET 
-                          if fileRow['state'] == 'outputting'
+                          if fileRow['file_state'] == 'outputting'
                           else justin.event_FILE_ALLOCATED_RESET,
                           workflowID = workflowID,
                           stageID = stageID,

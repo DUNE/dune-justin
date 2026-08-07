@@ -113,7 +113,7 @@ def updateSitesRankCache(siteName):
         'AND stages_input_storages.stage_id=files.stage_id '
         'AND stages_input_storages.rse_id=replicas.rse_id '
         'LEFT JOIN storages ON storages.rse_id=replicas.rse_id '
-        'WHERE files.state="unallocated" '
+        'WHERE files.file_state="unallocated" '
         'AND files.workflow_id=stages.workflow_id '
         'AND files.stage_id=stages.stage_id '
         'AND stages_input_storages.rse_id IS NOT NULL '
@@ -131,7 +131,7 @@ def updateSitesRankCache(siteName):
       'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
       'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
       'WHERE workflows.workflow_id<>%d '
-      'AND workflows.state="running" '
+      'AND workflows.workflow_state="running" '
       'AND stages.stage_priority IS NOT NULL '
       'AND stages_sites.site_id IS NOT NULL '
       'AND named_quotas.running_jobs < named_quotas.max_running_jobs '
@@ -305,7 +305,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
              'jobs.jobscript_secret,'
              'stages.max_distance,'
              'workflows.mql,'
-             'workflows.state,'
+             'workflows.workflow_state,'
              'jobs.workflow_id,'
              'jobs.stage_id,'
              'jobs.justin_job_id,'
@@ -365,7 +365,7 @@ def makeJobDict(jsonDict, jobscriptSecret = None):
   return { "error_message"          : None,
            "workflow_id"            : job['workflow_id'],
            "stage_id"               : job['stage_id'],
-           "workflow_state"         : job['state'],
+           "workflow_state"         : job['workflow_state'],
            "site_id"                : job['site_id'],
            "site_name"              : job['site_name'],
            "site_a_i_a"             : job['site_a_i_a'],
@@ -1067,7 +1067,7 @@ def cacheFiles(siteID, workflowID, stageID, maxDistance):
                    'AND stages_input_storages.stage_id=files.stage_id '
                    'AND stages_input_storages.rse_id=replicas.rse_id '
                    'WHERE files.workflow_id=%d AND files.stage_id=%d AND '
-                   'files.state="unallocated" AND '
+                   'files.file_state="unallocated" AND '
                    'distance<=%f AND '
                    'accessible_until > NOW() AND '
                    'storages.rucio_read AND storages.justin_read AND '
@@ -1200,7 +1200,7 @@ def findCachedFiles(siteID, workflowID, stageID, maxFiles):
     "sites_files_cache.site_id=%d AND "
     "sites_files_cache.workflow_id=%d AND "
     "sites_files_cache.stage_id=%d AND "
-    "files.state='unallocated' "
+    "files.file_state='unallocated' "
     "ORDER BY sites_files_cache.cache_time DESC,"
     "sites_files_cache.distance,sites_files_cache.file_id "
     "LIMIT %d FOR UPDATE" %
@@ -1284,10 +1284,10 @@ def findBestFile(jobDict):
              'file_did'     : None  }
 
   try: 
-    query = ("UPDATE files SET state='processing',"
+    query = ("UPDATE files SET file_state='processing',"
              "allocations=allocations+1,"
              "justin_job_id=" + str(jobDict['justin_job_id']) + " "
-             "WHERE state='unallocated' AND "
+             "WHERE file_state='unallocated' AND "
              "file_id=" + str(replicaRows[0]['file_id'])
             )
     affectedRows = justin.update(query)
@@ -1486,7 +1486,7 @@ def processOutputFiles(outputFiles, patternsDict,
       continue
 
     if patternsDict[patternID]['destination'].startswith('https://'):
-      justin.insertUpdate('INSERT INTO files SET state="recorded",'
+      justin.insertUpdate('INSERT INTO files SET file_state="recorded",'
                           'file_did="%s/%s",'
                           'creator_justin_job_id=%d,'
                           'workflow_id=%d,'
@@ -1499,7 +1499,7 @@ def processOutputFiles(outputFiles, patternsDict,
                            workflowID, stageID, patternID, fileMetadata)
                          )
     else:
-      justin.insertUpdate('INSERT INTO files SET state="recorded",'
+      justin.insertUpdate('INSERT INTO files SET file_state="recorded",'
                           'file_did="%s:%s",'
                           'creator_justin_job_id=%d,'
                           'workflow_id=%d,'
@@ -1621,7 +1621,7 @@ def recordResultsMethod(startResponse, jsonDict):
   try:
     query = ('SELECT jobs.justin_job_id, jobs.workflow_id, jobs.stage_id,'
              'jobs.site_id, jobs.entry_id, users.access_token, '
-             'jobs.has_inner_apptainer, jobs.job_state, workflows.state, '
+             'jobs.has_inner_apptainer, jobs.job_state, workflows.workflow_state, '
              'scope_name, jobs.requested_gpus, scopes.quota_id, '
              'principal_name, '
              'users.processing_enabled AS user_processing_enabled, '
@@ -1656,11 +1656,11 @@ def recordResultsMethod(startResponse, jsonDict):
 
   # This is mainly to catch outputs from workflows what have been aborted
   # by the user
-  if row['state'] != 'running' and row['state'] != 'paused':
+  if row['workflow_state'] != 'running' and row['workflow_state'] != 'paused':
     return httpError(startResponse, 
                      '410 Gone', 
                      'Cannot record results as workflow now in %s state' 
-                     % row['state'])
+                     % row['workflow_state'])
     
   if not row['user_processing_enabled']:
     return httpError(startResponse,
@@ -1771,10 +1771,10 @@ def recordResultsMethod(startResponse, jsonDict):
     # Do file allocation resets
     try:
       justin.insertUpdate('UPDATE files SET '
-                          'state=IF(allocations < max_allocations,' 
+                          'file_state=IF(allocations < max_allocations,' 
                           '"unallocated","failed") '
                           'WHERE justin_job_id=%d AND '
-                          '(state="processing" OR state="outputting")' 
+                          '(file_state="processing" OR file_state="outputting")' 
                           % justinJobID)
     except Exception as e:
       return httpError(startResponse,
@@ -2071,12 +2071,12 @@ def samwebUpdateFileStatusMethod(startResponse, jsonDict):
                      'Failed finding file from PFN: ' + str(e))
 
   try:
-    query = ('UPDATE files SET state="outputting" '
+    query = ('UPDATE files SET file_state="outputting" '
              'WHERE file_id=%d '
              'AND justin_job_id=%d '
              'AND workflow_id=%d '
              'AND stage_id=%d '
-             'AND state="processing"'
+             'AND file_state="processing"'
              % (fileID, justinJobID, workflowID, stageID))
 
     justin.insertUpdate(query)
@@ -2124,9 +2124,9 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   try:
     justin.insertUpdate('UPDATE files '
-                        'SET state="finalising",'
+                        'SET file_state="finishing",'
                         'processed_site_id=%d '
-                        'WHERE state="outputting" AND justin_job_id=%d' 
+                        'WHERE file_state="outputting" AND justin_job_id=%d' 
                         % (siteID, justinJobID))
   except:
     return httpError(startResponse,
@@ -2141,7 +2141,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                              'ON stages_outputs.workflow_id=files.workflow_id '
                              'AND stages_outputs.stage_id=files.creator_stage_id '
                              'AND stages_outputs.pattern_id=creator_pattern_id '
-                             'WHERE files.state="recorded" AND '
+                             'WHERE files.file_state="recorded" AND '
                              'creator_justin_job_id=%d' % justinJobID)
   except Exception as e:
     return httpError(startResponse,
@@ -2179,7 +2179,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                       sizeBytes   = sizeBytes)
         else:
           # Success!!!!      
-          justin.insertUpdate('UPDATE files SET state="%s",'
+          justin.insertUpdate('UPDATE files SET file_state="%s",'
                   'size_bytes=%d '
                   'WHERE file_id=%d' %
                 ('unallocated' if (fileRow['stage_id'] > 0) else 'finished',

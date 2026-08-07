@@ -8,6 +8,8 @@
   files_processed -> files_finished
 - Temporarily limit token request to only ask about /dune and
   /dune/production WLCG group membership due to FNAL dCache issue
+- New finishing state for jobs and files, matching finishing state for
+  workflows
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

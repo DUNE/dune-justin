@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobsub_state` char(1) NOT NULL DEFAULT 'I',
   `job_state` enum('submitted','started','processing','outputting',
                   'finished','notused','aborted','stalled','jobscript_error',
-                  'outputting_failed', 'none_processed','finalising') 
+                  'outputting_failed', 'none_processed','finishing')
                   NOT NULL DEFAULT 'submitted',
   `allocated_files` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `sent_get_file` tinyint(1) NOT NULL DEFAULT 0,
@@ -152,9 +152,9 @@ CREATE TABLE IF NOT EXISTS `files` (
   `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 1,
   `file_did` varchar(255) NOT NULL,
 # output,allocated,processed STATES ARE NO LONGER USED
-  `state` enum('finding','unallocated','allocated','processing',
+  `file_state` enum('finding','unallocated','allocated','processing',
                'outputting','processed','finished','notfound','failed',
-               'recorded', 'output', 'finalising', 'registering') 
+               'recorded', 'output', 'finishing', 'registering') 
                NOT NULL DEFAULT 'finding',
   `size_bytes` bigint not null default 0,
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
@@ -170,14 +170,15 @@ CREATE TABLE IF NOT EXISTS `files` (
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`,`file_did`),
   INDEX `file_did` (`file_did`,`file_id`),
-  INDEX `creator_pattern_id` (`workflow_id`,`creator_stage_id`,`creator_pattern_id`,`state`,`file_did`),
+  INDEX `creator_pattern_id` (`workflow_id`,`creator_stage_id`,
+                              `creator_pattern_id`,`file_state`,`file_did`),
   INDEX `justin_job_id` (`justin_job_id`,`workflow_id`,`stage_id`),
-  KEY `state_file_id` (`state`,`file_id`),
-  INDEX `workflow_stage_state_file` (`workflow_id`,`stage_id`,`state`,`file_id`),
+  KEY `state_file_id` (`file_state`,`file_id`),
+  INDEX `workflow_stage_state_file` (`workflow_id`,`stage_id`,`file_state`,`file_id`),
   INDEX `workflow_stage_file_id` (`workflow_id`,`stage_id`,`file_id`),
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
   INDEX `uploaded_time` (`uploaded_time`),
-  INDEX `workflow_stage_state_uploaded_site` (`workflow_id`,`stage_id`,`state`,
+  INDEX `workflow_stage_state_uploaded_site` (`workflow_id`,`stage_id`,`file_state`,
                                            `finished_hour`,`uploaded_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
@@ -218,7 +219,7 @@ CREATE TABLE IF NOT EXISTS `campaigns` (
 CREATE TABLE IF NOT EXISTS `workflows` (
   `workflow_id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
   `campaign_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
-  `state` enum('draft','submitted','approved','running',
+  `workflow_state` enum('draft','submitted','approved','running',
      'paused','checking','finished','deleted', 'finishing') 
      NOT NULL DEFAULT 'finished',
   `state_message` text NOT NULL DEFAULT '',
@@ -237,7 +238,7 @@ CREATE TABLE IF NOT EXISTS `workflows` (
   `mql` text NOT NULL,
   PRIMARY KEY (`workflow_id`),
   INDEX `campaign` (`campaign_id`),
-  INDEX `state` (`state`)
+  INDEX `state` (`workflow_state`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `archived_workflows` (

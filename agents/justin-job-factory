@@ -444,7 +444,7 @@ def workflowJobs():
      'ON principal_names.user_id=users.main_pn_id '
      'LEFT JOIN condor_groups '
      'ON condor_groups.condor_group_id=scopes.condor_group_id '
-     'WHERE workflows.state="running" AND workflows.workflow_id<>%d '
+     'WHERE workflows.workflow_state="running" AND workflows.workflow_id<>%d '
      'AND users.processing_enabled AND named_quotas.processing_enabled '
      'ORDER BY workflows.workflow_id'
      % justin.awtWorkflowID, showQuery = False
@@ -480,7 +480,7 @@ def workflowJobs():
     try:
       row = justin.select('SELECT COUNT(*) AS count FROM files '
                           'WHERE workflow_id=%d AND stage_id=%d '
-                          'AND state="unallocated"'
+                          'AND file_state="unallocated"'
                           % (stageRow['workflow_id'],
                              stageRow['stage_id']), justOne = True)
    
@@ -509,7 +509,7 @@ def workflowJobs():
    "AND stages_sites.stage_id=%d "
    "WHERE files.workflow_id=%d "
    "AND files.stage_id=%d "
-   "AND files.state='unallocated' " 
+   "AND files.file_state='unallocated' " 
    "AND replicas.accessible_until > NOW() "
    "AND storages.rucio_read "
    "AND storages.justin_read "
