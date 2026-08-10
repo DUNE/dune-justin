@@ -641,8 +641,8 @@ def findSubmittedWorkflows():
 def createDataset(datasetScope, datasetName, metadata):
   # Create a pair of MetaCat and Rucio datasets
 
-  justin.logLine('Creating MetaCat dataset %:%s' % (datasetScope, datasetName))
-  justin.logLine('Creating Rucio dataset %:%s' % (datasetScope, datasetName))
+  justin.logLine('Creating MetaCat dataset %s:%s' % (datasetScope, datasetName))
+  justin.logLine('Creating Rucio dataset %s:%s' % (datasetScope, datasetName))
   
 #  { 'dune.workflow' : metadata }
 
@@ -650,7 +650,7 @@ def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
 
   workflowID = workflow['workflow_id']
-  justin.logLine('Processing submitted w%d' % workflowID)
+  justin.logLine('Processing submitted workflow %d' % workflowID)
 
   try:
     condorGroupID = int(workflow['condor_group_id'])
@@ -670,67 +670,70 @@ def processSubmittedWorkflow(workflow):
 
   # Re-authenticate to MetaCat with the account of the scope's named quota  
   # (Caller will catch exceptions)
-  clientMetaCat.login_x509(workflow['quota_name', 
-                           justin.jobsProductionProxyFile)
-    
-  workflowMetadata = { "workflow_id"     : workflow['workflow_id'],
-                       "stage_id"        : workflow['stage_id'],
-                       "user"            : workflow['principal_name'],
-                       "quota"           : workflow['quota_name'] 
-                     }
-    
-  # Overall container dataset for the whole workflow
-  createDataset(workflow['scope_name'], 
-                '%s-w%d' % (justin.instance, workflow['workflow_id']),
-                workflowMetadata)
 
-  # Per-pattern container datasets (excluding https:// destinations)
+# GET THIS WORKING
+#  clientMetaCat.login_x509(workflow['quota_name'], 
+#                           justin.jobsProductionProxyFile)
+    
+  # Look for per-pattern container datasets (excluding https:// destinations)
   patterns = justin.select('SELECT pattern_id,file_pattern,destination,'
                 'stages_outputs.stage_id,processors,gpus,'
                 'gpus_min_bytes,gpus_min_runtime,gpus_min_capability,'
-                'gpus_max_capability,jobscript_git,jobscript_images,'
+                'gpus_max_capability,jobscript_git,jobscript_image,'
                 'wall_seconds,rss_bytes '
                 'FROM stages_outputs '
                 'LEFT JOIN stages '
                 'ON stages_outputs.workflow_id=stages.workflow_id '
                 'AND stages_outputs.stage_id=stages.stage_id '
                 'WHERE stages_outputs.workflow_id=%d '
-                'AND NOT destination LIKE "https://%" '
+                'AND NOT destination LIKE "https://%%" '
                 'ORDER BY stages_outputs.stage_id,stages_outputs.pattern_id'
                 % workflow['workflow_id'])
 
-  for pattern in patterns:
-    patternMetadata = workflowMetadata.copy()
+  if patterns:
+    # If any patterns/datasets are requested, we start creating the datasets
+    workflowMetadata = { "workflow_id"     : workflow['workflow_id'],
+                         "user"            : workflow['principal_name'],
+                         "quota"           : workflow['quota_name'] 
+                       }
     
-    for i in ['pattern_id','file_pattern','processors','rss_bytes',
-              'wall_seconds','jobscript_image','destination']:
-      patternMetadata[i] = pattern[i]
+    # Overall container dataset for the whole workflow
+    createDataset(workflow['scope_name'], 
+                  '%s-w%d' % (justin.instance, workflow['workflow_id']),
+                  workflowMetadata)
 
-    if workflow['stage_id'] == 1:
-      patternMetadata['mql'] = workflow['mql']
+    for pattern in patterns:
+      patternMetadata = workflowMetadata.copy()
+    
+      for i in ['pattern_id','file_pattern','processors','rss_bytes',
+                'wall_seconds','jobscript_image','destination']:
+        patternMetadata[i] = pattern[i]
 
-    if pattern['gpus'] > 0:
-      for i in ['gpus', 'gpus_min_bytes', 'gpus_min_runtime',
-                'gpus_min_capability', 'gpus_max_capability']:
-        if pattern[i]:
-          patternMetadata[i] = pattern[i]
+      if workflow['stage_id'] == 1:
+        patternMetadata['mql'] = workflow['mql']
 
-    if pattern['jobscript_git']:
-      patternMetadata['jobscript_git'] = pattern['jobscript_git']
+      if pattern['gpus'] > 0:
+        for i in ['gpus', 'gpus_min_bytes', 'gpus_min_runtime',
+                  'gpus_min_capability', 'gpus_max_capability']:
+          if pattern[i]:
+            patternMetadata[i] = pattern[i]
+
+      if pattern['jobscript_git']:
+        patternMetadata['jobscript_git'] = pattern['jobscript_git']
       
-    if pattern['destination']:
-      datasetName = '%s-%s-w%ds%dp%d' % (pattern['destination'],
-                                         justin.instance, 
-                                         workflow['workflow_id'],
-                                         pattern['stage_id'],
-                                         pattern['pattern_id'])
-    else:
-      datasetName = '%s-w%ds%dp%d' % (justin.instance, 
-                                      workflow['workflow_id'],
-                                      pattern['stage_id'],
-                                      pattern['pattern_id'])
+      if pattern['destination']:
+        datasetName = '%s-%s-w%ds%dp%d' % (pattern['destination'],
+                                           justin.instance, 
+                                           workflow['workflow_id'],
+                                           pattern['stage_id'],
+                                           pattern['pattern_id'])
+      else:
+        datasetName = '%s-w%ds%dp%d' % (justin.instance, 
+                                        workflow['workflow_id'],
+                                        pattern['stage_id'],
+                                        pattern['pattern_id'])
 
-    createDataset(workflow['scope_name'], datasetName, patternMetadata)
+      createDataset(workflow['scope_name'], datasetName, patternMetadata)
 
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
