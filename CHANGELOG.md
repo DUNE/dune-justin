@@ -1,5 +1,9 @@
 # Changelog
 
+## 01.06.03
+- Reduce supported groups to /dune and /dune/production due to FNAL dCache
+  only supporting a single subgroup in tokens
+
 ## 01.06.01
 - Fix to remove invalid quota_names members of user{}
 
