@@ -50,6 +50,8 @@ sleepSeconds         = 60
 updateCondorJobs     = 3600 
 
 clientMetaCat        = None
+didClientRucio       = None
+repClientRucio       = None
 
 class justinError(Exception):
   pass
@@ -107,11 +109,11 @@ def addFilesMonteCarlo(workflowID, count, maxFilesPerWorkflow):
   justin.conn.commit()
   return True
 
-def findFilesRucio(didClient, workflowID, scope, name, maxFilesPerWorkflow):
+def findFilesRucio(workflowID, scope, name, maxFilesPerWorkflow):
   # Find files to be processed for each workflow in the finding state
 
   try:
-    didsList = list(didClient.list_files(scope, name))
+    didsList = list(didClientRucio.list_files(scope, name))
   except Exception as e:
     justin.logLine("Reading file list from Rucio fails with: " + str(e))
     return False
@@ -247,8 +249,6 @@ def findFiles():
     # Nothing to do
     return
 
-  didClient = None
-
   for workflow in findingWorkflows:
     refindNextTime = int(workflow['refind_next'])
     refindEndTime  = int(workflow['refind_end'])
@@ -263,18 +263,14 @@ def findFiles():
     # Workflow for a Rucio dataset: "rucio-dataset SCOPE:NAME"
     if len(mqlSplit) == 2 and mqlSplit[0] == 'rucio-dataset':
 
-      if not didClient:      
-       # Only set up Rucio if we see a rucio-dataset
-       try:
-         didClient = rucio.client.didclient.DIDClient()
-       except Exception as e:
-         justin.logLine("Connect to Rucio fails with: " + str(e))
-         continue
+      if not repClientRucio:
+        justin.logLine('Skip finding of %s since Rucio not available' % workflow['mql'])
+        continue
 
       findRet = False
       datasetSplit = mqlSplit[1].split(':')
       if len(datasetSplit) == 2:
-        findRet = findFilesRucio(didClient,
+        findRet = findFilesRucio(
                        workflow['workflow_id'], 
                        datasetSplit[0], 
                        datasetSplit[1],
@@ -332,7 +328,11 @@ def findFiles():
     justin.conn.commit()
 
 def findReplicas():
-  # Find replicas of files in the finding state
+  # Find replicas of files for the first stages of workflows, in the finding state
+
+  if not repClientRucio:
+    justin.logLine('Skip finding of replicas since Rucio not available')
+    return
 
   justin.logLine('Start finding replicas')
 
@@ -343,8 +343,11 @@ def findReplicas():
     'LEFT JOIN files ON workflows.workflow_id=files.workflow_id AND '
     'stages.stage_id=files.stage_id '
     'WHERE workflows.workflow_state="running" AND files.file_state="finding" '
+    'AND stages.stage_id=1 '
     'GROUP BY workflows.workflow_id,stages.stage_id '
     'ORDER BY stage_priority DESC,RAND() LIMIT 1')
+# IN 2.0 WITH BULK REGISTRATIONS, WE FORCE THIS TO BE JUST STAGE 1
+# CAN THE CODE BE SIMPLIFIED FOR THIS?
 
   try:
     stageRow = justin.select(query, justOne = True)
@@ -387,13 +390,6 @@ def findReplicas():
     justin.logLine('No files found in finding state')
     return
 
-  # Check we can talk to Rucio
-  try:
-    repClient = rucio.client.replicaclient.ReplicaClient()
-  except Exception as e:
-    justin.logLine("Connect to Rucio fails with: " + str(e))
-    return
-
   # Cache rse_id of every known RSE into a local dictionary
   # unless it is decommissioned
   storagesDict = {}
@@ -417,9 +413,9 @@ def findReplicas():
   try:
     # WE FORCE THE RETURNED SCHEME TO BE root FOR NOW
     # domain='all' does not seem to work for now
-    wanRepsList = repClient.list_replicas(filesList,
-                                          schemes=['root'], 
-                                          domain='wan')
+    wanRepsList = repClientRucio.list_replicas(filesList,
+                                               schemes=['root'], 
+                                               domain='wan')
 
   except Exception as e:
     justin.logLine("Reading RSE replicas info from Rucio fails with: " + str(e))
@@ -638,11 +634,23 @@ def findSubmittedWorkflows():
       justin.logLine('Processed submitted workflow %d' % workflow['workflow_id'])
       justin.conn.commit()
 
-def createDataset(datasetScope, datasetName, metadata):
+def createDataset(datasetScope, datasetName, metadata, parentName = None):
   # Create a pair of MetaCat and Rucio datasets
 
   justin.logLine('Creating MetaCat dataset %s:%s' % (datasetScope, datasetName))
+
+  clientMetaCat.create_dataset('%s:%s' % (datasetScope, datasetName),
+                               metadata = metadata)
+                               
+  if parentName:
+    clientMetaCat.add_child_dataset('%s:%s' % (datasetScope, parentName),
+                                    '%s:%s' % (datasetScope, datasetName))
+
   justin.logLine('Creating Rucio dataset %s:%s' % (datasetScope, datasetName))
+
+  # Container datasets in Rucio have to be declared as containers
+  # All the datasets in the Finder are containers. The Registration Agent creates the true datasets
+  didClientRucio.add_container(datasetScope, datasetName)
   
 #  { 'dune.workflow' : metadata }
 
@@ -691,6 +699,10 @@ def processSubmittedWorkflow(workflow):
                 % workflow['workflow_id'])
 
   if patterns:
+    if not didClientRucio:
+      raise RuntimeError('Need to create Rucio datasets but Rucio not available - skip Workflow %d'
+                         % workflowID)
+    
     # If any patterns/datasets are requested, we start creating the datasets
     workflowMetadata = { "workflow_id"     : workflow['workflow_id'],
                          "user"            : workflow['principal_name'],
@@ -733,7 +745,8 @@ def processSubmittedWorkflow(workflow):
                                         pattern['stage_id'],
                                         pattern['pattern_id'])
 
-      createDataset(workflow['scope_name'], datasetName, patternMetadata)
+      createDataset(workflow['scope_name'], datasetName, patternMetadata,
+                    '%s-w%d' % (justin.instance, workflow['workflow_id']))
 
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
@@ -838,6 +851,10 @@ def finishWorkflows():
   # Find workflows in finishing and set to finished when all their datasets
   # are closed
 
+  if not didClientRucio:
+    justin.logLine('Skip finishing workflows since Rucio not available')
+    return
+
   justin.logLine('Start of finding workflows to finish')
 
   try:
@@ -856,19 +873,13 @@ def finishWorkflows():
     justin.logLine('No finishing workflows to check')
     return
 
-  try:
-    didClient = rucio.client.didclient.DIDClient()
-  except Exception as e:
-    justin.logLine("Connect to Rucio fails with: " + str(e))
-    return
-
   for workflowRow in finishingWorkflows:
     # We set this to True if we see any open datasets and close fails
     # Maybe 
     anyOpenDatasets = False
   
     try:
-      gen = didClient.list_dids(workflowRow['scope_name'], 
+      gen = didClientRucio.list_dids(workflowRow['scope_name'], 
                   [{'name':'*-%s-w%ds*p*' 
                     % (justin.instance, int(workflowRow['workflow_id']))},
                    {'name':'%s-w%ds*p*' 
@@ -881,7 +892,7 @@ def finishWorkflows():
 
     for dataset in gen:
       try:
-        didInfo = didClient.get_did(dataset['scope'], dataset['name'])
+        didInfo = didClientRucio.get_did(dataset['scope'], dataset['name'])
       except:
         # Assume the worst - but we carry on and look for others to close
         anyOpenDatasets = True
@@ -894,7 +905,7 @@ def finishWorkflows():
       
         if didInfo['open']:
           try:
-            didClient.close(dataset['scope'], dataset['name'])
+            didClientRucio.close(dataset['scope'], dataset['name'])
             # SHOULD WE DOUBLE CHECK THIS SOMEHOW??? ANOTHER PASS?
           except Exception as e:
             # Set to True if fail to close
@@ -1479,7 +1490,7 @@ def findStalledCondorJobs():
   justin.conn.commit()
 
 def oneCycle():
-  global clientMetaCat
+  global clientMetaCat, didClientRucio, repClientRucio
   
   try:
     clientMetaCat = \
@@ -1488,8 +1499,22 @@ def oneCycle():
     clientMetaCat.login_x509('dunepro', justin.jobsProductionProxyFile)    
 
   except Exception as e:
-     justin.logLine('Failed to contact MetaCat: ' + str(e))
-     clientMetaCat = None
+    justin.logLine('Failed to contact MetaCat: ' + str(e))
+    clientMetaCat = None
+
+  try:
+    didClientRucio = rucio.client.didclient.DIDClient()
+    repClientRucio = rucio.client.replicaclient.ReplicaClient()
+  except Exception as e:
+    justin.logLine('Failed to contact Rucio: ' + str(e))
+    didClientRucio = None
+    repClientRucio = None
+
+  # Check we can talk to Rucio
+  try:
+  except Exception as e:
+    justin.logLine("Connect to Rucio fails with: " + str(e))
+    return
 
   findTokensToRefresh()
   findSubmittedWorkflows()
