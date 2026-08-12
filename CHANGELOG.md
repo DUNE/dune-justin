@@ -1,5 +1,9 @@
 # Changelog
 
+## 01.06.04
+- Include root and Intermediate Signing Cerificates for the new UK eScience
+  CA in the justin client script
+
 ## 01.06.03
 - Reduce supported groups to /dune and /dune/production due to FNAL dCache
   only supporting a single subgroup in tokens
