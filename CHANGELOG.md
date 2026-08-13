@@ -1,5 +1,6 @@
 # Changelog
-
+## 01.06.06
+- Add X509_CERTIFICATES export to 3 other sections of the justin-wrapper-job
 ## 01.06.05
 - Add X509_CERTIFICATES export in justin-wrapper-job, picked up by various
   subutilities to force them to use the up-to-date
