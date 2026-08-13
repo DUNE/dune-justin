@@ -199,6 +199,7 @@ def executeMetaCatCommand(args):
      'export METACAT_SERVER_URL=###justin_metacat_server_outputs_url### ; '
      'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
+     'export X509_CERTIFICATES=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'metacat auth login -m x509 dunepro ; '
      'metacat %s 2>&1' % args)
      
