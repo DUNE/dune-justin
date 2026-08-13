@@ -1,5 +1,11 @@
 # Changelog
 
+## 01.06.05
+- Add X509_CERTIFICATES export in justin-wrapper-job, picked up by various
+  subutilities to force them to use the up-to-date
+  grid-security/certificates from /cvmfs/grid.cern.ch rather than outdated
+  ones from the container.
+
 ## 01.06.04
 - Include root and Intermediate Signing Cerificates for the new UK eScience
   CA in the justin client script
