@@ -1,5 +1,11 @@
 # Changelog
+## 01.06.08 
+- Also did the tag wrong on 01.06.07, tagging again to get the Changelog and justin_version.py in sync
+## 01.06.07 
+- Did the tag wrong on 1.06.06 and didn't get the changelog done before the tag
 
+## 01.06.06
+- Add X509_CERTIFICATES export to 3 other sections of the justin-wrapper-job
 ## 01.06.05
 - Add X509_CERTIFICATES export in justin-wrapper-job, picked up by various
   subutilities to force them to use the up-to-date

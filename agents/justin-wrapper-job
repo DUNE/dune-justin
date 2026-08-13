@@ -226,6 +226,7 @@ def executeJustinRucioUpload(args, account = 'dunepro'):
      'export X509_USER_PROXY=justin-jobs-production.proxy.pem ; '
      'export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
+     'export X509_CERTIFICATES=/cvmfs/grid.cern.ch/etc/grid-security/certificates ; '
      'unset GFAL_CONFIG_DIR GFAL_PLUGIN_DIR GFAL2_DIR ; '
      '/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
      '###justin_instance###/NULL/bin/justin-rucio-upload '
@@ -773,6 +774,7 @@ export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
 export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
+export X509_CERTIFICATES=/cvmfs/grid.cern.ch/etc/grid-security/certificates
 cd workspace
 . ../justin-jobscript-env.sh
 stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
@@ -810,6 +812,7 @@ export JUSTIN_PATH="$HOME"
 export X509_USER_PROXY="$HOME/justin-jobs-no-roles.proxy.pem"
 export SSL_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
 export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates
+export X509_CERTIFICATES=/cvmfs/grid.cern.ch/etc/grid-security/certificates
 cd workspace
 . ../justin-jobscript-env.sh
 stdbuf -oL -eL ../justin-jobscript >jobscript.log 2>&1
