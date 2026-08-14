@@ -1464,14 +1464,14 @@ def updateFileProcessing(fileIDList,
                'AND justin_job_id=' + str(justinJobID) + ' '
                'AND workflow_id=' + str(workflowID) + ' '
                'AND stage_id=' + str(stageID) + ' '
-               'AND state="processing"')
+               'AND file_state="processing"')
     else:
       query = ('UPDATE files SET state="outputting" '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
                'AND workflow_id=' + str(workflowID) + ' '
                'AND stage_id=' + str(stageID) + ' '
-               'AND state="processing"')
+               'AND file_state="processing"')
 
     justin.insertUpdate(query)
     

@@ -1510,12 +1510,6 @@ def oneCycle():
     didClientRucio = None
     repClientRucio = None
 
-  # Check we can talk to Rucio
-  try:
-  except Exception as e:
-    justin.logLine("Connect to Rucio fails with: " + str(e))
-    return
-
   findTokensToRefresh()
   findSubmittedWorkflows()
 
