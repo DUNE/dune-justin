@@ -1861,14 +1861,20 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error', 
                      'Failed updating file statuses: ' + str(e))
 
-  # Get the patterns
+  # Get the patterns, including counts of how many input files for each
+  # pattern so far. These counts are only used for https:// WebDAV files
   try:
-    query = ("SELECT destination,rse_expression,"
-             "for_next_stage,pattern_id,number_files,lifetime_seconds "
-             "FROM stages_outputs "
-             "WHERE stages_outputs.workflow_id=%d "
-             "AND stages_outputs.stage_id=%d" 
-             % (jsonDict['workflow_id'], jsonDict['stage_id']))
+    query = ('SELECT destination,rse_expression,'
+             'for_next_stage,pattern_id,lifetime_seconds,'
+             '(SELECT COUNT(*) FROM files WHERE files.workflow_id=%d '
+             ' AND files.creator_stage_id=%d '
+             ' AND files.creator_pattern_id=stages_outputs.pattern_id) '
+             'AS pattern_files_count '
+             'FROM stages_outputs '
+             'WHERE stages_outputs.workflow_id=%d '
+             'AND stages_outputs.stage_id=%d'
+             % (jsonDict['workflow_id'], jsonDict['stage_id'],
+                jsonDict['workflow_id'], jsonDict['stage_id']))
 
     patternRows = justin.select(query)
   except Exception as e:
@@ -1884,10 +1890,10 @@ def recordResultsMethod(startResponse, jsonDict):
     if patternRow['destination'].startswith('https://'):
       if patternRow['destination'] not in destinationCounts:
         destinationCounts[patternRow['destination']] = \
-               patternRow['number_files']
+               patternRow['pattern_files_count']
       else:
         destinationCounts[patternRow['destination']] += \
-               patternRow['number_files']
+               patternRow['pattern_files_count']
     
   # Create a list of the output file patterns
   responseDict['patterns'] = {}
@@ -2178,22 +2184,22 @@ def confirmResultsMethod(startResponse, jsonDict):
                       seconds     = seconds,
                       sizeBytes   = sizeBytes)
         else:
-          # Success!!!!      
+          # Success!!!! Update output file 
+          # The subquery counts the number of output files for this pattern
+          # to work out this file's ordinary, used by the Registration Agent
+          # to assign files to numbered datasets
           justin.insertUpdate('UPDATE files SET file_state="%s",'
-                  'size_bytes=%d '
-                  'WHERE file_id=%d' %
-                ('unallocated' if (fileRow['stage_id'] > 0) else 'finished',
-                 sizeBytes,
-                 fileRow['file_id']))
+            'size_bytes=%d,'
+            'number_in_pattern=1+(SELECT COUNT(*) FROM files AS temp_files '
+            ' WHERE temp_files.workflow_id=files.workflow_id '
+            '  AND temp_files.creator_stage_id=files.creator_stage_id '
+            '  AND temp_files.creator_pattern_id=files.creator_pattern_id) '
+            'WHERE file_id=%d' %
+            ('unallocated' if (fileRow['stage_id'] > 0) else 'finished',
+             sizeBytes,
+             fileRow['file_id']))
 
-          if fileRow['file_did'].startswith('https://'):
-            # We only need this for the HTTPS uploads outside Rucio
-            justin.insertUpdate('UPDATE stages_outputs '
-                          'SET number_files=number_files+1 '
-                          'WHERE workflow_id=%d AND stage_id=%d '
-                          'AND pattern_id=%d' % 
-                          (workflowID, stageID, fileRow['creator_pattern_id']))
-          else:
+          if not fileRow['file_did'].startswith('https://'):
             justin.insertUpdate('INSERT INTO replicas SET '
                   'file_id=%d,'
                   'rse_id=(SELECT rse_id FROM storages WHERE rse_name="%s"),'

@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   `allocations` tinyint(1) unsigned NOT NULL DEFAULT 0,
   `max_allocations` tinyint(1) unsigned NOT NULL DEFAULT 6,
   `file_metadata` text NOT NULL DEFAULT '',
+  `number_in_pattern` mediumint(8) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`file_id`),
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`,`file_did`),
   INDEX `file_did` (`file_did`,`file_id`),
@@ -346,7 +347,6 @@ CREATE TABLE IF NOT EXISTS `stages_outputs` (
   `file_pattern` varchar(255) NOT NULL,
   `destination` varchar(512) NOT NULL,
   `rse_expression` text NOT NULL DEFAULT '',
-  `number_files` int(10) unsigned NOT NULL DEFAULT 0,
   `for_next_stage` tinyint(1) NOT NULL DEFAULT '0',
   UNIQUE KEY `workflow_stage_pattern` (`workflow_id`,`stage_id`,`pattern_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -361,10 +361,16 @@ CREATE TABLE IF NOT EXISTS `stages_output_storages` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `workflows_datasets` (
+  `dataset_created` datetime NOT NULL DEFAULT '1970-01-01',
   `workflow_id` mediumint(8) unsigned NOT NULL,
   `stage_id` tinyint(3) unsigned NOT NULL,
-  `dataset_did` varchar(255) NOT NULL,
-  UNIQUE KEY `workflow_dataset` (`workflow_id`,`stage_id`,`dataset_did`)
+  `pattern_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `dataset_name` varchar(255) NOT NULL,
+  `dataset_type`
+    enum('workflow','pattern','numbered') NOT NULL DEFAULT 'workflow',
+  `closed` tinyint(1) NOT NULL DEFAULT FALSE,
+  INDEX `multiple1` (`dataset_type`, `workflow_id`, `stage_id`, `pattern_id`),
+  INDEX `multiple2` (`workflow_id`, `closed`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `stages_input_storages` (

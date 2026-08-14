@@ -26,7 +26,7 @@ cat <<EOF > $RUCIO_LOCAL/etc/rucio.cfg
 [client]
 rucio_host = https://dune-rucio.fnal.gov
 auth_host = https://auth-dune-rucio.fnal.gov
-ca_cert = /etc/grid-security/certificates
+ca_cert = /cvmfs/grid.cern.ch/etc/grid-security/certificates
 account = amcnab
 auth_type = x509_proxy
 client_x509_proxy = \$X509_USER_PROXY
