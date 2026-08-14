@@ -460,8 +460,11 @@ sslContext = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 sslContext.verify_mode = ssl.CERT_REQUIRED
 sslContext.check_hostname = True
 
-# Use embedded UK e-Science CA and Root certificates, expiring in 2027
-sslContext.load_verify_locations(cadata = '''
+if 'X509_CERT_DIR' in os.environ and os.environ['X509_CERT_DIR']:
+  sslContext.load_verify_locations(capath = os.environ['X509_CERT_DIR'])
+else:
+  # Use embedded UK e-Science CA and Root certificates
+  sslContext.load_verify_locations(cadata = '''
 -----BEGIN CERTIFICATE-----
 MIICjTCCAhSgAwIBAgIUVvwnRQjY0pBX+z/N0UxzS0y5sawwCgYIKoZIzj0EAwMw
 WTELMAkGA1UEBhMCVUsxFTATBgNVBAoTDGVTY2llbmNlUm9vdDESMBAGA1UECxMJ

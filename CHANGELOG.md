@@ -10,6 +10,7 @@
   /dune/production WLCG group membership due to FNAL dCache issue
 - New finishing state for jobs and files, matching finishing state for
   workflows
+- justin command uses $X509_CERT_DIR instead of built in certs if available
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

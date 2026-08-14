@@ -640,7 +640,7 @@ def createDataset(datasetScope, datasetName, metadata, parentName = None):
   justin.logLine('Creating MetaCat dataset %s:%s' % (datasetScope, datasetName))
 
   clientMetaCat.create_dataset('%s:%s' % (datasetScope, datasetName),
-                               metadata = metadata)
+                               metadata = { 'dune.workflow' : metadata } )
                                
   if parentName:
     clientMetaCat.add_child_dataset('%s:%s' % (datasetScope, parentName),
@@ -651,8 +651,6 @@ def createDataset(datasetScope, datasetName, metadata, parentName = None):
   # Container datasets in Rucio have to be declared as containers
   # All the datasets in the Finder are containers. The Registration Agent creates the true datasets
   didClientRucio.add_container(datasetScope, datasetName)
-  
-#  { 'dune.workflow' : metadata }
 
 def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
@@ -721,7 +719,7 @@ def processSubmittedWorkflow(workflow):
                 'wall_seconds','jobscript_image','destination']:
         patternMetadata[i] = pattern[i]
 
-      if workflow['stage_id'] == 1:
+      if pattern['stage_id'] == 1:
         patternMetadata['mql'] = workflow['mql']
 
       if pattern['gpus'] > 0:

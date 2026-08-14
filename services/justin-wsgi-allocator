@@ -1458,7 +1458,7 @@ def updateFileProcessing(fileIDList,
     if state == 'unprocessed':
       # If already at max allocations, go to failed rather than unallocated!
       query = ('UPDATE files SET '
-               'state=IF(allocations < max_allocations,'
+               'file_state=IF(allocations < max_allocations,'
                '"unallocated","failed") '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
@@ -1466,7 +1466,7 @@ def updateFileProcessing(fileIDList,
                'AND stage_id=' + str(stageID) + ' '
                'AND file_state="processing"')
     else:
-      query = ('UPDATE files SET state="outputting" '
+      query = ('UPDATE files SET file_state="outputting" '
                'WHERE (' + ' OR '.join(testFileIDs) + ') '
                'AND justin_job_id=' + str(justinJobID) + ' '
                'AND workflow_id=' + str(workflowID) + ' '

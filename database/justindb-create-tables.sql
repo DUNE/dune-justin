@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   UNIQUE KEY `workflow_id` (`workflow_id`,`stage_id`,`file_did`),
   INDEX `file_did` (`file_did`,`file_id`),
   INDEX `creator_pattern_id` (`workflow_id`,`creator_stage_id`,
-                              `creator_pattern_id`,`file_uploaded`),
+                              `creator_pattern_id`,`uploaded_time`),
   INDEX `justin_job_id` (`justin_job_id`,`workflow_id`,`stage_id`),
   KEY `state_file_id` (`file_state`,`file_id`),
   INDEX `workflow_stage_state_file` (`workflow_id`,`stage_id`,`file_state`,`file_id`),
