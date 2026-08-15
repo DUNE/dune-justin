@@ -18,12 +18,19 @@ states given here:
   the supplied jobscript should be running
 - **processing** - the jobscript has successfully been allocated at 
   least one input file to process by the allocator service.
+- **none_processed** - files were allocated to the job but none were
+  processed
 - **outputting** - the jobscript has finished and the wrapper job has
   reported to the allocator service the list of
   input files it processed and the names of the output files it intends to
   register with MetaCat and Rucio and to upload 
-- **finished** - the wrapper job has successfully registered and uploaded
-  the output files and confirmed this to the allocator service.
+- **finishing** - the wrapper job has successfully completed and uploaded
+  any output files, and confirmed this to the allocator service, but Rucio
+  output files still need to be registered in MetaCat and Rucio
+- **finished** - the wrapper job has successfully completed and no output
+  files are waiting to be registered in MetaCat and Rucio (the registrations
+  may have failed, in which case the job's input files are reset for more
+  processing attempts.)
 - **notused** - the wrapper job was unable to find a suitable workflow/stage
   to work on and exited.
 - **aborted** - the wrapper job failed in some way and reported this to the

@@ -364,7 +364,7 @@ CREATE TABLE IF NOT EXISTS `stages_output_storages` (
 CREATE TABLE IF NOT EXISTS `workflows_datasets` (
   `dataset_created` datetime NOT NULL DEFAULT '1970-01-01',
   `workflow_id` mediumint(8) unsigned NOT NULL,
-  `stage_id` tinyint(3) unsigned NOT NULL,
+  `stage_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `pattern_id` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `dataset_name` varchar(255) NOT NULL,
   `dataset_type`

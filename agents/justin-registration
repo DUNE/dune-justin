@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+#
+# justin-registration - justIN Registration Agent
+#
+# Copyright 2013-26, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import ssl
+import stat
+import json
+import time
+import base64
+import hashlib
+import tempfile
+import subprocess
+import urllib.request
+import pathlib
+import xml.dom.minidom
+
+## Needs MySQL-python RPM
+#import MySQLdb
+
+# WE NEED TO REMOVE OLD MySQLdb REFERENCES STILL!
+import pymysql
+pymysql.install_as_MySQLdb()
+MySQLdb=pymysql
+
+# Installed by pip3 install of Rucio
+import rucio.client
+import metacat.webapi
+
+import justin
+
+sleepSeconds         = 60
+maxFilesPerBulk      = 500
+minFilesPerBulk      = 1
+
+clientMetaCat        = None
+didClientRucio       = None
+repClientRucio       = None
+
+class justinError(Exception):
+  pass
+
+def findFinishingJobs():
+  # Find jobs in the finishing state, register their output files, and mark
+  # jobs as finished
+  
+  justin.logLine('Start of finding finishing jobs')
+
+  # Find finishing jobs and their output files
+  try:
+    query = ('SELECT justin_job_id,file_id,replica_id,pfn,destination '
+             'FROM jobs '
+             'LEFT JOIN files '
+             'ON files.creator_justin_job_id=jobs.justin_job_id '
+             'AND files.file_state="registering" '
+             'LEFT JOIN replicas '
+             'ON files.file_id=replicas.file_id '
+             'LEFT JOIN stages_outputs '
+             'ON files.workflow_id=stages_outputs.workflow_id '
+             'AND files.creator_stage_id=stages_outputs.stage_id '
+             'AND files.creator_pattern_id=stages_outputs.pattern_id '
+             'WHERE jobs_state="finishing" AND files.file_id<>NULL '
+             'AND replicas.replica_id<>NULL '
+             'ORDER BY justin_job_id,file_id '
+             'LIMIT %d+1' % maxFilesPerBulk)
+
+    jobsFilesRows = justin.select(query)
+  except:
+    justin.logLine('Failed to get list of finishing jobs/files')
+    return
+
+# CHANGE ALL THIS TO CREATE THE SPECIFIC LISTS OF DICTIONARIES NEEDED
+# BY METACAT AND RUCIO FOR THE BULK REGISTRATIONS
+# CREATE A SET WITH THE UNIQUE DETAILS OF THE NUMBERED DATASETS REQUIRED BY
+# THESE FILES
+# USE THE NUM FILES COUNT TO MISS OUT THE LAST JOB IF IT TAKES US OVER
+# THE BULK FILES LIMIT BECAUSE WE MAY NOT HAVE ALL OF FILES OF THAT JOB
+# RETURNED BY THE ABOVE QUERY
+
+  jobsList           = []
+  jobDict            = {}
+  numFiles           = 0
+  currentJustinJobId = 0
+  
+  for jobFileRow in jobsFilesRows:
+  
+    if jobFileRow['justin_job_id'] != currentJustinJobId:
+      # Save previous job dict
+      if jobDict:
+        jobsList.append(jobDict)
+
+      # Create new job dict
+      jobDict = { 'justin_job_id' : jobFileRow['justin_job_id'], 
+                  'files_list' : [] }
+      
+    jobDict['files_list'].append(
+       { 'file_id'     : jobFileRow['file_id'],
+         'replica_id'  : jobFileRow['replica_id'],
+         'pfn'         : jobFileRow['pfn'],
+         'destination' : jobFileRow['destination']       
+       })
+       
+    numFiles += 1
+        
+  if jobDict:
+    jobsList.append(jobDict)    
+
+# NEED TO HANDLE SITUATION WHERE JOB CREATES A LOT OF OUTPUTS AND FALLS
+# BELOW THE MIN AND MAX LIMITS IN ONE GO
+  if numFiles < minFilesPerBulk:
+    justin.logLine('Not enough jobs/files to process (%d)' % numFiles)
+    return
+
+# CALL A FUNCTION TO CREATE THE NUMBERED DATASETS FOR THESE FILES 
+# IT MUST CHECK FOR THEIR LACK OF EXISTENCE AND CREATE THE ONES THAT 
+# ARE MISSING
+
+  
+# DO THE METACAT BULK REGISTRATION
+# DO THE RUCIO BULK REGISTRATION
+# MARK ALL THE FILES AS FINISHED OR UNALLOCATED, AND JOBS AS FINISHED
+# THE FINDER WILL MARK THE WORKLOWS AS FINISHED WHEN READY
+
+
+  justin.conn.commit()
+
+def oneCycle():
+  global clientMetaCat, didClientRucio, repClientRucio
+  
+  try:
+    clientMetaCat = \
+      metacat.webapi.MetaCatClient(server_url = justin.metacatServerInputsURL, 
+                               auth_server_url = justin.metacatAuthServerURL)
+    clientMetaCat.login_x509('dunepro', justin.jobsProductionProxyFile)    
+
+  except Exception as e:
+    justin.logLine('Failed to contact MetaCat: ' + str(e))
+    clientMetaCat = None
+
+  try:
+    didClientRucio = rucio.client.didclient.DIDClient()
+    repClientRucio = rucio.client.replicaclient.ReplicaClient()
+  except Exception as e:
+    justin.logLine('Failed to contact Rucio: ' + str(e))
+    didClientRucio = None
+    repClientRucio = None
+
+  pingRucioMilliseconds = justin.pingRucioMilliseconds()
+
+  justin.logLine('pingRucioMilliseconds returns %d' % pingRucioMilliseconds)
+  if pingRucioMilliseconds < justin.overloadRucioMilliseconds:
+    findFinishingJobs()
+  else:
+    justin.logLine('Skip findFinishingJobs()')
+#
+# PROGRAM MAIN
+#
+
+if __name__ == '__main__':
+  justin.agentMainLoop('registration', oneCycle, sleepSeconds, 3600)

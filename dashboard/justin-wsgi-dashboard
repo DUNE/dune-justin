@@ -3044,7 +3044,7 @@ def showFile(environ, user, cgiValues):
   output += ("<h1>File %s</h1>" % insertWBR(fileDID))
   
   query = ('SELECT file_id,file_state,files.finished_time,size_bytes,'
-           'allocations,max_allocations,jobsub_id '
+           'allocations,max_allocations,jobsub_id,uploaded_time '
            'FROM files '
            'LEFT JOIN jobs ON jobs.justin_job_id=creator_justin_job_id '
            'WHERE files.workflow_id=%d %s AND file_did="%s"' %
@@ -3098,6 +3098,11 @@ def showFile(environ, user, cgiValues):
   output += ('<tr><td>State</td>'
              '<td>%s</td></tr>'
              % fileRow["file_state"])
+      
+  if str(fileRow["uploaded_time"]) != justin.unixEpoch:
+    output += ('<tr><td>Uploaded</td>'
+               '<td>%s</td></tr>'
+               % spaceForUnixEpoch(fileRow["uploaded_time"]))
       
   output += ('<tr><td>Finished</td>'
              '<td>%s</td></tr>'

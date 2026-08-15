@@ -712,6 +712,19 @@ def processSubmittedWorkflow(workflow):
                   '%s-w%d' % (justin.instance, workflow['workflow_id']),
                   workflowMetadata)
 
+    try:
+      query = ('INSERT INTO workflows_datasets SET '
+               'dataset_created=NOW(),'
+               'workflow_id=%d,'
+               'dataset_name="%s-w%d",'
+               'dataset_type="workflow"' % 
+               (workflowID, justin.instance, workflow['workflow_id']))
+     
+      justin.insertUpdate(query)
+    except Exception as e:
+      justin.logLine('Failed to record created dataset %s-w%d: %s'
+                     % (justin.instance, workflow['workflow_id'], str(e)))
+    
     for pattern in patterns:
       patternMetadata = workflowMetadata.copy()
     
@@ -730,22 +743,27 @@ def processSubmittedWorkflow(workflow):
 
       if pattern['jobscript_git']:
         patternMetadata['jobscript_git'] = pattern['jobscript_git']
-      
-      if pattern['destination']:
-        datasetName = '%s-%s-w%ds%dp%d' % (pattern['destination'],
-                                           justin.instance, 
-                                           workflow['workflow_id'],
-                                           pattern['stage_id'],
-                                           pattern['pattern_id'])
-      else:
-        datasetName = '%s-w%ds%dp%d' % (justin.instance, 
-                                        workflow['workflow_id'],
-                                        pattern['stage_id'],
-                                        pattern['pattern_id'])
 
-      createDataset(workflow['scope_name'], datasetName, patternMetadata,
+      createDataset(workflow['scope_name'], pattern['destination'], 
+                    patternMetadata,
                     '%s-w%d' % (justin.instance, workflow['workflow_id']))
 
+      try:
+        query = ('INSERT INTO workflows_datasets SET '
+                 'dataset_created=NOW(),'
+                 'workflow_id=%d,'
+                 'stage_id=%d,'
+                 'pattern_id=%d,'
+                 'dataset_name="%s",'
+                 'dataset_type="pattern"' % 
+                 (workflowID, pattern['stage_id'], pattern['pattern_id'],
+                  pattern['destination']))
+     
+        justin.insertUpdate(query)
+      except Exception as e:
+        justin.logLine('Failed to record created dataset %s: %s'
+                       % (pattern['destination'], str(e)))
+    
   # Successful so mark workflow as running
   # Define refind_next_time as now to force at least one finding cycle
   # even if not refinding repeatedly
