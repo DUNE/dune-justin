@@ -531,12 +531,12 @@ CREATE TABLE IF NOT EXISTS `principal_names` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `sessions` (
-  `session_id` mediumint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `session_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `session_type` enum('web','command') NOT NULL DEFAULT 'web',
   `user_id` smallint(5) unsigned NOT NULL DEFAULT 0,
   `created_time` datetime NOT NULL DEFAULT '1970-01-01',
   `expires_time` datetime NOT NULL DEFAULT '1970-01-01',
-  `linked_session_id` mediumint(5) unsigned NOT NULL DEFAULT 0,
+  `linked_session_id` int(10) unsigned NOT NULL DEFAULT 0,
   `justin_session` varchar(255) NOT NULL,
   `justin_secret` varchar(255) NOT NULL,
   `justin_code` varchar(255) NOT NULL,

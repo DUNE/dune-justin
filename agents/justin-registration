@@ -56,16 +56,49 @@ repClientRucio       = None
 class justinError(Exception):
   pass
 
+def getWorkflowsDatasets():
+  # Return a list of all created datasets for all running wofklows
+  
+  try:
+    query = ('SELECT dataset_name,scopes.scope_name '
+             'FROM workflows_datasets '
+             'LEFT JOIN workflows '
+             'ON workflows.workflow_id=workflows_datasets.workflow_id '
+             'LEFT JOIN scopes '
+             'ON workflows.scope_id=scopes.scope_id '
+             'WHERE workflow_state="running"')
+             
+    rows = justin.select(query)
+             
+  except Exception as e:
+    justin.logLine('Failed to get list of datasets: ' + str(e))
+    return {}
+    
+  datasetsList = []
+  for row in rows:
+    runningDatasets.append(row['scope_name'] + ':' + row['dataset_name'])
+    
+  return datasetsList    
+  
 def findFinishingJobs():
   # Find jobs in the finishing state, register their output files, and mark
   # jobs as finished
   
   justin.logLine('Start of finding finishing jobs')
 
+  existingDatasets = getRunningWorkflows()
+  if not existingDatasets:
+    return
+
   # Find finishing jobs and their output files
+  # We limit this to maxFilesPerBulk + 1 to get the start of the next
+  # job's files to detect the end of the last job we actually want
   try:
-    query = ('SELECT justin_job_id,file_id,replica_id,pfn,destination '
+    query = ('SELECT justin_job_id,file_id,replica_id,pfn,destination,'
+             'file_metadata,number_in_pattern,scope_name '
              'FROM jobs '
+             'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
+             'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
              'LEFT JOIN files '
              'ON files.creator_justin_job_id=jobs.justin_job_id '
              'AND files.file_state="registering" '
@@ -78,20 +111,15 @@ def findFinishingJobs():
              'WHERE jobs_state="finishing" AND files.file_id<>NULL '
              'AND replicas.replica_id<>NULL '
              'ORDER BY justin_job_id,file_id '
-             'LIMIT %d+1' % maxFilesPerBulk)
+             'LIMIT %d' % (maxFilesPerBulk + 1))
 
     jobsFilesRows = justin.select(query)
   except:
     justin.logLine('Failed to get list of finishing jobs/files')
     return
 
-# CHANGE ALL THIS TO CREATE THE SPECIFIC LISTS OF DICTIONARIES NEEDED
-# BY METACAT AND RUCIO FOR THE BULK REGISTRATIONS
-# CREATE A SET WITH THE UNIQUE DETAILS OF THE NUMBERED DATASETS REQUIRED BY
-# THESE FILES
-# USE THE NUM FILES COUNT TO MISS OUT THE LAST JOB IF IT TAKES US OVER
-# THE BULK FILES LIMIT BECAUSE WE MAY NOT HAVE ALL OF FILES OF THAT JOB
-# RETURNED BY THE ABOVE QUERY
+  # Get output files from jobs, grouped by job so each job's files' 
+  # registrations are all or none so we can fail whole jobs to force retries
 
   jobsList           = []
   jobDict            = {}
@@ -107,13 +135,16 @@ def findFinishingJobs():
 
       # Create new job dict
       jobDict = { 'justin_job_id' : jobFileRow['justin_job_id'], 
+                  'scope_name'    : jobFileRow['scope_name'],
                   'files_list' : [] }
-      
+
     jobDict['files_list'].append(
-       { 'file_id'     : jobFileRow['file_id'],
-         'replica_id'  : jobFileRow['replica_id'],
-         'pfn'         : jobFileRow['pfn'],
-         'destination' : jobFileRow['destination']       
+       { 'file_id'           : jobFileRow['file_id'],
+         'replica_id'        : jobFileRow['replica_id'],
+         'pfn'               : jobFileRow['pfn'],
+         'destination'       : jobFileRow['destination'],
+         'file_metadata'     : jobFileRow['file_metadata'],
+         'number_in_pattern' : jobFileRow['number_in_pattern']
        })
        
     numFiles += 1
@@ -127,15 +158,62 @@ def findFinishingJobs():
     justin.logLine('Not enough jobs/files to process (%d)' % numFiles)
     return
 
-# CALL A FUNCTION TO CREATE THE NUMBERED DATASETS FOR THESE FILES 
-# IT MUST CHECK FOR THEIR LACK OF EXISTENCE AND CREATE THE ONES THAT 
-# ARE MISSING
+  # Individual dictionaries with values needed for MetaCat add_child_dataset() 
+  # and Rucio add_dataset() calls for each required dataset
+  datasetsDict = {}
 
+  metacatFilesList = []       # for MetaCat declare_files() call
+  rucioFilesList   = []       # for Rucio add_dids() call
+  rucioFilesDatasetsList = [] # for Rucio add_files_to_datasets
+
+  # Go through the jobs/files to make the lists needed by the API calls
+  for jobDict in jobsList:
+    for fileDict in jobDict['files_list']:
+      # Make numbered dataset name for this file
+            
+      nDataset = '%sn%04d' % (fileDict['destination'], 
+                           int((fileDict['number_in_pattern']-1) 
+                                 / justin.filesPerNumberedDestination))
+
+      scopeNDataset = jobDict['scope_name'] + ':' + nDataset
+
+      if scopeNDataset not in existingDatasets \
+               and scopeNDataset not in datasetsDict:
+        datasetsDict[scopeNDataset] = { 
+               'scope_name'     : jobDict['scope_name'],
+               'parent_dataset' : jobDict['destination'],
+               'child_dataset'  : nDataset }
+      
+      metacatFilesList.append({
+                 })
+ 
+      rucioFilesList.append({
+                 })
+
+      rucioFilesDatasetsList.append({
+                 })
+
+
+  for datasetDict in datasetsDict:
+    # CALL A FUNCTION TO CREATE THE NUMBERED DATASETS FOR THESE FILES 
+    clientMetaCat.add_child_dataset(
+      datasetDict['scope_name'] + ':' + datasetDict['parent_dataset'],
+      datasetDict['scope_name'] + ':' + datasetDict['child_dataset']   )
+
+
+    didClientRucio.add_dataset(
+      scope = datasetDict['scope_name'], 
+      name  = datasetDict['child_dataset'],
+      rules = [{'copies': 1 }]
+      )
   
-# DO THE METACAT BULK REGISTRATION
-# DO THE RUCIO BULK REGISTRATION
-# MARK ALL THE FILES AS FINISHED OR UNALLOCATED, AND JOBS AS FINISHED
-# THE FINDER WILL MARK THE WORKLOWS AS FINISHED WHEN READY
+  # DO THE METACAT BULK REGISTRATION OF FILES IN DATASETS
+  # DO THE RUCIO BULK REGISTRATION OF FILES AND FILES TO DATASETS AND
+  # REPLICAS
+
+
+  # MARK ALL THE FILES AS FINISHED OR UNALLOCATED, AND JOBS AS FINISHED
+  # THE FINDER WILL MARK THE WORKLOWS AS FINISHED WHEN READY
 
 
   justin.conn.commit()
