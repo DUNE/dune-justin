@@ -52,6 +52,7 @@ minFilesPerBulk      = 1
 clientMetaCat        = None
 didClientRucio       = None
 repClientRucio       = None
+ruleClientRucio      = None
 
 class justinError(Exception):
   pass
@@ -94,8 +95,10 @@ def findFinishingJobs():
   # We limit this to maxFilesPerBulk + 1 to get the start of the next
   # job's files to detect the end of the last job we actually want
   try:
-    query = ('SELECT justin_job_id,file_id,replica_id,pfn,destination,'
-             'file_metadata,number_in_pattern,scope_name '
+    query = ('SELECT justin_job_id,file_id,replica_id,destination,'
+             'file_metadata,number_in_pattern,scope_name,files.file_did,'
+             'stages_outputs.lifetime_seconds,jobs.workflow_id,jobs_stage_id,'
+             'stages_outputs.pattern_id,files.size_bytes,rse_name,adler32 '
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
@@ -104,6 +107,8 @@ def findFinishingJobs():
              'AND files.file_state="registering" '
              'LEFT JOIN replicas '
              'ON files.file_id=replicas.file_id '
+             'LEFT JOIN storages '
+             'ON storages.rse_id=replicas_rse_id '
              'LEFT JOIN stages_outputs '
              'ON files.workflow_id=stages_outputs.workflow_id '
              'AND files.creator_stage_id=stages_outputs.stage_id '
@@ -135,13 +140,20 @@ def findFinishingJobs():
 
       # Create new job dict
       jobDict = { 'justin_job_id' : jobFileRow['justin_job_id'], 
+                  'workflow_id'   : jobFileRow['workflow_id'],
+                  'stage_id'      : jobFileRow['stage_id'],
+                  'pattern_id'    : jobFileRow['pattern_id'],
                   'scope_name'    : jobFileRow['scope_name'],
                   'files_list' : [] }
 
     jobDict['files_list'].append(
        { 'file_id'           : jobFileRow['file_id'],
+         'file_did'          : jobFileRow['file_did'],
          'replica_id'        : jobFileRow['replica_id'],
-         'pfn'               : jobFileRow['pfn'],
+         'lifetime_seconds'  : jobFileRow['lifetime_seconds'],
+         'size_bytes'        : jobFileRow['size_bytes'],
+         'adler32'           : jobFileRow['adler32'],
+         'rse_name'          : jobFileRow['rse_name'],
          'destination'       : jobFileRow['destination'],
          'file_metadata'     : jobFileRow['file_metadata'],
          'number_in_pattern' : jobFileRow['number_in_pattern']
@@ -162,9 +174,9 @@ def findFinishingJobs():
   # and Rucio add_dataset() calls for each required dataset
   datasetsDict = {}
 
-  metacatFilesList = []       # for MetaCat declare_files() call
-  rucioFilesList   = []       # for Rucio add_dids() call
-  rucioFilesDatasetsList = [] # for Rucio add_files_to_datasets
+  metacatDatasetsDict = {} # for MetaCat declare_files() calls
+  rucioRSEsDict       = {} # for Rucio add_replicas() call
+  rucioDatasetsDict   = [] # for Rucio add_files_to_dataset
 
   # Go through the jobs/files to make the lists needed by the API calls
   for jobDict in jobsList:
@@ -180,46 +192,122 @@ def findFinishingJobs():
       if scopeNDataset not in existingDatasets \
                and scopeNDataset not in datasetsDict:
         datasetsDict[scopeNDataset] = { 
-               'scope_name'     : jobDict['scope_name'],
-               'parent_dataset' : jobDict['destination'],
-               'child_dataset'  : nDataset }
+               'workflow_id'      : jobDict['workflow_id'],
+               'stage_id'         : jobDict['stage_id'],
+               'pattern_id'       : jobDict['pattern_id'],
+               'scope_name'       : jobDict['scope_name'],
+               'lifetime_seconds' : fileDict['lifetime_seconds'],
+               'parent_dataset'   : jobDict['destination'],               
+               'child_dataset'    : nDataset }
       
-      metacatFilesList.append({
-                 })
+
+      if scopeNDataset not in metacatDatasetsDict:
+        metacatDatasetsDict[scopeNDataset] = []
+              
+      metacatDatasetsDict[scopeNDataset] = {
+          'namespace' : jobDict'scope_name'],
+          'name'      : fileDict['file_did'],
+          'size'      : fileDict['size_bytes'], 
+          'checksums' : { "adler32" : fileDict['adler32'] },
+          'metadata'  : fileDict['file_metadata']
+        })
  
-      rucioFilesList.append({
-                 })
+      if fileDict['rse_name'] not in rucioRSEsDict:
+        rucioRseDict[fileDict['rse_name'] = []
+              
+      rucioRSEsDict[fileDict['rse_name']] = {
+          'scope'   : jobDict'scope_name'],
+          'name'    : fileDict['file_did'],
+          'bytes'   : fileDict['size_bytes'],
+          'adler32' : fileDict['adler32']
+        })
 
-      rucioFilesDatasetsList.append({
-                 })
-
+      if scopeNDataset not in rucioDatasetsDict:
+        rucioDatasetsDict[scopeNDataset] = []
+              
+      rucioDatasetsDict[scopeNDataset] = {
+          'scope' : jobDict'scope_name'],
+          'name'  : fileDict['file_did']
+        })
 
   for datasetDict in datasetsDict:
-    # CALL A FUNCTION TO CREATE THE NUMBERED DATASETS FOR THESE FILES 
-    clientMetaCat.add_child_dataset(
-      datasetDict['scope_name'] + ':' + datasetDict['parent_dataset'],
-      datasetDict['scope_name'] + ':' + datasetDict['child_dataset']   )
+    try:
+      clientMetaCat.create_dataset('%s:%s' % (datasetDict['scope_name'],
+                                              datasetDict['child_dataset']) )
 
+      clientMetaCat.add_child_dataset(
+        datasetDict['scope_name'] + ':' + datasetDict['parent_dataset'],
+        datasetDict['scope_name'] + ':' + datasetDict['child_dataset']   )
 
-    didClientRucio.add_dataset(
-      scope = datasetDict['scope_name'], 
-      name  = datasetDict['child_dataset'],
-      rules = [{'copies': 1 }]
-      )
+      didClientRucio.add_dataset(
+        scope = datasetDict['scope_name'], 
+        name  = datasetDict['child_dataset']
+        )
+
+      ruleClientRucio.add_add_replication_rule(
+                     dids = [ {'scope' : datasetDict['scope_name'],
+                               'name'  : datasetDict['child_dataset'] } ], 
+                     copies = 1,
+                     lifetime = datasetDict['lifetime_seconds'])
   
-  # DO THE METACAT BULK REGISTRATION OF FILES IN DATASETS
-  # DO THE RUCIO BULK REGISTRATION OF FILES AND FILES TO DATASETS AND
-  # REPLICAS
+      justin.insertUpdate('INSERT INTO workflows_datasets '
+                        'dataset_created=NOW(),'
+                        'workflow_id=%d,stage_id=%d,pattern_id=%d,'
+                        'dataset_name="%s",dataset_type="numbered"'
+                        % (datasetDict['workflow_id'],
+                           datasetDict['stage_id'],
+                           datasetDict['pattern_id'],
+                           datasetDict['child_dataset']))
+    except Exception as e:
+      logFile('Exciting: failed to create and record dataset %s:%s, error %s'
+              % (datasetDict['scope_name'], datasetDict['child_dataset'],
+                 str(e)))
+      justin.conn.rollback()
+      return
+    else:
+      # We commit dataset by dataset as they are in MetaCat and Rucio's
+      # own databases by this point
+      justin.conn.commit()
 
+  for metacatDataset in metacatDatasetsDict:
+    # Declare all the files for this dataset since declareFiles() requires
+    # you do it per-dataset
+    clientMetaCat.declareFiles(dataset = metacatDataset,
+                               files = metacatDatasetsDict[metacatDataset])
+# HANDLE ERRORS FOR THIS - HOW???
 
-  # MARK ALL THE FILES AS FINISHED OR UNALLOCATED, AND JOBS AS FINISHED
-  # THE FINDER WILL MARK THE WORKLOWS AS FINISHED WHEN READY
+  for rucioRSE in rucioRSEsDict:
+    # Declare all the replicas for this RSE since add_replicas() requires
+    # you do it per-RSE. This call implicitly adds the DID to the catalog
+    # of files too.
+    repClientRucio.add_replicas(    
+        rse   = rucioRSE,
+        files = rucioRSEsDict[rucioRSE])
+# HANDLE ERRORS FOR THIS - HOW???
 
+  for rucioDataset in rucioDatasetsDict:
+    # Declare all the files for this dataset since declareFiles() requires
+    # you do it per-dataset
+    didClientRucio.add_files_to_dataset(    
+        scope = rucioDatasetsDict[rucioDataset]['scope'],
+        name  = rucioDataset,
+        files = rucioDatasetsDict[rucioDataset])        
+# HANDLE ERRORS FOR THIS - HOW???
+
+  for jobDict in jobsList:
+    for fileDict in jobDict['files_list']:
+      justin.insertUpdate('UPDATE files SET '
+            'file_state=IF(stage > 0,"unallocated","finished") '
+            'WHERE file_id=%d' % fileDict['file_id'])
+
+    justin.insertUpdate('UPDATE jobs SET job_state="finished" '
+                        'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
+# HANDLE ERRORS FOR THIS - HOW???
 
   justin.conn.commit()
 
 def oneCycle():
-  global clientMetaCat, didClientRucio, repClientRucio
+  global clientMetaCat, didClientRucio, repClientRucio, ruleClientRucio
   
   try:
     clientMetaCat = \
@@ -232,12 +320,14 @@ def oneCycle():
     clientMetaCat = None
 
   try:
-    didClientRucio = rucio.client.didclient.DIDClient()
-    repClientRucio = rucio.client.replicaclient.ReplicaClient()
+    didClientRucio  = rucio.client.didclient.DIDClient()
+    repClientRucio  = rucio.client.replicaclient.ReplicaClient()
+    ruleClientRucio = rucio.client.ruleclient.RuleClient()
   except Exception as e:
     justin.logLine('Failed to contact Rucio: ' + str(e))
-    didClientRucio = None
-    repClientRucio = None
+    didClientRucio  = None
+    repClientRucio  = None
+    ruleClientRucio = None
 
   pingRucioMilliseconds = justin.pingRucioMilliseconds()
 

@@ -812,9 +812,7 @@ def findWorkflowsToFinish():
                'WHERE workflow_id=%d AND '
                'file_state <> "finished" AND '
                'file_state <> "notfound" AND '
-               'file_state <> "failed" AND ' 
-               'file_state <> "recorded" AND '
-               'file_state <> "output"' %
+               'file_state <> "failed"' %
                int(workflow['workflow_id']))
              
       justin.cur.execute(query)
@@ -844,25 +842,6 @@ def findWorkflowsToFinish():
     justin.logLine('Workflow ID %d set to finishing' % workflow['workflow_id'])
   justin.conn.commit()
 
-# NEED TO ADD finishWorkflows() 
-# This will use rucio API to finish 
-#
-# gen=didClient.list_dids('fardet-vd', 
-#  [{'name':'*-w5241s*p*'},{'name':'w5241s*p*'}], 'dataset', True, False)
-# returns a generator giving datasets matching the name pattern:
-# {'scope': 'fardet-vd', 'name': 'fardet-vd-reco_5241-w5241s1p1', 
-# 'did_type': 'DATASET', 'bytes': None, 'length': None}
-#
-# didClient.get_did('fardet-vd', 'fardet-vd-reco_5241-w5241s1p1')
-# returns 
-# {'scope': 'fardet-vd', 'name': 'fardet-vd-reco_5241-w5241s1p1', 
-# 'type': 'DATASET', 'account': 'dunepro', 'open': True, 'monotonic': False,
-# 'expired_at': None, 'length': None, 'bytes': None}
-#
-# This can be used to find open datasets from this workflow. They can closed
-# with didClient.close('fardet-vd', 'fardet-vd-reco_5241-w5241s1p1')
-# When a cycle finds no open datasets (ie reads it back from Rucio to make
-# sure it really worked) then the workflow can be set to finished.
 def finishWorkflows():
   # Find workflows in finishing and set to finished when all their datasets
   # are closed
@@ -893,7 +872,8 @@ def finishWorkflows():
     # We set this to True if we see any open datasets and close fails
     # Maybe 
     anyOpenDatasets = False
-  
+
+# USE workflows_datasets TABLE FOR THIS INSTEAD NOW???  
     try:
       gen = didClientRucio.list_dids(workflowRow['scope_name'], 
                   [{'name':'*-%s-w%ds*p*' 
@@ -932,7 +912,7 @@ def finishWorkflows():
             justin.logLine('Closed dataset %s:%s' %
                            (dataset['scope'], dataset['name']))
     
-    # If all ok, we can mark the workflow as finished        
+    # If all ok, we can mark the workflow as finished
     if not anyOpenDatasets:
       try:
         query = ('UPDATE workflows SET workflow_state="finished",finished=NOW(),'
@@ -1011,6 +991,7 @@ def findProblemWorkflows():
             d[workflowID]['started'] +
             d[workflowID]['processing'] +
             d[workflowID]['outputting'] +
+            d[workflowID]['finishing'] +
             d[workflowID]['finished']
        ):
       pauseEvent   = justin.event_WORKFLOW_PAUSED_NONE_PROCESSED

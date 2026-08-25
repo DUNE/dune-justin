@@ -2164,6 +2164,7 @@ def confirmResultsMethod(startResponse, jsonDict):
 
     try:
       sizeBytes = jsonDict['output_files'][fileName]['size_bytes']
+      adler32   = jsonDict['output_files'][fileName]['adler32']
       retCode   = 1
             
       # Loop through failed attempts and then ret=0 if succeeded
@@ -2192,6 +2193,7 @@ def confirmResultsMethod(startResponse, jsonDict):
           # to assign files to numbered datasets
           justin.insertUpdate('UPDATE files SET file_state="%s",'
             'size_bytes=%d,'
+            'adler32="%s",'
             'uploaded_time=NOW(),'
             'number_in_pattern=1+(SELECT COUNT(*) FROM files AS temp_files '
             ' WHERE temp_files.workflow_id=files.workflow_id '
@@ -2201,6 +2203,7 @@ def confirmResultsMethod(startResponse, jsonDict):
             'WHERE file_id=%d' %
             ('unallocated' if (fileRow['stage_id'] > 0) else 'finished',
              sizeBytes,
+             adler32,
              fileRow['file_id']))
 
           if not fileRow['file_did'].startswith('https://'):

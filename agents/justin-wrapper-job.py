@@ -970,7 +970,9 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
   confirmResultsDict['output_files'][fileName]               = {}
   confirmResultsDict['output_files'][fileName]['pattern_id'] = intPatternID,
   confirmResultsDict['output_files'][fileName]['size_bytes'] = \
-                                                 fileMetadata['size']
+                                           fileMetadata['size']
+  confirmResultsDict['output_files'][fileName]['adler32'] = \
+                                           fileMetadata['checksums']['adler32']
   confirmResultsDict['output_files'][fileName]['attempts']   = []
   
   strPatternID = str(intPatternID)

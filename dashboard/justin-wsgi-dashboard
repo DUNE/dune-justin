@@ -2410,7 +2410,11 @@ def showStage(environ, user, cgiValues):
   # Output patterns
 
   query = ("SELECT pattern_id,destination,file_pattern,"
-           "for_next_stage,lifetime_seconds,rse_expression "
+           "for_next_stage,lifetime_seconds,rse_expression,dataset_created "
+           "LEFT JOIN workflows_datasets "
+           "ON workflows_datasets.workflow_id=stages_outputs.workflow_id "
+           "AND workflows_datasets.stage_id=stages_outputs.stage_id "
+           "AND workflows_datasets.pattern_id=stages_outputs.pattern_id "
            "FROM stages_outputs "
            "WHERE workflow_id=%d AND stage_id=%d "
            "ORDER BY pattern_id" %
@@ -2433,12 +2437,20 @@ def showStage(environ, user, cgiValues):
                       insertWBR(patternRow["destination"]),
                       html.escape(patternRow["file_pattern"], quote=True)))
       else:
-        output += ("<tr><td>%d</td><td>Rucio %s:%s</td><td>%s</td>"
+        if patternRow['dataset_created']:
+          output += ("<tr><td>%d</td><td>Rucio <a href="">%s:%s</a></td>" 
+                     % (patternRow["pattern_id"],
+                        stageRow["workflows_scope_name"],
+                        insertWBR(patternRow["destination"]))
+        else:
+          output += ("<tr><td>%d</td><td>Rucio %s:%s</td>" 
+                     % (patternRow["pattern_id"],
+                        stageRow["workflows_scope_name"],
+                        insertWBR(patternRow["destination"]))
+
+        output += ("<td>%s</td>"
                    "<td>%d</td><td>%s</td><td>%s</td></tr>" 
-                   % (patternRow["pattern_id"],
-                      stageRow["workflows_scope_name"],
-                      insertWBR(patternRow["destination"]),
-                      html.escape(patternRow["file_pattern"], quote=True),
+                   % (html.escape(patternRow["file_pattern"], quote=True),
                       patternRow["lifetime_seconds"],
                       bool(patternRow["for_next_stage"]),
                       html.escape(patternRow['rse_expression'])

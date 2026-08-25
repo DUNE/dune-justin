@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS `files` (
                'recorded', 'output', 'finishing', 'registering') 
                NOT NULL DEFAULT 'finding',
   `size_bytes` bigint not null default 0,
+  `adler32` varchar(255) NOT NULL DEFAULT '',
   `justin_job_id` int(10) unsigned NOT NULL DEFAULT 0,
   `uploaded_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
   `finished_time` datetime NOT NULL DEFAULT '1970-01-01 00:00:00',

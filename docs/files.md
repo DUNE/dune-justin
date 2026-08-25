@@ -43,4 +43,4 @@ available to input files as part of the next stage.
 
 For **output files which are not inputs** for subsequent stages, the output
 files go through recorded and registering (if for Rucio managed storage),
-and then directly to the finished state.
+and then directly to the **finished** state.
