@@ -1043,15 +1043,16 @@ def resetFilesForJob(justinJobID,
     try:
       query = ('SELECT file_id,allocations,max_allocations,file_did,file_state '
                'FROM files '
-               'WHERE (file_state="processing" OR state="outputting") '
+               'WHERE (file_state="processing" OR file_state="outputting") '
                'AND justin_job_id=%d '
                'ORDER BY file_id' % justinJobID)
 
       justin.cur.execute(query)
 
       fileRows = justin.cur.fetchall()
-    except:
-      justin.logLine('Failed to get list of files of the stalled or aborted job')
+    except Exception as e:
+      justin.logLine('Failed to get list of files of the stalled or '
+                     'aborted job: ' + str(e))
       # We should give up at this point rather than commit a mess?
       sys.exit(0)
     

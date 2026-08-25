@@ -77,7 +77,7 @@ def getWorkflowsDatasets():
     
   datasetsList = []
   for row in rows:
-    runningDatasets.append(row['scope_name'] + ':' + row['dataset_name'])
+    datasetsList.append(row['scope_name'] + ':' + row['dataset_name'])
     
   return datasetsList    
   
@@ -87,7 +87,7 @@ def findFinishingJobs():
   
   justin.logLine('Start of finding finishing jobs')
 
-  existingDatasets = getRunningWorkflows()
+  existingDatasets = getWorkflowsDatasets()
   if not existingDatasets:
     return
 
@@ -95,9 +95,9 @@ def findFinishingJobs():
   # We limit this to maxFilesPerBulk + 1 to get the start of the next
   # job's files to detect the end of the last job we actually want
   try:
-    query = ('SELECT justin_job_id,file_id,replica_id,destination,'
+    query = ('SELECT jobs.justin_job_id,files.file_id,replica_id,destination,'
              'file_metadata,number_in_pattern,scope_name,files.file_did,'
-             'stages_outputs.lifetime_seconds,jobs.workflow_id,jobs_stage_id,'
+             'stages_outputs.lifetime_seconds,jobs.workflow_id,jobs.stage_id,'
              'stages_outputs.pattern_id,files.size_bytes,rse_name,adler32 '
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
@@ -113,14 +113,14 @@ def findFinishingJobs():
              'ON files.workflow_id=stages_outputs.workflow_id '
              'AND files.creator_stage_id=stages_outputs.stage_id '
              'AND files.creator_pattern_id=stages_outputs.pattern_id '
-             'WHERE jobs_state="finishing" AND files.file_id<>NULL '
+             'WHERE job_state="finishing" AND files.file_id<>NULL '
              'AND replicas.replica_id<>NULL '
              'ORDER BY justin_job_id,file_id '
              'LIMIT %d' % (maxFilesPerBulk + 1))
 
     jobsFilesRows = justin.select(query)
-  except:
-    justin.logLine('Failed to get list of finishing jobs/files')
+  except Exception as e:
+    justin.logLine('Failed to get list of finishing jobs/files: ' + str(e))
     return
 
   # Get output files from jobs, grouped by job so each job's files' 
@@ -205,35 +205,35 @@ def findFinishingJobs():
         metacatDatasetsDict[scopeNDataset] = []
               
       metacatDatasetsDict[scopeNDataset] = {
-          'namespace' : jobDict'scope_name'],
+          'namespace' : jobDict['scope_name'],
           'name'      : fileDict['file_did'],
           'size'      : fileDict['size_bytes'], 
           'checksums' : { "adler32" : fileDict['adler32'] },
           'metadata'  : fileDict['file_metadata']
-        })
+        }
  
       if fileDict['rse_name'] not in rucioRSEsDict:
-        rucioRseDict[fileDict['rse_name'] = []
+        rucioRseDict[fileDict['rse_name']] = []
               
       rucioRSEsDict[fileDict['rse_name']] = {
-          'scope'   : jobDict'scope_name'],
+          'scope'   : jobDict['scope_name'],
           'name'    : fileDict['file_did'],
           'bytes'   : fileDict['size_bytes'],
           'adler32' : fileDict['adler32']
-        })
+        }
 
       if scopeNDataset not in rucioDatasetsDict:
         rucioDatasetsDict[scopeNDataset] = []
               
       rucioDatasetsDict[scopeNDataset] = {
-          'scope' : jobDict'scope_name'],
+          'scope' : jobDict['scope_name'],
           'name'  : fileDict['file_did']
-        })
+        }
 
   for datasetDict in datasetsDict:
     try:
       clientMetaCat.create_dataset('%s:%s' % (datasetDict['scope_name'],
-                                              datasetDict['child_dataset']) )
+                                              datasetDict['child_dataset']) )
 
       clientMetaCat.add_child_dataset(
         datasetDict['scope_name'] + ':' + datasetDict['parent_dataset'],
@@ -300,11 +300,15 @@ def findFinishingJobs():
             'file_state=IF(stage > 0,"unallocated","finished") '
             'WHERE file_id=%d' % fileDict['file_id'])
 
+    justin.insertUpdate('UPDATE files SET file_state="finished" '
+                        'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
+
     justin.insertUpdate('UPDATE jobs SET job_state="finished" '
                         'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
 # HANDLE ERRORS FOR THIS - HOW???
 
 # ADD RETRIES
+# ADD LOTS OF EVENT LOGGING
 
   justin.conn.commit()
 

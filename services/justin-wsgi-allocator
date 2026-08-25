@@ -2155,7 +2155,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Getting recorded output files: ' + str(e))
 
-  numRucioFiles = 0
+  numRucioOutputFiles = 0
   for fileRow in fileRows:
     if fileRow['file_did'].startswith('https://'):
       fileName = fileRow['file_did'].split('/')[-1]
@@ -2201,7 +2201,8 @@ def confirmResultsMethod(startResponse, jsonDict):
             '  AND temp_files.creator_pattern_id=files.creator_pattern_id '
             '  AND temp_files.uploaded_time > "1970-01-01 00:00:00") '
             'WHERE file_id=%d' %
-            ('unallocated' if (fileRow['stage_id'] > 0) else 'finished',
+            ('finished' if (fileRow['file_did'].startswith('https://')) 
+             else 'registering',
              sizeBytes,
              adler32,
              fileRow['file_id']))
