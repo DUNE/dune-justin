@@ -31,5 +31,5 @@ podman build --build-arg DUNEJUSTIN_ID=`id -u dunejustin` \
 
 if [ "$1" = "--restart" ] ; then
  systemctl restart justin-httpd justin-finder justin-info-collector \
-   justin-job-factory justin-job-logs
+   justin-job-factory justin-job-logs justin-registration
 fi

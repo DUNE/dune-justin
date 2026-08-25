@@ -304,6 +304,8 @@ def findFinishingJobs():
                         'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
 # HANDLE ERRORS FOR THIS - HOW???
 
+# ADD RETRIES
+
   justin.conn.commit()
 
 def oneCycle():
