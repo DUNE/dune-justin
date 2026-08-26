@@ -825,16 +825,22 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
       fileMetadata = {}
     else:
       try:
-        fileMetadata = getMetadata(match, fileSize, fileAdler32,
+        fileMetadata = getMetadata(matchingFile, fileSize, fileAdler32,
                                    getJobscriptDict, jobscriptDict,
                                    recordResultsDict)
       except Exception as e:
         logLine('getMetadata() fails ' + str(e))
         jobAborted(318, 'create_metadata', '')
 
+      try:
+        jsonMetadata = json.dumps(fileMetadata)
+      except Exception as e:
+        logLine('json.dumps of metadata fails ' + str(e))
+        jobAborted(318, 'json dumps metadata', '')
+       
     outputFiles.append((matchingFile, fileMetadata, 
                         patternID, pattern))
-    recordResultsDict['output_files'].append((matchingFile, fileMetadata,
+    recordResultsDict['output_files'].append((matchingFile, jsonMetadata,
                                               patternID, pattern))
     logLine('Output file to be uploaded: ' + matchingFile)
 

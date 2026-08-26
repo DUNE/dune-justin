@@ -2270,7 +2270,7 @@ def confirmResultsMethod(startResponse, jsonDict):
   try:
     # Jobs only finish in the none_processed state if any files were allocated
     # or if they never even asked for any, but not for AWT jobs
-    if workflowID != justin.awtWorkflowID:
+    if workflowID == justin.awtWorkflowID:
       jobState = 'finished'
     elif (numProcessed == 0 and numAllocated) or not sentGetFile:
       jobState = 'none_processed'

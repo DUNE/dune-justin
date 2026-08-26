@@ -676,11 +676,12 @@ def processSubmittedWorkflow(workflow):
 
   # Re-authenticate to MetaCat with the account of the scope's named quota  
   # (Caller will catch exceptions)
+    
 
 # GET THIS WORKING
 #  clientMetaCat.login_x509(workflow['quota_name'], 
 #                           justin.jobsProductionProxyFile)
-    
+
   # Look for per-pattern container datasets (excluding https:// destinations)
   patterns = justin.select('SELECT pattern_id,file_pattern,destination,'
                 'stages_outputs.stage_id,processors,gpus,'
@@ -722,6 +723,7 @@ def processSubmittedWorkflow(workflow):
      
       justin.insertUpdate(query)
     except Exception as e:
+# NEED PROPER HANDLING OF ERRORS. WHAT ON EARTH TO DO???
       justin.logLine('Failed to record created dataset %s-w%d: %s'
                      % (justin.instance, workflow['workflow_id'], str(e)))
     
@@ -783,6 +785,7 @@ def processSubmittedWorkflow(workflow):
              'WHERE workflow_id=%d' % workflowID)
 
   justin.insertUpdate(query)
+  justin.conn.commit()
 
 def findWorkflowsToFinish():
   # Find workflows with all files in terminal states and set to finishing
