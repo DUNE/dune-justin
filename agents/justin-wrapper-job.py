@@ -435,7 +435,7 @@ def getMetadata(fileName, fileSize, fileAdler32,
    = jobsubJobID
 
   # Force lowercase in top level metadata keys names
-  for keyName in list(metadata['metadata']):
+  for keyName in list(metadata['metadata']).copy():
     if keyName != keyName.lower():
       metadata['metadata'][keyName.lower()] = metadata['metadata'].pop(keyName)
 
