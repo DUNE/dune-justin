@@ -970,7 +970,7 @@ except Exception as e:
 for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
 
   confirmResultsDict['output_files'][fileName]               = {}
-  confirmResultsDict['output_files'][fileName]['pattern_id'] = intPatternID,
+  confirmResultsDict['output_files'][fileName]['pattern_id'] = intPatternID
   confirmResultsDict['output_files'][fileName]['size_bytes'] = \
                                            fileMetadata['size']
   confirmResultsDict['output_files'][fileName]['adler32'] = \
