@@ -802,6 +802,8 @@ recordResultsDict = {
 
 outputFiles = []
 
+logLine('Output file patterns: ' + str(jobscriptDict['patterns']))
+
 # Find files matching output patterns specified for this stage
 for (patternType, pattern, patternID) in jobscriptDict['patterns']:
   try:

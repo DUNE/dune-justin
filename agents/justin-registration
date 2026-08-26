@@ -108,7 +108,7 @@ def findFinishingJobs():
              'LEFT JOIN replicas '
              'ON files.file_id=replicas.file_id '
              'LEFT JOIN storages '
-             'ON storages.rse_id=replicas_rse_id '
+             'ON storages.rse_id=replicas.rse_id '
              'LEFT JOIN stages_outputs '
              'ON files.workflow_id=stages_outputs.workflow_id '
              'AND files.creator_stage_id=stages_outputs.stage_id '
