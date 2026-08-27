@@ -129,9 +129,9 @@ This man page is distributed along with the
     	      [--gpus-max-capability N.N] [--max-distance DIST]
     	      [--output-pattern PATTERN[:DESTINATION]]
     	      [--output-pattern-next-stage PATTERN[:DATASET]] [--output-rse
-    	      NAME] [--output-rse-expression EXPRESSION] [--lifetime-days
-    	      DAYS] [--env NAME=VALUE] [--classad NAME=VALUE] [--site
-    	      SITENAME] [--image IMAGENAME]
+    	      NAME] [--output-rse-expression EXPRESSION] --lifetime-days DAYS
+    	      [--env NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME]
+    	      [--image IMAGENAME]
     	      Creates a new stage for the given workflow ID with the given
     	      stage ID. Stages must be numbered consecutively from 1, and each
     	      workflow must have at least one stage.
@@ -162,12 +162,12 @@ This man page is distributed along with the
     
     	      GPUs can be requested with the --gpus option, which will require
     	      that jobs for this stage have access to this many GPUs.
-    	      Additionally, [--gpus-min-mib N] can be used to set the minimum
+    	      Additionally, --gpus-min-mib N can be used to set the minimum
     	      memory in MiB a GPU must have to run this stage's jobs.
-    	      Similarly, [--gpus-min-runtime] adds a requirement on the
+    	      Similarly, --gpus-min-runtime adds a requirement on the
     	      major.minor version of the CUDA runtime provided by the worker
-    	      node. The options [--gpus-min-capability] and
-    	      [--gpus-max-capability] do this for the major.minor versions of
+    	      node. The options --gpus-min-capability and
+    	      --gpus-max-capability do this for the major.minor versions of
     	      the GPU hardware capability number.  If --gpus is not given but
     	      any of the other GPU options are given, then 1 GPU is requested.
     	      These options map directly to HTCondor's Submit File commands
@@ -256,10 +256,9 @@ This man page is distributed along with the
     	      [--gpus-min-mib N] [--gpus-min-runtime N.N]
     	      [--gpus-min-capability N.N] [--gpus-max-capability N.N]
     	      [--output-pattern PATTERN[:DESTINATION]] [--output-rse NAME]
-    	      [--output-rse-expression EXPRESSION] [--lifetime-days DAYS]
-    	      [--env NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME]
-    	      [--image IMAGENAME] [--workflow-id-file FILENAME] [--campaign-id
-    	      ID]
+    	      [--output-rse-expression EXPRESSION] --lifetime-days DAYS [--env
+    	      NAME=VALUE] [--classad NAME=VALUE] [--site SITENAME] [--image
+    	      IMAGENAME] [--workflow-id-file FILENAME] [--campaign-id ID]
     	      Combines the create-workflow, create-stage and submit-workflow
     	      subcommands into a single operation, for use with single-stage
     	      workflows. The options are repeated from the first two
@@ -477,6 +476,10 @@ This man page is distributed along with the
     ENVIRONMENT
            If set, the value of the environment variable JUSTIN_OPTIONS is
            prepended to the list of options after the justin subcommand.
+    
+           If set, the value of X509_CERT_DIR is used to find Certificate
+           Authority certificates instead of the built in UK eScience CA root
+           certificates.
     
     
     FILES
