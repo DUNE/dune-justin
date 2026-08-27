@@ -145,16 +145,18 @@ def findFinishingJobs():
   jobDict            = {}
   numFiles           = 0
   currentJustinJobId = 0
+
+  jobsFilesRowsList = list(jobsFilesRows)
   
-  for jobFileRow in jobsFilesRows:
+  for jobFileRow in jobsFilesRowsList:
   
     if jobFileRow['justin_job_id'] != currentJustinJobId:
-      # Save previous job dict
+      # Starting a new job, so saved previous job dict ...
       if jobDict:
         jobsList.append(jobDict)
         numFiles += len(jobDict['files_list'])
 
-      # Create new job dict
+      # ... and create new job dict
       jobDict = { 'justin_job_id' : jobFileRow['justin_job_id'], 
                   'jobsub_id'     : jobFileRow['jobsub_id'], 
                   'workflow_id'   : jobFileRow['workflow_id'],
@@ -180,6 +182,16 @@ def findFinishingJobs():
          'file_metadata'     : jobFileRow['file_metadata'],
          'number_in_pattern' : jobFileRow['number_in_pattern']
        })
+
+    # Less files were returned than the limit we gave and we have now got
+    # to the last file returned and so this must be the last and fully 
+    # processed too now. We can save the jobDict and break 
+    # (break should not be needed, but just in case ...)
+    if len(jobsFilesRowsList) <= maxFilesPerBulk and \
+         numFiles + len(jobDict['files_list']) == len(jobsFilesRowsList): 
+      jobsList.append(jobDict)
+      numFiles += len(jobDict['files_list'])
+      break
 
   justin.logLine('Found %d output files to register' % numFiles)
 
@@ -443,7 +455,7 @@ def findFinishingJobs():
                       stageID = jobDict['stage_id'],
                       justinJobID = jobDict['justin_job_id'],
                       siteID = jobDict['site_id'],
-                      entryID = joDict['entry_id'])
+                      entryID = jobDict['entry_id'])
 
     except Exception as e:
       # If anything goes wrong with recording in the justIN database,
@@ -456,8 +468,9 @@ def findFinishingJobs():
       # reallocation of its input files to other job(s)?
       
       justin.logLine('Failed to record files for job %s - '
-                     'rolling back in justIN but not MetaCat and Rucio'
-                     % jobDict['jobsub_id'])
+                     'rolling back in justIN but not MetaCat and Rucio,'
+                     'error: %s'
+                     % (jobDict['jobsub_id'], str(e))) 
       justin.conn.rollback()
       return
 
