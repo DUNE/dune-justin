@@ -225,15 +225,23 @@ def findFinishingJobs():
       # Dictionary of per-dataset lists of files to be passed to MetaCat
       if scopeNDataset not in metacatDatasetsDict:
         metacatDatasetsDict[scopeNDataset] = []
-              
-      metacatDatasetsDict[scopeNDataset].append({
+
+      # Have to handle MetaCat's baroque "file metadata" vs "metadata"
+      fileMetadata                   = json.loads(fileDict['file_metadata'])
+      metadata                       = fileMetadata['metadata']
+      metadata['dune.output_status'] = 'uploaded'
+      listDict = {                      
           'namespace' : jobDict['scope_name'],
           'name'      : fileDict['file_name'],
           'size'      : fileDict['size_bytes'], 
           'checksums' : { "adler32" : fileDict['adler32'] },
-          'metadata'  : json.loads(fileDict['file_metadata'])['metadata']
-# NEED TO ADD PARENTS HERE TOO!!!!!!
-        })
+          'metadata'  : metadata
+                 }
+
+      if fileMetadata['parents']:
+        listDict['parents'] = fileMetadata['parents']
+
+      metacatDatasetsDict[scopeNDataset].append(listDict)
  
       # Dictionary of per-RSE lists of files to be passed to Rucio
       if fileDict['rse_name'] not in rucioRSEsDict:
@@ -414,17 +422,15 @@ def findFinishingJobs():
 
   for jobDict in jobsList:
     justin.logLine('Finishing job %s' % jobDict['jobsub_id'])
-    
+
+    metacatConfirmFiles = []    
     try:
       for fileDict in jobDict['files_list']:
-# Should we reinstate the confirmed state in MetaCat for output files here?
-# Repeated confirmation updates will be ok and justIN will keep trying its
-# DB update below until the files get to confirmed? Everything is ok on 
-# disk and in MetaCat and Rucio by this point
-
-        justin.insertUpdate('UPDATE files SET '
+          justin.insertUpdate('UPDATE files SET '
             'file_state=IF(stage_id > 0,"unallocated","finished") '
             'WHERE file_id=%d' % fileDict['file_id'])
+          metacatConfirmFiles.append({ 'namespace': jobDict['scope_name'],
+                                       'name':      fileDict['file_name'] })  
 
       justin.insertUpdate('UPDATE files SET file_state="finished" '
                         'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
@@ -438,13 +444,10 @@ def findFinishingJobs():
                       justinJobID = jobDict['justin_job_id'],
                       siteID = jobDict['site_id'],
                       entryID = joDict['entry_id'])
-                        
-      # We commit at the job level
-      justin.conn.commit()                        
 
     except Exception as e:
       # If anything goes wrong with recording in the justIN database,
-      # we rollback everything for this job. justIN will try again for this
+      # we roll back everything for this job. justIN will try again for this
       # job in the next cycle and hopefully it works then. As the MetaCat 
       # and Rucio calls tolerate failures due to already existing datasets 
       # etc, then we hope this will all work out...
@@ -456,8 +459,28 @@ def findFinishingJobs():
                      'rolling back in justIN but not MetaCat and Rucio'
                      % jobDict['jobsub_id'])
       justin.conn.rollback()
-      
-  justin.conn.commit()
+      return
+
+    try:
+      # Mark output files of this job as confirmed in MetaCat
+      # THIS FUNCTION IS DEPRECATED BUT HAS THE ADVANTAGE OF DOING ALL
+      # THE OUTPUT FILES IN ONE GO. WE CAN CHANGE TO update_file AND
+      # INCREASE THE NUMBER OF METACAT API CALLS IF NECESSARY ...
+      clientMetaCat.update_file_meta({ 'dune.output_status': 'confirmed' },
+                                       files = metacatConfirmFiles,
+                                       mode  = 'update')
+                                          
+    except Exception as e:
+      # We give up and rollback if the MetaCat confirmation update fails
+      # This should cause the agent to try again in the next cycle
+      justin.logLine('Failed to update output file metadata to confirmed '
+                     'for %s with error: %s'
+                     % (jobDict['jobsub_id'], str(e)))
+      justin.conn.rollback()
+      return
+                        
+    # We commit at the job level
+    justin.conn.commit()                        
 
 def oneCycle():
   global clientMetaCat, didClientRucio, repClientRucio, ruleClientRucio
