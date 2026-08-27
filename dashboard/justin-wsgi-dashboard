@@ -2934,6 +2934,7 @@ def listFiles(environ, user, cgiValues, pageNumber, pageLength):
       
     if state == 'finding' or state == 'unallocated' or state == 'processing' \
         or state == 'outputting' or state == 'finished' \
+        or state == 'finishing' \
         or state == 'notfound' or state == 'failed':
       stateFilter = 'AND files.file_state="' + state + '"'
       stateText = ' (state = ' + state + ')'

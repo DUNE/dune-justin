@@ -1,5 +1,5 @@
 #
-# Copyright 2013-25, Andrew McNab for the University of Manchester
+# Copyright 2013-26, Andrew McNab for the University of Manchester
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -118,15 +118,15 @@ eventsList = [
 ('JOB_ABORT_CREATING_LOGS_TGZ',
  313,
  'Job aborted when creating logs.tgz'),
-('JOB_ABORT_METACAT_LOGS_CREATION',
+('JOB_FINISHING',
  314,
- 'Job aborted when creating logs.tgz JSON'),
+ 'Job enters finishing state'),
 ('JOB_ABORT_METACAT_LOGS_REGISTRATION',
  315,
- 'Job aborted when registering logs.tgz'),
+ 'NOT USED'),
 ('JOB_ABORT_UPLOAD_LOGS',
  316,
- 'Job aborted when uploading logs.tgz'),
+ 'Abort while uploading logs to FNAL dCache'),
 ('JOB_ABORT_WEBDAV_UPLOAD',
  317,
  'Job aborted during WebDAV upload'),
@@ -135,13 +135,13 @@ eventsList = [
  'Job aborted creating metadata json'),
 ('JOB_ABORT_METACAT_REGISTRATION',
  319,
- 'Job aborted during file MetaCat registration'),
+ 'NOT USED'),
 ('JOB_ABORT_RUCIO_UPLOAD_FILE',
  320,
  'Job aborted during file Rucio upload'),
 ('JOB_ABORT_METACAT_UPLOADED',
  321,
- 'Job aborted during MetaCat set uploaded'),
+ 'NOT USED'),
 ('JOB_ABORT_METACAT_CONFIRMED',
  322,
  'Job aborted during MetaCat set confirmed'),

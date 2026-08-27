@@ -1499,6 +1499,18 @@ def processOutputFiles(outputFiles, patternsDict,
                            workflowID, stageID, patternID, fileMetadata)
                          )
     else:
+      print('INSERT INTO files SET file_state="recorded",'
+                          'file_did="%s:%s",'
+                          'creator_justin_job_id=%d,'
+                          'workflow_id=%d,'
+                          'creator_stage_id=%d,'
+                          'creator_pattern_id=%d,'
+                          'stage_id=%d,'
+                          'file_metadata="%s"' %
+          (scopeName, fileName, justinJobID, workflowID, stageID, patternID,
+           stageID+1 if patternsDict[patternID]['for_next_stage'] else 0,
+           fileMetadata.replace('"','\\"'))
+                         )
       justin.insertUpdate('INSERT INTO files SET file_state="recorded",'
                           'file_did="%s:%s",'
                           'creator_justin_job_id=%d,'
@@ -1509,7 +1521,7 @@ def processOutputFiles(outputFiles, patternsDict,
                           'file_metadata="%s"' %
           (scopeName, fileName, justinJobID, workflowID, stageID, patternID,
            stageID+1 if patternsDict[patternID]['for_next_stage'] else 0,
-           fileMetadata)
+           fileMetadata.replace('"','\\"'))
                          )
 
 def saveAwtResults(justinJobID, siteID, entryID, 
@@ -2270,28 +2282,51 @@ def confirmResultsMethod(startResponse, jsonDict):
   try:
     # Jobs only finish in the none_processed state if any files were allocated
     # or if they never even asked for any, but not for AWT jobs
+    # Jobs always appear to go through finishing state, with a finishing
+    # time and a finishing event even if the finishing->finished state
+    # really happens in these few lines rather than the Registration Agent
+    # if they don't have any outputs to register in MetaCat/Rucio
+
     if workflowID == justin.awtWorkflowID:
-      jobState = 'finished'
+      jobState    = 'finished'
+      eventTypeID = justin.event_JOB_FINISHED
     elif (numProcessed == 0 and numAllocated) or not sentGetFile:
       jobState = 'none_processed'
+      eventTypeID = justin.event_JOB_FINISHED
     elif numRucioOutputFiles:
       jobState = 'finishing'
+      eventTypeID = justin.event_JOB_FINISHING
     else:
       jobState = 'finished'
+      eventTypeID = justin.event_JOB_FINISHED
 
     justin.insertUpdate('UPDATE jobs SET job_state="%s",'
                         'heartbeat_time=NOW(),'
-                        'finished_time=NOW() '
+                        'finishing_time=NOW()%s '
                         'WHERE justin_job_id=%d AND job_state="outputting"'
-                        % (jobState, justinJobID))
+                        % (jobState, 
+                           ',finished_time=NOW()' if (jobState != 'finishing')
+                           else '',
+                           justinJobID))
 
-    justin.logEvent(eventTypeID = justin.event_JOB_FINISHED,
+    # Jobs always log an event that they went into finishing
+    justin.logEvent(eventTypeID = justin.event_JOB_FINISHING,
                     workflowID = workflowID,
                     stageID = stageID,
                     justinJobID = justinJobID,
                     siteID = siteID,
                     entryID = entryID
                    )
+
+    # If the job really finished at this point, log that event too
+    if eventTypeID != justin.event_JOB_FINISHING
+      justin.logEvent(eventTypeID = eventTypeID,
+                      workflowID = workflowID,
+                      stageID = stageID,
+                      justinJobID = justinJobID,
+                      siteID = siteID,
+                      entryID = entryID
+                     )
   except:
     return httpError(startResponse, 
                      '500 Internal Server Error',

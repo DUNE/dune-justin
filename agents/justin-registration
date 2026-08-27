@@ -96,6 +96,9 @@ def findFinishingJobs():
     justin.logLine('No datasets found for running workflows')
     return
 
+  justin.logLine('Found %d existing datasets from running workflows'
+                 % len(existingDatasets))
+
   # Find finishing jobs and their output files
   # We limit this to maxFilesPerBulk + 1 to get the start of the next
   # job's files to detect the end of the last job we actually want
@@ -104,7 +107,7 @@ def findFinishingJobs():
              'file_metadata,number_in_pattern,scope_name,files.file_did,'
              'stages_outputs.lifetime_seconds,jobs.workflow_id,jobs.stage_id,'
              'stages_outputs.pattern_id,files.size_bytes,rse_name,adler32,'
-             'jobsub_id,'
+             'jobsub_id,jobs.site_id,jobs.entry_id,'
              '(SELECT GROUP_CONCAT(rse_name SEPARATOR "|") '
              'FROM stages_output_storages '
              'LEFT JOIN storages '
@@ -138,9 +141,6 @@ def findFinishingJobs():
   # Get output files from jobs, grouped by job so each job's files' 
   # registrations are all or none so we can fail whole jobs to force retries
 
-# REMOVE
-#  print('Before jobsList = [] etc')
-
   jobsList           = []
   jobDict            = {}
   numFiles           = 0
@@ -159,13 +159,17 @@ def findFinishingJobs():
                   'jobsub_id'     : jobFileRow['jobsub_id'], 
                   'workflow_id'   : jobFileRow['workflow_id'],
                   'stage_id'      : jobFileRow['stage_id'],
+                  'site_id'       : jobFileRow['site_id'],
+                  'entry_id'      : jobFileRow['entry_id'],
                   'scope_name'    : jobFileRow['scope_name'],
                   'files_list'    : [] }
+
+    fileName = jobFileRow['file_did'].split(':',1)[1]
 
     jobDict['files_list'].append(
        { 'file_id'           : jobFileRow['file_id'],
          'pattern_id'        : jobFileRow['pattern_id'],
-         'file_did'          : jobFileRow['file_did'],
+         'file_name'         : fileName,
          'replica_id'        : jobFileRow['replica_id'],
          'lifetime_seconds'  : jobFileRow['lifetime_seconds'],
          'size_bytes'        : jobFileRow['size_bytes'],
@@ -224,10 +228,11 @@ def findFinishingJobs():
               
       metacatDatasetsDict[scopeNDataset].append({
           'namespace' : jobDict['scope_name'],
-          'name'      : fileDict['file_did'],
+          'name'      : fileDict['file_name'],
           'size'      : fileDict['size_bytes'], 
           'checksums' : { "adler32" : fileDict['adler32'] },
-          'metadata'  : json.loads(fileDict['file_metadata'])
+          'metadata'  : json.loads(fileDict['file_metadata'])['metadata']
+# NEED TO ADD PARENTS HERE TOO!!!!!!
         })
  
       # Dictionary of per-RSE lists of files to be passed to Rucio
@@ -236,7 +241,7 @@ def findFinishingJobs():
               
       rucioRSEsDict[fileDict['rse_name']].append({
           'scope'   : jobDict['scope_name'],
-          'name'    : fileDict['file_did'],
+          'name'    : fileDict['file_name'],
           'bytes'   : fileDict['size_bytes'],
           'adler32' : fileDict['adler32']
         })
@@ -247,7 +252,7 @@ def findFinishingJobs():
               
       rucioDatasetsDict[scopeNDataset].append({
           'scope' : jobDict['scope_name'],
-          'name'  : fileDict['file_did']
+          'name'  : fileDict['file_name']
         })
 
   justin.logLine('Creating %d numbered datasets' % len(datasetsDict))
@@ -266,6 +271,12 @@ def findFinishingJobs():
         justin.logLine('Dataset %s:%s already exists in MetaCat - ok' 
                        % (datasetDict['scope_name'],
                           datasetDict['child_dataset']))
+      except Exception as e:
+        justin.logLine('Failed to create MetaCat dataset %s:%s with error %s' 
+                       % (datasetDict['scope_name'],
+                          datasetDict['child_dataset'],
+                          str(e)))
+        return
 
       clientMetaCat.add_child_dataset(
         datasetDict['scope_name'] + ':' + datasetDict['parent_dataset'],
@@ -281,6 +292,12 @@ def findFinishingJobs():
         justin.logLine('Dataset %s:%s already exists in Rucio - ok' 
                        % (datasetDict['scope_name'],
                           datasetDict['child_dataset']))
+      except Exception as e:
+        justin.logLine('Failed to create Rucio dataset %s:%s with error %s' 
+                       % (datasetDict['scope_name'],
+                          datasetDict['child_dataset'],
+                          str(e)))
+        return
 
       try:
         ruleClientRucio.add_replication_rule(
@@ -295,8 +312,15 @@ def findFinishingJobs():
         justin.logLine('Rule for %s:%s already exists in Rucio - ok' 
                        % (datasetDict['scope_name'],
                           datasetDict['child_dataset']))
+      except Exception as e:
+        justin.logLine('Failed to create Rucio rule for %s:%s with error %s' 
+                       % (datasetDict['scope_name'],
+                          datasetDict['child_dataset'],
+                          str(e)))
+        return
   
-      justin.insertUpdate('INSERT INTO workflows_datasets SET '
+      try:
+        justin.insertUpdate('INSERT INTO workflows_datasets SET '
                           'dataset_created=NOW(),'
                           'workflow_id=%d,stage_id=%d,pattern_id=%d,'
                           'dataset_name="%s",dataset_type="numbered"'
@@ -304,12 +328,19 @@ def findFinishingJobs():
                              datasetDict['stage_id'],
                              datasetDict['pattern_id'],
                              datasetDict['child_dataset']))
+      except Exception as e:
+        justin.logLine('Failed to record dataset %s:%s with error %s' 
+                       % (datasetDict['scope_name'],
+                          datasetDict['child_dataset'],
+                          str(e)))
+        return
+                                    
     except Exception as e:
       justin.logLine('Exciting: failed to create and record dataset %s:%s,'
               ' error %s'
               % (datasetDict['scope_name'], datasetDict['child_dataset'],
                  str(e)))
-      justin.conn.rollback()
+      justin.conn.rollback() # Unnecessary???
       return
     else:
       # We commit dataset by dataset as they are in MetaCat and Rucio's
@@ -323,10 +354,20 @@ def findFinishingJobs():
     # Declare all the files for this dataset since declare_files() requires
     # you do it per-dataset
     justin.logLine('Declare files to MetaCat for %s' % metacatDataset)
-    pprint.pprint(metacatDatasetsDict[metacatDataset])
-    clientMetaCat.declare_files(dataset = metacatDataset,
-                                files = metacatDatasetsDict[metacatDataset])
-# HANDLE ERRORS FOR THIS - HOW???
+    
+    try:
+      clientMetaCat.declare_files(dataset = metacatDataset,
+                                  files = metacatDatasetsDict[metacatDataset])
+
+    except metacat.webapi.webapi.AlreadyExistsError:
+      # That's ok - we did it during a previous failed run???
+      justin.logLine('File(s) for %s:%s already exist in MetaCat - ok' 
+                       % (metacatDataset,
+                          metacatDatasetsDict[metacatDataset]))
+    except Exception as e:
+      justin.logLine('Failed to declare files to MetaCat for dataset %s '
+                     'with error %s' % (metacatDataset, str(e)))
+      return
 
   justin.logLine('Declare replicas at %d RSEs to Rucio' % len(rucioRSEsDict))
 
@@ -334,46 +375,88 @@ def findFinishingJobs():
     # Declare all the replicas for this RSE since add_replicas() requires
     # you do it per-RSE. This call implicitly adds the DID to the catalog
     # of files too.
-    repClientRucio.add_replicas(    
+    try:
+      repClientRucio.add_replicas(    
         rse   = rucioRSE,
         files = rucioRSEsDict[rucioRSE])
-# HANDLE ERRORS FOR THIS - HOW???
+    except rucio.common.exception.FileReplicaAlreadyExists:
+      # That's ok - we did it during a previous failed run???
+      justin.logLine('File already exists on RSE %s in Rucio - ok' 
+                       % rucioRSE)
+    except Exception as e:
+      justin.logLine('Failed to add replicas to Rucio for RSE %s '
+                     'with error %s' % (rucioRSE, str(e)))
+      return
 
   justin.logLine('Add files to %d numbered datasets to Rucio' 
                  % len(rucioDatasetsDict))
 
-  justin.logLine('Declare replicas at %d RSEs to Rucio' % len(rucioRSEsDict))
-
-  for rucioDataset in rucioDatasetsDict:
+  for scopeNDataset in rucioDatasetsDict:
     # Declare all the files for this dataset since declareFiles() requires
     # you do it per-dataset
-    justin.logLine('Add files to Rucio dataset %s:%s' %
-                   (rucioDatasetsDict[rucioDataset]['scope'], rucioDataset))
-    didClientRucio.add_files_to_dataset(    
-        scope = rucioDatasetsDict[rucioDataset]['scope'],
-        name  = rucioDataset,
-        files = rucioDatasetsDict[rucioDataset])        
-# HANDLE ERRORS FOR THIS - HOW???
+    (scopeName, datasetName) = scopeNDataset.split(':',1)
+    justin.logLine('Add files to Rucio dataset %s:%s' % (scopeName,datasetName))
+    try:
+      didClientRucio.add_files_to_dataset(    
+        scope = scopeName,
+        name  = datasetName,
+        files = rucioDatasetsDict[scopeNDataset])        
+    except rucio.common.exception.FileAlreadyExists:
+      # That's ok - we did it during a previous failed run???
+      justin.logLine('File already exists in dataset %s:%s in Rucio - ok' 
+                       % (scopeName, datasetName))
+    except Exception as e:
+      justin.logLine('Failed to add replicas to Rucio for dataset %s:%s '
+                     'with error %s' % (scopeName, datasetName, str(e)))
+      return
 
   justin.logLine('Finish %d jobs' % len(jobsList))
 
   for jobDict in jobsList:
     justin.logLine('Finishing job %s' % jobDict['jobsub_id'])
-    for fileDict in jobDict['files_list']:
-      justin.insertUpdate('UPDATE files SET '
-            'file_state=IF(stage > 0,"unallocated","finished") '
+    
+    try:
+      for fileDict in jobDict['files_list']:
+# Should we reinstate the confirmed state in MetaCat for output files here?
+# Repeated confirmation updates will be ok and justIN will keep trying its
+# DB update below until the files get to confirmed? Everything is ok on 
+# disk and in MetaCat and Rucio by this point
+
+        justin.insertUpdate('UPDATE files SET '
+            'file_state=IF(stage_id > 0,"unallocated","finished") '
             'WHERE file_id=%d' % fileDict['file_id'])
 
-    justin.insertUpdate('UPDATE files SET file_state="finished" '
+      justin.insertUpdate('UPDATE files SET file_state="finished" '
                         'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
 
-    justin.insertUpdate('UPDATE jobs SET job_state="finished" '
+      justin.insertUpdate('UPDATE jobs SET job_state="finished" '
                         'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
-# HANDLE ERRORS FOR THIS - HOW???
 
-# ADD RETRIES
-# ADD LOTS OF EVENT LOGGING
+      justin.logEvent(eventTypeID = justin.event_JOB_FINISHED,
+                      workflowID = jobDict['workflow_id'],
+                      stageID = jobDict['stage_id'],
+                      justinJobID = jobDict['justin_job_id'],
+                      siteID = jobDict['site_id'],
+                      entryID = joDict['entry_id'])
+                        
+      # We commit at the job level
+      justin.conn.commit()                        
 
+    except Exception as e:
+      # If anything goes wrong with recording in the justIN database,
+      # we rollback everything for this job. justIN will try again for this
+      # job in the next cycle and hopefully it works then. As the MetaCat 
+      # and Rucio calls tolerate failures due to already existing datasets 
+      # etc, then we hope this will all work out...
+      # In The Future(TM), we may need limits on how many times we go
+      # through all this before declaring the job as failed and forcing
+      # reallocation of its input files to other job(s)?
+      
+      justin.logLine('Failed to record files for job %s - '
+                     'rolling back in justIN but not MetaCat and Rucio'
+                     % jobDict['jobsub_id'])
+      justin.conn.rollback()
+      
   justin.conn.commit()
 
 def oneCycle():

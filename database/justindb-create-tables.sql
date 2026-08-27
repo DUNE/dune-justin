@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `submitted_time` datetime NOT NULL,
   `allocation_time` datetime NOT NULL DEFAULT '1970-01-01',
   `outputting_time` datetime NOT NULL DEFAULT '1970-01-01',
+  `finishing_time` datetime NOT NULL DEFAULT '1970-01-01',
   `finished_time` datetime NOT NULL DEFAULT '1970-01-01',
   `heartbeat_time` datetime NOT NULL DEFAULT '1970-01-01',
   `workflow_id` mediumint(8) unsigned NOT NULL DEFAULT 0,
