@@ -836,7 +836,7 @@ for (patternType, pattern, patternID) in jobscriptDict['patterns']:
         jsonMetadata = json.dumps(fileMetadata)
       except Exception as e:
         logLine('json.dumps of metadata fails ' + str(e))
-        jobAborted(318, 'json dumps metadata', '')
+        jobAborted(319, 'metadata check', '')
        
     outputFiles.append((matchingFile, fileMetadata, 
                         patternID, pattern))
