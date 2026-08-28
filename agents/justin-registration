@@ -381,9 +381,8 @@ def findFinishingJobs():
 
     except metacat.webapi.webapi.AlreadyExistsError:
       # That's ok - we did it during a previous failed run???
-      justin.logLine('File(s) for %s:%s already exist in MetaCat - ok' 
-                       % (metacatDataset,
-                          metacatDatasetsDict[metacatDataset]))
+      justin.logLine('File(s) for %s already exist in MetaCat - ok' 
+                       % metacatDataset)
     except Exception as e:
       justin.logLine('Failed to declare files to MetaCat for dataset %s '
                      'with error %s' % (metacatDataset, str(e)))
@@ -482,7 +481,7 @@ def findFinishingJobs():
       clientMetaCat.update_file_meta({ 'dune.output_status': 'confirmed' },
                                        files = metacatConfirmFiles,
                                        mode  = 'update')
-                                          
+
     except Exception as e:
       # We give up and rollback if the MetaCat confirmation update fails
       # This should cause the agent to try again in the next cycle

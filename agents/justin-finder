@@ -815,7 +815,7 @@ def findWorkflowsToFinish():
                'WHERE workflow_id=%d AND '
                'file_state <> "finished" AND '
                'file_state <> "notfound" AND '
-               'file_state <> "failed"' %
+               'file_state <> "failed"' % 
                int(workflow['workflow_id']))
              
       justin.cur.execute(query)
@@ -1040,6 +1040,16 @@ def resetFilesForJob(justinJobID,
                      siteID,
                      entryID):   
 
+    # Set all output files of this job to failed
+    try:
+      justin.insertUpdate('UPDATE files SET file_state="failed" WHERE '
+                          'creator_justin_job_id=%d'
+                          % justinJobID)
+    except Exception as e:
+      logLine('Failed to set output files to failed for job %s with error %s'
+              % (jobsubID, str(e))
+      sys.exit(0)
+      
     # Then find the file(s) allocated to this stalled or aborted job 
     # (IN THE FUTURE WE SHOULD DO SOMETHING CLEVER WITH Rucio/MetaCat 
     #  CHECKS FOR FILE IN THE outputting STATE)

@@ -86,9 +86,10 @@ RUN /bin/echo -e '"dune" "voms2.fnal.gov" "15042" "/DC=org/DC=incommon/C=US/ST=I
 # With HTCondor 10.x this pulls in condor itself and the voms clients
 RUN yum install -y python3-condor
 
-# Some things do not have suitable RPMs
-RUN pip3 install rucio-clients
-RUN pip3 install metacat
+# Some things do not have suitable RPMs. We need to keep MetaCat and Rucio 
+# numbers in sync with production DUNE versions in Spack.
+RUN pip3 install rucio-clients==38.5.1
+RUN pip3 install metacat==4.1.4
 RUN pip3 install pygal==3.0.0
 
 # We want recent version with Chris Haen's X.509 proxy updates

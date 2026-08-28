@@ -2319,7 +2319,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                    )
 
     # If the job really finished at this point, log that event too
-    if eventTypeID != justin.event_JOB_FINISHING
+    if eventTypeID != justin.event_JOB_FINISHING:
       justin.logEvent(eventTypeID = eventTypeID,
                       workflowID = workflowID,
                       stageID = stageID,
