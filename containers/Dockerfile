@@ -89,7 +89,7 @@ RUN yum install -y python3-condor
 # Some things do not have suitable RPMs. We need to keep MetaCat and Rucio 
 # numbers in sync with production DUNE versions in Spack.
 RUN pip3 install rucio-clients==38.5.1
-RUN pip3 install metacat==3.42.2
+RUN pip3 install metacat-client==4.1.4
 RUN pip3 install pygal==3.0.0
 
 # We want recent version with Chris Haen's X.509 proxy updates

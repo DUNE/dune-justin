@@ -11,7 +11,7 @@
 - New finishing state for jobs and files, matching finishing state for
   workflows
 - justin command uses $X509_CERT_DIR instead of built in certs if available
-- Force Rucio 38.5.1 and MetaCat 3.42.2 inside justIN containers
+- Force Rucio 38.5.1 and MetaCat 4.1.4 inside justIN containers
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

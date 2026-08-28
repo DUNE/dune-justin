@@ -1047,7 +1047,7 @@ def resetFilesForJob(justinJobID,
                           % justinJobID)
     except Exception as e:
       logLine('Failed to set output files to failed for job %s with error %s'
-              % (jobsubID, str(e))
+              % (jobsubID, str(e)))
       sys.exit(0)
       
     # Then find the file(s) allocated to this stalled or aborted job 
