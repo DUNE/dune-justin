@@ -970,7 +970,7 @@ try:
   uploadClient = rucio.client.uploadclient.UploadClient(rucioClient)
 except Exception as e:
   logLine('Failed setting up Rucio upload client: ' + str(e))
-  jobAborted(318, 'upload_client_setup', '')
+  jobAborted(315, 'upload_client_setup', '')
 
 # Go through the list of output files
 for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:

@@ -995,6 +995,7 @@ def jobAbortedMethod(startResponse, jsonDict):
     
   elif eventTypeID in [ justin.event_JOB_ABORT_CREATING_LOGS_TGZ,
                         justin.event_JOB_ABORT_UPLOAD_LOGS,
+                        justin.event_JOB_ABORT_RUCIO_CLIENT,
                         justin.event_JOB_ABORT_WEBDAV_UPLOAD,
                         justin.event_JOB_ABORT_CREATING_METADATA,
                         justin.event_JOB_ABORT_METADATA_CHECK,
