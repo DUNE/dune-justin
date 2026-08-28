@@ -39,15 +39,15 @@ in the Dashboard.
 |311|JOB_STALLED_HTCONDOR|Job stalls as absent from HTCondor|
 |312|JOB_ABORT_RECORDING_RESULT|Job aborted when recording results|
 |313|JOB_ABORT_CREATING_LOGS_TGZ|Job aborted when creating logs.tgz|
-|314|JOB_ABORT_METACAT_LOGS_CREATION|Job aborted when creating logs.tgz JSON|
-|315|JOB_ABORT_METACAT_LOGS_REGISTRATION|Job aborted when registering logs.tgz|
-|316|JOB_ABORT_RUCIO_UPLOAD_LOGS|Job aborted when uploading logs.tgz|
+|314|JOB_FINISHING|Job enters finishing state|
+|315|JOB_ABORT_METACAT_LOGS_REGISTRATION|NOT USED|
+|316|JOB_ABORT_UPLOAD_LOGS|Abort while uploading logs to FNAL dCache|
 |317|JOB_ABORT_WEBDAV_UPLOAD|Job aborted during WebDAV upload|
 |318|JOB_ABORT_CREATING_METADATA|Job aborted creating metadata json|
-|319|JOB_ABORT_METACAT_REGISTRATION|Job aborted during file MetaCat registration|
-|320|JOB_ABORT_RUCIO_UPLOAD_FILE|Job aborted during file Rucio upload|
-|321|JOB_ABORT_METACAT_UPLOADED|Job aborted during MetaCat set uploaded|
-|322|JOB_ABORT_METACAT_CONFIRMED|Job aborted during MetaCat set confirmed|
+|319|JOB_ABORT_METADATA_CHECK|Job aborted when checking JSON format|
+|320|JOB_ABORT_RUCIO_UPLOAD_FILE|NOT USED - no longer an abort|
+|321|JOB_ABORT_METACAT_UPLOADED|NOT USED - not done in job|
+|322|JOB_ABORT_CONFIRM_RESULTS|Job aborted while confirming outputting results|
 |323|JOB_ABORT_CVMFS_CHECKS|Job aborted during cvmfs checks|
 |324|JOB_ABORT_SCRIPT_ERROR|Job aborted due to jobscript error|
 |325|JOB_NONE_PROCESSED|Job asked for no files or processed none of those allocated|
@@ -61,6 +61,8 @@ in the Dashboard.
 |405|FILE_OUTPUTTING_RESET|File set back to unallocated from outputting|
 |406|FILE_UPLOADED|Output file uploaded in job|
 |407|FILE_PROCESSED|Input file processed by jobscript|
+|408|FILE_UPLOAD_ATTEMPT_FAILED|Output file upload attempt failed|
+|409|FILE_UPLOAD_FAILED|Output file upload failed after all attempts|
 |501|AWT_READ_OK|AWT read test succeeds|
 |502|AWT_READ_FAIL|AWT read test fails|
 |503|AWT_WRITE_OK|AWT write test succeeds|
