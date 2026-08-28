@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS `files` (
   INDEX `creator_justin_job_id` (`creator_justin_job_id`),
   INDEX `uploaded_time` (`uploaded_time`),
   INDEX `workflow_stage_state_uploaded_site` (`workflow_id`,`stage_id`,`file_state`,
-                                           `finished_hour`,`uploaded_site_id`)
+                                           `finished_hour`,`processed_site_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
 CREATE TABLE IF NOT EXISTS `replicas` (
