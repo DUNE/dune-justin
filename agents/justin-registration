@@ -250,7 +250,7 @@ def findFinishingJobs():
           'metadata'  : metadata
                  }
 
-      if fileMetadata['parents']:
+      if 'parents' in fileMetadata and fileMetadata['parents']:
         listDict['parents'] = fileMetadata['parents']
 
       metacatDatasetsDict[scopeNDataset].append(listDict)
