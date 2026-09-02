@@ -832,8 +832,8 @@ def loginPage(startResponse, environ, authorize=False):
                            savedURI,
                            ip))
     justin.conn.commit()
-  except:
-    output = errorPage(environ, '', "Session creation fails")
+  except Exception as e:
+    output = errorPage(environ, '', "Session creation fails: " + str(e))
     startResponseOK(startResponse, output)
     return output
 
@@ -3535,6 +3535,200 @@ def showJob(environ, user, cgiValues):
   return output
 
 def listJobs(environ, user, cgiValues, pageNumber, pageLength):
+      
+  urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
+  filters       = []
+  titleSuffixes = []
+
+  try:
+    workflowID    = int(cgiValues["workflow_id"])
+    urlTemplate += ('&workflow_id=%d' % workflowID)
+    titleSuffixes.append('Workflow %d' % workflowID) 
+    filters.append('jobs.workflow_id=%d' % workflowID)
+  except:
+    pass
+  
+  try:
+    stageID      = int(cgiValues["stage_id"])
+    urlTemplate += '&stage_id=' + str(stageID)
+    titleSuffixes.append('Stage %d' % stageID) 
+    filters.append('jobs.stage_id=%d' % stageID)
+  except:
+    pass
+
+  try:
+    allocationState = str(cgiValues["job_state"])
+  except:
+    pass
+  else:
+    if allocationState in justin.jobStatesAll:
+      filters.append('jobs.job_state="%s"' % allocationState)
+      urlTemplate += '&job_state=' + allocationState
+      titleSuffixes.append('Allocation State %s' % allocationState)
+
+  try:
+    siteName = cgiValues["site_name"]
+  except:
+    pass
+  else:
+    if siteName and justin.stringIsSite(siteName):
+      filters.append('sites.site_name="%s"' % siteName)
+      urlTemplate += '&site_name=' + siteName
+      titleSuffixes.append('Site %s' % siteName)
+
+  try:
+    entryName = cgiValues["entry_name"]
+  except:
+    pass
+  else:
+    if entryName and justin.stringIsSite(entryName):
+      filters.append('entries.entry_name="%s"' % entryName)
+      urlTemplate += '&entry_name=' + entryName
+      titleSuffixes.append('Entry %s' % entryName)
+
+  filter = ' AND '.join(filters)
+
+  if filter:
+    filter = 'WHERE ' + filter
+  else:
+    filter = ''
+    
+  if titleSuffixes:
+    titleSuffix = ' for ' + ', '.join(titleSuffixes)
+  else:
+    titleSuffix = ''
+    
+  output = header(environ, user, "justIN: Jobs" + titleSuffix)
+
+  output += "<h1>Jobs%s</h1>" % titleSuffix
+  
+  if not filter:   
+    try:
+      query = ('SELECT '
+               ' (SELECT COUNT(*) FROM jobs '
+               ' WHERE job_state="submitted") AS number_submitted,'
+               ' (SELECT COUNT(*) FROM jobs '
+               ' WHERE job_state="processing") AS number_processing,'
+               ' (SELECT COUNT(*) FROM jobs '
+               ' WHERE job_state="outputting") AS number_outputting')
+               
+      row = justin.select(query, justOne = True)
+
+      output += ('<p>%d job(s) in submitted state, %d in processing state, '
+            '%d in outputting state</p>' %
+            (row['number_submitted'], 
+             row['number_processing'],
+             row['number_outputting']))
+
+    except Exception as e:
+      output += str(e)
+  
+  query = ("SELECT jobs.jobsub_id,jobs.workflow_id,jobs.stage_id,"
+           "sites.site_name,entries.entry_name,"
+           "jobs.job_state,jobs.allocation_time,jobs.submitted_time,"
+           "jobs.finished_time,jobs.jobsub_state,jobs.jobscript_exit,"
+           "principal_names.principal_name AS user_name "
+           "FROM jobs "
+           "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
+           "LEFT JOIN users ON workflows.user_id=users.user_id "
+           "LEFT JOIN principal_names "
+           "ON principal_names.pn_id=users.main_pn_id "
+           "LEFT JOIN sites ON jobs.site_id=sites.site_id "
+           "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
+           "%s "
+           "ORDER BY jobs.justin_job_id DESC LIMIT %d,%d" %
+           (filter, pageNumber * pageLength, pageLength + 1)
+          )
+
+  justin.cur.execute(query)
+  jobRows = justin.cur.fetchall()
+
+  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
+
+  output += '<p><table class="center">'
+  
+  output += ('<tr>'
+        '<th>Jobsub ID</th>'
+        '<th>Job state</th>'
+        '<th>Site / Entry</th>'
+        '<th>User</th>'
+        '<th>Workflow</th>'
+        '<th>Stage</th>'
+        '<th>Submitted</th>'
+        '<th>Started</th>'
+        '<th><small>Jobscript exit</small></th>'
+        '<th>Finished</th>'
+        '</tr>')
+  
+  for jobRow in jobRows[:pageLength]:
+    if jobRow['user_name']:
+      userNameStr = jobRow["user_name"]
+    else:
+      userNameStr = ' '
+
+    if jobRow['workflow_id'] == justin.awtWorkflowID:
+      workflowStageStr = '<td colspan=2>Workflow Testing</td>'
+      
+    else:
+      if jobRow['workflow_id']:
+        workflowStageStr = ('<td><a href="/dashboard/?method=show-workflow&'
+                           'workflow_id=%s">%s</a></td>' 
+                           % (jobRow["workflow_id"],
+                              jobRow["workflow_id"]))
+      else:
+        workflowStageStr = '<td> </td>'
+      
+      if jobRow['stage_id']:
+        workflowStageStr += (
+             '<td><a href="/dashboard/?method=show-stage&workflow_id=%s&'
+             'stage_id=%s">%s</a></td>' 
+             % (jobRow["workflow_id"], 
+                jobRow["stage_id"], jobRow["stage_id"]))
+      else:
+        workflowStageStr += '<td> </td>'
+  
+    if jobRow['site_name']:
+      siteNameStr = ('<td><a href="/dashboard/?method=show-site&site_name=%s">'
+                     '%s</a>%s</td>' 
+                     % (jobRow['site_name'], jobRow['site_name'], 
+                        ('<br><a href="/dashboard/?method=show-entry&'
+                         'entry_name=%s">%s</a>' 
+                         % (jobRow['entry_name'], jobRow['entry_name'])
+                        ) if jobRow['entry_name'] else ''
+                       )
+                    )
+    else:
+      siteNameStr = '<td> </td>'
+
+    output += ('<tr>'
+          '<td><a href="/dashboard/?method=show-job&jobsub_id=%s">%s</a></td>'
+          '<td>%s</td>'
+          '%s'
+          '<td>%s</td>'
+          '%s'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '<td>%s</td>'
+          '</tr>'
+          % (jobRow['jobsub_id'], html.escape(jobRow['jobsub_id'], quote=True),
+             jobRow['job_state'],
+             siteNameStr,
+             userNameStr,
+             workflowStageStr,
+             spaceForUnixEpoch(jobRow["submitted_time"]),
+             spaceForUnixEpoch(jobRow["allocation_time"]),
+             jobRow["jobscript_exit"],
+             spaceForUnixEpoch(jobRow["finished_time"])
+            )
+         )    
+
+  output += ("</table>")
+  output += makePager(pageNumber, pageLength, len(jobRows), urlTemplate)
+  output += footer()
+  return output
+
+def mcrListJobs(environ, user, cgiValues, pageNumber, pageLength):
       
   urlTemplate   = '/dashboard/?method=list-jobs&page_number=%d&page_length=%d'
   filter_str_items       = []

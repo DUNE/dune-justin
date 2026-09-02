@@ -478,10 +478,11 @@ for i in cvmfsPaths:
 # Make $HOME directory and workspace subdirectory for Apptainer/Singularity
 os.makedirs('home/workspace')
 
+# THESE ARE NOW DONE IN justin-wrapper.sh
 # Make jobutils scripts available to jobscripts in a known location
-for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
-  os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
-             '###justin_instance###/NULL/jobutils/' + i, 'home/' + i)
+#for i in ['justin-get-file', 'justin-allocated-files', 'pdjson2metadata']:
+#  os.symlink('/cvmfs/dune.opensciencegrid.org/products/dune/justin/'
+#             '###justin_instance###/NULL/jobutils/' + i, 'home/' + i)
 
 # Log the visible IP addresses and interfaces
 os.system('/usr/sbin/ip addr')

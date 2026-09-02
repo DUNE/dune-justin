@@ -164,9 +164,9 @@ def submitJobs(numberToSubmit,
   shWrapperText += (base64.b64encode(gzip.compress(pyWrapperText.encode()))).decode()
   shWrapperText += '\nEOF\nchmod +x justin-wrapper-job.py\n'
 
-  shWrapperText += 'base64 --decode <<EOF | zcat >justin-get-file\n'
+  shWrapperText += 'base64 --decode <<EOF | zcat >home/justin-get-file\n'
   shWrapperText += (base64.b64encode(gzip.compress(justinGetFile.encode()))).decode()
-  shWrapperText += '\nEOF\nchmod +x justin-get-file\n'
+  shWrapperText += '\nEOF\nchmod +x home/justin-get-file\n'
 
   shWrapperText += './justin-wrapper-job.py\n'
 

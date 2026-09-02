@@ -23,3 +23,7 @@ date --utc +'%b %d %H:%M:%S ====Start justin-wrapper-job.sh===='
 . /cvmfs/dune.opensciencegrid.org/spack/setup-env.sh
 spack env activate dune-prototype
 rucio --version
+
+# Make home subdirectory into which justin-get-file can be unpacked
+mkdir -p home
+
