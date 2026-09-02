@@ -1,0 +1,87 @@
+#!/bin/sh
+#
+# Copyright 2013-23, Andrew McNab for the University of Manchester
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+:<<EOF
+  Script to check a whether a path exists. Exponential backoff 
+  
+EOF
+
+NCHECKS=10
+
+usage() {
+    echo "Checks if a path exists every 5s for a specified number of checks" >&2
+    echo "Usage: $0 -p <path to check> -n <number of checks : default 10>" >&2
+    echo "Options:" >&2
+    echo "  -h,     Show this help message" >&2
+    echo "  -p,     Path to check" >&2
+    echo "  -n,     Number of checks -- default 10" >&2
+    exit 1
+}
+
+while getopts ":hn:p:" opt; do
+    case "${opt}" in
+        p)
+            TOCHECK="${OPTARG}"
+            ;;
+        n)
+            NCHECKS="${OPTARG}"
+            echo "Will check ${NCHECKS} times"
+            ;;
+        h)
+            usage
+            ;;
+        :)
+            echo "Error: -${OPTARG} requires an argument." 1>&2
+            usage
+            exit 1
+            ;;
+        \?)
+            echo "Error: Invalid option -${OPTARG}" 1>&2
+            usage
+            ;;
+    esac
+done
+
+if [ "$TOCHECK" = "" ] ; then
+  echo "You must give -p <path to check>"
+  usage
+fi
+
+echo "Path: ${TOCHECK}"
+echo "N Checks: ${NCHECKS}"
+echo
+i=1
+while [ $i -le $NCHECKS ]; do
+  if [ $i -gt 1 ]; then
+    #echo "sleeping 5s"
+    sleep 5
+  fi
+
+  #echo
+  echo -ne "Attempt $i/$NCHECKS...\r"
+  stat $TOCHECK > /dev/null 2>&1 
+  if [ $? == 0 ]; then
+    echo
+    echo "Found"
+    exit 0
+  fi
+
+  i=$((i+1));
+done
+
+echo
+echo "Could not find"
+exit 1
