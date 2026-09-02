@@ -1118,6 +1118,187 @@ to visit.</p>
 
 def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
 
+  whereList = []
+  queryList = ''
+
+  try:
+    userName = cgiValues["user_name"]
+
+    if userName != '--ANY--' and not justin.stringIsUsername(userName):
+      raise
+  except:
+    userName = ''
+
+  if userName:
+    # If the user name was given explicitly, then we pass it on
+    # Otherwise it is left out for subsequent next page etc clicks
+    queryList += '&user_name=%s' % userName
+  else:
+    # But userName must be set to something, even just --ANY--
+    if user:
+      # User is logged in, so we use their name instead of implicit --ANY--
+      userName = user['user_name']
+    else:
+      # Always fall back to any user
+      userName = '--ANY--'
+
+  if userName != '--ANY--':
+    # For any user, we just skip this condition 
+    whereList.append('principal_name="%s"' % userName)
+
+  try:
+    quotaName = cgiValues["quota_name"]
+
+    if not justin.stringIsScope(quotaName):
+      raise
+  except:
+    quotaName = ''
+  else:
+    if quotaName:
+      whereList.append('quota_name="%s"' % quotaName)
+      queryList += '&quota_name=%s' % quotaName
+
+  if whereList:
+    whereString = ' WHERE ' + ' AND '.join(whereList)
+  else:
+    whereString = ''
+
+  # These lists are used for the pull down menus in the filter HTML
+  userRows = justin.select('SELECT principal_name FROM users '
+                           'LEFT JOIN principal_names '
+                           'ON users.main_pn_id=principal_names.pn_id '
+                           'ORDER BY principal_name')
+  quotaRows = justin.select('SELECT quota_name FROM named_quotas '
+                            'WHERE for_justin ORDER BY quota_name')
+
+  output = header(environ, user, "justIN: Campaigns")
+
+  output += "<h1>Campaigns</h1>"
+
+  output += ('<p><form method="get" formaction="/dashboard/">'
+    '<input type="hidden" name="method" value="list-campaigns">'
+    '<label>Created&nbsp;by:<select name="user_name">'
+    '<option value="--ANY--"%s>ANY</option>'
+    % (' selected' if userName == '--ANY--' else ''))
+
+  if user:
+    # If logged in, offer their own name first
+    output += ('<option value="%s"%s>%s</option>' 
+               % (user['user_name'],
+                  ' selected' 
+                  if user['user_name'] == userName
+                  else '',
+                  user['user_name']))
+
+  output += '<option value="" disabled>---</option>'
+
+  for userRow in userRows:
+    # List the other user names, selecting them if selected BUT not if
+    # its the logged in user since that is at the top of the list already
+    output += ('<option value="%s"%s>%s</option>' 
+               % (userRow['principal_name'],
+                  ' selected' 
+                  if userRow['principal_name'] == userName and 
+                  (not user or user['user_name'] != userRow['principal_name'])
+                  else '',
+                  userRow['principal_name']))
+
+  output += ('</select></label> '
+    '<label>Quota:<select name="quota_name">'
+    '<option value=""%s>ANY</option>'
+    % ('' if quotaName else ' selected'))
+  
+  for quotaRow in quotaRows:
+    output += ('<option value="%s"%s>%s</option>' 
+               % (quotaRow['quota_name'],
+                  ' selected' 
+                  if quotaRow['quota_name'] == quotaName
+                  else '',
+                  quotaRow['quota_name']))
+
+  output += '</select></label> '
+
+  output += ('<input type="submit" value="Filter" '
+    'style="background: #E1703D; border-radius: 5px; padding: 5px; '
+    'color: white; font-weight: bold; font-size: 1em; border: 0; '
+    'cursor: pointer"></form></p>\n')
+  
+  query = ('SELECT campaign_id,campaigns.description,'
+           'principal_name AS user_name,'
+           'campaigns.created,quota_name,'
+           '(SELECT COUNT(*) FROM files'
+           ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+           ' WHERE workflows.campaign_id=campaigns.campaign_id'
+           ' AND files.stage_id=1 '
+           ' AND files.state="processed") AS files_processed,'
+           '(SELECT COUNT(*) FROM files'
+           ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
+           ' WHERE workflows.campaign_id=campaigns.campaign_id'
+           ' AND files.stage_id=1) AS files_total,'
+           '(SELECT COUNT(*) FROM workflows'
+           ' WHERE workflows.campaign_id=campaigns.campaign_id)'
+           ' AS workflows_count '
+           'FROM campaigns '
+           'LEFT JOIN users ON campaigns.user_id=users.user_id '
+           'LEFT JOIN principal_names '
+           'ON principal_names.pn_id=users.main_pn_id '
+           'LEFT JOIN named_quotas ON named_quotas.quota_id=campaigns.quota_id '
+           '%s '
+           'ORDER BY campaigns.campaign_id DESC LIMIT %d,%d' %
+           (whereString, pageNumber * pageLength, pageLength + 1))
+
+##  print(query, file=sys.stderr)
+  justin.cur.execute(query)
+  rows = justin.cur.fetchall()
+
+  output += makePager(pageNumber, pageLength, len(rows), 
+                      "/dashboard/?method=list-campaigns&page_number=%d"
+                      "&page_length=%d" + queryList) 
+             
+  output += '<p><table>'
+  output += ('<tr><th>Campaign</th>'
+             '<th>Description</th>'
+             '<th>Quota</th>'
+             '<th>Created&nbsp;by</th>'
+             '<th>Created</th>'
+             '<th>Workflows</th>'
+             '<th>Files Processed</th><tr>')
+
+  for row in rows[:pageLength]:
+    if not row["files_total"]:
+      filesStr = ' '
+    else:
+      filesStr = ('%d/%d (%.1f%%)' % 
+                  (row['files_processed'], row['files_total'],  
+                   100.0 * row['files_processed'] /  row['files_total']))
+
+    output += ('<tr><td><a href="/dashboard/?method=show-campaign&campaign_id=%d">'
+       '%d</a></td>'
+       '<td>%s</td>'
+       '<td><a href="/dashboard/?method=show-quota&quota_name=%s">%s</a></td>'
+       '<td>%s</td><td>%s</td>'
+       '<td>%d<td>%s</td></tr>' % 
+          (row["campaign_id"], row["campaign_id"],
+           html.escape(row["description"], quote=True),
+           row["quota_name"], row["quota_name"],
+           row["user_name"],
+           spaceForUnixEpoch(row['created']),
+           row['workflows_count'],
+           filesStr
+          )
+         )
+
+  output += "</table>"
+  
+  output += makePager(pageNumber, pageLength, len(rows), 
+                      "/dashboard/?method=list-campaigns&page_number=%d"
+                      "&page_length=%d" + queryList)
+  output += footer()
+  
+  return output
+
+def mcrListCampaigns(environ, user, cgiValues, pageNumber, pageLength):
+
   urlTemplate = '/dashboard/?method=list-campaigns&page_number=%d&page_length=%d'
   filter_str_items = []
   titleSuffixes = []
