@@ -15,7 +15,9 @@
 # limitations under the License.
 
 :<<EOF
-  Script to check a whether a path exists. Exponential backoff 
+  Script to check a whether a path exists. Checks every 5s for a
+  user-specified number of times (default 10). Useful for checking for
+  directories made on cvmfs via justin-cvmfs-upload.
   
 EOF
 
