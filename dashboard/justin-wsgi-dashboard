@@ -1230,7 +1230,7 @@ def listCampaigns(environ, user, cgiValues, pageNumber, pageLength):
            ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
            ' WHERE workflows.campaign_id=campaigns.campaign_id'
            ' AND files.stage_id=1 '
-           ' AND files.state="processed") AS files_processed,'
+           ' AND files.file_state="processed") AS files_processed,'
            '(SELECT COUNT(*) FROM files'
            ' LEFT JOIN workflows ON files.workflow_id=workflows.workflow_id '
            ' WHERE workflows.campaign_id=campaigns.campaign_id'
@@ -4217,6 +4217,138 @@ def mcrListJobs(environ, user, cgiValues, pageNumber, pageLength):
   return output
 
 def listScopes(environ, user, cgiValues, pageNumber, pageLength):
+      
+  output = header(environ, user, "justIN: Scopes")
+
+  output += ("<h1>Scopes</h1>\n")
+
+  output += ("<p>Scopes available for justIN workflows</p>\n")
+  
+  query = ('SELECT scope_name,wlcg_group_name,'
+           'scope_condor_groups.condor_group_name AS scope_condor_group_name,'
+           'quota_condor_groups.condor_group_name AS quota_condor_group_name,'
+           'max_files_per_workflow,named_quotas.processing_enabled,'
+           'quota_name,principal_name '
+        'FROM scopes '
+        'LEFT JOIN condor_groups AS scope_condor_groups '
+        'ON scope_condor_groups.condor_group_id=scopes.condor_group_id '
+        'LEFT JOIN named_quotas '
+        'ON named_quotas.quota_id=scopes.quota_id '
+        'LEFT JOIN condor_groups AS quota_condor_groups '
+        'ON quota_condor_groups.condor_group_id=named_quotas.condor_group_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'WHERE scopes.quota_id<>0 AND named_quotas.for_justin '
+        'ORDER BY quota_name,scope_name')
+  scopeRows = justin.select(query)
+
+  scopes = []
+  for scopeRow in scopeRows:  
+
+    if scopeRow['wlcg_group_name']:
+      owner = scopeRow['wlcg_group_name']
+    elif scopeRow['principal_name']:
+      owner = scopeRow['principal_name']
+    else:
+      owner = ' '
+
+    scopes.append({ 'scope_name' : scopeRow['scope_name'],
+                    'quota_name' : scopeRow['quota_name'],
+                    'processing_enabled' : 
+                       str(bool(scopeRow['processing_enabled'])),
+                    'owner' : owner,
+               'scope_condor_group_name' : scopeRow['scope_condor_group_name'] 
+                       if scopeRow['scope_condor_group_name'] else ' ',
+               'quota_condor_group_name' : scopeRow['quota_condor_group_name'] 
+                       if scopeRow['quota_condor_group_name'] else ' ',
+                    'max_files_per_workflow' : 
+                       str(scopeRow['max_files_per_workflow']) })
+
+  output += ('<table class="center">')
+  
+  output += ('<tr>'
+             '<th>Scope</th>'
+             '<th>HTCondor Group</th>'
+             '<th>Quota</th>'
+             '<th>Processing enabled?</th>'
+             '<th>Owner</th>'
+             '<th>Max input files</th></tr>')
+
+  startOfQuota = 0
+  endOfQuota = 0
+
+  allCondorGroups = sorted(condorGroupsDict().keys())
+
+  while True:
+
+    if endOfQuota < len(scopes)-1 and \
+      scopes[endOfQuota+1]['quota_name'] == scopes[startOfQuota]['quota_name']:
+      # Not at the end yet, so add one more and try again
+      endOfQuota += 1
+      continue
+
+    # endOfQuota really is now at the end of the current block
+
+    for j in range(startOfQuota, endOfQuota+1):
+      output += '<tr><td>%s</td><td>' % scopes[j]['scope_name']
+
+      if (user 
+          and (user['user_name'] in justin.justinAdmins or
+               scopes[j]['quota_name'] in user['named_quotas']) 
+          and scopes[j]['quota_condor_group_name'] != 'group_dune'):
+        myCondorGroups = []
+
+        for condorGroup in allCondorGroups:
+          if condorGroup == scopes[j]['quota_condor_group_name'] or \
+             condorGroup.startswith(scopes[j]['quota_condor_group_name'] + '.'):
+            myCondorGroups.append((condorGroup, condorGroup))
+
+        output += selectHTML(cgiValues, user, 
+                    key = scopes[j]['scope_name'],
+                    name = 'scope_condor_group',
+                    value = scopes[j]['scope_condor_group_name'],
+                    options = myCondorGroups,
+                    nextURI = '/dashboard/?method=list-scopes')
+      else:
+        output += scopes[j]['scope_condor_group_name']
+
+      if j == startOfQuota:
+        # First row has the quota info too  
+        output += ('</td><td style="vertical-align: top" rowspan="%d">'
+               '<a href="/dashboard/?method=show-quota&quota_name=%s">%s</a></td>' 
+               '<td style="vertical-align: top" rowspan="%d">%s</td>' 
+               '<td style="vertical-align: top" rowspan="%d">%s</td>' 
+               '<td style="vertical-align: top" rowspan="%d">%s</td>' 
+               % (1 + endOfQuota - startOfQuota, 
+                  scopes[startOfQuota]['quota_name'], 
+                  scopes[startOfQuota]['quota_name'],
+                  1 + endOfQuota - startOfQuota,
+                  scopes[startOfQuota]['processing_enabled'],
+                  1 + endOfQuota - startOfQuota,
+                  scopes[startOfQuota]['owner'],
+                  1 + endOfQuota - startOfQuota,
+                  scopes[startOfQuota]['max_files_per_workflow'] ))
+      else:
+        # Subsequent rows just have the scope info
+        output += '</td></tr>'
+    
+    if endOfQuota >= len(scopes)-1:
+      # We had already done all the scopes so stop
+      break
+
+    startOfQuota = endOfQuota + 1
+    endofQuota   = startOfQuota
+
+  output += "</table>\n"
+
+  output += footer()
+  return output
+
+def mcrLstScopes(environ, user, cgiValues, pageNumber, pageLength):
   urlTemplate   = '/dashboard/?method=list-scopes&page_number=%d&page_length=%d'
 
   filter_str_items = []
@@ -4464,6 +4596,66 @@ def listScopes(environ, user, cgiValues, pageNumber, pageLength):
   return output
 
 def listQuotas(environ, user, cgiValues, pageNumber, pageLength):
+      
+  output = header(environ, user, "justIN: Named quotas")
+
+  output += ("<h1>Named quotas</h1>\n")
+
+  output += ("<p>Named quotas available for justIN workflows</p>\n")
+  
+  query = ('SELECT wlcg_group_name,condor_group_name,'
+           'max_files_per_workflow,named_quotas.processing_enabled,'
+           'quota_name,principal_name '
+        'FROM named_quotas '
+        'LEFT JOIN wlcg_groups '
+        'ON named_quotas.wlcg_group_id=wlcg_groups.wlcg_group_id '
+        'LEFT JOIN users '
+        'ON named_quotas.user_id=users.user_id '
+        'LEFT JOIN principal_names '
+        'ON principal_names.pn_id=users.main_pn_id '
+        'LEFT JOIN condor_groups '
+        'ON condor_groups.condor_group_id=named_quotas.condor_group_id '
+        'WHERE named_quotas.for_justin '
+        'ORDER BY quota_name')
+
+  quotaRows = justin.select(query)
+
+  output += ('<table class="center">')
+  
+  output += ('<tr>'
+             '<th>Quota</th>'
+             '<th>Processing enabled?</th>'
+             '<th>Owner</th>'
+             '<th>HTCondor Group</th>'
+             '<th>Max input files</th></tr>')
+  
+  for quotaRow in quotaRows:  
+    if quotaRow['wlcg_group_name']:
+      owner = quotaRow['wlcg_group_name']
+    elif quotaRow['principal_name']:
+      owner = quotaRow['principal_name']
+    else:
+      owner = ' '
+
+    output += ('<tr><td><a href="/dashboard/?method=show-quota&quota_name=%s">'
+               '%s</a></td>'
+               '<td>%s</td>' 
+               '<td>%s</td>' 
+               '<td>%s</td>' 
+               '<td>%d</td></tr>' 
+               % (quotaRow['quota_name'], quotaRow['quota_name'],
+                  'Enabled' if quotaRow['processing_enabled'] else 'Disabled',
+                  owner,
+                  quotaRow['condor_group_name'] 
+                  if quotaRow['condor_group_name'] else ' ',
+                  quotaRow['max_files_per_workflow'] ))
+
+  output += ("</table>\n")
+ 
+  output += footer()
+  return output
+
+def mcrListQuotas(environ, user, cgiValues, pageNumber, pageLength):
 
   urlTemplate = '/dashboard/?method=list-quotas&page_number=%d&page_length=%d'
 
@@ -4983,6 +5175,92 @@ def listSites(environ, user, cgiValues):
   return output
 
 def listEntries(environ, user, cgiValues):
+      
+  output = header(environ, user, "justIN: Entries")
+
+  output += ("<h1>Entries</h1>")
+  
+  output += ('<p>Or list <a href="/dashboard/?method=list-sites">all '
+             'sites</a>.</p>')
+  
+  query = ("SELECT DATE(entries.last_osg_seen_time) AS osg_date,"
+           "entries.last_get_jobscript_time,"
+           "site_name,sites.enabled,entry_name,"
+           "gatekeeper,entry_has_gpus,"
+           "entries.always_inner_apptainer,"
+           "entries.max_processors,entries.max_rss_bytes,"
+           "entries.max_wall_seconds "
+           "FROM entries "
+           "LEFT JOIN sites ON sites.site_id=entries.site_id "
+           "WHERE sites.site_id > 0 ORDER BY site_name,entry_name")
+  
+  entryRows = justin.select(query)
+
+  output += ('<table class="center">')
+  
+  output += ('<tr>'
+        '<th>Site name</th>'
+        '<th>Entry name</th>'
+        '<th>Gatekeeper</th>'
+        '<th>RSS(MiB) / processors</th>'        
+        '<th>Wall seconds limit?</th>'
+        '<th>GPUs</th>'
+        '<th>Last job</th>'
+        '<th>Seen in OSG</th>'
+        '<th>Always has<br>inner<br>apptainer</th>'
+        '</tr>')
+
+  lastSiteName = ''
+  for entryRow in entryRows:  
+    if str(entryRow['last_get_jobscript_time']) == justin.unixEpoch:
+      lastGetStageStr = '&nbsp;'
+    else:
+      lastGetStageStr = str(entryRow['last_get_jobscript_time'])
+
+    if entryRow['site_name'] == lastSiteName:
+      output += '<tr><td>&nbsp;</td>'
+    else:
+      lastSiteName = entryRow['site_name']
+      output += ('<tr>'
+              '<td style="font-weight: %s">'
+              '<a href="/dashboard/?method=show-site&site_name=%s">%s</a></td>'
+              % ('bold' if entryRow['enabled'] else 'normal',
+                 entryRow['site_name'], entryRow['site_name'],
+                )
+                )    
+  
+    output += ('<td><a href="/dashboard/?method=show-entry&entry_name=%s">'
+               '%s</a></td>'
+               '<td>%s</td>'
+               '<td>%d&nbsp;/&nbsp;%d =&nbsp;%d</td>'
+               '<td>%d (%d&nbsp;hours)</td>'
+               '<td>%s</td>'
+               '<td>%s</td>'
+               '<td>%s</td>'
+               '<td>%s</td>'
+               '</tr>'
+          % (entryRow['entry_name'],
+             insertWBR(entryRow['entry_name']),
+             insertWBR(entryRow['gatekeeper']),
+             int(entryRow["max_rss_bytes"] / 1048576),
+               entryRow['max_processors'],
+               int(entryRow["max_rss_bytes"] / 
+                   (1048576 * entryRow['max_processors'])),
+             entryRow['max_wall_seconds'],
+               int(entryRow["max_wall_seconds"] / 3600),
+             'TRUE' if entryRow['entry_has_gpus'] else 'False',
+             lastGetStageStr,
+             entryRow['osg_date'],
+             '' if (entryRow['always_inner_apptainer'] == 1) 
+                else bool(entryRow['always_inner_apptainer'])
+            )
+         )    
+
+  output += ("</table>")
+  output += footer()
+  return output
+
+def mcrListEntries(environ, user, cgiValues):
 
   output = header(environ, user, "justIN: Entries")
 
