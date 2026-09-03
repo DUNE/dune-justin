@@ -41,6 +41,7 @@ jobsubJobID     = None
 justinJobSecret = '###justin_job_secret###'
 logsURL         = '###justin_logs_url###'
 jobscriptImage  = '###justin_jobscript_image###'
+campaignID      = ###justin_campaign_id###
 workflowID      = ###justin_workflow_id###
 stageID         = ###justin_stage_id###
 
@@ -405,6 +406,8 @@ def getMetadata(fileName, fileSize, fileAdler32,
 
   metadata['metadata']['dune.workflow']['site_name'] \
    = getJobscriptDict['site_name'] 
+  metadata['metadata']['dune.workflow']['campaign_id'] \
+   = campaignID
   metadata['metadata']['dune.workflow']['workflow_id'] \
    = workflowID
   metadata['metadata']['dune.workflow']['stage_id'] \

@@ -602,7 +602,8 @@ def findSubmittedWorkflows():
 
   try:
     workflows = justin.select('SELECT workflows.workflow_id,scope_name,'
-                    'scopes.condor_group_id,quota_name,principal_name,mql '
+                    'scopes.condor_group_id,quota_name,principal_name,mql,'
+                    'campaign_id '
                     'FROM workflows '
                     'LEFT JOIN scopes '
                     'ON workflows.scope_id=scopes.scope_id '
@@ -656,7 +657,9 @@ def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
 
   workflowID = workflow['workflow_id']
-  justin.logLine('Processing submitted workflow %d' % workflowID)
+  campaignID = workflow['campaign_id']
+  justin.logLine('Processing submitted workflow %d of campaign %d' % 
+                 (workflowID, campaignID))
 
   try:
     condorGroupID = int(workflow['condor_group_id'])
@@ -704,6 +707,7 @@ def processSubmittedWorkflow(workflow):
     
     # If any patterns/datasets are requested, we start creating the datasets
     workflowMetadata = { "workflow_id"     : workflow['workflow_id'],
+                         "campaign_id"     : workflow['campaign_id'],
                          "user"            : workflow['principal_name'],
                          "quota"           : workflow['quota_name'] 
                        }

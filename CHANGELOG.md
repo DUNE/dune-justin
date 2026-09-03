@@ -15,6 +15,7 @@
 - Add justin-registration agent for functionality previously in wrapper jobs
 - Remove justin-rucio-upload command previously used by wrapper jobs
 - Improve justin command platform support, from Jake Calcutt
+- Add campaign_id to dataset and file workflow metadata
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

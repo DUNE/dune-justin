@@ -83,6 +83,7 @@ def submitJobs(numberToSubmit,
                needsInnerApptainer,
                jobscriptImage,
                accountingGroup,
+               campaignID,
                workflowID,
                stageID,
                firstSiteID,
@@ -102,12 +103,13 @@ def submitJobs(numberToSubmit,
   # desiredSiteNames is a comma separated list of jobsub style site names
   # to match GLIDEIN_Site classads and xc`others used by GlideInWMS
 
-  logLine('submitJobs %d %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d %d %.1f %.1f %.1f' %
+  logLine('submitJobs %d %s %s %s %s %s w%ds%d %d %s %s %s %d %d %d %d %d %.1f %.1f %.1f' %
           (numberToSubmit,
                userName,
                needsInnerApptainer,
                jobscriptImage,
                accountingGroup,
+               campaignID,
                workflowID,
                stageID,
                firstSiteID,
@@ -138,6 +140,7 @@ def submitJobs(numberToSubmit,
    ('###justin_job_secret###',                 justinJobSecret),
    ('###justin_logs_url###',                   logsURL),
    ('###justin_instance###',                   justin.instance),
+   ('###justin_campaign_id###',                str(campaignID)),
    ('###justin_workflow_id###',                str(workflowID)),
    ('###justin_stage_id###',                   str(stageID)),
    ('###justin_jobscript_image###',            jobscriptImage),
@@ -429,7 +432,7 @@ def workflowJobs():
   try:
     stagesRows = justin.select(
      'SELECT workflows.workflow_id,stages.stage_id,max_distance,'
-     'wlcg_group_name,stages.processors,stages.gpus,'
+     'wlcg_group_name,stages.processors,stages.gpus,campaign_id,'
      'gpus_min_bytes,gpus_min_runtime,gpus_min_capability,gpus_max_capability,'
      'stages.wall_seconds,stages.rss_bytes,scopes.quota_id,'
      'principal_names.principal_name,condor_group_name,jobscript_image '
@@ -588,6 +591,7 @@ def workflowJobs():
                                             != justin.wrapperJobImage)),
                    jobscriptImage       = stageRow['jobscript_image'],
                    accountingGroup      = condorGroupName,
+                   campaignID           = stageRow['campaign_id'],
                    workflowID           = stageRow['workflow_id'],
                    stageID              = stageRow['stage_id'],
                    classads             = classads,
@@ -637,6 +641,7 @@ def awtJobsToSites():
                                          justin.jobscriptImageSuffix + ':' +               
                                          justin.jobscriptImageVersion),
                  accountingGroup      = 'group_dune.prod',
+                 campaignID           = 1,
                  workflowID           = justin.awtWorkflowID,
                  stageID              = 1,
                  firstSiteID          = row['site_id'],
