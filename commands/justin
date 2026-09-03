@@ -3,6 +3,7 @@
 # justin - justIN command line utility
 #
 # Copyright 2013-26, Andrew McNab for the University of Manchester
+# Copyright 2026, Jake Calcutt for Brookhaven National Laboratory
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -440,15 +441,34 @@ except:
 jsonDict['session']    = session
 jsonDict['secret']     = secret
 
-try:
-  jsonDict['os_release'] = open('/etc/system-release','r').read().strip()
-except:
+# Determine a human-readable OS release string. The server requires this
+# key and fails creating the session with a KeyError if it is missing, so
+# it must always end up defined.
+jsonDict['os_release'] = ''
+
+if platform.system() == 'Darwin':
+  macPlatform = platform.mac_ver()[0]
+  if macPlatform:
+    jsonDict['os_release'] = 'macOS ' + macPlatform
+
+elif platform.system() == 'Linux':
   try:
-    macPlatform = platform.mac_ver()[0]
-    if macPlatform:
-      jsonDict['os_release'] = 'macOS ' + macPlatform
+    # RedHat/Fedora/SL family provide this legacy file
+    jsonDict['os_release'] = open('/etc/system-release','r').read().strip()
   except:
-    jsonDict['os_release'] = ''
+    try:
+      # freedesktop.org os-release, used by Debian/Ubuntu and modern
+      # distros. platform.freedesktop_os_release() was added in Python 3.10.
+      osInfo = platform.freedesktop_os_release()
+      jsonDict['os_release'] = osInfo.get('PRETTY_NAME') or \
+                               osInfo.get('NAME', '')
+    except:
+      pass
+
+if not jsonDict['os_release']:
+  # Generic fallback (Windows/unknown, or the above could not determine it)
+  # Note is this suitable? Maybe we throw an exception here instead
+  jsonDict['os_release'] = platform.platform()
 
 httpRequest = urllib.request.Request(url + '/' + args.command,
                                      data = json.dumps(jsonDict).encode(),

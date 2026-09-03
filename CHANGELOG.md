@@ -14,6 +14,7 @@
 - Force Rucio 38.5.1 and MetaCat 4.1.4 inside justIN containers
 - Add justin-registration agent for functionality previously in wrapper jobs
 - Remove justin-rucio-upload command previously used by wrapper jobs
+- Improve justin command platform support, from Jake Calcutt
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options
