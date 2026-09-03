@@ -113,7 +113,7 @@ RUN mkdir -p /var/lib/justin
 COPY agents/justin-wrapper-job.py        /var/lib/justin/
 COPY agents/justin-wrapper-job.start.sh  /var/lib/justin/
 COPY agents/justin-wrapper-job.finish.sh /var/lib/justin/
-COPY jobutils/justin-get-file            /var/lib/justin/
+COPY agents/justin-get-file              /var/lib/justin/
 
 RUN mkdir /usr/lib/python3.9/site-packages/justin
 COPY modules/       /usr/lib/python3.9/site-packages/justin/

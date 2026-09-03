@@ -44,6 +44,8 @@ jobscriptImage  = '###justin_jobscript_image###'
 campaignID      = ###justin_campaign_id###
 workflowID      = ###justin_workflow_id###
 stageID         = ###justin_stage_id###
+rsesToTry       = 3
+triesPerRSE     = 3
 
 def logLine(text):
   print(time.strftime('%b %d %H:%M:%S ' + text + '\n'))
@@ -914,33 +916,7 @@ try:
   webdavPutFile(resultsResponseDict['user_access_token'], tgzName, logsURL)
 except Exception as e:
   logLine('Failed to upload logs.tgz file: ' + str(e))
-  
-# REMOVEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE!!!!!
-if False:
- # Copy to Fermilab dCache logs store with ifdh
- try:
-  ret = os.system('BEARER_TOKEN_FILE="%s/user_access_token" ifdh mkdir_p %s' 
-         % (justinWorkdir, logsURL))
- except Exception as e:
-  logLine('ifdh mkdir_p %s returns %s' % (logsURL, str(e)))
- else:
-  logLine('ifdh mkdir_p %s returns %d' % (logsURL, ret))
-
-# try:
-#  ret = os.system('ifdh cp --bearer_token_file %s/user_access_token %s %s/%s' 
-#         % (justinWorkdir, tgzName, logsURL, tgzName))
- logLine('BEARER_TOKEN_FILE="%s/user_access_token" ifdh cp %s %s/%s' 
-         % (justinWorkdir, tgzName, logsURL, tgzName))
- ret = 0
-# except Exception as e:
-#  logLine('ifdh cp %s %s/%s returns %s' % (tgzName, logsURL, tgzName, str(e)))
-#  ret = 1
-#  # DO WE WANT RETRIES HERE???
-
- if ret:
   jobAborted(316, 'upload_logs_tgz', '')
- else:
-  logLine('%s uploaded to %s' % (tgzName, logsURL))
 
 # No other uploads if the jobscript returned an error 
 if jobscriptOutcome.returncode != 0:
@@ -1009,11 +985,15 @@ for (fileName, fileMetadata, intPatternID, pattern) in outputFiles:
                          'seconds'    : uploadEndTime - uploadStartTime } )
 
   elif resultsResponseDict['output_rses']:
-    # Uploading file to Rucio managed storage, trying first 3 RSEs
+    # Uploading file to Rucio managed storage, trying first rsesToTry RSEs
+
+    # Make triesPerRSE copies of each RSE name in the list to get more tries
+    rseTriesList = []
+    for rse in resultsResponseDict['output_rses'][:rsesToTry]:
+      rseTriesList += triesPerRSE * [rse]
     
     # Try to upload with rucio
-    for rseDict in resultsResponseDict['output_rses'][:3]:
-# THIS NEEDS A LOOP FOR MULTIPLE TRIES PER RSE
+    for rseDict in rseTriesList:
       logLine('Try Rucio upload of %s:%s to %s' 
               % (jobscriptDict['scope'], fileName, rseDict['rse_name']))
  

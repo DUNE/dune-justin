@@ -71,7 +71,6 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-webdav-upload \
-   $MJU_GIT_DIR/dune-justin/commands/justin-rucio-upload \
    $MJU_GIT_DIR/dune-justin/commands/justin-fetch-logs \
    $MJU_GIT_DIR/dune-justin/commands/metacat-rucio-to-sam \
    $MJU_GIT_DIR/dune-justin/commands/justin-sl7-setup \
@@ -82,14 +81,11 @@ cp $MJU_GIT_DIR/dune-justin/commands/justin.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-test-jobscript.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-cvmfs-upload.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-webdav-upload.1 \
-   $MJU_GIT_DIR/dune-justin/commands/justin-rucio-upload.1 \
    $MJU_GIT_DIR/dune-justin/commands/justin-fetch-logs.1 \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/man/man1
 
 cp $MJU_GIT_DIR/dune-justin/jobutils/justin-allocated-files \
    $MJU_GIT_DIR/dune-justin/jobutils/justin-get-file \
-   $MJU_GIT_DIR/dune-justin/jobutils/justin-job-datasets \
-   $MJU_GIT_DIR/dune-justin/jobutils/pdjson2metadata \
  $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/jobutils
 
 cat <<EOF > $MJU_PRODUCTS/justin/$JUSTIN_VERSION/NULL/ups/justin.table
