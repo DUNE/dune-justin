@@ -50,6 +50,190 @@ sleepSeconds = 60
 class justinError(Exception):
   pass
 
+
+#
+# Start of WebDAV uploads
+#
+
+def webdavCheckRemoteDirectories(sslContext, token, destinationDir):
+
+  dirSplit = destinationDir.split('/')
+
+  # Go down through the directories looking for the highest one that exists
+  for highest in range(len(dirSplit) - 1, 1, -1): 
+  
+    # Don't do the check once we get down to the bare hostname 
+    # But otherwise do stop if the directory exists already
+    if highest > 2 and \
+       webdavRemoteExists(sslContext, token, '/'.join(dirSplit[:highest + 1])):
+      break
+      
+  for i in range(highest+1, len(dirSplit)):
+    webdavRemoteDirCreate(sslContext, token, '/'.join(dirSplit[:i+1]))
+
+def webdavRemoteExists(sslContext, token, url):
+
+  httpRequest = urllib.request.Request(url,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token
+                            },
+                  method = 'HEAD')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    httpCode = response.status 
+    reason   = response.msg
+
+  except urllib.error.URLError as e:
+    httpCode = e.code
+    reason   = e.reason
+
+  except Exception as e:
+    print('Unknown error checking if %s exists: %s' % (url, str(e)), 
+          file=sys.stderr)
+    raise
+
+  if httpCode == 404:
+    print('%s does not exist' % url, file=sys.stderr)
+    return False
+    
+  if httpCode == 200:
+    print('%s exists' % url, file=sys.stderr)
+    return True
+
+  print('Unexpected HTTP code %d when checking for %s' % (httpCode, url),
+        file=sys.stderr)
+  print('Reason: ' + str(reason))
+  raise RuntimeError('Unexpected HTTP code %d' % httpCode)
+  
+def webdavRemoteDirCreate(sslContext, token, url):
+
+  httpRequest = urllib.request.Request(url,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token
+                            },
+                  method = 'MKCOL')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)    
+    httpCode = response.status 
+
+  except urllib.error.URLError as e:
+    # For MKCOL, HTTP code 405 means directory already exists 
+    # http://www.webdav.org/specs/rfc2518.html#rfc.section.8.3.2.p.4
+    # Presumably another job created it ...
+    if e.code == 405:
+      print('%s already exists now!' % url, file=sys.stderr)
+      return
+
+    print('HTTP error: ' + str(e), file=sys.stderr)
+    raise
+    
+  except Exception as e:
+    print('Unknown error: ' + str(e), file=sys.stderr)
+    raise
+  
+  if httpCode == 201:
+    print('%s created, HTTP code %d' % (url, httpCode), file=sys.stderr)
+    return
+
+  print('Unexpected HTTP code %d when creating %s' % (httpCode, url),
+        file=sys.stderr)
+  raise RuntimeError('Unexpected HTTP code %d' % httpCode)
+  
+def webdavPutFile(token, source, destinationDir):
+
+#  destDirSplit = destinationDir.split('/')
+#
+#  # Remove any final "/" and "//" after the one in "https://"
+#  for i in range(2, len(destDirSplit)):
+#    if destDirSplit[i] == '':
+#      destDirSplit.pop(i)
+#      
+#  destinationDir = '/'.join(destDirSplit)
+
+  sslContext = ssl.SSLContext()
+  sslContext.verify_mode = ssl.CERT_REQUIRED
+  sslContext.check_hostname = True
+  sslContext.load_verify_locations(capath = 
+                       '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
+
+  # Check the directory tree already exists and create if necessary
+  webdavCheckRemoteDirectories(sslContext, token, destinationDir)
+
+  sourceFile = source.split('/')[-1]
+  destinationURL = destinationDir + '/' + sourceFile
+    
+  if webdavRemoteExists(sslContext, token, destinationURL):
+    print('File already exists at %s' % destinationURL, file=sys.stderr)
+    raise RuntimeError('File already exists')
+  
+  # Do a PUT to the desired destination, but expect a redirect
+  httpRequest = urllib.request.Request(destinationURL,
+                  headers = { 'User-Agent'     : 'justin-webdav-upload',
+                              'Authorization'  : 'Bearer ' + token,
+                              'Expect'         : '100-continue'
+                            },
+                  method = 'PUT')
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+    # Success is failure as we want a 307 redirect
+    raise RuntimeError('No redirect received')
+
+  except urllib.error.HTTPError as e:
+
+    if e.code == 307:
+      # And failure is success
+      location = e.headers['Location']
+    else:
+      print('Unexpected HTTP code %d when creating %s' 
+            % (e.code, destinationURL), file=sys.stderr)
+      raise
+    
+  except Exception as e:
+    print('Unexpected error when creating %s: %s' 
+          % (str(e), destinationURL), file=sys.stderr)
+    message = e.read().decode('utf-8')
+    print(message, file=sys.stderr)
+    raise
+
+  print('Redirected to %s' % location, file=sys.stderr)
+
+  #
+  # Now use the URL we got from the redirection
+  # 
+  httpRequest = urllib.request.Request(location,
+                  data = open(source, 'rb'),
+                  headers = { 'User-Agent' : 'justin-webdav-upload' },
+                  method = 'PUT')
+
+  # Replace .has_header to prevent the default Content-Type 
+  # IMO dCache should ignore Content-Type rather than reject the workflow
+  httpRequest.has_header \
+   = lambda header_name: (header_name == 'Content-type' or
+                urllib.request.Request.has_header(httpRequest, header_name))
+
+  try:
+    response = urllib.request.urlopen(httpRequest, context = sslContext)
+  except Exception as e:
+    print('Error when creating %s: %s'
+          % (destinationURL, str(e)), file=sys.stderr)
+    raise
+
+  if response.status == 201:
+    # Created successfully
+    print('Created ' + destinationURL)
+    return
+
+  print('Unexpected HTTP code %d when creating %s' 
+        % (response.status, destinationURL), file=sys.stderr)
+  raise RuntimeError('Unexpected HTTP code %d' % response.status)
+#
+# End of WebDAV uploads code
+#
+
+
 def fetchHTCondorJobLog(jobsubID):
 
   try:
@@ -94,8 +278,11 @@ def saveTerminalJobsLogs():
   # that finished in the last week and still have tries left 
   # (so we don't try forever)
   query = ('SELECT jobs.justin_job_id,jobsub_id,job_state,'
-           'jobs.workflow_id,jobs.stage_id,jobs.site_id,jobs.entry_id '
+           'jobs.workflow_id,jobs.stage_id,jobs.site_id,jobs.entry_id,'
+           'users.access_token,logs_url '
            'FROM jobs '
+           'LEFT JOIN workflows ON jobs.workflow_id=workflows.workflow_id '
+           'LEFT JOIN users ON users.user_id=workflows.user_id '
            'WHERE job_state IN (%s) '
            'AND logs_tries_left > 0 '
            'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 7 DAY) '
@@ -106,8 +293,20 @@ def saveTerminalJobsLogs():
 
   # Make a set of unique HTCondor schedd names from the database
   schedds = set()
+  jobs    = {}
   for dbJobRow in dbJobRows:
     schedds.add( dbJobRow['jobsub_id'].split('@',1)[1] )
+    
+    logFile = dbJobRow['jobsub_id'].replace('@','.',1) + '.htcondor.log'
+    # Save the job details - we just need this for the justIN events
+    jobs[dbJobRow[logFile] = {
+          'jobsub_id'     = dbJobRow['jobsub_id'],
+          'justin_job_id' = dbJobRow['justin_job_id'],
+          'workflow_id'   = dbJobRow['worklow_id'],
+          'stage_id'      = dbJobRow['stage_id'],
+          'site_id'       = dbJobRow['site_id'],
+          'entry_id'      = dbJobRow['entry_id']
+                                  }
 
   # Gather details of HTCondor jobs from our set of schedds
   condorJobs = {}  
@@ -176,18 +375,14 @@ def saveTerminalJobsLogs():
     
     if dbJobRow['jobsub_id'] not in condorJobs:
       # if Condor is unaware of the job, then we're never going to get it
-      justin.logLine('Job %s is not known to HTCondor - put placeholder log' 
+      justin.logLine('Job %s is not known to HTCondor - set logs_tries_left=0' 
               % dbJobRow['jobsub_id'])
       try:
-        justin.insertUpdate('UPDATE jobs_logs '
-              'SET saved_time=NOW() '
-              'WHERE justin_job_id=%d' % dbJobRow['justin_job_id'])
-        justin.insertUpdate('UPDATE jobs '
-              'SET logs_tries_left=0 '
+        justin.insertUpdate('UPDATE jobs SET logs_tries_left=0 '
               'WHERE justin_job_id=%d' % dbJobRow['justin_job_id'])
       except Exception as e:
         # Log but otherwise ignore error
-        justin.logLine('Failed to add placeholder wrapper log for %s: %s'
+        justin.logLine('Failed to set logs_tries_left=0 for %s: %s'
                        % (dbJobRow['jobsub_id'], str(e)))
     
       continue      
@@ -202,6 +397,7 @@ def saveTerminalJobsLogs():
       continue
 
     # In a terminal state so try to get the logs and remove from spool
+    # Decrement logs_tries_left to mark this attempt
     try:
       justin.insertUpdate('UPDATE jobs '
                           'SET logs_tries_left=logs_tries_left-1 '
@@ -225,12 +421,38 @@ def saveTerminalJobsLogs():
         justin.logLine('Fetched wrapper job log for %s (%d)' %
                        (dbJobRow['jobsub_id'], dbJobRow['justin_job_id']))
         try:
-          f = open(subprocessDir+'/'+str(dbJobRow['justin_job_id']), 'w')
+          f = open(subprocessDir + '/' + 
+                   dbJobRow['jobsub_id'].replace('@','.',1) + 
+                   '.htcondor.log', 'w')
           f.write(wrapperLog)
           f.close()
         except Exception as e:
           justin.logLine('Failed writing wrapper log for %s: %s' %
                          (dbJobRow['jobsub_id'], str(e)))                         
+
+        else:
+          try:
+            logLine('Uploading %s/%s.htcondor.log' 
+                    % (dbJobRow['logs_url', dbJobRow['jobsub_id']))
+            webdavPutFile(dbJobRow['access_token'],
+                          subprocessDir + '/' + 
+                          dbJobRow['jobsub_id'].replace('@','.',1) + 
+                          '.htcondor.log',
+                          dbJobRow['logs_url')
+
+          except Exception as e:
+            justin.logLine('Failed to save wrapper job log (%s) - skipping'
+                           % str(e))
+            try:
+              # Record upload failures by removing the log file, as if we
+              # failed to fetch it from HTCondor
+              os.remove(subprocessDir + '/' + 
+                        dbJobRow['jobsub_id'].replace('@','.',1) + 
+                        '.htcondor.log')
+            except:
+              pass
+            
+
       sys.exit(0)
           
     # In parent
@@ -269,44 +491,37 @@ def saveTerminalJobsLogs():
 
   # Go through the subprocess outputs and save logs in the database
   numberSaved = 0
-  for justinJobID in os.listdir(subprocessDir):
-    justin.logLine('Processing %s' % justinJobID)
-    try:
-      wrapperLog = open(subprocessDir + '/' + justinJobID, 'r').read()
-    except Exception as e:
-      justin.logLine('Failed reading logs file for %s: %s' %
-                     (justinJobID, str(e)))
-      continue
+  for logFile in os.listdir(subprocessDir):
+    jobsubID = jobs[logFile]['jobsub_id']
+    justin.logLine('Processing %s' % jobsubID)
       
-    # Save the HTCondor job log
     try:
-      justin.insertUpdate('UPDATE jobs_logs '
-              'SET wrapper_log="%s",saved_time=NOW() '
-              'WHERE justin_job_id=%s' % 
-              (wrapperLog.replace('\\','\\\\').replace('"','\\"'), 
-               justinJobID))
+      # If we got the jobsubID from a file then we assume the 
+      # WebDAV upload worked and we're done with this job
       justin.insertUpdate('UPDATE jobs '
               'SET logs_tries_left=0 '
-              'WHERE justin_job_id=%d' % dbJobRow['justin_job_id'])
+              'WHERE justin_job_id=%d' % jobs[logFile]['justin_job_id'])
     except Exception as e:
-      justin.logLine('Failed to save wrapper job log (%s) - skipping'
-                     % str(e))
+      justin.logLine('Failed to update job %s (%s) - skipping'
+                     % (jobsubID, str(e)))
       continue
+
     else:
       justin.logEvent(eventTypeID = justin.event_JOB_HTCONDOR_LOGS_CACHED,
-#                      workflowID  = dbJobRow['workflow_id'],
-#                      stageID     = dbJobRow['stage_id'],
-#                      siteID      = dbJobRow['site_id'],
-#                      entryID     = dbJobRow['entry_id'],
-                      justinJobID = justinJobID)
-    
+                      justinJobID = jobs[logFile]['justin_job_id'],
+                      workflowID  = jobs[logFile]['worklow_id'],
+                      stageID     = jobs[logFile]['stage_id'],
+                      siteID      = jobs[logFile]['site_id'],
+                      entryID     = jobs[logFile]['entry_id'])
+
+    # Whatever else happened, we log that the HTCondor job was removed
     numberSaved += 1
     justin.logEvent(eventTypeID = justin.event_JOB_REMOVED_FROM_HTCONDOR,
-#                      workflowID  = dbJobRow['workflow_id'],
-#                      stageID     = dbJobRow['stage_id'],
-#                      siteID      = dbJobRow['site_id'],
-#                      entryID     = dbJobRow['entry_id'],
-                      justinJobID = justinJobID)
+                      justinJobID = jobs[logFile]['justin_job_id'],
+                      workflowID  = jobs[logFile]['worklow_id'],
+                      stageID     = jobs[logFile]['stage_id'],
+                      siteID      = jobs[logFile]['site_id'],
+                      entryID     = jobs[logFile]['entry_id'])
 
   # All ok, so remove temp directory and commit everything to the DB
   shutil.rmtree(subprocessDir, ignore_errors = True)

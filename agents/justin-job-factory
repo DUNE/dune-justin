@@ -369,6 +369,7 @@ queue %d
     try:
       justinJobID = justin.insertUpdate('INSERT INTO jobs '
                       'SET logs_tries_left=10,'
+                      'logs_url="%s",'
                       'factory_name="%s",'
                       'workflow_id=%d,'
                       'stage_id=%d,'
@@ -381,7 +382,8 @@ queue %d
                       'justin_job_secret="%s",'
                       'jobscript_secret="%s",'
                       'jobsub_id="%d.%d@%s"'
-                      % (os.uname()[1],
+                      % (logsURL,
+                         os.uname()[1],
                          workflowID,
                          stageID,
                          firstSiteID,

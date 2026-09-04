@@ -886,7 +886,7 @@ logLine('Output RSEs: ' + str(resultsResponseDict['output_rses']))
 with open('user-upload-token', 'w') as f:
   f.write(resultsResponseDict['user_access_token'])
 
-# Create a logs.tgz file and upload with ifdh
+# Create a logs.tgz file and upload with WebDAV
 # At the very least jobscript.log and ClassAds logs will be there
 try:
   shutil.copyfile(os.environ['_CONDOR_JOB_AD'],

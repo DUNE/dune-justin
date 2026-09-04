@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
   `jobscript_real_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_cpu_seconds` mediumint unsigned NOT NULL DEFAULT 0,
   `jobscript_max_rss_bytes` bigint unsigned NOT NULL DEFAULT 0,
+  `logs_url` varchar(255) NOT NULL DEFAULT '',
   `logs_tries_left` tinyint(1) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`justin_job_id`),
   KEY `jobsub_id` (`jobsub_id`),
@@ -106,7 +107,6 @@ CREATE TABLE IF NOT EXISTS `jobs` (
 CREATE TABLE IF NOT EXISTS `jobs_logs` (
   `justin_job_id` int(10) unsigned NOT NULL,
   `jobscript_log` text NOT NULL DEFAULT '',
-  `wrapper_log` longtext NOT NULL DEFAULT '',
   `saved_time` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   PRIMARY KEY (`justin_job_id`),
   INDEX `saved_time` (`saved_time`,`justin_job_id`)

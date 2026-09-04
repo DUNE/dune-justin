@@ -3456,8 +3456,7 @@ def showJob(environ, user, cgiValues):
            "jobs.jobscript_exit,"
            "jobs.jobscript_real_seconds,jobs.jobscript_cpu_seconds,"
            "jobs.jobscript_max_rss_bytes,"
-           "logs_tries_left,"
-           "LENGTH(wrapper_log) AS wrapper_log_len "
+           "jobs.logs_tries_left "
            "FROM jobs "
            "LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id "
            "LEFT JOIN users ON workflows.user_id=users.user_id "
@@ -3465,7 +3464,6 @@ def showJob(environ, user, cgiValues):
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
-           "LEFT JOIN jobs_logs ON jobs_logs.justin_job_id=jobs.justin_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   jobRow = justin.select(query, justOne = True)
@@ -3688,21 +3686,14 @@ def showJob(environ, user, cgiValues):
         '<a href="/dashboard/?method=list-events&jobsub_id=%s">'
         'List job events</a> &nbsp; &nbsp; ' % jobsubID)
 
-  if (((jobRow['wrapper_log_len'] is None) or
-       (jobRow['wrapper_log_len'] == 0)) 
-      and
-      ((jobRow['logs_tries_left'] is None) or
-       (jobRow['logs_tries_left'] == 0))
-     ):
-    output += '(HTCondor job logs unavailable)</td></tr>'
-     
-  else:
+  if jobRow['logs_tries_left'] > 0:
     output += ('<a href="/wrapperlogs/%s">'
-               '%s HTCondor job logs</a>'
-               '</td></tr>'
-               % (jobsubID.replace('@','.'),
-                  'Cached' if jobRow['wrapper_log_len'] else 'Live')
-              )
+               'Live HTCondor job logs</a>'
+               '</td></tr>' % jobsubID.replace('@','.'))
+  else:
+    output += ('<a href="https://landscape.fnal.gov/lens/view/job/%s/file'
+               '/%s.htcondor.log">Cached HTCondor job logs</a>'
+               '</td></tr>' % (jobsubID, jobsubID.replace('@','.')))
 
   output += "</table>"
 
