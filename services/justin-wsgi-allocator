@@ -887,7 +887,7 @@ def getJobscriptMethod(startResponse, jsonDict, environ):
              'stage_id=%d '
              'WHERE jobsub_id="%s"'
              % (str(jsonDict['site_job_id']), 
-                justin.unixEpoch,                
+                justin.unixEpoch,
                 'processing' if jsonDict['workflow_id']==justin.awtWorkflowID 
                 else 'started',
                 allocatorName,
@@ -1014,6 +1014,7 @@ def jobAbortedMethod(startResponse, jsonDict):
     justin.insertUpdate(
              'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
+             'finishing_time=NOW() '
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))

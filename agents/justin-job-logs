@@ -270,12 +270,12 @@ def saveTerminalJobsLogs():
 
   nowTime = int(time.time())
 
-  terminalWithQuotes = []
+  terminalWithQuotes = ['"finishing"']
   for i in justin.jobStatesTerminal:
     terminalWithQuotes.append('"%s"' % i)
     
-  # Get a list of jobs in terminal states without saved wrapper logs
-  # that finished in the last week and still have tries left 
+  # Get a list of jobs that are finishing or in terminal states without saved
+  # wrapper logs that finishing in the last week and still have tries left 
   # (so we don't try forever)
   query = ('SELECT jobs.justin_job_id,jobsub_id,job_state,'
            'jobs.workflow_id,jobs.stage_id,jobs.site_id,jobs.entry_id,'
@@ -285,7 +285,7 @@ def saveTerminalJobsLogs():
            'LEFT JOIN users ON users.user_id=workflows.user_id '
            'WHERE job_state IN (%s) '
            'AND logs_tries_left > 0 '
-           'AND jobs.finished_time > DATE_SUB(NOW(),INTERVAL 7 DAY) '
+           'AND jobs.finishing_time > DATE_SUB(NOW(),INTERVAL 7 DAY) '
            'ORDER BY jobs.justin_job_id LIMIT 1000' 
            % ','.join(terminalWithQuotes))
 

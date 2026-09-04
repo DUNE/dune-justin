@@ -3464,6 +3464,7 @@ def showJob(environ, user, cgiValues):
            "ON principal_names.pn_id=users.main_pn_id "
            "LEFT JOIN sites ON jobs.site_id=sites.site_id "
            "LEFT JOIN entries ON jobs.entry_id=entries.entry_id "
+           "LEFT JOIN jobs_logs ON jobs.justin_job_id=jobs_logs.justin_job_id "
            "WHERE jobs.jobsub_id='%s'" % jobsubID)
 
   jobRow = justin.select(query, justOne = True)
