@@ -606,9 +606,6 @@ def makeJobscriptDict(jsonDict, jobDict):
 
   jobscriptDict['jobsub_id']        = jsonDict['jobsub_id']
   jobscriptDict['jobscript_secret'] = jobDict['jobscript_secret']
-  jobscriptDict['sam_web_uri']      = \
-    'https://justin.dune.hep.ac.uk/api/samweb/%s/%s' \
-     % (jsonDict['jobsub_id'], jobDict['jobscript_secret'])
 
   # User defined environment variables for the jobscript
   jobscriptDict['stage_env'] = []
@@ -1414,11 +1411,9 @@ def getFileMethod(startResponse, jsonDict):
                         '500 Internal Server Error',
                         'Unable to update job to processing: ' + str(e))
 
-    if jsonDict['method'] == 'samweb_getnextfile':
-      return httpOK(startResponse, oneFile['pfn'])
 
-    else: # method = 'get_file'
-      return httpOK(startResponse,
+    # method = 'get_file'
+    return httpOK(startResponse,
                     oneFile['file_did'] + ' ' +
                     oneFile['pfn'] + ' ' +
                     oneFile['rse_name'])
@@ -1439,38 +1434,6 @@ def getFileMethod(startResponse, jsonDict):
   return httpOK(startResponse,
                 'No eligible file found',
                 codeStr = '404 Not Found')
-
-def updateFileProcessing(fileIDList,
-                         state, justinJobID, workflowID, stageID):
-  # Exceptions in this function must by handled by the caller!
-
-  testFileIDs = []
-
-  for fileID in fileIDList:
-    testFileIDs.append('file_id=%d' % fileID)
-
-  # Update the files the job did or did not manage to process
-  if testFileIDs:
-
-    if state == 'unprocessed':
-      # If already at max allocations, go to failed rather than unallocated!
-      query = ('UPDATE files SET '
-               'file_state=IF(allocations < max_allocations,'
-               '"unallocated","failed") '
-               'WHERE (' + ' OR '.join(testFileIDs) + ') '
-               'AND justin_job_id=' + str(justinJobID) + ' '
-               'AND workflow_id=' + str(workflowID) + ' '
-               'AND stage_id=' + str(stageID) + ' '
-               'AND file_state="processing"')
-    else:
-      query = ('UPDATE files SET file_state="outputting" '
-               'WHERE (' + ' OR '.join(testFileIDs) + ') '
-               'AND justin_job_id=' + str(justinJobID) + ' '
-               'AND workflow_id=' + str(workflowID) + ' '
-               'AND stage_id=' + str(stageID) + ' '
-               'AND file_state="processing"')
-
-    justin.insertUpdate(query)
     
 # Deal with the output files needed by the next stage
 # Caller must handle exceptions!
@@ -1776,19 +1739,55 @@ def recordResultsMethod(startResponse, jsonDict):
       return httpError(startResponse,
                        '500 Internal Server Error',
                        'Failed updating job: ' + str(e))
-     
-    # Do file allocation resets
+
     try:
-      justin.insertUpdate('UPDATE files SET '
-                          'file_state=IF(allocations < max_allocations,' 
-                          '"unallocated","failed") '
-                          'WHERE justin_job_id=%d AND '
-                          '(file_state="processing" OR file_state="outputting")' 
-                          % justinJobID)
+      # Use the event records to find the right replicas for this job
+      query = ('SELECT events.file_id,file_did,pfn,events.rse_id,'
+               'files.allocations,files.max_allocations '
+               'FROM events '
+               'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
+               'replicas.rse_id=events.rse_id) '
+               'LEFT JOIN files ON events.file_id=files.file_id '
+               'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
+               % (justinJobID, justin.event_FILE_ALLOCATED))
+             
+      jobFiles = justin.select(query)
+
     except Exception as e:
       return httpError(startResponse,
-                       '500 Internal Server Error',
-                       'Failed resetting allocated files: ' + str(e))
+                       '500 Internal Server Error', 
+                       'Failed getting files for the job: ' + str(e))
+
+    for jobFile in jobFiles:
+      # If already at max allocations, go to failed rather than unallocated!
+      justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED_RESET
+                       if jobFile['allocations'] < jobFile['max_allocations']
+                       else justin.event_FILE_SET_TO_FAILED,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      fileID      = jobFile['file_id'],
+                      rseID       = jobFile['rse_id']
+                     )
+      
+      # Reset allocation
+      try:
+        if jobFile['allocations'] < jobFile['max_allocations']:
+          justin.insertUpdate ('UPDATE files SET file_state="unallocated",'
+                               'justin_job_id=0 '
+                               'WHERE file_id=%d AND file_state="processing"' 
+                               % jobFile['file_id'])
+        else:
+          justin.insertUpdate ('UPDATE files SET '
+                               'file_state="failed" '
+                               'WHERE file_id=%d AND file_state="processing"' 
+                               % jobFile['file_id'])
+      except Exception as e:
+        return httpError(startResponse,
+                         '500 Internal Server Error', 
+                         'Failed to reset file allocation: ' + str(e))
 
     # Return 200 OK and a partially filled in resonseDict
     return httpOK(startResponse, 
@@ -1810,7 +1809,8 @@ def recordResultsMethod(startResponse, jsonDict):
 
   try:
     # Use the event records to find the right replicas for this job
-    query = ('SELECT events.file_id,file_did,pfn '
+    query = ('SELECT events.file_id,file_did,pfn,events.rse_id,'
+             'files.allocations,files.max_allocations '
              'FROM events '
              'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
              'replicas.rse_id=events.rse_id) '
@@ -1825,50 +1825,64 @@ def recordResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error', 
                      'Failed getting files for the job: ' + str(e))
 
-  processedFileIDs   = []
-  unprocessedFileIDs = []
-
   for jobFile in jobFiles:
     if jobFile['file_did'] in jsonDict['processed_dids'] or \
        jobFile['pfn'] in jsonDict['processed_pfns']:
-      processedFileIDs.append(jobFile['file_id'])
 
+      # File was processed by jobscript
       justin.logEvent(eventTypeID = justin.event_FILE_PROCESSED,
                       workflowID  = workflowID,
                       stageID     = stageID,
                       justinJobID = justinJobID,
                       siteID      = siteID,
                       entryID     = entryID,
-                      fileID      = jobFile['file_id']
+                      fileID      = jobFile['file_id'],
+                      rseID       = jobFile['rse_id']
                      )
+
+      try:
+        justin.insertUpdate('UPDATE files SET file_state="outputting" '
+                            'WHERE file_id=%d AND file_state="processing"' 
+                            % jobFile['file_id'])
+      except Exception as e:
+        return httpError(startResponse,
+                         '500 Internal Server Error', 
+                         'Failed to set file to outputting: ' + str(e))
+        
     else:
-      print('Set unprocessed',jsonDict['jobsub_id'],
-            jobFile['file_did'],
-            jobFile['pfn'],
-            str(jsonDict['processed_pfns']), file=sys.stderr)
-      unprocessedFileIDs.append(jobFile['file_id'])
+      # File was left unprocessed by jobscript
+      # If already at max allocations, go to failed rather than unallocated!
+      justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED_RESET
+                       if jobFile['allocations'] < jobFile['max_allocations']
+                       else justin.event_FILE_SET_TO_FAILED,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      fileID      = jobFile['file_id'],
+                      rseID       = jobFile['rse_id']
+                     )
+      
+      # Reset allocation
+      try:
+        if jobFile['allocations'] < jobFile['max_allocations']:
+          justin.insertUpdate ('UPDATE files SET file_state="unallocated",'
+                               'justin_job_id=0 '
+                               'WHERE file_id=%d AND file_state="processing"' 
+                               % jobFile['file_id'])
+        else:
+          justin.insertUpdate ('UPDATE files SET '
+                               'file_state="failed" '
+                               'WHERE file_id=%d AND file_state="processing"' 
+                               % jobFile['file_id'])
 
-  # For processed inputs, we just record they got as far as outputting
-  # the corresponding output files, for now 
-  try:
-    updateFileProcessing(processedFileIDs,
-                         'outputting',
-                         justinJobID, workflowID, stageID)
-  except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Failed updating file statuses: ' + str(e))
+      except Exception as e:
+        return httpError(startResponse,
+                         '500 Internal Server Error', 
+                         'Failed to reset file allocation: ' + str(e))
 
-  # For unprocessed inputs, we can put them straight back into the
-  # unprocessed states (unallocated or failed)
-  try:
-    updateFileProcessing(unprocessedFileIDs,
-                         'unprocessed',
-                         justinJobID, workflowID, stageID)
-  except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Failed updating file statuses: ' + str(e))
+  # ---- End of input file handling; start of set up for outputting phase ----
 
   # Get the patterns, including counts of how many input files for each
   # pattern so far. These counts are only used for https:// WebDAV files
@@ -1983,126 +1997,6 @@ def recordResultsMethod(startResponse, jsonDict):
   return httpOK(startResponse, 
                 json.dumps(responseDict))
 
-# Return a list of file DIDs allocated to this job.
-# This can be used by jobscripts which don't have a keep of input
-# DIDs. For example if running lar in legacy sam-web mode.
-def getAllocatedFilesMethod(startResponse, jsonDict):
-
-  if 'jobsub_id' not in jsonDict or \
-     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
-    return httpError(startResponse, 
-                     '400 Bad Request',
-                     'Missing jobsub_id in JSON')
-      
-  try:
-    query = ('SELECT justin_job_id '
-             'FROM jobs WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
-
-    row = justin.select(query, justOne = True)
-    justinJobID  = int(row['justin_job_id'])
-  except Exception as e:
-    return httpError(startResponse,
-                     '404 Not Found',
-                     'Failed to find job: ' + str(e))
-
-  try:
-    # Use the event records to find the right replicas for this job
-    query = ('SELECT file_did FROM events '
-             'LEFT JOIN files ON events.file_id=files.file_id '
-             'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
-             % (justinJobID, justin.event_FILE_ALLOCATED))
-             
-    jobFiles = justin.select(query)
-
-  except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Failed getting files for the job: ' + str(e))
-
-  outputString = ''
-  for jobFile in jobFiles:
-    outputString += jobFile['file_did'] + '\n'
-
-  return httpOK(startResponse, outputString)
-
-# Legacy support for samweb's updateFileStatus method 
-# Only used for putting "consumed" files into the justin "outputting" state
-def samwebUpdateFileStatusMethod(startResponse, jsonDict):
-
-  if 'jobsub_id' not in jsonDict or \
-     not justin.stringIsJobsubID(jsonDict['jobsub_id']):
-    return httpError(startResponse, 
-                     '400 Bad Request',
-                     'Missing jobsub ID in workflow URI')
-
-  try:
-   print('==samwebUpdateFileStatusMethod ' + str(jsonDict), file=sys.stderr)
-  except:
-   pass
-
-  try:
-    status = jsonDict['status'][0]
-  except:
-    return httpOK(startResponse, '')
-
-  if status != 'consumed':
-    # Anything other than 'consumed' status just gets an OK
-    return httpOK(startResponse, '')
-
-  try:
-    pfn = jsonDict['filename'][0]
-
-    if not justin.stringNoQuotes(pfn):
-      raise
-  except:
-    return httpError(startResponse, '400 Bad Request', 'Valid filename missing')
-      
-  try:
-    query = ('SELECT justin_job_id,workflow_id,stage_id '
-             'FROM jobs WHERE jobsub_id="%s"' % jsonDict['jobsub_id'])
-
-    row = justin.select(query, justOne = True)
-
-    justinJobID  = int(row['justin_job_id'])
-    workflowID = int(row['workflow_id'])
-    stageID   = int(row['stage_id'])
-  except:
-    return httpError(startResponse,
-                     '500 Internal Server Error',
-                     'Failed finding job')
-
-  try:
-    query = ('SELECT files.file_id FROM files '
-             'LEFT JOIN replicas ON replicas.file_id=files.file_id '
-             'WHERE files.workflow_id=%d AND files.stage_id=%d '
-             'AND pfn="%s" '
-             'ORDER BY files.file_id LIMIT 1' 
-             % (workflowID, stageID, pfn))
-
-    fileRow = justin.select(query, justOne=True)
-    fileID = fileRow['file_id']
-  except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Failed finding file from PFN: ' + str(e))
-
-  try:
-    query = ('UPDATE files SET file_state="outputting" '
-             'WHERE file_id=%d '
-             'AND justin_job_id=%d '
-             'AND workflow_id=%d '
-             'AND stage_id=%d '
-             'AND file_state="processing"'
-             % (fileID, justinJobID, workflowID, stageID))
-
-    justin.insertUpdate(query)
-  except Exception as e:
-    return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Failed updating file statuses: ' + str(e))
-
-  return httpOK(startResponse, '')
-
 # After the output files have been successfully uploaded, the wrapper job
 # comes back with this method which changes the state of input files from
 # outputting to processed, and of output files from recorded to finding.
@@ -2116,7 +2010,7 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   try:
     query = ('SELECT justin_job_id,workflow_id,stage_id,site_id,entry_id,'
-             'job_state FROM jobs '
+             'job_state,sent_get_file FROM jobs '
              'WHERE jobsub_id="' + jsonDict['jobsub_id'] + '"')
 
     row = justin.select(query, justOne = True)
@@ -2127,6 +2021,7 @@ def confirmResultsMethod(startResponse, jsonDict):
     siteID       = int(row['site_id'])
     entryID      = int(row['entry_id'])
     jobState     = row['job_state']
+    sentGetFile  = bool(row['sent_get_file'])
   except:
     return httpError(startResponse,
                      '500 Internal Server Error',
@@ -2137,17 +2032,6 @@ def confirmResultsMethod(startResponse, jsonDict):
                      '410 Gone',
                      'Cannot confirm results as job already in %s state'
                      % jobState)
-
-  try:
-    justin.insertUpdate('UPDATE files '
-                        'SET file_state="finishing",'
-                        'processed_site_id=%d '
-                        'WHERE file_state="outputting" AND justin_job_id=%d' 
-                        % (siteID, justinJobID))
-  except:
-    return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Updating processed input files')
 
   try:
     fileRows = justin.select('SELECT file_did,file_id,files.creator_stage_id,'
@@ -2241,6 +2125,7 @@ def confirmResultsMethod(startResponse, jsonDict):
                       seconds     = seconds,
                       sizeBytes   = sizeBytes)
 
+      # Failure 
       if retCode:
         outputtingFailed = True
         justin.logEvent(eventTypeID = justin.event_FILE_UPLOAD_FAILED,
@@ -2257,32 +2142,38 @@ def confirmResultsMethod(startResponse, jsonDict):
       return httpError(startResponse,
                        '500 Internal Server Error',
                        'Updating recorded output file: ' + str(e))
+
+  # --- now we update the input files according to what happened ---
+
+  # Get the input files allocated to this job
   try:
-    numProcessedRow = justin.select('SELECT '
-             '(SELECT sent_get_file FROM jobs WHERE justin_job_id=%d) '
-             'AS sent_get_file,'
-             '(SELECT COUNT(*) FROM events WHERE '
-             'events.justin_job_id=%d AND '
-             'events.event_type_id=%d) AS num_processed,'
-             '(SELECT COUNT(*) FROM events WHERE '
-             'events.justin_job_id=%d AND '
-             'events.event_type_id=%d) AS num_allocated'
-             % (justinJobID,
-                justinJobID, justin.event_FILE_PROCESSED,
-                justinJobID, justin.event_FILE_ALLOCATED),
-                                    justOne = True)
-    sentGetFile  = bool(numProcessedRow['sent_get_file'])
-    numProcessed = numProcessedRow['num_processed']
-    numAllocated = numProcessedRow['num_allocated']
+`    query = ('SELECT file_id,file_state FROM files WHERE justin_job_id=%d'
+             % justinJobID)
+
+    inputFileRows = justin.select(query)
   except Exception as e:
     return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Failed to count FILE_PROCESSED events: ' + str(e))
+                     '500 Internal Server Error',
+                     'Failed to get list of input files: ' + str(e))
 
+  inputFileIDs = []
+  numStillAllocated = 0  
+  numProcessed = 0
+
+  for inputFileRow in inputFileRows:
+    inputFileIDs.append(inputFileRow['file_id'])
+    numStillAllocated += 1
+    if inputFileRow['file_state'] == 'processed':
+      numProcessed += 1
+
+  justin.logLine('numRucioOutputFiles = %d' % numRucioOutputFiles)
   # Finish up and update job status
   try:
     # Jobs only finish in the none_processed state if any files were allocated
     # or if they never even asked for any, but not for AWT jobs
+    # We do none_processed here rather than in recordResultsMethod() because
+    # the outputting phase also uploads the log files to Fermilab dCache
+    #
     # Jobs always appear to go through finishing state, with a finishing
     # time and a finishing event even if the finishing->finished state
     # really happens in these few lines rather than the Registration Agent
@@ -2291,7 +2182,7 @@ def confirmResultsMethod(startResponse, jsonDict):
     if workflowID == justin.awtWorkflowID:
       jobState    = 'finished'
       eventTypeID = justin.event_JOB_FINISHED
-    elif (numProcessed == 0 and numAllocated) or not sentGetFile:
+    elif (numProcessed == 0 and numStillAllocated) or not sentGetFile:
       jobState = 'none_processed'
       eventTypeID = justin.event_JOB_FINISHED
     elif outputtingFailed:
@@ -2331,10 +2222,124 @@ def confirmResultsMethod(startResponse, jsonDict):
                       siteID = siteID,
                       entryID = entryID
                      )
+
   except:
     return httpError(startResponse, 
                      '500 Internal Server Error',
                      'Updating job state to finished')
+
+  # Update all the input files according to what happened to the job
+  try:
+    # Use the event records to find the right replicas for this job
+    query = ('SELECT events.file_id,file_did,pfn,events.rse_id,'
+               'files.allocations,files.max_allocations '
+               'FROM events '
+               'LEFT JOIN replicas ON (replicas.file_id=events.file_id AND '
+               'replicas.rse_id=events.rse_id) '
+               'LEFT JOIN files ON events.file_id=files.file_id '
+               'WHERE events.justin_job_id=%d AND events.event_type_id=%d'
+               % (justinJobID, justin.event_FILE_ALLOCATED))
+             
+    jobFiles = justin.select(query)
+
+  except Exception as e:
+    return httpError(startResponse,
+                       '500 Internal Server Error', 
+                       'Failed getting files for the job: ' + str(e))
+
+  for jobFile in jobFiles:
+    if workflowID == justin.awtWorkflowID or \
+       jobState == 'none_processed':
+      continue
+
+    if jobState in ['finishing','finished']:       
+      justin.logEvent(eventTypeID = justin.event_FILE_JOB_INPUT_FINISHED
+                      if jobState == 'finished'
+                      else justin.event_FILE_JOB_INPUT_FINISHING,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      fileID      = jobFile['file_id'],
+                      rseID       = jobFile['rse_id']
+                     )
+   
+      try:
+        # Note: we can only use jobState as FILE state because finishing and
+        # finished are the same strings for file and job states
+        justin.insertUpdate('UPDATE files '
+                   'SET file_state="%s",'
+                   'processed_site_id=%d '
+                   'WHERE file_state="outputting" AND justin_job_id=%d' 
+                   % (jobState, siteID, jobFiles['file_id']))
+
+      except:
+        return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Updating processed input files')
+
+    if jobState == 'outputting_failed':
+
+      # If already at max allocations, go to failed rather than unallocated!
+      justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED_RESET
+                       if jobFile['allocations'] < jobFile['max_allocations']
+                       else justin.event_FILE_SET_TO_FAILED,
+                      workflowID  = workflowID,
+                      stageID     = stageID,
+                      justinJobID = justinJobID,
+                      siteID      = siteID,
+                      entryID     = entryID,
+                      fileID      = jobFile['file_id'],
+                      rseID       = jobFile['rse_id']
+                     )
+      
+      # Reset allocation
+      try:
+        if jobFile['allocations'] < jobFile['max_allocations']:
+          justin.insertUpdate ('UPDATE files SET file_state="unallocated",'
+                               'justin_job_id=0 '
+                               'WHERE file_id=%d AND file_state="outputting"' 
+                               % jobFile['file_id'])
+        else:
+          justin.insertUpdate ('UPDATE files SET '
+                               'file_state="failed" '
+                               'WHERE file_id=%d AND file_state="outputting"' 
+                               % jobFile['file_id'])
+      except Exception as e:
+        return httpError(startResponse,
+                         '500 Internal Server Error', 
+                         'Failed to reset file allocation: ' + str(e))
+
+
+  if jobState in ['finishing','finished']:
+    try:
+        # Note: we can only use jobState as FILE state because finishing and
+        # finished are the same strings for file and job states
+        justin.insertUpdate('UPDATE files '
+                        'SET file_state="%s",'
+                        'processed_site_id=%d '
+                        'WHERE file_state="outputting" AND justin_job_id=%d' 
+                        % (jobState, siteID, justinJobID))
+    except:
+        return httpError(startResponse,
+                     '500 Internal Server Error', 
+                     'Updating processed input files')
+
+  else:
+    # Reset input files if ouputting failed
+    try:
+      justin.insertUpdate('UPDATE files SET '
+               'file_state=IF(allocations < max_allocations,'
+               '"unallocated","failed") '
+               'WHERE (' + ' OR '.join(inputFileIDs) + ') '
+               'AND justin_job_id=' + str(justinJobID) + ' '
+               'AND file_state="outputting"')
+
+    except Exception as e:
+      return httpError(startResponse,
+                   '500 Internal Server Error', 
+                   'Updating input files where outputing failed: ' + str(e))
 
   return httpOK(startResponse, '')
 
@@ -2441,32 +2446,13 @@ def application(environ, startResponse):
   if environ['REQUEST_URI'].startswith('/api/get-classads'):
     return getClassadsCall(startResponse, environ)
 
-  if environ['REQUEST_URI'].startswith('/api/samweb/'):
-    # Legacy samweb support: put values into dictionary
-    try:
-      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-      inputString = environ['wsgi.input'].read(inputLength).decode()
-      jsonDict = urllib.parse.parse_qs(inputString)
-      print('inputString ' + inputString, file=sys.stderr)
-
-      # URIs like /api/samweb/JOBSUBJOBID/SECRET/processes/N/METHOD
-      uriSplit = environ['REQUEST_URI'].split('/')
-      jsonDict['method']           = 'samweb_' + uriSplit[-1].lower()
-      jsonDict['jobsub_id']        = str(uriSplit[3])
-      jsonDict['jobscript_secret'] = str(uriSplit[4])
-
-    except Exception as e:
-      return httpError(startResponse, 
-                       '400 Bad Request', 
-                       'Failed to read and parse workflow: ' + str(e))
-  else:
-    # Standard justIN API based on JSON
-    try:
-      inputLength = int(environ.get('CONTENT_LENGTH', '0'))
-      inputString = environ['wsgi.input'].read(inputLength)
-      jsonDict = json.loads(inputString)
-    except Exception as e:
-      return httpError(startResponse, 
+  # Standard justIN API based on JSON
+  try:
+    inputLength = int(environ.get('CONTENT_LENGTH', '0'))
+    inputString = environ['wsgi.input'].read(inputLength)
+    jsonDict = json.loads(inputString)
+  except Exception as e:
+    return httpError(startResponse, 
                        '400 Bad Request', 
                        'Failed to read and parse JSON')
 
@@ -2482,20 +2468,10 @@ def application(environ, startResponse):
                      '400 Bad Request',
                      'Missing method in JSON')  
 
-  # Legacy samweb updateFileStatus method (only "consumed" does anything)
-  if jsonDict['method'] == 'samweb_updatefilestatus' or \
-     jsonDict['method'] == 'samweb_setstatus':
-    return samwebUpdateFileStatusMethod(startResponse, jsonDict)
-
-  # Return list of file DIDs allocated to this job
-  if jsonDict['method'] == 'get_allocated_files':
-    return getAllocatedFilesMethod(startResponse, jsonDict)
-
   # Get one or more files to process
   # This workflow comes from jobscripts using secrets so we 
   # do not run checkSecretHash() as getFileMethod() checks the secret
-  if jsonDict['method'] == 'get_file' or \
-     jsonDict['method'] == 'samweb_getnextfile':
+  if jsonDict['method'] == 'get_file':
     return getFileMethod(startResponse, jsonDict)
 
   # All other methods are called by the wrapper job using its secret hash

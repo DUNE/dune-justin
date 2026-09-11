@@ -17,6 +17,9 @@
 - Improve justin command platform support, from Jake Calcutt
 - Add campaign_id to dataset and file workflow metadata
 - HTCondor logs are now saved to Fermilab dCache
+- samweb API support and justin-allocated-files jobscript command removed
+- FILE_ALLOCATED_RESET and FILE_SET_TO_FAILED events are now generated when
+  jobscripts do not process files or return errors
 
 ## 01.07.00
 - Replace --gpu with --gpus and add HTCondor-style min GPUs MiB etc options

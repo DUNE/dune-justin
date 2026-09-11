@@ -28,6 +28,7 @@ import shutil
 import hashlib
 import tempfile
 import subprocess
+import urllib
 import urllib.request
 import pathlib
 import xml.dom.minidom
@@ -86,7 +87,6 @@ def webdavRemoteExists(sslContext, token, url):
 
   except urllib.error.URLError as e:
     httpCode = e.code
-    reason   = e.reason
 
   except Exception as e:
     print('Unknown error checking if %s exists: %s' % (url, str(e)), 
@@ -155,8 +155,7 @@ def webdavPutFile(token, source, destinationDir):
   sslContext = ssl.SSLContext()
   sslContext.verify_mode = ssl.CERT_REQUIRED
   sslContext.check_hostname = True
-  sslContext.load_verify_locations(capath = 
-                       '/cvmfs/grid.cern.ch/etc/grid-security/certificates')
+  sslContext.load_verify_locations(capath = '/etc/grid-security/certificates')
 
   # Check the directory tree already exists and create if necessary
   webdavCheckRemoteDirectories(sslContext, token, destinationDir)
@@ -299,13 +298,13 @@ def saveTerminalJobsLogs():
     
     logFile = dbJobRow['jobsub_id'].replace('@','.',1) + '.htcondor.log'
     # Save the job details - we just need this for the justIN events
-    jobs[dbJobRow[logFile] = {
-          'jobsub_id'     = dbJobRow['jobsub_id'],
-          'justin_job_id' = dbJobRow['justin_job_id'],
-          'workflow_id'   = dbJobRow['worklow_id'],
-          'stage_id'      = dbJobRow['stage_id'],
-          'site_id'       = dbJobRow['site_id'],
-          'entry_id'      = dbJobRow['entry_id']
+    jobs[logFile] = {
+          'jobsub_id'     : dbJobRow['jobsub_id'],
+          'justin_job_id' : dbJobRow['justin_job_id'],
+          'workflow_id'   : dbJobRow['workflow_id'],
+          'stage_id'      : dbJobRow['stage_id'],
+          'site_id'       : dbJobRow['site_id'],
+          'entry_id'      : dbJobRow['entry_id']
                                   }
 
   # Gather details of HTCondor jobs from our set of schedds
@@ -432,13 +431,14 @@ def saveTerminalJobsLogs():
 
         else:
           try:
-            logLine('Uploading %s/%s.htcondor.log' 
-                    % (dbJobRow['logs_url', dbJobRow['jobsub_id']))
-            webdavPutFile(dbJobRow['access_token'],
+            justin.logLine('Uploading %s/%s.htcondor.log' 
+                    % (dbJobRow['logs_url'], 
+                       dbJobRow['jobsub_id'].replace('@','.',1)))
+            webdavPutFile(dbJobRow['access_token'].strip(),
                           subprocessDir + '/' + 
                           dbJobRow['jobsub_id'].replace('@','.',1) + 
                           '.htcondor.log',
-                          dbJobRow['logs_url')
+                          dbJobRow['logs_url'])
 
           except Exception as e:
             justin.logLine('Failed to save wrapper job log (%s) - skipping'
@@ -509,7 +509,7 @@ def saveTerminalJobsLogs():
     else:
       justin.logEvent(eventTypeID = justin.event_JOB_HTCONDOR_LOGS_CACHED,
                       justinJobID = jobs[logFile]['justin_job_id'],
-                      workflowID  = jobs[logFile]['worklow_id'],
+                      workflowID  = jobs[logFile]['workflow_id'],
                       stageID     = jobs[logFile]['stage_id'],
                       siteID      = jobs[logFile]['site_id'],
                       entryID     = jobs[logFile]['entry_id'])
@@ -518,7 +518,7 @@ def saveTerminalJobsLogs():
     numberSaved += 1
     justin.logEvent(eventTypeID = justin.event_JOB_REMOVED_FROM_HTCONDOR,
                       justinJobID = jobs[logFile]['justin_job_id'],
-                      workflowID  = jobs[logFile]['worklow_id'],
+                      workflowID  = jobs[logFile]['workflow_id'],
                       stageID     = jobs[logFile]['stage_id'],
                       siteID      = jobs[logFile]['site_id'],
                       entryID     = jobs[logFile]['entry_id'])

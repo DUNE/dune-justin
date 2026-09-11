@@ -632,9 +632,6 @@ with open('home/justin-jobscript-env.sh','w') as f:
   f.write('export JUSTIN_TIMESTAMP=%d\n' % int(time.time()))
   f.write('export JUSTIN_JOBSCRIPT_SECRET=%s\n' 
           % jobscriptDict['jobscript_secret'])
-  f.write('export JUSTIN_SAM_WEB_URI='
-          '"https://justin.dune.hep.ac.uk/api/samweb/%s/%s"\n' 
-          % (jobscriptDict['jobsub_id'], jobscriptDict['jobscript_secret']))
 
 
   if getJobscriptDict['gpu_uuid']:
@@ -644,15 +641,6 @@ with open('home/justin-jobscript-env.sh','w') as f:
 # JSON for justin-get-file command to use
 with open('home/justin-get-file.json', 'w') as f:
   f.write(json.dumps({ 'method' : 'get_file',
-                       'jobsub_id' : jobscriptDict['jobsub_id'],
-                       'jobscript_secret' : jobscriptDict['jobscript_secret']
-                     }
-                    )
-         )
-
-# JSON for justin-allocated-files command to use
-with open('home/justin-allocated-files.json', 'w') as f:
-  f.write(json.dumps({ 'method' : 'get_allocated_files',
                        'jobsub_id' : jobscriptDict['jobsub_id'],
                        'jobscript_secret' : jobscriptDict['jobscript_secret']
                      }

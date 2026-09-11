@@ -17,9 +17,9 @@ used to reference files and scripts provided by justIN.
 To get the details of an input file to work on, the command 
 `$JUSTIN_PATH/justin-get-file` is executed by the jobscript.  This produces 
 a single line of output with the Rucio DID of the chosen file, its PFN on 
-the optimal RSE, and the name of that RSE, all separated by spaces. This 
-code fragment shows how the DID, PFN and RSE can be put into shell 
-variables:
+the optimal RSE which the jobscript must use, and the name of that RSE, all
+separated by spaces. This code fragment shows how the DID, PFN and RSE 
+can be put into shell variables:
 
     did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
     did=`echo $did_pfn_rse | cut -f1 -d' '`

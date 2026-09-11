@@ -192,6 +192,12 @@ eventsList = [
 ('FILE_UPLOAD_FAILED', 
  409,
  'Output file upload failed after all attempts'),
+('FILE_JOB_INPUT_FINISHING', 
+ 410,
+ 'Job processing input file finishing'),
+('FILE_JOB_INPUT_FINISHED', 
+ 411,
+ 'Job processing input file finished'),
 
 # AWT events 
 ('AWT_READ_OK', 
