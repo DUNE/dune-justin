@@ -802,7 +802,15 @@ def modifyWorkflowCmds(startResponse, jsonDict, user):
                     'ON wlcg_groups.wlcg_group_id=named_quotas.wlcg_group_id '
                     'WHERE workflows.workflow_id=%d' % workflowID,
                     justOne = True)
+  except Exception as e:
+    return httpError(startResponse,
+                     '500 Internal Server Error',
+                     'Database error: ' + str(e))
 
+  if row is None:
+    return httpError(startResponse, '404 Not Found', 'No such workflow!')
+
+  try:
     workflowUserID = int(row['user_id'])
     workflowState  = row['workflow_state']
     wlcgGroupName = row['wlcg_group_name']

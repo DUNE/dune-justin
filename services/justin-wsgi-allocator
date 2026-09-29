@@ -2147,7 +2147,7 @@ def confirmResultsMethod(startResponse, jsonDict):
 
   # Get the input files allocated to this job
   try:
-`    query = ('SELECT file_id,file_state FROM files WHERE justin_job_id=%d'
+    query = ('SELECT file_id,file_state FROM files WHERE justin_job_id=%d'
              % justinJobID)
 
     inputFileRows = justin.select(query)
@@ -2156,7 +2156,6 @@ def confirmResultsMethod(startResponse, jsonDict):
                      '500 Internal Server Error',
                      'Failed to get list of input files: ' + str(e))
 
-  inputFileIDs = []
   numStillAllocated = 0  
   numProcessed = 0
 
@@ -2272,14 +2271,14 @@ def confirmResultsMethod(startResponse, jsonDict):
                    'SET file_state="%s",'
                    'processed_site_id=%d '
                    'WHERE file_state="outputting" AND justin_job_id=%d' 
-                   % (jobState, siteID, jobFiles['file_id']))
+                   % (jobState, siteID, jobFile['file_id']))
 
       except:
         return httpError(startResponse,
                      '500 Internal Server Error', 
                      'Updating processed input files')
 
-    if jobState == 'outputting_failed':
+    elif jobState == 'outputting_failed':
 
       # If already at max allocations, go to failed rather than unallocated!
       justin.logEvent(eventTypeID = justin.event_FILE_ALLOCATED_RESET
@@ -2310,36 +2309,6 @@ def confirmResultsMethod(startResponse, jsonDict):
         return httpError(startResponse,
                          '500 Internal Server Error', 
                          'Failed to reset file allocation: ' + str(e))
-
-
-  if jobState in ['finishing','finished']:
-    try:
-        # Note: we can only use jobState as FILE state because finishing and
-        # finished are the same strings for file and job states
-        justin.insertUpdate('UPDATE files '
-                        'SET file_state="%s",'
-                        'processed_site_id=%d '
-                        'WHERE file_state="outputting" AND justin_job_id=%d' 
-                        % (jobState, siteID, justinJobID))
-    except:
-        return httpError(startResponse,
-                     '500 Internal Server Error', 
-                     'Updating processed input files')
-
-  else:
-    # Reset input files if ouputting failed
-    try:
-      justin.insertUpdate('UPDATE files SET '
-               'file_state=IF(allocations < max_allocations,'
-               '"unallocated","failed") '
-               'WHERE (' + ' OR '.join(inputFileIDs) + ') '
-               'AND justin_job_id=' + str(justinJobID) + ' '
-               'AND file_state="outputting"')
-
-    except Exception as e:
-      return httpError(startResponse,
-                   '500 Internal Server Error', 
-                   'Updating input files where outputing failed: ' + str(e))
 
   return httpOK(startResponse, '')
 
