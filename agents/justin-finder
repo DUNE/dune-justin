@@ -636,7 +636,7 @@ def findSubmittedWorkflows():
       justin.conn.commit()
 
 def createDataset(datasetScope, datasetName, metadata, parentName = None):
-  # Create a pair of MetaCat and Rucio datasets
+  # Create a pair of MetaCat and Rucio datasets. Exceptions handled by parent.
 
   justin.logLine('Creating MetaCat dataset %s:%s' % (datasetScope, datasetName))
 
@@ -649,9 +649,16 @@ def createDataset(datasetScope, datasetName, metadata, parentName = None):
 
   justin.logLine('Creating Rucio dataset %s:%s' % (datasetScope, datasetName))
 
-  # Container datasets in Rucio have to be declared as containers
-  # All the datasets in the Finder are containers. The Registration Agent creates the true datasets
+  # Container datasets in Rucio have to be declared as containers.
+  # All the datasets in the Finder are containers. 
+  # The Registration Agent creates the true datasets.
   didClientRucio.add_container(datasetScope, datasetName)
+
+  if parentName:
+    didClientRucio.attach_dids(datasetScope, datasetScope + ':' + parentName,
+                               [{'scope' : datasetScope,
+                                 'name'  : datasetName
+                                }])
 
 def processSubmittedWorkflow(workflow):
   # Process a single workflow, raising exceptions on errors
@@ -716,7 +723,7 @@ def processSubmittedWorkflow(workflow):
     createDataset(workflow['scope_name'], 
                   '%s-w%d' % (justin.instance, workflow['workflow_id']),
                   workflowMetadata)
-
+      
     try:
       query = ('INSERT INTO workflows_datasets SET '
                'dataset_created=NOW(),'

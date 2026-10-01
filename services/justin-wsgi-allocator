@@ -1011,7 +1011,7 @@ def jobAbortedMethod(startResponse, jsonDict):
     justin.insertUpdate(
              'UPDATE jobs SET job_state="%s",'
              'heartbeat_time=NOW(),'
-             'finishing_time=NOW() '
+             'finishing_time=NOW(),'
              'finished_time=NOW() '
              'WHERE jobsub_id="%s"' %
              (state, jsonDict['jobsub_id']))
@@ -2160,9 +2160,11 @@ def confirmResultsMethod(startResponse, jsonDict):
   numProcessed = 0
 
   for inputFileRow in inputFileRows:
-    inputFileIDs.append(inputFileRow['file_id'])
+#    inputFileIDs.append(inputFileRow['file_id'])
     numStillAllocated += 1
-    if inputFileRow['file_state'] == 'processed':
+    if inputFileRow['file_state'] == 'outputting':
+      # Input files still associated with this job and in the outputting state
+      # got there by being successful reported as processed by the jobscript
       numProcessed += 1
 
   justin.logLine('numRucioOutputFiles = %d' % numRucioOutputFiles)
@@ -2270,8 +2272,9 @@ def confirmResultsMethod(startResponse, jsonDict):
         justin.insertUpdate('UPDATE files '
                    'SET file_state="%s",'
                    'processed_site_id=%d '
-                   'WHERE file_state="outputting" AND justin_job_id=%d' 
-                   % (jobState, siteID, jobFile['file_id']))
+                   'WHERE file_state="outputting" AND justin_job_id=%d '
+                   'AND file_id=%d' 
+                   % (jobState, siteID, justinJobID, jobFile['file_id']))
 
       except:
         return httpError(startResponse,
@@ -2298,13 +2301,15 @@ def confirmResultsMethod(startResponse, jsonDict):
         if jobFile['allocations'] < jobFile['max_allocations']:
           justin.insertUpdate ('UPDATE files SET file_state="unallocated",'
                                'justin_job_id=0 '
-                               'WHERE file_id=%d AND file_state="outputting"' 
-                               % jobFile['file_id'])
+                               'WHERE file_id=%d AND file_state="outputting" '
+                               'AND justin_job_id=%d' 
+                               % (jobFile['file_id'], justinJobID))
         else:
           justin.insertUpdate ('UPDATE files SET '
                                'file_state="failed" '
-                               'WHERE file_id=%d AND file_state="outputting"' 
-                               % jobFile['file_id'])
+                               'WHERE file_id=%d AND file_state="outputting" '
+                               'AND justin_job_id=%d' 
+                               % (jobFile['file_id'], justinJobID))
       except Exception as e:
         return httpError(startResponse,
                          '500 Internal Server Error', 

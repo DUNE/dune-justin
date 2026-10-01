@@ -318,6 +318,20 @@ def findFinishingJobs():
                           datasetDict['child_dataset'],
                           str(e)))
         return
+       
+      try: 
+        didClientRucio.attach_dids(datasetDict['scope_name'],
+                                   datasetDict['child_dataset'],        
+                                   [{'scope' : datasetDict['scope_name'],
+                                     'name'  : datasetDict['parent_dataset']
+                                    }])
+      except Exception as e:
+        justin.logLine('Failed to attach Rucio child dataset %s:%s '
+                       'with error %s' 
+                       % (datasetDict['scope_name'],
+                          datasetDict['child_dataset'],
+                          str(e)))
+        return
 
       try:
         ruleClientRucio.add_replication_rule(
@@ -436,6 +450,8 @@ def findFinishingJobs():
 
     metacatConfirmFiles = []    
     try:
+      # Update the output files, either to finished or unallocted if
+      # the file is an input for another stage
       for fileDict in jobDict['files_list']:
           justin.insertUpdate('UPDATE files SET '
             'file_state=IF(stage_id > 0,"unallocated","finished") '
@@ -443,6 +459,8 @@ def findFinishingJobs():
           metacatConfirmFiles.append({ 'namespace': jobDict['scope_name'],
                                        'name':      fileDict['file_name'] })  
 
+      # Update all the input files of this job to finished
+# THIS SHOULD GO THROUGH INPUT FILES ONE BY ONE TO GENERATE PER-FILE EVENTS
       justin.insertUpdate('UPDATE files SET file_state="finished" '
                         'WHERE justin_job_id=%d' % jobDict['justin_job_id'])
 
