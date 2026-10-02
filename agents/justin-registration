@@ -86,6 +86,8 @@ def getWorkflowsDatasets():
   return datasetsList    
   
 def findFinishingJobs():
+  global clientMetaCat, didClientRucio, repClientRucio, ruleClientRucio
+
   # Find jobs in the finishing state, register their output files, and mark
   # jobs as finished
   
@@ -100,6 +102,16 @@ def findFinishingJobs():
                  % len(existingDatasets))
 
   # Find finishing jobs and their output files
+  #
+  # We order by quota_name so all the files, datasets etc are owned by the
+  # same MetaCat and Rucio account when we do their API calls. There is a 
+  # risk that quotas with high quota_id WILL BE STARVED during busy periods.
+  #
+  # Then by workflow and stage IDs so output files tend to go into the same
+  # dataset(s). Then by justin_job_id so we get outputs from each job grouped
+  # together as we enforced all or nothing registration for each job's output 
+  # files
+  #
   # We limit this to maxFilesPerBulk + 1 to get the start of the next
   # job's files to detect the end of the last job we actually want
   try:
@@ -107,7 +119,7 @@ def findFinishingJobs():
              'file_metadata,number_in_pattern,scope_name,files.file_did,'
              'stages_outputs.lifetime_seconds,jobs.workflow_id,jobs.stage_id,'
              'stages_outputs.pattern_id,files.size_bytes,rse_name,adler32,'
-             'jobsub_id,jobs.site_id,jobs.entry_id,'
+             'jobsub_id,jobs.site_id,jobs.entry_id,quota_name,'
              '(SELECT GROUP_CONCAT(rse_name SEPARATOR "|") '
              'FROM stages_output_storages '
              'LEFT JOIN storages '
@@ -117,6 +129,7 @@ def findFinishingJobs():
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
+             'LEFT JOIN quotas ON named_quotas.quota_id=scopes.quota_id '
              'LEFT JOIN files '
              'ON files.creator_justin_job_id=jobs.justin_job_id '
              'AND files.file_state="registering" '
@@ -130,7 +143,8 @@ def findFinishingJobs():
              'AND files.creator_pattern_id=stages_outputs.pattern_id '
              'WHERE job_state="finishing" AND files.file_id IS NOT NULL '
              'AND replicas.replica_id IS NOT NULL AND workflow_state="running" '
-             'ORDER BY jobs.workflow_id,jobs.stage_id,justin_job_id,file_id '
+             'ORDER BY scopes.quota_id,jobs.workflow_id,jobs.stage_id,'
+             'justin_job_id,file_id '
              'LIMIT %d' % (maxFilesPerBulk + 1))
 
     jobsFilesRows = justin.select(query)
@@ -145,10 +159,19 @@ def findFinishingJobs():
   jobDict            = {}
   numFiles           = 0
   currentJustinJobId = 0
+  quotaName          = None
 
   jobsFilesRowsList = list(jobsFilesRows)
-  
+
   for jobFileRow in jobsFilesRowsList:
+
+    if quotaName is None:
+      # Get quota name from first job we see
+      quotaName = jobFileRow['quota_name']
+    else if quotaName != jobFileRow['quota_name']:
+      # If quota name changes, then stop so all files are owned by the same
+      # MetaCat/Rucio account name      
+      break
   
     if jobFileRow['justin_job_id'] != currentJustinJobId:
       # Starting a new job, so saved previous job dict ...
@@ -275,6 +298,20 @@ def findFinishingJobs():
           'name'  : fileDict['file_name']
         })
 
+  # Log in as quotaName. We got quotaName inside the job files loop.
+  metacatRucioLogins(quotaName)
+  if clientMetaCat == None:
+    justin.logLine('Failed to contact MetaCat - skip cycle')
+    return
+
+  if didClientRucio == None \
+     or repClientRucio == None \
+     or ruleClientRucio == None:
+    justin.logLine('Failed to contact Rucio - skip cycle')
+    return
+    
+  justin.logLine('Logged into MetaCat and Rucio as %s' % quotaName)
+
   justin.logLine('Creating %d numbered datasets' % len(datasetsDict))
 
   for datasetDictName in datasetsDict:
@@ -321,9 +358,9 @@ def findFinishingJobs():
        
       try: 
         didClientRucio.attach_dids(datasetDict['scope_name'],
-                                   datasetDict['child_dataset'],        
+                                   datasetDict['parent_dataset'],        
                                    [{'scope' : datasetDict['scope_name'],
-                                     'name'  : datasetDict['parent_dataset']
+                                     'name'  : datasetDict['child_dataset']
                                     }])
       except Exception as e:
         justin.logLine('Failed to attach Rucio child dataset %s:%s '
@@ -512,28 +549,48 @@ def findFinishingJobs():
     # We commit at the job level
     justin.conn.commit()                        
 
-def oneCycle():
+def metacatRucioLogins(accountName):
   global clientMetaCat, didClientRucio, repClientRucio, ruleClientRucio
+
+# REMOVE THIS ONCE WE GET RID OF THE usertests Scope
+  if accountName == 'usertests':
+    accountName = 'dunepro'
   
   try:
     clientMetaCat = \
       metacat.webapi.MetaCatClient(server_url = justin.metacatServerInputsURL, 
-                              auth_server_url = justin.metacatAuthServerURL)
-    clientMetaCat.login_x509('dunepro', justin.jobsProductionProxyFile)    
+                               auth_server_url = justin.metacatAuthServerURL)
+    clientMetaCat.login_x509(accountName, justin.jobsProductionProxyFile)    
 
   except Exception as e:
     justin.logLine('Failed to contact MetaCat: ' + str(e))
     clientMetaCat = None
 
   try:
-    didClientRucio  = rucio.client.didclient.DIDClient()
-    repClientRucio  = rucio.client.replicaclient.ReplicaClient()
-    ruleClientRucio = rucio.client.ruleclient.RuleClient()
+    didClientRucio = rucio.client.didclient.DIDClient(account = accountName)
+    repClientRucio = rucio.client.replicaclient.ReplicaClient(account 
+                                                              = accountName)
+    ruleClientRucio = rucio.client.ruleclient.RuleClient(account
+                                                         = accountName)
   except Exception as e:
     justin.logLine('Failed to contact Rucio: ' + str(e))
-    didClientRucio  = None
-    repClientRucio  = None
+    didClientRucio = None
+    repClientRucio = None
     ruleClientRucio = None
+
+def oneCycle():
+  metacatRucioLogins('dunepro')
+  if clientMetaCat == None:
+    justin.logLine('Failed to contact MetaCat - skip cycle')
+    return
+
+  if didClientRucio == None \
+     or repClientRucio == None \
+     or ruleClientRucio == None:
+    justin.logLine('Failed to contact Rucio - skip cycle')
+    return
+    
+  justin.logLine('Logged into MetaCat and Rucio')
 
   pingRucioMilliseconds = justin.pingRucioMilliseconds()
 
