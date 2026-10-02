@@ -129,7 +129,7 @@ def findFinishingJobs():
              'FROM jobs '
              'LEFT JOIN workflows ON workflows.workflow_id=jobs.workflow_id '
              'LEFT JOIN scopes ON scopes.scope_id=workflows.scope_id '
-             'LEFT JOIN quotas ON named_quotas.quota_id=scopes.quota_id '
+             'LEFT JOIN named_quotas ON named_quotas.quota_id=scopes.quota_id '
              'LEFT JOIN files '
              'ON files.creator_justin_job_id=jobs.justin_job_id '
              'AND files.file_state="registering" '
@@ -168,7 +168,7 @@ def findFinishingJobs():
     if quotaName is None:
       # Get quota name from first job we see
       quotaName = jobFileRow['quota_name']
-    else if quotaName != jobFileRow['quota_name']:
+    elif quotaName != jobFileRow['quota_name']:
       # If quota name changes, then stop so all files are owned by the same
       # MetaCat/Rucio account name      
       break
