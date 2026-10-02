@@ -511,6 +511,8 @@ def findFinishingJobs():
                       siteID = jobDict['site_id'],
                       entryID = jobDict['entry_id'])
 
+      justin.logLine('Job %s updated in database' % jobDict['jobsub_id'])
+
     except Exception as e:
       # If anything goes wrong with recording in the justIN database,
       # we roll back everything for this job. justIN will try again for this
@@ -533,6 +535,7 @@ def findFinishingJobs():
       # THIS FUNCTION IS DEPRECATED BUT HAS THE ADVANTAGE OF DOING ALL
       # THE OUTPUT FILES IN ONE GO. WE CAN CHANGE TO update_file AND
       # INCREASE THE NUMBER OF METACAT API CALLS IF NECESSARY ...
+      justin.logLine('Update dune.output_status to confirmed')
       clientMetaCat.update_file_meta({ 'dune.output_status': 'confirmed' },
                                        files = metacatConfirmFiles,
                                        mode  = 'update')
@@ -560,7 +563,8 @@ def metacatRucioLogins(accountName):
     clientMetaCat = \
       metacat.webapi.MetaCatClient(server_url = justin.metacatServerInputsURL, 
                                auth_server_url = justin.metacatAuthServerURL)
-    clientMetaCat.login_x509(accountName, justin.jobsProductionProxyFile)    
+    # For MetaCat we always use the dunepro account, not the quota name
+    clientMetaCat.login_x509('dunepro', justin.jobsProductionProxyFile)    
 
   except Exception as e:
     justin.logLine('Failed to contact MetaCat: ' + str(e))
