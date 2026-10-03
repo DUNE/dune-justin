@@ -416,6 +416,8 @@ def getMetadata(fileName, fileSize, fileAdler32,
    = stageID
   metadata['metadata']['dune.workflow']['user'] \
    = jobscriptDict['principal_name']
+  metadata['metadata']['dune.workflow']['quota'] \
+   = jobscriptDict['quota_name']
   metadata['metadata']['dune.workflow']['hostname'] \
    = getJobscriptDict['hostname']
 
