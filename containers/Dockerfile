@@ -70,7 +70,9 @@ RUN yum install -y ca_policy_igtf-classic
 # Install the logstash repo and logstash
 COPY containers/logstash.repo /etc/yum.repos.d/logstash.repo
 RUN yum install -y sudo logstash
-RUN /usr/share/logstash/bin/logstash-plugin install logstash-output-opensearch
+#RUN /usr/share/logstash/bin/logstash-plugin install logstash-output-opensearch
+# ABOVE FAILS WITH Error: Your application used more memory than the safety cap of 1G.
+# CAUSING THE WHOLE CONTAINER BUILD TO FAIL
 
 # We only install crond for the automatic update of VOMS proxies
 # Unless we have another use for it, it can go away when they do
